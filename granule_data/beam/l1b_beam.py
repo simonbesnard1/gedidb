@@ -1,14 +1,8 @@
-import pandas as pd
 import geopandas as gpd
 
-from granule_data.granule import Granule, Beam, QDEGRADE
+from granule_data.granule.granule import Granule, QDEGRADE
+from granule_data.beam.beam import Beam
 from constants import WGS84
-
-
-class L1BGranule(Granule):
-
-    def __init__(self, file_path):
-        super().__init__(file_path)
 
 
 class L1BBeam(Beam):
@@ -16,12 +10,15 @@ class L1BBeam(Beam):
     def __init__(self, granule: Granule, beam: str):
         super().__init__(granule, beam)
 
+    def quality_filter(self):
+        print(NotImplementedError)
+
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
         if self._shot_geolocations is None:
             self._shot_geolocations = gpd.points_from_xy(
-                x=self["lon_lowestmode"],
-                y=self["lat_lowestmode"],
+                x=self["geolocation/longitude_lastbin"],
+                y=self["geolocation/latitude_lastbin"],
                 crs=WGS84,
             )
         return self._shot_geolocations

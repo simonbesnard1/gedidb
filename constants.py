@@ -7,6 +7,7 @@ class GediProduct(Enum):
     L2B = "level2B"
     # L3 = "level3"
     L4A = "level4A"
+    L4C = "level4C"
 
 
 WGS84 = "EPSG:4326"

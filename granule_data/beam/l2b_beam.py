@@ -1,15 +1,9 @@
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-
-from granule_data.granule import Granule, Beam, QDEGRADE
+from granule_data.granule.granule import Granule, QDEGRADE
+from granule_data.beam.beam import Beam
 from constants import WGS84
-
-
-class L2BGranule(Granule):
-
-    def __init__(self, file_path):
-        super().__init__(file_path)
 
 
 class L2BBeam(Beam):
@@ -21,14 +15,13 @@ class L2BBeam(Beam):
     def shot_geolocations(self) -> gpd.array.GeometryArray:
         if self._shot_geolocations is None:
             self._shot_geolocations = gpd.points_from_xy(
-                x=self["lon_lowestmode"],
-                y=self["lat_lowestmode"],
+                x=self['geolocation/lon_lowestmode'],
+                y=self['geolocation/lat_lowestmode'],
                 crs=WGS84,
             )
         return self._shot_geolocations
 
     def quality_filter(self):
-
         filtered = self.main_data
 
         filtered["elevation_difference_tdx"] = (
@@ -74,6 +67,7 @@ class L2BBeam(Beam):
         self._cached_data = filtered
 
     def _get_main_data_dict(self) -> dict:
+
         gedi_l2b_count_start = pd.to_datetime("2018-01-01T00:00:00Z")
         data = {
             # General identifiable data

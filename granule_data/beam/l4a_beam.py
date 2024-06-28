@@ -1,14 +1,9 @@
 import pandas as pd
 import geopandas as gpd
 
-from granule_data.granule import Granule, Beam, QDEGRADE
+from granule_data.granule.granule import Granule, QDEGRADE
+from granule_data.beam.beam import Beam
 from constants import WGS84
-
-
-class L4AGranule(Granule):
-
-    def __init__(self, file_path):
-        super().__init__(file_path)
 
 
 class L4ABeam(Beam):
@@ -75,7 +70,7 @@ class L4ABeam(Beam):
             "beam_name": [self.name] * self.n_shots,
             # Temporal data
             "delta_time": self["delta_time"][:],
-            "absolute_time": ( gedi_l4a_count_start + pd.to_timedelta(self["delta_time"], unit="seconds")),
+            "absolute_time": (gedi_l4a_count_start + pd.to_timedelta(self["delta_time"], unit="seconds")),
             # Quality data
             "sensitivity_a0": self["sensitivity"][:],
             "sensitivity_a2": self["geolocation/sensitivity_a2"][:],
