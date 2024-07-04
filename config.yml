@@ -1,0 +1,37 @@
+# Quality filters for the different granules
+
+quality_filters:
+  level_2a:
+    # elevation_difference_tdx : = elev_lowestmode - digital_elevation_model
+    # initial filtering
+    quality_flag : == 1
+    sensitivity_a0 : '>= 0.9 and <= 1.0'
+    sensitivity_a2 : '> 0.95 and <= 1.0'
+    # ADD: degrade_flag isin QDEGRADE
+    # secondary filtering
+    rh_100 : '>= 0 and < 120'
+    surface_flag : == 1
+    elevation_difference_tdx : '> -150 and < 150'
+    drop:
+      quality_flag,
+      surface_flag
+
+  level_2b:
+    # elevation_difference_tdx = elev_lowestmode - digital_elevation_model
+    # initial filtering
+    l2a_quality_flag : == 1
+    l2b_quality_flag : == 1
+    sensitivity : '>= 0.9 and <= 1.0'
+    # degrade_flag isin QDEGRADE
+    # secondary filtering
+    rh100 : '>= 0 and < 12000'
+    surface_flag : == 1
+    elevation_difference_tdx : '> -150 and < 150'
+    water_persistence : < 10
+    urban_proportion : < 50
+    pai : '!= -9999.0'
+    drop:
+      l2a_quality_flag
+      l2b_quality_flag
+      algorithmrun_flag
+      surface_flag

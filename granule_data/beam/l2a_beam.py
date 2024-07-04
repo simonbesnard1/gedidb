@@ -1,5 +1,7 @@
 import pandas as pd
 import geopandas as gpd
+import yaml
+
 from granule_data.granule.granule import Granule, QDEGRADE
 from granule_data.beam.beam import Beam
 from constants import WGS84
@@ -21,12 +23,23 @@ class L2ABeam(Beam):
         return self._shot_geolocations
 
     def quality_filter(self):
+
         filtered = self.main_data
 
         filtered["elevation_difference_tdx"] = (
                 filtered["elev_lowestmode"] - filtered["digital_elevation_model"]
         )
 
+        with open('../config.yml') as f:
+            CONFIG = yaml.safe_load(f)
+
+        for key, value in CONFIG["quality_filters"]['level_2a'].items():
+
+            if key != 'drop':
+
+                filtered = filtered.query(f"{key} {value}")
+
+        """
         filtered = filtered[
             # initial filtering
             (filtered["quality_flag"] == 1)
@@ -46,6 +59,7 @@ class L2ABeam(Beam):
             & (filtered["elevation_difference_tdx"] < 150)
             # missing water_persistence & urban_proportion
             ]
+        """
 
         filtered = filtered.drop(
             [

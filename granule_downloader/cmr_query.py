@@ -25,14 +25,14 @@ CMR_PRODUCT_IDS = {
 
 def granule_query(
         product: GediProduct,
-        geom: str,
+        geom: gpd.GeoSeries,
         start_date: datetime = None,
         end_date: datetime = None,
-        out_dir: str = None,
         page_size: int = 2000,
         page_num: int = 1
 ) -> pd.DataFrame:
-    cmr_params = _construct_query_params(product, geom, (start_date, end_date), page_size, 1)
+
+    cmr_params = _construct_query_params(product, geom, start_date, end_date, page_size, page_num)
 
     granule_data = []
     while True:
@@ -46,6 +46,12 @@ def granule_query(
             page_num += 1
         else:
             break
+
+    """
+    
+    
+    
+    """
 
     granule_data = [{
         'id': _get_id(item),
@@ -68,26 +74,31 @@ def granule_query(
 
 def _construct_query_params(
         product: GediProduct,
-        geom: str,
-        date_range: (datetime, datetime),
+        geom: gpd.GeoSeries,
+        start_date: datetime,
+        end_date: datetime,
         page_size: int,
         page_num: int,
 ) -> dict:
+
     cmr_params = {
         "collection_concept_id": CMR_PRODUCT_IDS[product],
         "page_size": page_size,
         "page_num": page_num,
         "bounding_box": _construct_spacial_params(geom),
-        "temporal": _construct_temporal_params(date_range)
+        "temporal": _construct_temporal_params(start_date, end_date)
     }
 
     return cmr_params
 
 
 def _construct_temporal_params(
-        date_range: (datetime, datetime)
+        start_date: datetime,
+        end_date: datetime
 ) -> str:
-    start_date, end_date = date_range
+
+    # TODO: h/m/s?
+
     if start_date and end_date:
         if start_date > end_date:
             raise ValueError("Start date must be before end date")
@@ -101,19 +112,15 @@ def _construct_temporal_params(
 
 
 def _construct_spacial_params(
-        geom: str
+        geom: gpd.GeoSeries
 ) -> str:
-    # TODO: different inputs? GeoPandaDataframe / String Filepath
-    # TODO: fix this
-    try:
-        _df = gpd.read_file(geom)
-        return ','.join([str(x) for x in _df.total_bounds])
-    except Exception as err:
-        raise Exception(f'An error occurred: {err}') from err
+
+    return ','.join([str(x) for x in geom.total_bounds])
+
+
 
 
 def _get_id(item):
-    # TODO: hacky solution: orbit and sub orbit number
 
     if "LPDAAC" in item["data_center"]:
         _id = item['producer_granule_id'].split('_')

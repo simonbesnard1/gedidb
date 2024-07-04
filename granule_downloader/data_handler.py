@@ -10,17 +10,24 @@ import geopandas as gpd
 
 
 def download_cmr_data(
-        geom: str
+        geom: gpd.GeoSeries,
+        start_date: datetime = None,
+        end_date: datetime = None,
 ) -> pd.DataFrame:
+
     cmr_df = pd.DataFrame()
 
     for product in GediProduct:
-        cmr_df = pd.concat([cmr_df, granule_query(product, geom)])
+        cmr_df = pd.concat([cmr_df, granule_query(product, geom, start_date, end_date)])
+
+    if len(cmr_df) == 0:
+        raise ValueError("No granules found")
 
     # Display the final dataframe
     # cmr_df.to_json("granule_data.csv", orient='records')
-    cmr_df.to_csv("granule_data.csv")
+    # cmr_df.to_csv("granule_data.csv")
 
+    return cmr_df
     return _clean_up_cmr_data(cmr_df)
 
 
@@ -29,6 +36,8 @@ def download_h5_file(
         url: str,
         product: GediProduct
 ):
+
+
     print(f"Trying to download product {product.value} from {url}")
 
     start_time = datetime.now()
@@ -51,6 +60,7 @@ def download_h5_file(
 def _clean_up_cmr_data(
         cmr_df: pd.DataFrame
 ) -> pd.DataFrame:
+
     def _create_nested_dict(group):
         return {row['product']: {'url': row['url'], 'size': row['size']} for _, row in group.iterrows()}
 
