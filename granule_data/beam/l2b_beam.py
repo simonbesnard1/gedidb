@@ -1,6 +1,8 @@
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+import yaml
+
 from granule_data.granule.granule import Granule, QDEGRADE
 from granule_data.beam.beam import Beam
 from constants import WGS84
@@ -24,10 +26,30 @@ class L2BBeam(Beam):
     def quality_filter(self):
         filtered = self.main_data
 
+        # how to deal with this in config file?
+        # also QEDEGRADE is not defined
         filtered["elevation_difference_tdx"] = (
                 filtered["elev_lowestmode"] - filtered["digital_elevation_model"]
         )
 
+        with open('../config.yml') as f:
+            config = yaml.safe_load(f)
+
+        quality_filters = config["quality_filters"]["level_2b"]
+
+        for key, value in quality_filters.items():
+            if key == 'drop':
+                return
+
+            if isinstance(value, list):
+                for v in value:
+                    filtered = filtered.query(f"{key} {v}")
+            else:
+                filtered = filtered.query(f"{key} {value}")
+
+        filtered = filtered.drop(quality_filters['drop'], axis=1)
+
+        """
         filtered = filtered[
             # initial filtering
             (filtered["l2a_quality_flag"] == 1)
@@ -63,6 +85,7 @@ class L2BBeam(Beam):
             ],
             axis=1,
         )
+        """
 
         self._cached_data = filtered
 

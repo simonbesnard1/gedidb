@@ -26,18 +26,28 @@ class L2ABeam(Beam):
 
         filtered = self.main_data
 
+        # how to deal with this in config file?
+        # also QEDEGRADE is not defined
         filtered["elevation_difference_tdx"] = (
                 filtered["elev_lowestmode"] - filtered["digital_elevation_model"]
         )
 
         with open('../config.yml') as f:
-            CONFIG = yaml.safe_load(f)
+            config = yaml.safe_load(f)
 
-        for key, value in CONFIG["quality_filters"]['level_2a'].items():
+        quality_filters = config["quality_filters"]["level_2a"]
 
-            if key != 'drop':
+        for key, value in quality_filters.items():
+            if key == 'drop':
+                return
 
+            if isinstance(value, list):
+                for v in value:
+                    filtered = filtered.query(f"{key} {v}")
+            else:
                 filtered = filtered.query(f"{key} {value}")
+
+        filtered = filtered.drop(quality_filters['drop'], axis=1)
 
         """
         filtered = filtered[
@@ -59,7 +69,6 @@ class L2ABeam(Beam):
             & (filtered["elevation_difference_tdx"] < 150)
             # missing water_persistence & urban_proportion
             ]
-        """
 
         filtered = filtered.drop(
             [
@@ -68,6 +77,7 @@ class L2ABeam(Beam):
             ],
             axis=1
         )
+        """
 
         self._cached_data = filtered
 
