@@ -32,6 +32,7 @@ class L2ABeam(Beam):
                 filtered["elev_lowestmode"] - filtered["digital_elevation_model"]
         )
 
+        # TODO: dont load for every beam
         with open('../config.yml') as f:
             config = yaml.safe_load(f)
 
@@ -40,11 +41,11 @@ class L2ABeam(Beam):
         for key, value in quality_filters.items():
             if key == 'drop':
                 return
-
             if isinstance(value, list):
                 for v in value:
                     filtered = filtered.query(f"{key} {v}")
             else:
+                print(type(value))
                 filtered = filtered.query(f"{key} {value}")
 
         filtered = filtered.drop(quality_filters['drop'], axis=1)

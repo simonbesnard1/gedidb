@@ -1,3 +1,4 @@
+import os
 import traceback
 from datetime import datetime
 
@@ -13,8 +14,8 @@ def download_cmr_data(
         geom: gpd.GeoSeries,
         start_date: datetime = None,
         end_date: datetime = None,
+        save_to_cmr: bool = False
 ) -> pd.DataFrame:
-
     cmr_df = pd.DataFrame()
 
     for product in GediProduct:
@@ -23,12 +24,11 @@ def download_cmr_data(
     if len(cmr_df) == 0:
         raise ValueError("No granules found")
 
-    # Display the final dataframe
-    # cmr_df.to_json("granule_data.csv", orient='records')
-    # cmr_df.to_csv("granule_data.csv")
+    if save_to_cmr:
+        cmr_df.to_csv("granule_data.csv")
 
     return cmr_df
-    return _clean_up_cmr_data(cmr_df)
+    # return _clean_up_cmr_data(cmr_df)
 
 
 def download_h5_file(
@@ -36,21 +36,18 @@ def download_h5_file(
         url: str,
         product: GediProduct
 ):
-
-
-    print(f"Trying to download product {product.value} from {url}")
-
-    start_time = datetime.now()
     try:
         print(f"Downloading")
         with requests.get(url) as r:
             r.raise_for_status()
-            # print(f'header size (MB): {round(int(r.headers.get('content-length')) / (1024 * 1024), 2)}')
-            print(f"Download complete, total time taken:", datetime.now() - start_time)
-            # TODO: name by id
-            with open(f"./downloads/{product.name}_{_id}.h5", 'wb') as f:
+            # make dir with _id as name if not existing:
+            if not os.path.exists(_id):
+                os.makedirs(_id)
+            with open(f"./{_id}/{product}.h5", 'wb') as f:
                 for chunk in r.iter_content(chunk_size=1024 * 1024):
                     f.write(chunk)
+            print("here we are")
+            return _id, f"./{_id}/{product}.h5"
 
     except Exception as e:
         print(e)
@@ -60,7 +57,6 @@ def download_h5_file(
 def _clean_up_cmr_data(
         cmr_df: pd.DataFrame
 ) -> pd.DataFrame:
-
     def _create_nested_dict(group):
         return {row['product']: {'url': row['url'], 'size': row['size']} for _, row in group.iterrows()}
 

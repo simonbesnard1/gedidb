@@ -3,9 +3,47 @@ import pandas as pd
 
 from constants import WGS84
 from granule_data.granule.granule import Granule
+from constants import GediProduct
+from granule_data.granule.l2a_granule import L2AGranule
+from granule_data.granule.l2b_granule import L2BGranule
+from granule_data.granule.l4a_granule import L4AGranule
+from granule_data.granule.l4c_granule import L4CGranule
 
 
-def _parse_granule(granule: Granule, quality_filter=True) -> gpd.GeoDataFrame:
+def parse_h5_file(file: str, product: GediProduct, quality_filter=True):
+    if product == GediProduct.L2A:
+        return parse_file_l2a(file, quality_filter)
+    elif product == GediProduct.L2B:
+        return parse_file_l2b(file, quality_filter)
+    elif product == GediProduct.L2A:
+        return parse_file_l4a(file, quality_filter)
+    elif product == GediProduct.L4C:
+        return parse_file_l4c(file, quality_filter)
+    else:
+        raise ValueError(f"Product {product} not supported")
+
+
+def parse_file_l2a(file, quality_filter):
+    granule = L2AGranule(file)
+    return parse_granule(granule, quality_filter)
+
+
+def parse_file_l2b(file, quality_filter):
+    granule = L2BGranule(file)
+    return parse_granule(granule, quality_filter)
+
+
+def parse_file_l4a(file, quality_filter):
+    granule = L4AGranule(file)
+    return parse_granule(granule, quality_filter)
+
+
+def parse_file_l4c(file, quality_filter):
+    granule = L4CGranule(file)
+    return parse_granule(granule, quality_filter)
+
+
+def parse_granule(granule: Granule, quality_filter=True) -> gpd.GeoDataFrame:
     granule_data = []
     print(f'Parsing {granule.short_name}')
     for beam in granule.iter_beams():

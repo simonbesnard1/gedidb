@@ -1,13 +1,11 @@
-import enum
 import requests
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
-
-from requests import HTTPError
-
 from constants import GediProduct
 
+# Configuration for accessing NASA's Earthdata Search API to query granule data.
+# TODO: add to config
 CMR_URL = "https://cmr.earthdata.nasa.gov/search/granules.json"
 CMR_PRODUCT_IDS = {
     GediProduct.L1B: 'C1908344278-LPDAAC_ECS',
@@ -31,6 +29,20 @@ def granule_query(
         page_size: int = 2000,
         page_num: int = 1
 ) -> pd.DataFrame:
+    """
+    Queries NASA's Earthdata Search API for granules of a specific GEDI product within a given geometry and time range.
+
+    Parameters:
+    - product (GediProduct): The GEDI product type to query.
+    - geom (gpd.GeoSeries): The geographical area of interest as a GeoSeries object.
+    - start_date (datetime, optional): The start date of the time range for the query.
+    - end_date (datetime, optional): The end date of the time range for the query.
+    - page_size (int, optional): The number of results to return per page. Default is 2000.
+    - page_num (int, optional): The page number to start from. Default is 1.
+
+    Returns:
+    - pd.DataFrame: A DataFrame containing the queried granule data.
+    """
 
     cmr_params = _construct_query_params(product, geom, start_date, end_date, page_size, page_num)
 
@@ -46,12 +58,6 @@ def granule_query(
             page_num += 1
         else:
             break
-
-    """
-    
-    
-    
-    """
 
     granule_data = [{
         'id': _get_id(item),
@@ -80,6 +86,20 @@ def _construct_query_params(
         page_size: int,
         page_num: int,
 ) -> dict:
+    """
+    Constructs the query parameters for the NASA Earthdata Search API request.
+
+    Parameters:
+    - product (GediProduct): The GEDI product type to query.
+    - geom (gpd.GeoSeries): The geographical area of interest.
+    - start_date (datetime): The start date of the time range for the query.
+    - end_date (datetime): The end date of the time range for the query.
+    - page_size (int): The number of results to return per page.
+    - page_num (int): The page number to start from.
+
+    Returns:
+    - dict: A dictionary of query parameters for the API request.
+    """
 
     cmr_params = {
         "collection_concept_id": CMR_PRODUCT_IDS[product],
@@ -96,7 +116,16 @@ def _construct_temporal_params(
         start_date: datetime,
         end_date: datetime
 ) -> str:
+    """
+    Constructs the temporal parameter for the NASA Earthdata Search API request.
 
+    Parameters:
+    - start_date (datetime): The start date of the time range for the query.
+    - end_date (datetime): The end date of the time range for the query.
+
+    Returns:
+    - str: A string representing the temporal range for the query.
+    """
     # TODO: h/m/s?
 
     if start_date and end_date:
@@ -114,14 +143,31 @@ def _construct_temporal_params(
 def _construct_spacial_params(
         geom: gpd.GeoSeries
 ) -> str:
+    """
+    Constructs the spatial parameter for the NASA Earthdata Search API request.
 
+    Parameters:
+    - geom (gpd.GeoSeries): The geographical area of interest as a GeoSeries object.
+
+    Returns:
+    - str: A string representing the bounding box of the geographical area, suitable for API requests.
+    """
     return ','.join([str(x) for x in geom.total_bounds])
 
 
-
-
 def _get_id(item):
+    """
+    Extracts and formats the granule ID from the API response item.
 
+    This function differentiates between data centers (LPDAAC and ORNL) and formats the granule ID
+    based on the specific conventions of each data center. The ID consists of the orbit and surborbit numbers.
+
+    Parameters:
+    - item (dict): A single item from the list of entries in the NASA Earthdata Search API response.
+
+    Returns:
+    - str: The formatted granule ID.
+    """
     if "LPDAAC" in item["data_center"]:
         _id = item['producer_granule_id'].split('_')
         return f"{_id[3]}_{_id[4]}"
@@ -137,6 +183,18 @@ def _get_id(item):
 
 
 def _get_name(item):
+    """
+    Extracts the granule name from the API response item.
+
+    This function differentiates between data centers (LPDAAC and ORNL) and extracts the granule name
+    based on the specific conventions of each data center.
+
+    Parameters:
+    - item (dict): A single item from the list of entries in the NASA Earthdata Search API response.
+
+    Returns:
+    - str: The granule name.
+    """
     if "LPDAAC" in item["data_center"]:
         return item["producer_granule_id"]
     if "ORNL" in item["data_center"]:
