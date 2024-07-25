@@ -2,9 +2,9 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 
-from granule_data.granule.granule import Granule
-from granule_data.beam.beam import Beam
-from granule_data.beam.l2b_beam import L2BBeam
+from geditoolbox.granule_data.granule.granule import Granule
+from geditoolbox.granule_data.beam.beam import Beam
+from geditoolbox.granule_data.beam.l2b_beam import L2BBeam
 
 
 class L2BGranule(Granule):

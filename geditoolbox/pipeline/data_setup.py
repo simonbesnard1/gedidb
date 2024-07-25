@@ -5,9 +5,9 @@ from datetime import datetime
 from sqlalchemy import Engine
 
 from constants import GediProduct
-from granule_data import granule_parser
-from spark.spark_session import create_spark
-from granule_downloader.data_downloader import download_cmr_data, download_h5_file
+from geditoolbox.granule_data import granule_parser
+from geditoolbox.spark.spark_session import create_spark
+from geditoolbox.granule_downloader.data_downloader import download_cmr_data, download_h5_file
 
 
 def main_parser(
@@ -88,8 +88,3 @@ def _process_granule(
     return return_value
 
 
-if __name__ == "__main__":
-
-    geom = gpd.read_file("../testing/data/test.geojson")
-
-    main_parser(geom, start_date=datetime(2019, 1, 1), end_date=datetime(2021, 1, 31))

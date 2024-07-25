@@ -60,5 +60,3 @@ quality_filters:
     drop:
       - l2_quality_flag,
       - surface_flag,
-
-# Product ids for the different products

@@ -2,12 +2,12 @@ import geopandas as gpd
 import pandas as pd
 
 from constants import WGS84
-from granule_data.granule.granule import Granule
+from geditoolbox.granule_data.granule.granule import Granule
 from constants import GediProduct
-from granule_data.granule.l2a_granule import L2AGranule
-from granule_data.granule.l2b_granule import L2BGranule
-from granule_data.granule.l4a_granule import L4AGranule
-from granule_data.granule.l4c_granule import L4CGranule
+from geditoolbox.granule_data.granule.l2a_granule import L2AGranule
+from geditoolbox.granule_data.granule.l2b_granule import L2BGranule
+from geditoolbox.granule_data.granule.l4a_granule import L4AGranule
+from geditoolbox.granule_data.granule.l4c_granule import L4CGranule
 
 
 def parse_h5_file(file: str, product: GediProduct, quality_filter=True):

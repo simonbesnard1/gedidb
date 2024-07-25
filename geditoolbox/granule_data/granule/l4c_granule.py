@@ -1,6 +1,6 @@
-from granule_data.granule.granule import Granule
-from granule_data.beam.l4c_beam import L4CBeam
-from granule_data.beam.beam import Beam
+from geditoolbox.granule_data.granule.granule import Granule
+from geditoolbox.granule_data.beam.l4c_beam import L4CBeam
+from geditoolbox.granule_data.beam.beam import Beam
 
 
 class L4CGranule(Granule):

@@ -2,8 +2,8 @@ import pandas as pd
 import geopandas as gpd
 import yaml
 
-from granule_data.granule.granule import Granule, QDEGRADE
-from granule_data.beam.beam import Beam
+from geditoolbox.granule_data.granule.granule import Granule
+from geditoolbox.granule_data.beam.beam import Beam
 from constants import WGS84
 
 
@@ -27,10 +27,7 @@ class L2ABeam(Beam):
         filtered = self.main_data
 
         # how to deal with this in config file?
-        # also QEDEGRADE is not defined
-        filtered["elevation_difference_tdx"] = (
-                filtered["elev_lowestmode"] - filtered["digital_elevation_model"]
-        )
+        filtered["elevation_difference_tdx"] = (filtered["elev_lowestmode"] - filtered["digital_elevation_model"])
 
         # TODO: dont load for every beam
         with open('../config.yml') as f:

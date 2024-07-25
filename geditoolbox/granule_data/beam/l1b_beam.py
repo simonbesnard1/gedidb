@@ -1,7 +1,7 @@
 import geopandas as gpd
 
-from granule_data.granule.granule import Granule, QDEGRADE
-from granule_data.beam.beam import Beam
+from geditoolbox.granule_data.granule.granule import Granule
+from geditoolbox.granule_data.beam.beam import Beam
 from constants import WGS84
 
 

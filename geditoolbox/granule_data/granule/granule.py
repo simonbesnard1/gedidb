@@ -1,7 +1,7 @@
 import h5py
 
 from typing import Iterable
-from granule_data.beam.beam import Beam
+from geditoolbox.granule_data.beam.beam import Beam
 
 QDEGRADE = [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]
 

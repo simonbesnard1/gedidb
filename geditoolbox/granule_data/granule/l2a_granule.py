@@ -1,9 +1,9 @@
-from granule_data.granule.granule import Granule
-from granule_data.beam.l4a_beam import L4ABeam
-from granule_data.beam.beam import Beam
+from geditoolbox.granule_data.granule.granule import Granule
+from geditoolbox.granule_data.beam.l2a_beam import L2ABeam
+from geditoolbox.granule_data.beam.beam import Beam
 
 
-class L4AGranule(Granule):
+class L2AGranule(Granule):
 
     def __init__(self, file_path):
         super().__init__(file_path)
@@ -12,4 +12,4 @@ class L4AGranule(Granule):
 
         if beam not in self.beam_names:
             raise ValueError(f"Beam name must be one of {self.beam_names}")
-        return L4ABeam(self, beam)
+        return L2ABeam(self, beam)

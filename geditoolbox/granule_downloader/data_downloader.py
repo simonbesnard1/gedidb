@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 import requests
 
-from granule_downloader.cmr_query import granule_query
+from geditoolbox.granule_downloader.cmr_query import granule_query
 from constants import GediProduct
 import geopandas as gpd
 

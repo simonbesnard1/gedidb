@@ -1,9 +1,6 @@
 from pyspark.sql import SparkSession
 
-# spark = (SparkSession.builder.appName("test").getOrCreate())
-
 """
-
 spark = (
     SparkSession.builder.appName("degradationSample")
     .config(
@@ -33,7 +30,6 @@ jdbcDF = (spark.read.format("jdbc")
           )
 
 jdbcDF.show()
-
 """
 
 
