@@ -11,13 +11,13 @@ from geditoolbox.granule_data.granule.l4c_granule import L4CGranule
 
 
 def parse_h5_file(file: str, product: GediProduct, quality_filter=True):
-    if product == GediProduct.L2A:
+    if product == GediProduct.L2A.value:
         return parse_file_l2a(file, quality_filter)
-    elif product == GediProduct.L2B:
+    elif product == GediProduct.L2B.value:
         return parse_file_l2b(file, quality_filter)
-    elif product == GediProduct.L2A:
+    elif product == GediProduct.L4A.value:
         return parse_file_l4a(file, quality_filter)
-    elif product == GediProduct.L4C:
+    elif product == GediProduct.L4C.value:
         return parse_file_l4c(file, quality_filter)
     else:
         raise ValueError(f"Product {product} not supported")
@@ -47,10 +47,12 @@ def parse_granule(granule: Granule, quality_filter=True) -> gpd.GeoDataFrame:
     granule_data = []
     print(f'Parsing {granule.short_name}')
     for beam in granule.iter_beams():
+        print(f'Parsing beam {beam.name}')
         if quality_filter:
             beam.quality_filter()
         beam.sql_format_arrays()
         granule_data.append(beam.main_data)
+        print(f'Finished parsing beam {beam.name}')
     df = pd.concat(granule_data, ignore_index=True)
     gdf = gpd.GeoDataFrame(df, crs=WGS84)
     # filter_status = "_unfiltered" if not quality_filter else ""

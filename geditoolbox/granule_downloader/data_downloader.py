@@ -1,5 +1,6 @@
 import os
 import traceback
+import pathlib
 from datetime import datetime
 
 import pandas as pd
@@ -25,7 +26,8 @@ def download_cmr_data(
         raise ValueError("No granules found")
 
     if save_to_cmr:
-        cmr_df.to_csv("granule_data.csv")
+        cmr_df.to_csv("granule_data2.csv")
+        print("saved")
 
     return cmr_df
     # return _clean_up_cmr_data(cmr_df)
@@ -35,9 +37,14 @@ def download_h5_file(
         _id: str,
         url: str,
         product: GediProduct
-):
+) -> tuple[str, tuple[GediProduct, str]]:
+
+    if pathlib.Path(f"./{_id}/{product}.h5").exists():
+        print(f"./{_id}/{product}.h5 Already exists")
+        return _id, (product, f"./{_id}/{product}.h5")
+
     try:
-        print(f"Downloading")
+        print(f"{product}: Downloading")
         with requests.get(url) as r:
             r.raise_for_status()
             # make dir with _id as name if not existing:
@@ -46,8 +53,8 @@ def download_h5_file(
             with open(f"./{_id}/{product}.h5", 'wb') as f:
                 for chunk in r.iter_content(chunk_size=1024 * 1024):
                     f.write(chunk)
-            print("here we are")
-            return _id, f"./{_id}/{product}.h5"
+            print(f"{product}: Done")
+            return _id, (product, f"./{_id}/{product}.h5")
 
     except Exception as e:
         print(e)

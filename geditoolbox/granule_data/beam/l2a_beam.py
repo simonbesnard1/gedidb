@@ -1,6 +1,7 @@
 import pandas as pd
 import geopandas as gpd
 import yaml
+import pathlib
 
 from geditoolbox.granule_data.granule.granule import Granule
 from geditoolbox.granule_data.beam.beam import Beam
@@ -42,7 +43,6 @@ class L2ABeam(Beam):
                 for v in value:
                     filtered = filtered.query(f"{key} {v}")
             else:
-                print(type(value))
                 filtered = filtered.query(f"{key} {value}")
 
         filtered = filtered.drop(quality_filters['drop'], axis=1)
