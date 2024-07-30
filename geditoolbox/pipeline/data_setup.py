@@ -20,12 +20,10 @@ def main_parser(
         sql_connector: Engine = None,
         save_cmr_data: bool = False,
         delete_h5_files: bool = True,
-        quality_filter: bool = True,
 ):
-    # Download data from CMR
-
     # cmr_data = download_cmr_data(geom, start_date=start_date, end_date=end_date, save_to_cmr=True)
     cmr_data = pd.read_csv("granule_data2.csv")
+    # sort by ascending size of column size
 
     spark = create_spark()
 
@@ -39,12 +37,9 @@ def main_parser(
     ].to_records(index=False)
 
     urls = spark.sparkContext.parallelize(name_url)
-    mapped_urls = urls.map(lambda x: download_h5_file(x[0], x[2], x[3])).groupByKey()
+    mapped_urls = urls.map(lambda x: download_h5_file(x[0], x[2], GediProduct(x[3]))).groupByKey()
 
     processed_granules = mapped_urls.map(_process_granule)
-
-    for row in processed_granules.collect():
-        print(row[0], row[1])
 
     granule_entries = processed_granules.coalesce(8).map(_write_db)
     granule_entries.count()
@@ -73,7 +68,7 @@ def _process_granule(
 
         print(list(gdfs[product].columns))
 
-    # TODO: L1B, L4C and are not used in this pipeline
+    # TODO: L1B, L4C are not used in this pipeline
     gdf = (
         gdfs[GediProduct.L2A.value]
         .join(
@@ -102,7 +97,6 @@ def _process_granule(
 
 
 def _write_db(input):
-
     granule_key, outfile_path, included_files = input
     gedi_data = gpd.read_parquet(outfile_path)
 
@@ -119,7 +113,7 @@ def _write_db(input):
             data={
                 "granule_name": [granule_key],
                 # "granule_hash": [hash_string_list(included_files)],
-                "granule_file": [outfile_path.name],
+                "granule_file": [outfile_path],
                 "l2a_file": [included_files[0]],
                 "l2b_file": [included_files[1]],
                 "l4a_file": [included_files[2]],

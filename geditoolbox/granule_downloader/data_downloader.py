@@ -25,6 +25,7 @@ def download_cmr_data(
     if len(cmr_df) == 0:
         raise ValueError("No granules found")
 
+    # TODO: needed?
     if save_to_cmr:
         cmr_df.to_csv("granule_data2.csv")
         print("saved")
