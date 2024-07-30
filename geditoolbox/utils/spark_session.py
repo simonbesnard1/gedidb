@@ -1,10 +1,10 @@
 from pyspark.sql import SparkSession
 
 """
-spark = (
+utils = (
     SparkSession.builder.appName("degradationSample")
     .config(
-        "spark.jars.packages",
+        "utils.jars.packages",
         "net.postgis:postgis-jdbc:2021.1.0,"
         "net.postgis:postgis-geometry:2021.1.0,"
         "org.postgresql:postgresql:42.5.4,",
@@ -12,11 +12,11 @@ spark = (
     .getOrCreate()
 )
 
-spark.sparkContext.setSystemProperty(
+utils.sparkContext.setSystemProperty(
     "org.geotools.referencing.forceXY", "true"
 )
 
-jdbcDF = (spark.read.format("jdbc")
+jdbcDF = (utils.read.format("jdbc")
           .option(
     "url",
     f"jdbc:postgresql_postGIS://mefe27:5434/glmdb",

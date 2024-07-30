@@ -1,13 +1,12 @@
 import os
-import traceback
 import pathlib
 from datetime import datetime
 
 import pandas as pd
 import requests
 
-from geditoolbox.granule_downloader.cmr_query import granule_query
-from constants import GediProduct
+from geditoolbox.downloader.cmr_query import granule_query
+from geditoolbox.utils.constants import GediProduct
 import geopandas as gpd
 
 

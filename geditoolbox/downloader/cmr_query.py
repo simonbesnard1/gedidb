@@ -2,7 +2,7 @@ import requests
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
-from constants import GediProduct
+from geditoolbox.utils.constants import GediProduct
 
 # Configuration for accessing NASA's Earthdata Search API to query granule data.
 # TODO: add to config

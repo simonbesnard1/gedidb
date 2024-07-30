@@ -5,12 +5,12 @@ import pandas as pd
 from datetime import datetime
 from sqlalchemy import Engine
 
-from constants import GediProduct
-from geditoolbox.db import db
-from geditoolbox.db.column_to_field import FIELD_TO_COLUMN
+from geditoolbox.utils.constants import GediProduct
+from geditoolbox.gedi_db import db
+from geditoolbox.gedi_db.column_to_field import FIELD_TO_COLUMN
 from geditoolbox.granule_data import granule_parser
-from geditoolbox.spark.spark_session import create_spark
-from geditoolbox.granule_downloader.data_downloader import download_cmr_data, download_h5_file
+from geditoolbox.utils.spark_session import create_spark
+from geditoolbox.downloader.data_downloader import download_h5_file
 
 
 def main_parser(

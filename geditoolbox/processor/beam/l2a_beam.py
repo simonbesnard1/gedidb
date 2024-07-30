@@ -1,11 +1,10 @@
 import pandas as pd
 import geopandas as gpd
 import yaml
-import pathlib
 
 from geditoolbox.granule_data.granule.granule import Granule
 from geditoolbox.granule_data.beam.beam import Beam
-from constants import WGS84
+from geditoolbox.utils.constants import WGS84
 
 
 class L2ABeam(Beam):

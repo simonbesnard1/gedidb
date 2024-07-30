@@ -1,10 +1,8 @@
-from time import sleep
-
 import geopandas as gpd
 import h5py
 import numpy as np
 
-from constants import WGS84
+from geditoolbox.utils.constants import WGS84
 from typing import Union, List
 
 

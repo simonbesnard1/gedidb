@@ -3,10 +3,10 @@ import geopandas as gpd
 
 from geditoolbox.granule_data.granule.granule import Granule, QDEGRADE
 from geditoolbox.granule_data.beam.beam import Beam
-from constants import WGS84
+from geditoolbox.utils.constants import WGS84
 
 
-class L4CBeam(Beam):
+class L4ABeam(Beam):
 
     def __init__(self, granule: Granule, beam: str):
         super().__init__(granule, beam)
@@ -22,8 +22,6 @@ class L4CBeam(Beam):
         return self._shot_geolocations
 
     def quality_filter(self):
-
-        # TODO: fix L4C
 
         filtered = self.main_data
 
@@ -63,9 +61,7 @@ class L4CBeam(Beam):
 
     def _get_main_data_dict(self) -> dict:
 
-        # TODO: fix L4C
-        # TODO: correct date?
-        gedi_l4c_count_start = pd.to_datetime("2018-01-01T00:00:00Z")
+        gedi_l4a_count_start = pd.to_datetime("2018-01-01T00:00:00Z")
         data = {
             # General identifiable data
             "granule_name": [self.parent_granule.filename] * self.n_shots,
@@ -74,7 +70,7 @@ class L4CBeam(Beam):
             "beam_name": [self.name] * self.n_shots,
             # Temporal data
             "delta_time": self["delta_time"][:],
-            "absolute_time": (gedi_l4c_count_start + pd.to_timedelta(self["delta_time"], unit="seconds")),
+            "absolute_time": (gedi_l4a_count_start + pd.to_timedelta(self["delta_time"], unit="seconds")),
             # Quality data
             "sensitivity_a0": self["sensitivity"][:],
             "sensitivity_a2": self["geolocation/sensitivity_a2"][:],
@@ -82,20 +78,24 @@ class L4CBeam(Beam):
             "algorithm_run_flag": self["algorithm_run_flag"][:],
             "degrade_flag": self["degrade_flag"][:],
             "l2_quality_flag": self["l2_quality_flag"][:],
+            "l4_quality_flag": self["l4_quality_flag"][:],
+            "predictor_limit_flag": self["predictor_limit_flag"][:],
+            "response_limit_flag": self["response_limit_flag"][:],
             "surface_flag": self["surface_flag"][:],
             # Processing data
             "selected_algorithm": self["selected_algorithm"][:],
+            "selected_mode": self["selected_mode"][:],
             # Geolocation data
             "elev_lowestmode": self["elev_lowestmode"][:],
             "lat_lowestmode": self["lat_lowestmode"][:],
             "lon_lowestmode": self["lon_lowestmode"][:],
             # ABGD data
-            # "agbd": self["agbd"][:],
-            # "agbd_pi_lower": self["agbd_pi_lower"][:],
-            # "agbd_pi_upper": self["agbd_pi_upper"][:],
-            # "agbd_se": self["agbd_se"][:],
-            # "agbd_t": self["agbd_t"][:],
-            # "agbd_t_se": self["agbd_t_se"][:],
+            "agbd": self["agbd"][:],
+            "agbd_pi_lower": self["agbd_pi_lower"][:],
+            "agbd_pi_upper": self["agbd_pi_upper"][:],
+            "agbd_se": self["agbd_se"][:],
+            "agbd_t": self["agbd_t"][:],
+            "agbd_t_se": self["agbd_t_se"][:],
             # Land cover data: NOTE this is gridded and/or derived data
             "pft_class": self["land_cover_data/pft_class"][:],
             "region_class": self["land_cover_data/region_class"][:],
