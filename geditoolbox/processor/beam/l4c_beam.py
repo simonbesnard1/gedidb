@@ -1,8 +1,8 @@
 import pandas as pd
 import geopandas as gpd
 
-from geditoolbox.granule_data.granule.granule import Granule, QDEGRADE
-from geditoolbox.granule_data.beam.beam import Beam
+from geditoolbox.processor.granule.granule import Granule, QDEGRADE
+from geditoolbox.processor.beam.beam import Beam
 from geditoolbox.utils.constants import WGS84
 
 
@@ -63,8 +63,6 @@ class L4CBeam(Beam):
 
     def _get_main_data_dict(self) -> dict:
 
-        # TODO: fix L4C
-        # TODO: correct date?
         gedi_l4c_count_start = pd.to_datetime("2018-01-01T00:00:00Z")
         data = {
             # General identifiable data
@@ -89,13 +87,14 @@ class L4CBeam(Beam):
             "elev_lowestmode": self["elev_lowestmode"][:],
             "lat_lowestmode": self["lat_lowestmode"][:],
             "lon_lowestmode": self["lon_lowestmode"][:],
-            # ABGD data
-            # "agbd": self["agbd"][:],
-            # "agbd_pi_lower": self["agbd_pi_lower"][:],
-            # "agbd_pi_upper": self["agbd_pi_upper"][:],
-            # "agbd_se": self["agbd_se"][:],
-            # "agbd_t": self["agbd_t"][:],
-            # "agbd_t_se": self["agbd_t_se"][:],
+            # Waveform Structural Complexity Index data
+            "fhd_normal": self["fhd_normal"][:],
+            "wsci": self["wsci"][:],
+            "wsci_pi_lower": self["wsci_pi_lower"][:],
+            "wsci_pi_upper": self["wsci_pi_upper"][:],
+            "wsci_z": list(self["wsci_z"][:]),
+            "wsci_z_pi_lower": list(self["wsci_z_pi_lower"][:]),
+            "wsci_z_pi_upper": list(self["wsci_z_pi_upper"][:]),
             # Land cover data: NOTE this is gridded and/or derived data
             "pft_class": self["land_cover_data/pft_class"][:],
             "region_class": self["land_cover_data/region_class"][:],

@@ -1,6 +1,6 @@
-from geditoolbox.granule_data.beam.beam import Beam
-from geditoolbox.granule_data.beam.l1b_beam import L1BBeam
-from geditoolbox.granule_data.granule.granule import Granule
+from geditoolbox.processor.beam.beam import Beam
+from geditoolbox.processor.beam.l1b_beam import L1BBeam
+from geditoolbox.processor.granule.granule import Granule
 
 
 class L1BGranule(Granule):

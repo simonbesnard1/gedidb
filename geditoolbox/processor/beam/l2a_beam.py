@@ -2,8 +2,8 @@ import pandas as pd
 import geopandas as gpd
 import yaml
 
-from geditoolbox.granule_data.granule.granule import Granule
-from geditoolbox.granule_data.beam.beam import Beam
+from geditoolbox.processor.granule.granule import Granule
+from geditoolbox.processor.beam.beam import Beam
 from geditoolbox.utils.constants import WGS84
 
 
