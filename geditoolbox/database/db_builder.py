@@ -6,9 +6,9 @@ from datetime import datetime
 from sqlalchemy import Engine
 
 from geditoolbox.utils.constants import GediProduct
-from geditoolbox.gedi_db import db
-from geditoolbox.gedi_db.column_to_field import FIELD_TO_COLUMN
-from geditoolbox.granule_data import granule_parser
+from geditoolbox.database import db
+from geditoolbox.database.column_to_field import FIELD_TO_COLUMN
+from geditoolbox.processor import granule_parser
 from geditoolbox.utils.spark_session import create_spark
 from geditoolbox.downloader.data_downloader import download_h5_file
 
