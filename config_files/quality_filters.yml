@@ -1,5 +1,4 @@
 # Quality filters for the different granules
-
 quality_filters:
   level_2a:
     # elevation_difference_tdx : = elev_lowestmode - digital_elevation_model

@@ -1,7 +1,3 @@
-import pandas as pd
-import geopandas as gpd
-import numpy as np
-
 from geditoolbox.processor.granule.granule import Granule
 from geditoolbox.processor.beam.beam import Beam
 from geditoolbox.processor.beam.l2b_beam import L2BBeam

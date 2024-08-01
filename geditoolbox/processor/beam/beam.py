@@ -4,15 +4,20 @@ import numpy as np
 
 from geditoolbox.utils.constants import WGS84
 from typing import Union, List
+import yaml
 
 
 class Beam(h5py.Group):
 
-    def __init__(self, granule, beam: str):
+    def __init__(self, granule, beam: str, config_file:str):
         super().__init__(granule[beam].id)
         self.parent_granule = granule
         self._cached_data = None
         self._shot_geolocations = None
+        
+        with open(config_file) as f:
+            self.quality_filter_config = yaml.safe_load(f)
+
 
     @property
     def n_shots(self) -> int:
