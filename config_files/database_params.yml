@@ -9,7 +9,7 @@ CMR_PRODUCT_IDS:
 
 # Data request
 database_url: 'postgresql://glmadmin:SimonGFZ@mefe27:5434/glmdb'
-region_of_interest: ''
+region_of_interest: '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/test.geojson'
 start_date: '2019-01-01'
 end_date: '2022-01-01'
 sql_connector: None
@@ -18,36 +18,36 @@ delete_h5_files: True
 
 # L1A variables
 L2A_variables:
- - general_data:
-  - granule_name: "parent_granule.filename"
-  - shot_number: "shot_number"
-  - beam_type: "beam_type"
-  - beam_name: "name"
-  - delta_time: "delta_time"
-  - sensitivity_a0: "sensitivity"
-  - quality_flag: "quality_flag"
-  - degrade_flag: "degrade_flag"
-  - solar_elevation: "solar_elevation"
-  - solar_azimuth: "solar_elevation"
-  - energy_total: "energy_total"
-  - surface_flag: "surface_flag"
-  - digital_elevation_model: "digital_elevation_model"
-  - digital_elevation_model_srtm: "digital_elevation_model_srtm"
-  - selected_algorithm: "selected_algorithm"
-  - selected_mode: "selected_mode"
-  - lon_lowestmode: "lon_lowestmode"
-  - longitude_bin0_error: "longitude_bin0_error"
-  - lat_lowestmode: "lat_lowestmode"
-  - latitude_bin0_error: "latitude_bin0_error"
-  - elev_lowestmode: "elev_lowestmode"
-  - elevation_bin0_error: "elevation_bin0_error"
-  - lon_highestreturn: "lon_highestreturn"
-  - lat_highestreturn: "lat_highestreturn"
-  - elev_highestreturn: "elev_highestreturn"
-  - rh_data:
-    - "rh_0"
-    - "rh_1"
-    - "rh_100"
+ general_data:
+  granule_name: "parent_granule.filename"
+  shot_number: "shot_number"
+  beam_type: "beam_type"
+  beam_name: "name"
+  delta_time: "delta_time"
+  sensitivity_a0: "sensitivity"
+  quality_flag: "quality_flag"
+  degrade_flag: "degrade_flag"
+  solar_elevation: "solar_elevation"
+  solar_azimuth: "solar_elevation"
+  energy_total: "energy_total"
+  surface_flag: "surface_flag"
+  digital_elevation_model: "digital_elevation_model"
+  digital_elevation_model_srtm: "digital_elevation_model_srtm"
+  selected_algorithm: "selected_algorithm"
+  selected_mode: "selected_mode"
+  lon_lowestmode: "lon_lowestmode"
+  longitude_bin0_error: "longitude_bin0_error"
+  lat_lowestmode: "lat_lowestmode"
+  latitude_bin0_error: "latitude_bin0_error"
+  elev_lowestmode: "elev_lowestmode"
+  elevation_bin0_error: "elevation_bin0_error"
+  lon_highestreturn: "lon_highestreturn"
+  lat_highestreturn: "lat_highestreturn"
+  elev_highestreturn: "elev_highestreturn"
+ rh_data:
+   - "rh_0"
+   - "rh_1"
+   - "rh_100"
   
 L2B_variables:
   general_data:

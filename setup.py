@@ -10,7 +10,7 @@ import os
 import re
 import setuptools
 
-PKG_NAME = "geditoolbox"
+PKG_NAME = "GEDItools"
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
@@ -44,8 +44,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox",
-    packages=setuptools.find_packages(include=['geditoolbox',
-                                               'geditoolbox.*']),
+    packages=setuptools.find_packages(include=['GEDItools',
+                                               'GEDItools.*']),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: EUROPEAN UNION PUBLIC LICENCE v.1.2 (EUPL-1.2)",

@@ -1,9 +1,9 @@
 import pandas as pd
 import geopandas as gpd
 
-from geditoolbox.processor.granule.granule import Granule, QDEGRADE
-from geditoolbox.processor.beam.beam import Beam
-from geditoolbox.utils.constants import WGS84
+from GEDItools.processor.granule.granule import Granule, QDEGRADE
+from GEDItools.processor.beam.beam import Beam
+from GEDItools.utils.constants import WGS84
 
 
 class L4CBeam(Beam):

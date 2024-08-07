@@ -2,7 +2,7 @@ import requests
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
-from geditoolbox.utils.constants import GediProduct
+from GEDItools.utils.constants import GediProduct
 from functools import wraps
 
 CMR_URL= "https://cmr.earthdata.nasa.gov/search/granules.json"
@@ -37,12 +37,14 @@ def handle_exceptions(func):
     return wrapper
 
 class CMRQuery:
+    
     @staticmethod
     @log_execution
     @handle_exceptions
     def _construct_query_params(product: GediProduct, geom: gpd.GeoSeries, start_date: datetime, end_date: datetime, page_size: int, page_num: int) -> dict:
+        
         return {
-            "collection_concept_id": CMR_PRODUCT_IDS[product],
+            "collection_concept_id": CMR_PRODUCT_IDS[str(product)],
             "page_size": page_size,
             "page_num": page_num,
             "bounding_box": CMRQuery._construct_spacial_params(geom),

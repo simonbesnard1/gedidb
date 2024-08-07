@@ -3,8 +3,8 @@ import pathlib
 from datetime import datetime
 import pandas as pd
 import requests
-from geditoolbox.downloader.cmr_query import GranuleQuery
-from geditoolbox.utils.constants import GediProduct
+from GEDItools.downloader.cmr_query import GranuleQuery
+from GEDItools.utils.constants import GediProduct
 import geopandas as gpd
 from functools import wraps
 
@@ -47,7 +47,7 @@ class CMRDataDownloader(GEDIDownloader):
         cmr_df = pd.DataFrame()
 
         for product in GediProduct:
-            cmr_df = pd.concat([cmr_df, GranuleQuery(product, self.geom, self.start_date, self.end_date)])
+            cmr_df = pd.concat([cmr_df, GranuleQuery(product, self.geom, self.start_date, self.end_date).query_granules()])
 
         if len(cmr_df) == 0:
             raise ValueError("No granules found")

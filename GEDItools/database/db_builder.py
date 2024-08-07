@@ -5,11 +5,11 @@ import pandas as pd
 from datetime import datetime
 from functools import wraps
 
-from geditoolbox.utils.constants import GediProduct
-from geditoolbox.database import db
-from geditoolbox.processor import granule_parser
-from geditoolbox.utils.spark_session import create_spark
-from geditoolbox.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
+from GEDItools.utils.constants import GediProduct
+from GEDItools.database import db
+from GEDItools.processor import granule_parser
+from GEDItools.utils.spark_session import create_spark
+from GEDItools.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 
 
 # Decorator for logging
@@ -31,14 +31,13 @@ class GEDIDatabase:
         self.end_date = end_date
 
     @log_execution
-    def download_cmr_data(self, save_to_cmr: bool = False):
-        return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date, save_to_cmr=save_to_cmr)
+    def download_cmr_data(self):
+        return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date)
 
     @log_execution
     def create_spark_session(self):
         return create_spark()
-
-
+    
 class GEDIGranuleProcessor(GEDIDatabase):
     
     def __init__(self, database_config: str = None, column_to_field_config: str = None):
@@ -54,12 +53,16 @@ class GEDIGranuleProcessor(GEDIDatabase):
         self.sql_connector = self.database_structure['sql_connector']
         self.save_cmr_data = self.database_structure['save_cmr_data']
         self.delete_h5_files = self.database_structure['delete_h5_files']
-        self.db_path = self.database_structure['db_path']
-        
+        self.db_path = self.database_structure['database_url']
+        self.geom = gpd.read_file(self.database_structure['region_of_interest'])
+        self.start_date = datetime.strptime(self.database_structure['start_date'], '%Y-%m-%d')
+        self.end_date = datetime.strptime(self.database_structure['end_date'], '%Y-%m-%d')
+                
     @log_execution
     def process(self):
-        cmr_data = self.download_cmr_data(save_to_cmr=self.save_cmr_data)
+        cmr_data = self.download_cmr_data().download()
         spark = self.create_spark_session()
+        print(cmr_data)
 
         name_url = cmr_data[
             ["id", "name", "url", "product"]

@@ -2,9 +2,12 @@ import geopandas as gpd
 import h5py
 import numpy as np
 
-from geditoolbox.utils.constants import WGS84
+from GEDItools.utils.constants import WGS84
 from typing import Union, List
 import yaml
+
+
+QDEGRADE = [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]
 
 
 class Beam(h5py.Group):
