@@ -4,7 +4,6 @@ import numpy as np
 
 from GEDItools.utils.constants import WGS84
 from typing import Union, List
-import yaml
 
 
 QDEGRADE = [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]
@@ -12,15 +11,11 @@ QDEGRADE = [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]
 
 class Beam(h5py.Group):
 
-    def __init__(self, granule, beam: str, config_file:str):
+    def __init__(self, granule, beam: str):
         super().__init__(granule[beam].id)
         self.parent_granule = granule
         self._cached_data = None
         self._shot_geolocations = None
-        
-        with open(config_file) as f:
-            self.quality_filter_config = yaml.safe_load(f)
-
 
     @property
     def n_shots(self) -> int:
@@ -37,9 +32,10 @@ class Beam(h5py.Group):
     def shot_geolocations(self):
         raise NotImplementedError
 
+    @property
     def quality_filter(self):
-        raise NotImplementedError
-
+        return self.quality_filter_config
+        
     @property
     def main_data(self) -> gpd.GeoDataFrame:
 

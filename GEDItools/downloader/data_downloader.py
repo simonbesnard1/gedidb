@@ -78,7 +78,7 @@ class H5FileDownloader(GEDIDownloader):
         
         if file_path.exists():
             print(f"{file_path} Already exists")
-            return _id, (product, str(file_path))
+            return _id, (product.value, str(file_path))
 
         try:
             print(f"{product}: Downloading")
@@ -90,8 +90,8 @@ class H5FileDownloader(GEDIDownloader):
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
                 print(f"{product}: Done")
-                return _id, (product, str(file_path))
+                return _id, (product.value, str(file_path))
 
         except Exception as e:
             print(f"Error downloading {url}: {e}")
-            return _id, (product, None)
+            return _id, (product.value, None)

@@ -1,6 +1,5 @@
 import pandas as pd
 import geopandas as gpd
-import yaml
 from GEDItools.processor.granule.granule import Granule
 from GEDItools.processor.beam.beam import Beam
 from GEDItools.utils.constants import WGS84
@@ -10,13 +9,7 @@ class L2ABeam(Beam):
 
     def __init__(self, granule: Granule, beam: str):
         super().__init__(granule, beam)
-        self.field_mapping = self.load_field_mapping()
-
-    @staticmethod
-    def load_field_mapping(file_path: str = "field_mapping.yml") -> dict:
-        with open(file_path, 'r') as file:
-            return yaml.safe_load(file)
-
+    
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
         if self._shot_geolocations is None:

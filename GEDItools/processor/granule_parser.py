@@ -4,6 +4,7 @@ import pandas as pd
 from GEDItools.utils.constants import WGS84
 from GEDItools.processor.granule.granule import Granule
 from GEDItools.utils.constants import GediProduct
+from GEDItools.processor.granule.l1b_granule import L1BGranule
 from GEDItools.processor.granule.l2a_granule import L2AGranule
 from GEDItools.processor.granule.l2b_granule import L2BGranule
 from GEDItools.processor.granule.l4a_granule import L4AGranule
@@ -11,7 +12,10 @@ from GEDItools.processor.granule.l4c_granule import L4CGranule
 
 
 def parse_h5_file(file: str, product: GediProduct, quality_filter=True):
-    if product == GediProduct.L2A.value:
+
+    if product == GediProduct.L1B.value:
+        return parse_file_l1b(file, quality_filter)    
+    elif product == GediProduct.L2A.value:
         return parse_file_l2a(file, quality_filter)
     elif product == GediProduct.L2B.value:
         return parse_file_l2b(file, quality_filter)
@@ -22,6 +26,10 @@ def parse_h5_file(file: str, product: GediProduct, quality_filter=True):
     else:
         raise ValueError(f"Product {product} not supported")
 
+
+def parse_file_l1b(file, quality_filter):
+    granule = L1BGranule(file)
+    return parse_granule(granule, quality_filter)
 
 def parse_file_l2a(file, quality_filter):
     granule = L2AGranule(file)
@@ -55,8 +63,6 @@ def parse_granule(granule: Granule, quality_filter=True) -> gpd.GeoDataFrame:
         print(f'Finished parsing beam {beam.name}')
     df = pd.concat(granule_data, ignore_index=True)
     gdf = gpd.GeoDataFrame(df, crs=WGS84)
-    # filter_status = "_unfiltered" if not quality_filter else ""
-    # gdf.to_csv(f'./debug/csv/{granule.short_name}{filter_status}.csv')
     granule.close()
     print(f'Finished parsing {granule.short_name}')
     return gdf

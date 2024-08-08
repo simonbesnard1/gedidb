@@ -40,46 +40,53 @@ class GEDIDatabase:
     
 class GEDIGranuleProcessor(GEDIDatabase):
     
-    def __init__(self, database_config: str = None, column_to_field_config: str = None):
+    def __init__(self, database_config_file: str = None, column_to_field_config_file: str = None, quality_config_file: str = None, field_mapping_config_file: str = None):
 
-        with open(column_to_field_config, 'r') as file:
-            self.COLUMN_TO_FIELD = yaml.safe_load(file)
+        self.COLUMN_TO_FIELD = self.load_config_file(column_to_field_config_file)
+        self.database_structure = self.load_config_file(database_config_file)
+        self.quality_filter_config = self.load_config_file(quality_config_file)
+        self.field_mapping = self.load_config_file(field_mapping_config_file)
+        
 
-        with open(database_config, 'r') as file:
-            self.database_structure = yaml.safe_load(file)
-
-        super().__init__(self.database_structure['region_of_interest'], self.database_structure['start_date'],
-                         self.database_structure['end_date'])
+        super().__init__(self.database_structure['region_of_interest'], self.database_structure['start_date'], self.database_structure['end_date'])
+        
         self.sql_connector = self.database_structure['sql_connector']
         self.save_cmr_data = self.database_structure['save_cmr_data']
+        self.download_path = self.database_structure['download_path']
         self.delete_h5_files = self.database_structure['delete_h5_files']
         self.db_path = self.database_structure['database_url']
         self.geom = gpd.read_file(self.database_structure['region_of_interest'])
         self.start_date = datetime.strptime(self.database_structure['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.database_structure['end_date'], '%Y-%m-%d')
+    
+    @staticmethod
+    def load_config_file(file_path: str = "field_mapping.yml") -> dict:
+        with open(file_path, 'r') as file:
+            return yaml.safe_load(file)
                 
     @log_execution
     def process(self):
         cmr_data = self.download_cmr_data().download()
         spark = self.create_spark_session()
-        print(cmr_data)
 
         name_url = cmr_data[
             ["id", "name", "url", "product"]
         ].to_records(index=False)
 
         urls = spark.sparkContext.parallelize(name_url)
-        mapped_urls = urls.map(lambda x: H5FileDownloader(x[0], x[2], GediProduct(x[3]))).groupByKey()
+        downloader = H5FileDownloader(self.download_path)
+
+        mapped_urls = urls.map(lambda x: downloader.download(x[0], x[2], GediProduct(x[3]))).groupByKey()
         processed_granules = mapped_urls.map(self._process_granule)
         granule_entries = processed_granules.coalesce(8).map(self._write_db)
         granule_entries.count()
         spark.stop()
         print("done")
 
-    def _process_granule(self, row):
+    def _process_granule(self, row: tuple[str, tuple[GediProduct, str]]):
         granule_key, granules = row
         included_files = sorted([fname[0] for fname in granules])
-        outfile_path = f"filtered_l2ab_l4a_{granule_key}.parquet"
+        outfile_path = f"filtered_l1b_l2ab_l4ac_{granule_key}.parquet"
         return_value = (granule_key, outfile_path, included_files)
         if os.path.exists(outfile_path):
             return return_value
@@ -94,7 +101,12 @@ class GEDIGranuleProcessor(GEDIDatabase):
             )
 
         gdf = (
-            gdfs[GediProduct.L2A.value]
+            gdfs[GediProduct.L1B.value]
+            .join(
+                gdfs[GediProduct.L2A.value].set_index("shot_number"),
+                on="shot_number",
+                how="inner",
+            )
             .join(
                 gdfs[GediProduct.L2B.value].set_index("shot_number"),
                 on="shot_number",
@@ -105,8 +117,13 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 on="shot_number",
                 how="inner",
             )
-            .drop(["geometry_level2B", "geometry_level4A"], axis=1)
-            .set_geometry("geometry_level2A")
+            .join(
+                gdfs[GediProduct.L4C.value].set_index("shot_number"),
+                on="shot_number",
+                how="inner",
+            )            
+            .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
+            .set_geometry("geometry_level1B")
             .rename_geometry("geometry")
         )
 
