@@ -1,16 +1,17 @@
 import pandas as pd
 import geopandas as gpd
 
-from GEDItools.processor.granule.granule import Granule, QDEGRADE
+from GEDItools.processor.granule.granule import Granule
 from GEDItools.processor.beam.beam import Beam
 from GEDItools.utils.constants import WGS84
 
 
 class L4CBeam(Beam):
 
-    def __init__(self, granule: Granule, beam: str):
-        super().__init__(granule, beam)
-
+    def __init__(self, granule: Granule, beam: str, quality_flag:dict, field_mapping:dict):
+        
+        super().__init__(granule, beam, quality_flag, field_mapping)
+        
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
         if self._shot_geolocations is None:
@@ -32,7 +33,7 @@ class L4CBeam(Beam):
             & (filtered["sensitivity_a0"] >= 0.9)
             & (filtered["sensitivity_a0"] <= 1.0)
             & (filtered["sensitivity_a2"] <= 1.0)
-            & (filtered["degrade_flag"].isin(QDEGRADE))
+            & (filtered["degrade_flag"].isin([0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]))
             & (filtered["surface_flag"] == 1)
         ]
 

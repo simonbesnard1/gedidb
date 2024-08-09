@@ -8,4 +8,4 @@ database_builder = GEDIGranuleProcessor(database_config_file = '/home/simon/Docu
                                         field_mapping_config_file = '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/field_mapping.yml')
 
 #%% Process GEDI data
-database_builder.process()
+database_builder.compute()

@@ -7,12 +7,11 @@ from GEDItools.utils.constants import WGS84
 
 class L1BBeam(Beam):
 
-    def __init__(self, granule: Granule, beam: str):
-        super().__init__(granule, beam)
-
-    def quality_filter(self):
-        print(NotImplementedError)
-
+    def __init__(self, granule: Granule, beam: str, quality_flag:dict, field_mapping:dict):
+        
+        super().__init__(granule, beam, quality_flag, field_mapping)
+    
+        
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
         if self._shot_geolocations is None:

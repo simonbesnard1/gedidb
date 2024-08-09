@@ -1,4 +1,12 @@
-L2A_variables:
+level_1b:
+ general_data:
+  granule_name: "parent_granule.filename"
+  shot_number: "shot_number"
+  beam_type: "beam_type"
+  beam_name: "name"
+  delta_time: "delta_time"
+
+level_2a:
  general_data:
   granule_name: "parent_granule.filename"
   shot_number: "shot_number"
@@ -30,7 +38,7 @@ L2A_variables:
    - "rh_1"
    - "rh_100"
   
-L2B_variables:
+level_2b:
   general_data:
    granule_name: "parent_granule.filename"
    shot_number: "shot_number"
@@ -93,3 +101,19 @@ L2B_variables:
    elevation_bin0_error: "geolocation/elevation_bin0_error"
    waveform_count: "rx_sample_count"
    waveform_start: "rx_sample_start_index"
+
+level_4a:
+ general_data:
+  granule_name: "parent_granule.filename"
+  shot_number: "shot_number"
+  beam_type: "beam_type"
+  beam_name: "name"
+  delta_time: "delta_time"
+
+level_4c:
+ general_data:
+  granule_name: "parent_granule.filename"
+  shot_number: "shot_number"
+  beam_type: "beam_type"
+  beam_name: "name"
+  delta_time: "delta_time"

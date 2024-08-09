@@ -47,7 +47,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
         self.quality_filter_config = self.load_config_file(quality_config_file)
         self.field_mapping = self.load_config_file(field_mapping_config_file)
         
-
         super().__init__(self.database_structure['region_of_interest'], self.database_structure['start_date'], self.database_structure['end_date'])
         
         self.sql_connector = self.database_structure['sql_connector']
@@ -65,7 +64,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
             return yaml.safe_load(file)
                 
     @log_execution
-    def process(self):
+    def compute(self):
         cmr_data = self.download_cmr_data().download()
         spark = self.create_spark_session()
 
@@ -95,11 +94,12 @@ class GEDIGranuleProcessor(GEDIDatabase):
         # Parse each file and run per-product filtering
         for product, file in granules:
             gdfs[product] = (
-                granule_parser.parse_h5_file(file, product, quality_filter=True)
+                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, 
+                                             field_mapping = self.field_mapping)
                 .rename(lambda x: f"{x}_{product}", axis=1)
                 .rename({f"shot_number_{product}": "shot_number"}, axis=1)
             )
-
+            
         gdf = (
             gdfs[GediProduct.L1B.value]
             .join(
@@ -143,20 +143,22 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if gedi_data.empty:
             print("empty")
             return
-
+        
         gedi_data = gedi_data[list(field_to_column.keys())]
         gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
         print(f"Writing granule: {granule_key}")
 
-        with db.get_db_conn(db_path=self.db_path).begin() as conn:
+        with db.get_db_conn().begin() as conn:
             granule_entry = pd.DataFrame(
                 data={
                     "granule_name": [granule_key],
                     "granule_file": [outfile_path],
-                    "l2a_file": [included_files[0]],
-                    "l2b_file": [included_files[1]],
-                    "l4a_file": [included_files[2]],
+                    "l1b_file": [included_files[0]],
+                    "l2a_file": [included_files[1]],
+                    "l2b_file": [included_files[2]],
+                    "l4a_file": [included_files[3]],
+                    "l4c_file": [included_files[4]],
                     "created_date": [pd.Timestamp.utcnow()],
                 }
             )
@@ -166,12 +168,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 index=False,
                 if_exists="append",
             )
-            # gedi_data.to_postgis(
-            #     name="filtered_l2ab_l4a_shots",
-            #     con=conn,
-            #     index=False,
-            #     if_exists="append",
-            # )
             conn.commit()
             del gedi_data
         return granule_entry

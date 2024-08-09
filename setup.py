@@ -54,6 +54,7 @@ setuptools.setup(
     python_requires='>=3.12',
     install_requires=[
         "pandas==2.2.2",
+        "pyarrow==17.0.0",
         "geopandas==1.0.1",
         "SQLAlchemy==2.0.31",
         "GeoAlchemy2==0.15.2",
