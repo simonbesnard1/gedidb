@@ -7,6 +7,8 @@
 ***
 # GEDI toolbox: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) data #
 
+[Amelia Holcomb](https://ameliaholcomb.github.io/), Felix Dombrowski and [Simon Besnard](https://simonbesnard1.github.io/)
+
 ## Table of Contents
 
 - [Overview](#overview)
