@@ -5,7 +5,7 @@
 </p>
 
 ***
-# Global covariation of forest age transitions with the net carbon balance #
+# GEDI toolbox: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) data #
 
 ## Table of Contents
 
