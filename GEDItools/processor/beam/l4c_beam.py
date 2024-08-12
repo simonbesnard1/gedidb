@@ -22,46 +22,6 @@ class L4CBeam(Beam):
             )
         return self._shot_geolocations
 
-    def quality_filter(self):
-
-        # TODO: fix L4C
-
-        filtered = self.main_data
-
-        filtered = filtered[
-            (filtered["l2_quality_flag"] == 1)
-            & (filtered["sensitivity_a0"] >= 0.9)
-            & (filtered["sensitivity_a0"] <= 1.0)
-            & (filtered["sensitivity_a2"] <= 1.0)
-            & (filtered["degrade_flag"].isin([0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]))
-            & (filtered["surface_flag"] == 1)
-        ]
-
-        filtered = filtered[
-            ((filtered["pft_class"] == 2) & (filtered["sensitivity_a2"] > 0.98))
-            | (
-                    (filtered["pft_class"] != 2)
-                    & (filtered["sensitivity_a2"] > 0.95)
-            )
-        ]
-
-        filtered = filtered[
-            (filtered["landsat_water_persistence"] < 10)
-            & (filtered["urban_proportion"] < 50)
-        ]
-
-        filtered = filtered.drop(
-            [
-                "l2_quality_flag",
-                # "l4_quality_flag",
-                # "algorithm_run_flag",
-                "surface_flag",
-            ],
-            axis=1,
-        )
-
-        self._cached_data = filtered
-
     def _get_main_data_dict(self) -> dict:
 
         data = {}        
@@ -86,4 +46,4 @@ class L4CBeam(Beam):
                 # Default case: Access as if it's a dataset
                 data[key] = self[source][:]
         
-        return data
+        return pd.DataFrame(data)

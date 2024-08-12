@@ -97,8 +97,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         # Parse each file and run per-product filtering
         for product, file in granules:
             gdfs[product] = (
-                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, 
-                                             field_mapping = self.field_mapping)
+                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, field_mapping = self.field_mapping)
                 .rename(lambda x: f"{x}_{product}", axis=1)
                 .rename({f"shot_number_{product}": "shot_number"}, axis=1)
             )

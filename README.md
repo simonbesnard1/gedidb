@@ -7,7 +7,7 @@
 ***
 # GEDI toolbox: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L1B, L2A-B and L4A-C data #
 
-### *by [Amelia Holcomb](https://ameliaholcomb.github.io/), Felix Dombrowski and [Simon Besnard](https://simonbesnard1.github.io/)*
+### *by Felix Dombrowski, [Simon Besnard](https://simonbesnard1.github.io/) and [Amelia Holcomb](https://ameliaholcomb.github.io/)*
 
 ## Table of Contents
 
@@ -60,6 +60,12 @@ cd gedi-toolbox; pip install -e .
 
 ## Getting started
 
+Building-up the database
+```
+
+
+```
+
 Download, process and store to the database
 ```
 from GEDItools.database.db_builder import GEDIGranuleProcessor
@@ -73,6 +79,12 @@ database_builder = GEDIGranuleProcessor(database_config_file = './config_files/d
 
 #%% Process GEDI data
 database_builder.compute()
+
+```
+
+Reading and visualise the database
+```
+
 
 ```
 
@@ -99,5 +111,5 @@ If you use geditoolbox in your research, please use the following BibTeX entry.
 ```
 
 ## Contact person
-For any questions or inquiries, please contact Amelia Holcomb (ah2174@cam.ac.uk), Felix Dombrowski (felix.dombrowski@uni-potsdam.de) and Simon Besnard (besnard@gfz-potsdam.de)
+For any questions or inquiries, please contact Felix Dombrowski (felix.dombrowski@uni-potsdam.de), Simon Besnard (besnard@gfz-potsdam.de) and Amelia Holcomb (ah2174@cam.ac.uk)
 
