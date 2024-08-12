@@ -15,7 +15,7 @@
 - [Repository Structure](#repository-structure)
 - [Package installation](#package-installation)
 - [Setting up the PostgreSQL database](#setting-up-the-postgresql-database)
-- [Getting Started](#getting-started)
+- [Getting started](#getting-started)
 - [Contributing](#contributing)
 - [License](#license)
 - [Citing geditoolbox](#citing-geditoolbox)
