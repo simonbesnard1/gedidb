@@ -16,7 +16,7 @@
 - [Package installation](#package-installation)
 - [Contributing](#contributing)
 - [License](#license)
-- [Citing forest-age-upscale](#citing-forest-age-upscale)
+- [Citing geditoolbox](#citing-geditoolbox)
 - [Contact person](#contact-person)
 
 ## Overview
