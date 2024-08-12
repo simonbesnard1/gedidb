@@ -58,7 +58,7 @@ git clone git@git.gfz-potsdam.de:global-land-monitoring/gedi-toolbox.git
 cd gedi-toolbox; pip install -e .
 ```
 
-## Setting up PostgreSQL database
+## Setting up the PostgreSQL database
 
 This guide covers the steps to install PostgreSQL on an Ubuntu system, create a new database, and a new user.
 
