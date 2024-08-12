@@ -1,0 +1,19 @@
+# Configuration for accessing NASA's Earthdata Search API to query granule data.
+CMR_URL: "https://cmr.earthdata.nasa.gov/search/granules.json"
+CMR_PRODUCT_IDS: 
+  - GediProduct.L1B: 'C1908344278-LPDAAC_ECS'
+  - GediProduct.L2A: 'C1908348134-LPDAAC_ECS'
+  - GediProduct.L2B: 'C1908350066-LPDAAC_ECS'
+  - GediProduct.L4A: 'C2237824918-ORNL_CLOUD'
+  - GediProduct.L4C: 'C3049900163-ORNL_CLOUD'
+
+# Data request
+database_url: 'postgresql://glmadmin:SimonGFZ@mefe27:5434/glmdb'
+download_path: '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/download'
+parquet_path: '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/parquet'
+region_of_interest: '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/test.geojson'
+start_date: '2019-01-01'
+end_date: '2022-01-01'
+sql_connector: None
+save_cmr_data: True
+delete_h5_files: True
