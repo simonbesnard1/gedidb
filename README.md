@@ -58,27 +58,25 @@ git clone git@git.gfz-potsdam.de:global-land-monitoring/gedi-toolbox.git
 cd gedi-toolbox; pip install -e .
 ```
 
-## Getting started
-
-# Setting up PostgreSQL database
+## Setting up PostgreSQL database
 
 This guide covers the steps to install PostgreSQL on an Ubuntu system, create a new database, and a new user.
 
-## 1. Update the Package List
+### 1. Update the Package List
 It's always a good idea to update the package list before installing new software:
 
 ```bash
 sudo apt update
 ```
 
-## 2. Install PostgreSQL
+### 2. Install PostgreSQL
 Install PostgreSQL and its associated tools:
 
 ```bash
 sudo apt install postgresql postgresql-contrib
 ```
 
-## 3. Access the PostgreSQL Prompt
+### 3. Access the PostgreSQL Prompt
 Switch to the `postgres` user and access the PostgreSQL prompt:
 
 ```bash
@@ -86,7 +84,7 @@ sudo -i -u postgres
 psql
 ```
 
-## 4. Create a New Database
+### 4. Create a New Database
 Once inside the PostgreSQL prompt, create a new database:
 
 ```sql
@@ -95,7 +93,7 @@ CREATE DATABASE mydatabase;
 
 Replace `mydatabase` with your desired database name.
 
-## 5. Create a New User
+### 5. Create a New User
 Create a new user with a password:
 
 ```sql
@@ -104,21 +102,21 @@ CREATE USER myuser WITH PASSWORD 'mypassword';
 
 Replace `myuser` with your desired username and `mypassword` with your desired password.
 
-## 6. Grant Privileges to the User
+### 6. Grant Privileges to the User
 Grant all privileges on the newly created database to the new user:
 
 ```sql
 GRANT ALL PRIVILEGES ON DATABASE mydatabase TO myuser;
 ```
 
-## 7. Exit the PostgreSQL Prompt
+### 7. Exit the PostgreSQL Prompt
 To exit the PostgreSQL prompt, use the following command:
 
 ```bash
 \q
 ```
 
-## 8. Connect to the New Database
+### 8. Connect to the New Database
 To start working with your new database, connect to it using:
 
 ```bash
@@ -127,7 +125,7 @@ psql -h localhost -U myuser -d mydatabase
 
 Replace `localhost`, `myuser`, and `mydatabase` with your server address, username, and database name respectively.
 
-## 9. Optional: PostgreSQL Configuration for Remote Access
+### 9. Optional: PostgreSQL Configuration for Remote Access
 If you need to allow remote connections to your PostgreSQL server, you may need to modify the PostgreSQL configuration files.
 
 - Edit the `postgresql.conf` file (usually located in `/etc/postgresql/[version]/main/`) to allow listening on all IP addresses:
@@ -148,13 +146,15 @@ host    all             all             0.0.0.0/0               md5
 sudo systemctl restart postgresql
 ```
 
-Adding the data schema to the database
+## Getting started
+
+### Adding the data schema to the database
 ```
 
 
 ```
 
-Download, process and store to the database
+### Download, process and store to the database
 ```
 from GEDItools.database.db_builder import GEDIGranuleProcessor
 
@@ -170,7 +170,7 @@ database_builder.compute()
 
 ```
 
-Reading and visualise the database
+### Reading and visualise the database
 ```
 
 
