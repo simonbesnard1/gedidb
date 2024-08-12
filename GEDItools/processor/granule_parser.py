@@ -19,7 +19,6 @@ class GranuleParser:
         print(f'Parsing {granule.short_name}')
         for beam in granule.iter_beams():
             print(f'Parsing beam {beam.name}')
-            #beam.quality_filter(self.quality_filter)
             beam.sql_format_arrays()
             granule_data.append(beam.main_data)
             print(f'Finished parsing beam {beam.name}')

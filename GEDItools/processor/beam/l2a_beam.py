@@ -21,23 +21,20 @@ class L2ABeam(Beam):
             )
         return self._shot_geolocations
 
-    def quality_filter(self):
-        filtered = self.main_data
+    def apply_filter(self, data):
 
-        quality_filters = self.quality_filter()
-
-        for key, value in quality_filters.items():
+        for key, value in self.quality_filter.items():
             if key == 'drop':
                 return
             if isinstance(value, list):
                 for v in value:
-                    filtered = filtered.query(f"{key} {v}")
+                    data = data.query(f"{key} {v}")
             else:
-                filtered = filtered.query(f"{key} {value}")
+                data = data.query(f"{key} {value}")
 
-        filtered = filtered.drop(quality_filters['drop'], axis=1)
+        data = data.drop(self.quality_filter['drop'], axis=1)
         
-        self._cached_data = filtered
+        return data
 
     def _get_main_data_dict(self) -> dict:
 
@@ -67,6 +64,7 @@ class L2ABeam(Beam):
                 data[key] = self[source][:] 
         
         data["elevation_difference_tdx"] = (self['elev_lowestmode'][:] - self['digital_elevation_model'][:])
-
+        
+        data = self.apply_filter(pd.DataFrame(data))
         return data
 

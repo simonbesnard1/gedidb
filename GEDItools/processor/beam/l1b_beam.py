@@ -1,4 +1,5 @@
 import geopandas as gpd
+import pandas as pd
 
 from GEDItools.processor.granule.granule import Granule
 from GEDItools.processor.beam.beam import Beam
@@ -41,4 +42,5 @@ class L1BBeam(Beam):
             else:
                 # Default case: Access as if it's a dataset
                 data[key] = self[source][:]
-        return data
+                
+        return pd.DataFrame(data)
