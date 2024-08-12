@@ -60,7 +60,95 @@ cd gedi-toolbox; pip install -e .
 
 ## Getting started
 
-Building-up the database
+# Setting up PostgreSQL database
+
+This guide covers the steps to install PostgreSQL on an Ubuntu system, create a new database, and a new user.
+
+## 1. Update the Package List
+It's always a good idea to update the package list before installing new software:
+
+```bash
+sudo apt update
+```
+
+## 2. Install PostgreSQL
+Install PostgreSQL and its associated tools:
+
+```bash
+sudo apt install postgresql postgresql-contrib
+```
+
+## 3. Access the PostgreSQL Prompt
+Switch to the `postgres` user and access the PostgreSQL prompt:
+
+```bash
+sudo -i -u postgres
+psql
+```
+
+## 4. Create a New Database
+Once inside the PostgreSQL prompt, create a new database:
+
+```sql
+CREATE DATABASE mydatabase;
+```
+
+Replace `mydatabase` with your desired database name.
+
+## 5. Create a New User
+Create a new user with a password:
+
+```sql
+CREATE USER myuser WITH PASSWORD 'mypassword';
+```
+
+Replace `myuser` with your desired username and `mypassword` with your desired password.
+
+## 6. Grant Privileges to the User
+Grant all privileges on the newly created database to the new user:
+
+```sql
+GRANT ALL PRIVILEGES ON DATABASE mydatabase TO myuser;
+```
+
+## 7. Exit the PostgreSQL Prompt
+To exit the PostgreSQL prompt, use the following command:
+
+```bash
+\q
+```
+
+## 8. Connect to the New Database
+To start working with your new database, connect to it using:
+
+```bash
+psql -h localhost -U myuser -d mydatabase
+```
+
+Replace `localhost`, `myuser`, and `mydatabase` with your server address, username, and database name respectively.
+
+## 9. Optional: PostgreSQL Configuration for Remote Access
+If you need to allow remote connections to your PostgreSQL server, you may need to modify the PostgreSQL configuration files.
+
+- Edit the `postgresql.conf` file (usually located in `/etc/postgresql/[version]/main/`) to allow listening on all IP addresses:
+
+```plaintext
+listen_addresses = '*'
+```
+
+- Edit the `pg_hba.conf` file (in the same directory) to allow connections from specific IP ranges:
+
+```plaintext
+host    all             all             0.0.0.0/0               md5
+```
+
+- Restart the PostgreSQL service to apply the changes:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+Adding the data schema to the database
 ```
 
 
