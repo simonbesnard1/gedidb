@@ -14,13 +14,15 @@
 - [Overview](#overview)
 - [Repository Structure](#repository-structure)
 - [Package installation](#package-installation)
+- [Setting up the PostgreSQL database](#setting-up-the-postgresql-database)
+- [Getting Started](#getting-started)
 - [Contributing](#contributing)
 - [License](#license)
 - [Citing geditoolbox](#citing-geditoolbox)
 - [Contact person](#contact-person)
 
 ## Overview
-This repository contains the code and data associated to download, process, store and visualise GEDI L1B, L2A-B and L4A-C data.
+This repository contains the code and data associated to download, process, store and visualise GEDI L1B, L2A-B and L4A-C data. The data are stored in a PostgreSQL database. 
 
 ## Repository Structure
 
