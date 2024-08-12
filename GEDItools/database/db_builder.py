@@ -52,6 +52,9 @@ class GEDIGranuleProcessor(GEDIDatabase):
         self.sql_connector = self.database_structure['sql_connector']
         self.save_cmr_data = self.database_structure['save_cmr_data']
         self.download_path = self.database_structure['download_path']
+        os.makedirs(self.download_path, exist_ok=True)
+        self.parquet_path = self.database_structure['parquet_path']
+        os.makedirs(self.parquet_path, exist_ok=True)
         self.delete_h5_files = self.database_structure['delete_h5_files']
         self.db_path = self.database_structure['database_url']
         self.geom = gpd.read_file(self.database_structure['region_of_interest'])
@@ -85,7 +88,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
     def _process_granule(self, row: tuple[str, tuple[GediProduct, str]]):
         granule_key, granules = row
         included_files = sorted([fname[0] for fname in granules])
-        outfile_path = f"filtered_l1b_l2ab_l4ac_{granule_key}.parquet"
+        outfile_path = os.path.join(self.parquet_path, f"filtered_l1b_l2ab_l4ac_{granule_key}.parquet")
         return_value = (granule_key, outfile_path, included_files)
         if os.path.exists(outfile_path):
             return return_value
@@ -143,13 +146,12 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if gedi_data.empty:
             print("empty")
             return
-        
         gedi_data = gedi_data[list(field_to_column.keys())]
         gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
         print(f"Writing granule: {granule_key}")
 
-        with db.get_db_conn().begin() as conn:
+        with db.get_db_conn(db_url= self.db_path).begin() as conn:
             granule_entry = pd.DataFrame(
                 data={
                     "granule_name": [granule_key],

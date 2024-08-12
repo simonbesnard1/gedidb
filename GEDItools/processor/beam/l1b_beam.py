@@ -23,40 +23,22 @@ class L1BBeam(Beam):
         return self._shot_geolocations
 
     def _get_main_data_dict(self) -> dict:
-        data = {
-            # General identifiable data
-            "granule_name": [self.parent_granule.filename] * self.n_shots,
-            "shot_number": self["shot_number"][:],
-            "beam_type": [self.beam_type] * self.n_shots,
-            "beam_name": [self.name] * self.n_shots,
-            # Temporal data
-            "delta_time": self["delta_time"][:],
-            # Quality data
-            "degrade": self["geolocation/degrade"][:],
-            "stale_return_flag": self["stale_return_flag"][:],
-            "solar_elevation": self["geolocation/solar_elevation"][:],
-            "solar_azimuth": self["geolocation/solar_elevation"][:],
-            "rx_energy": self["rx_energy"][:],
-            # DEM
-            "dem_tandemx": self["geolocation/digital_elevation_model"][:],
-            "dem_srtm": self["geolocation/digital_elevation_model_srtm"][:],
-            # geolocation bin0
-            "latitude_bin0": self["geolocation/latitude_bin0"][:],
-            "latitude_bin0_error": self["geolocation/latitude_bin0_error"][:],
-            "longitude_bin0": self["geolocation/longitude_bin0"][:],
-            "longitude_bin0_error": self["geolocation/longitude_bin0_error"][:],
-            "elevation_bin0": self["geolocation/elevation_bin0"][:],
-            "elevation_bin0_error": self["geolocation/elevation_bin0_error"][:],
-            # geolocation lastbin
-            "latitude_lastbin": self["geolocation/latitude_lastbin"][:],
-            "latitude_lastbin_error": self["geolocation/latitude_lastbin_error"][:],
-            "longitude_lastbin": self["geolocation/longitude_lastbin"][:],
-            "longitude_lastbin_error": self["geolocation/longitude_lastbin_error"][:],
-            "elevation_lastbin": self["geolocation/elevation_lastbin"][:],
-            "elevation_lastbin_error": self["geolocation/elevation_lastbin_error"][:],
-            # relative waveform position info in beam and ssub-granule
-            "waveform_start": self["rx_sample_start_index"][:] - 1,
-            "waveform_count": self["rx_sample_count"][:],
-        }
-
+        
+        data = {}
+        for key, source in self.field_mapper.items():
+            if key in ["granule_name"]:
+                # Handle special case for granule_name
+                data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
+            elif key in ["beam_type"]:                
+                # Handle special cases for beam_type 
+                data[key] = [getattr(self, source)] * self.n_shots
+            elif key in ["beam_name"]:                
+                # Handle special cases for beam_name
+                data[key] = [self.name] * self.n_shots
+            elif key in "waveform_start":
+                # Handle special cases for waveform_start 
+                data[key] = self[source][:] - 1
+            else:
+                # Default case: Access as if it's a dataset
+                data[key] = self[source][:]
         return data

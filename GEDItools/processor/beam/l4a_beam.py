@@ -62,48 +62,26 @@ class L4ABeam(Beam):
 
     def _get_main_data_dict(self) -> dict:
 
-        gedi_l4a_count_start = pd.to_datetime("2018-01-01T00:00:00Z")
-        data = {
-            # General identifiable data
-            "granule_name": [self.parent_granule.filename] * self.n_shots,
-            "shot_number": self["shot_number"][:],
-            "beam_type": [self.beam_type] * self.n_shots,
-            "beam_name": [self.name] * self.n_shots,
-            # Temporal data
-            "delta_time": self["delta_time"][:],
-            "absolute_time": (gedi_l4a_count_start + pd.to_timedelta(self["delta_time"], unit="seconds")),
-            # Quality data
-            "sensitivity_a0": self["sensitivity"][:],
-            "sensitivity_a2": self["geolocation/sensitivity_a2"][:],
-            "sensitivity_a10": self["geolocation/sensitivity_a10"][:],
-            "algorithm_run_flag": self["algorithm_run_flag"][:],
-            "degrade_flag": self["degrade_flag"][:],
-            "l2_quality_flag": self["l2_quality_flag"][:],
-            "l4_quality_flag": self["l4_quality_flag"][:],
-            "predictor_limit_flag": self["predictor_limit_flag"][:],
-            "response_limit_flag": self["response_limit_flag"][:],
-            "surface_flag": self["surface_flag"][:],
-            # Processing data
-            "selected_algorithm": self["selected_algorithm"][:],
-            "selected_mode": self["selected_mode"][:],
-            # Geolocation data
-            "elev_lowestmode": self["elev_lowestmode"][:],
-            "lat_lowestmode": self["lat_lowestmode"][:],
-            "lon_lowestmode": self["lon_lowestmode"][:],
-            # ABGD data
-            "agbd": self["agbd"][:],
-            "agbd_pi_lower": self["agbd_pi_lower"][:],
-            "agbd_pi_upper": self["agbd_pi_upper"][:],
-            "agbd_se": self["agbd_se"][:],
-            "agbd_t": self["agbd_t"][:],
-            "agbd_t_se": self["agbd_t_se"][:],
-            # Land cover data: NOTE this is gridded and/or derived data
-            "pft_class": self["land_cover_data/pft_class"][:],
-            "region_class": self["land_cover_data/region_class"][:],
-            "urban_proportion": self["land_cover_data/urban_proportion"][:],
-            "landsat_water_persistence": self["land_cover_data/landsat_water_persistence"][:],
-            "leaf_on_doy": self["land_cover_data/leaf_on_doy"][:],
-            "leaf_on_cycle": self["land_cover_data/leaf_on_cycle"][:],
-        }
-
+        data = {}        
+        # Populate data from general_data section
+        for key, source in self.field_mapper.items():
+            if key in ["granule_name"]:
+                # Handle special case for granule_name
+                data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
+            elif key in ["beam_type"]:                
+                # Handle special cases for beam_type 
+                data[key] = [getattr(self, source)] * self.n_shots
+            elif key in ["beam_name"]:                
+                # Handle special cases for beam_name
+                data[key] = [self.name] * self.n_shots
+            elif key in "waveform_start":
+                # Handle special cases for waveform_start 
+                data[key] = self[source][:] - 1
+            elif key in ["absolute_time"]:     
+                gedi_l2b_count_start = pd.to_datetime(source)
+                data[key] = (gedi_l2b_count_start + pd.to_timedelta(self["delta_time"], unit="seconds"))
+            else:
+                # Default case: Access as if it's a dataset
+                data[key] = self[source][:]
+        
         return data
