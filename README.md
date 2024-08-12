@@ -148,13 +148,13 @@ sudo systemctl restart postgresql
 
 ## Getting started
 
-### Adding the data schema to the database
+### 1 .Adding the data schema to the database
 ```
 
 
 ```
 
-### Download, process and store to the database
+### 2. Download, process and store to the database
 ```
 from GEDItools.database.db_builder import GEDIGranuleProcessor
 
@@ -170,7 +170,7 @@ database_builder.compute()
 
 ```
 
-### Reading and visualise the database
+### 3. Reading and visualise the database
 ```
 
 
