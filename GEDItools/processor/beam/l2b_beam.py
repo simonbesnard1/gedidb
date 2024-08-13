@@ -55,12 +55,9 @@ class L2BBeam(Beam):
             elif key in ["beam_name"]:                
                 # Handle special cases for beam_name
                 data[key] = [self.name] * self.n_shots
-            elif key in ["cover_z", "pai_z"]:
+            elif key in ["cover_z", "pai_z", "pavd_z"]:
                 # Handle special cases for cover_z and pai_z
-                data[key] = list(self[source][:])
-            elif key in "pavd_z":
-                # Handle special cases for pavd_z
-                data[key] = list(self[source][:].tolist())
+                data[key] = self[source][:].tolist()
             elif key in "dz":
                 # Special treatment for keys ending with _z
                 data[key] = np.repeat(self[source][:], self.n_shots)

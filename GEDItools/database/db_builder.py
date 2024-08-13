@@ -12,17 +12,27 @@ from GEDItools.utils.spark_session import create_spark
 from GEDItools.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 
 
-# Decorator for logging
-def log_execution(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        print(f"Executing {func.__name__}...")
-        result = func(*args, **kwargs)
-        print(f"Finished {func.__name__}.")
-        return result
+# # Decorator for logging
+# def log_execution(func):
+#     @wraps(func)
+#     def wrapper(*args, **kwargs):
+#         print(f"Executing {func.__name__}...")
+#         result = func(*args, **kwargs)
+#         print(f"Finished {func.__name__}.")
+#         return result
 
-    return wrapper
+#     return wrapper
 
+def log_execution(message=None):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            log_message = message or f"Executing {func.__name__}..."
+            print(log_message)
+            result = func(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator
 
 class GEDIDatabase:
     def __init__(self, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None):
@@ -30,11 +40,11 @@ class GEDIDatabase:
         self.start_date = start_date
         self.end_date = end_date
 
-    @log_execution
+    @log_execution("Downloading GEDI data...")
     def download_cmr_data(self):
         return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date)
-
-    @log_execution
+    
+    @log_execution("Creating spark session...")
     def create_spark_session(self):
         return create_spark()
     
@@ -66,7 +76,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
                 
-    @log_execution
+    @log_execution("Starting computation process...")
     def compute(self):
         cmr_data = self.download_cmr_data().download()
         spark = self.create_spark_session()

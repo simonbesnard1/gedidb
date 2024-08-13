@@ -4,6 +4,7 @@ level_1b:
  beam_type: "beam_type"
  beam_name: "name"
  delta_time: "delta_time"
+ rxwaveform: 'rxwaveform'
 
 level_2a:
  granule_name: "parent_granule.filename"

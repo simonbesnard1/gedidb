@@ -8,16 +8,6 @@ from GEDItools.utils.constants import GediProduct
 import geopandas as gpd
 from functools import wraps
 
-# Decorator for logging
-def log_execution(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        print(f"Executing {func.__name__}...")
-        result = func(*args, **kwargs)
-        print(f"Finished {func.__name__}.")
-        return result
-    return wrapper
-
 # Decorator for handling exceptions
 def handle_exceptions(func):
     @wraps(func)
@@ -30,7 +20,6 @@ def handle_exceptions(func):
     return wrapper
 
 class GEDIDownloader:
-    #@log_execution
     @handle_exceptions
     def _download(self, *args, **kwargs):
         raise NotImplementedError("This method should be implemented by subclasses.")
@@ -41,7 +30,6 @@ class CMRDataDownloader(GEDIDownloader):
         self.start_date = start_date
         self.end_date = end_date
 
-    #@log_execution
     @handle_exceptions
     def download(self) -> pd.DataFrame:
         cmr_df = pd.DataFrame()
@@ -55,7 +43,6 @@ class CMRDataDownloader(GEDIDownloader):
         return cmr_df
 
     @staticmethod
-    #@log_execution
     @handle_exceptions
     def clean_up_cmr_data(cmr_df: pd.DataFrame) -> pd.DataFrame:
         def _create_nested_dict(group):
@@ -71,7 +58,6 @@ class H5FileDownloader(GEDIDownloader):
     def __init__(self, download_path: str = "."):
         self.download_path = download_path
 
-    #@log_execution
     @handle_exceptions
     def download(self, _id: str, url: str, product: GediProduct) -> tuple[str, tuple[GediProduct, str]]:
         file_path = pathlib.Path(self.download_path) / f"{_id}/{product}.h5"

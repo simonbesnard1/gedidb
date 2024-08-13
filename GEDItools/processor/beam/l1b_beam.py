@@ -25,24 +25,20 @@ class L1BBeam(Beam):
     def _get_main_data_dict(self) -> dict:
         
         data = {}
+        
+        # First pass: gather all data and determine max length of rxwaveform variables
         for key, source in self.field_mapper.items():
             if key in ["granule_name"]:
-                # Handle special case for granule_name
                 data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
-            elif key in ["beam_type"]:                
-                # Handle special cases for beam_type 
+            elif key in ["beam_type"]:
                 data[key] = [getattr(self, source)] * self.n_shots
-            elif key in ["beam_name"]:                
-                # Handle special cases for beam_name
+            elif key in ["beam_name"]:
                 data[key] = [self.name] * self.n_shots
-            elif key in "waveform_start":
-                # Handle special cases for waveform_start 
+            elif key == "waveform_start":
                 data[key] = self[source][:] - 1
-            elif key in "pavd_z":
-                # Handle special cases for pavd_z
-                data[key] = list(self[source][:].tolist())
+            elif key == "rxwaveform":
+                data[key] = self[source][:].tolist()
             else:
-                # Default case: Access as if it's a dataset
                 data[key] = self[source][:]
-                
+                  
         return pd.DataFrame(data)
