@@ -1,12 +1,12 @@
 import pandas as pd
 import geopandas as gpd
 
-from GEDItools.processor.granule.granule import Granule
-from GEDItools.processor.beam.beam import Beam
-from GEDItools.utils.constants import WGS84
+from gedidb.processor.granule.granule import Granule
+from gedidb.processor.beam.beam import Beam
+from gedidb.utils.constants import WGS84
 
 
-class L4CBeam(Beam):
+class L4ABeam(Beam):
 
     def __init__(self, granule: Granule, beam: str, quality_flag:dict, field_mapping:dict):
         
@@ -22,6 +22,32 @@ class L4CBeam(Beam):
             )
         return self._shot_geolocations
 
+    def apply_filter(self, data: pd.DataFrame) -> pd.DataFrame:
+        for key, condition in self.quality_filter.items():
+            if key == 'drop':
+                continue  # Skip dropping columns here
+    
+            # Handle simple conditions
+            if key != 'complex_conditions' and isinstance(condition, list):
+                for cond in condition:
+                    data = data.query(f"{key} {cond}")
+            elif key != 'complex_conditions':
+                data = data.query(f"{key} {condition}")
+        
+        # Handle complex conditions
+        if 'complex_conditions' in self.quality_filter:
+            for complex_condition in self.quality_filter['complex_conditions']:
+                data = data.query(complex_condition)
+    
+        # Drop the specified columns after filtering
+        data = data.drop(columns=self.quality_filter.get('drop', []))
+        
+        # Store the filtered indices for further use if needed
+        filtered_index = data.index  
+        self._filtered_index = filtered_index  
+        
+        return data
+    
     def _get_main_data_dict(self) -> dict:
 
         data = {}        
@@ -46,4 +72,6 @@ class L4CBeam(Beam):
                 # Default case: Access as if it's a dataset
                 data[key] = self[source][:]
         
-        return pd.DataFrame(data)
+        data = self.apply_filter(pd.DataFrame(data))
+        
+        return data

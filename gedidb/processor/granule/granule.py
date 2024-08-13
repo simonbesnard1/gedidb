@@ -1,7 +1,7 @@
 import h5py
 
 from typing import Iterable
-from GEDItools.processor.beam.beam import Beam
+from gedidb.processor.beam.beam import Beam
 
 class Granule(h5py.File):
 

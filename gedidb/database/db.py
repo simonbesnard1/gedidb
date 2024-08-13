@@ -1,4 +1,4 @@
-from GEDItools.database.db_schema import Base
+from gedidb.database.db_schema import Base
 
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError

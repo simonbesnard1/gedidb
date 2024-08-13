@@ -1,6 +1,6 @@
-from GEDItools.processor.beam.beam import Beam
-from GEDItools.processor.beam.l1b_beam import L1BBeam
-from GEDItools.processor.granule.granule import Granule
+from gedidb.processor.beam.beam import Beam
+from gedidb.processor.beam.l1b_beam import L1BBeam
+from gedidb.processor.granule.granule import Granule
 
 
 class L1BGranule(Granule):

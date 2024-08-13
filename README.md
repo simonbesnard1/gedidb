@@ -158,7 +158,7 @@ sudo systemctl restart postgresql
 
 ### 2. Download, process and store to the database
 ```
-from GEDItools.database.db_builder import GEDIGranuleProcessor
+from gedidb.database.db_builder import GEDIGranuleProcessor
 
 
 #%% Initiate database builder

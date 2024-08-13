@@ -3,8 +3,8 @@ import pathlib
 from datetime import datetime
 import pandas as pd
 import requests
-from GEDItools.downloader.cmr_query import GranuleQuery
-from GEDItools.utils.constants import GediProduct
+from gedidb.downloader.cmr_query import GranuleQuery
+from gedidb.utils.constants import GediProduct
 import geopandas as gpd
 from functools import wraps
 

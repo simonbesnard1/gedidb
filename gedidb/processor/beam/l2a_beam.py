@@ -1,8 +1,8 @@
 import pandas as pd
 import geopandas as gpd
-from GEDItools.processor.granule.granule import Granule
-from GEDItools.processor.beam.beam import Beam
-from GEDItools.utils.constants import WGS84
+from gedidb.processor.granule.granule import Granule
+from gedidb.processor.beam.beam import Beam
+from gedidb.utils.constants import WGS84
 
 
 class L2ABeam(Beam):

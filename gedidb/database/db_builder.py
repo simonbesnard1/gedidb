@@ -5,11 +5,11 @@ import pandas as pd
 from datetime import datetime
 from functools import wraps
 
-from GEDItools.utils.constants import GediProduct
-from GEDItools.database import db
-from GEDItools.processor import granule_parser
-from GEDItools.utils.spark_session import create_spark
-from GEDItools.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
+from gedidb.utils.constants import GediProduct
+from gedidb.database import db
+from gedidb.processor import granule_parser
+from gedidb.utils.spark_session import create_spark
+from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 
 
 # # Decorator for logging

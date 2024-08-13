@@ -1,9 +1,9 @@
-from GEDItools.processor.granule.granule import Granule
-from GEDItools.processor.beam.beam import Beam
-from GEDItools.processor.beam.l2b_beam import L2BBeam
+from gedidb.processor.granule.granule import Granule
+from gedidb.processor.beam.l2a_beam import L2ABeam
+from gedidb.processor.beam.beam import Beam
 
 
-class L2BGranule(Granule):
+class L2AGranule(Granule):
 
     def __init__(self, file_path, quality_flag, field_mapping):
         super().__init__(file_path)
@@ -15,4 +15,5 @@ class L2BGranule(Granule):
 
         if beam not in self.beam_names:
             raise ValueError(f"Beam name must be one of {self.beam_names}")
-        return L2BBeam(self, beam, self.quality_flag, self.field_mapping)
+        return L2ABeam(self, beam, self.quality_flag, self.field_mapping)
+

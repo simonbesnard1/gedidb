@@ -2,7 +2,7 @@ import requests
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
-from GEDItools.utils.constants import GediProduct
+from gedidb.utils.constants import GediProduct
 from functools import wraps
 
 CMR_URL= "https://cmr.earthdata.nasa.gov/search/granules.json"

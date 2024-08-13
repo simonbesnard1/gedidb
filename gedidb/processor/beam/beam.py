@@ -2,7 +2,7 @@ import geopandas as gpd
 import h5py
 import numpy as np
 
-from GEDItools.utils.constants import WGS84
+from gedidb.utils.constants import WGS84
 from typing import Union, List
 
 
