@@ -38,6 +38,9 @@ class L1BBeam(Beam):
             elif key in "waveform_start":
                 # Handle special cases for waveform_start 
                 data[key] = self[source][:] - 1
+            elif key in "pavd_z":
+                # Handle special cases for pavd_z
+                data[key] = list(self[source][:].tolist())
             else:
                 # Default case: Access as if it's a dataset
                 data[key] = self[source][:]

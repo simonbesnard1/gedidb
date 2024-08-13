@@ -169,6 +169,13 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 index=False,
                 if_exists="append",
             )
+            
+            gedi_data.to_postgis(
+            name="filtered_l2ab_l4a_shots",
+            con=conn,
+            index=False,
+            if_exists="append",
+            )
             conn.commit()
             del gedi_data
         return granule_entry
