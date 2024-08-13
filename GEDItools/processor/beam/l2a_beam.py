@@ -1,6 +1,9 @@
 import pandas as pd
+import geopandas as gpd
 from GEDItools.processor.granule.granule import Granule
 from GEDItools.processor.beam.beam import Beam
+from GEDItools.utils.constants import WGS84
+
 
 class L2ABeam(Beam):
 
@@ -8,20 +11,35 @@ class L2ABeam(Beam):
         
         super().__init__(granule, beam, quality_flag, field_mapping)
     
-    def apply_filter(self, data):
+    @property
+    def shot_geolocations(self) -> gpd.array.GeometryArray:
+        if self._shot_geolocations is None:
+            self._shot_geolocations = gpd.points_from_xy(
+                x=self['lon_lowestmode'],
+                y=self['lat_lowestmode'],
+                crs=WGS84,
+            )
+        return self._shot_geolocations
 
+    def apply_filter(self, data: pd.DataFrame) -> pd.DataFrame:
+        
         for key, value in self.quality_filter.items():
             if key == 'drop':
-                return
+                continue  # Skip dropping columns here
             if isinstance(value, list):
                 for v in value:
                     data = data.query(f"{key} {v}")
             else:
                 data = data.query(f"{key} {value}")
-
-        data = data.drop(self.quality_filter['drop'], axis=1)
+    
+        data = data.drop(columns=self.quality_filter.get('drop', []))
+        
+        filtered_index = data.index  # Get the filtered indices
+        
+        self._filtered_index = filtered_index  # Store the filtered indices
         
         return data
+
 
     def _get_main_data_dict(self) -> dict:
 

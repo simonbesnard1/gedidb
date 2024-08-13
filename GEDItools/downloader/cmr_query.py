@@ -39,7 +39,7 @@ def handle_exceptions(func):
 class CMRQuery:
     
     @staticmethod
-    @log_execution
+    #@log_execution
     @handle_exceptions
     def _construct_query_params(product: GediProduct, geom: gpd.GeoSeries, start_date: datetime, end_date: datetime, page_size: int, page_num: int) -> dict:
         
@@ -52,7 +52,7 @@ class CMRQuery:
         }
 
     @staticmethod
-    @log_execution
+    #@log_execution
     @handle_exceptions
     def _construct_temporal_params(start_date: datetime, end_date: datetime) -> str:
         if start_date and end_date:
@@ -67,7 +67,7 @@ class CMRQuery:
             return ''
 
     @staticmethod
-    @log_execution
+    #@log_execution
     @handle_exceptions
     def _construct_spacial_params(geom: gpd.GeoSeries) -> str:
         return ','.join([str(x) for x in geom.total_bounds])
@@ -102,7 +102,7 @@ class GranuleQuery(CMRQuery):
         self.start_date = start_date
         self.end_date = end_date
 
-    @log_execution
+    #@log_execution
     @handle_exceptions
     def query_granules(self, page_size: int = 2000, page_num: int = 1) -> pd.DataFrame:
         cmr_params = self._construct_query_params(self.product, self.geom, self.start_date, self.end_date, page_size, page_num)

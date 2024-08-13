@@ -44,15 +44,20 @@ class Beam(h5py.Group):
     
     @property
     def main_data(self) -> gpd.GeoDataFrame:
-
         if self._cached_data is None:
             data = self._get_main_data_dict()
             geometry = self.shot_geolocations
+            
+            # Filter geometry using the filtered index from apply_filter
+            if hasattr(self, '_filtered_index'):
+                geometry = geometry[self._filtered_index]
+            
             self._cached_data = gpd.GeoDataFrame(
                 data, geometry=geometry, crs=WGS84
             )
-
+    
         return self._cached_data
+
 
     def sql_format_arrays(self) -> None:
         """Forces array-type fields to be sql-formatted (text strings).
