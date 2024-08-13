@@ -199,7 +199,8 @@ If you use geditoolbox in your research, please use the following BibTeX entry.
 ```
 
 ```
-Please note that the default quality filtering is based on the [data processing pipelines](https://docs.google.com/document/d/1XmcoV8-k-8C_Tmh-CJ4sYvlvOqkbiXP1Kah_KrCkMqU/edit) developed by Patrick Burns, Chris Hakkenberg, and Scott Goetz, and should be appropriately credited.
+Please note that the default quality filtering is based on the [data processing pipelines](https://docs.google.com/document/d/1XmcoV8-k-8C_Tmh-CJ4sYvlvOqkbiXP1Kah_KrCkMqU/edit) developed by Patrick Burns, Chris Hakkenberg, and Scott Goetz, and should be appropriately credited. Please cite the paper [Repeat GEDI footprints measure the effects of tropical forest disturbances
+](https://www.sciencedirect.com/science/article/pii/S0034425724001925?via%3Dihub#f0035) if you end up using the default filters.
 
 ## Contact person
 For any questions or inquiries, please contact Felix Dombrowski (felix.dombrowski@uni-potsdam.de), Simon Besnard (besnard@gfz-potsdam.de) and Amelia Holcomb (ah2174@cam.ac.uk)
