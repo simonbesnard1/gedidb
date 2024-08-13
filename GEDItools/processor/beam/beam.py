@@ -24,11 +24,15 @@ class Beam(h5py.Group):
     def beam_type(self) -> str:
         return self.attrs["description"].split(" ")[0].lower()
 
-    def _get_main_data_dict(self):
-        raise NotImplementedError
-
-    def shot_geolocations(self):
-        raise NotImplementedError
+    @property
+    def shot_geolocations(self) -> gpd.array.GeometryArray:
+        if self._shot_geolocations is None:
+            self._shot_geolocations = gpd.points_from_xy(
+                x=self["geolocation/longitude_lastbin"],
+                y=self["geolocation/latitude_lastbin"],
+                crs=WGS84,
+            )
+        return self._shot_geolocations
 
     @property
     def quality_filter(self):

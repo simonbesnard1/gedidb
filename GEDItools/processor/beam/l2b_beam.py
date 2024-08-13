@@ -1,10 +1,7 @@
 import pandas as pd
 import numpy as np
-import geopandas as gpd
 from GEDItools.processor.granule.granule import Granule
 from GEDItools.processor.beam.beam import Beam
-from GEDItools.utils.constants import WGS84
-
 
 class L2BBeam(Beam):
 
@@ -12,16 +9,6 @@ class L2BBeam(Beam):
         
         super().__init__(granule, beam, quality_flag, field_mapping)
     
-    @property
-    def shot_geolocations(self) -> gpd.array.GeometryArray:
-        if self._shot_geolocations is None:
-            self._shot_geolocations = gpd.points_from_xy(
-                x=self['geolocation/lon_lowestmode'],
-                y=self['geolocation/lat_lowestmode'],
-                crs=WGS84,
-            )
-        return self._shot_geolocations
-
     def apply_filter(self, data):
 
         for key, value in self.quality_filter.items():

@@ -1,9 +1,6 @@
 import pandas as pd
-import geopandas as gpd
 from GEDItools.processor.granule.granule import Granule
 from GEDItools.processor.beam.beam import Beam
-from GEDItools.utils.constants import WGS84
-
 
 class L2ABeam(Beam):
 
@@ -11,16 +8,6 @@ class L2ABeam(Beam):
         
         super().__init__(granule, beam, quality_flag, field_mapping)
     
-    @property
-    def shot_geolocations(self) -> gpd.array.GeometryArray:
-        if self._shot_geolocations is None:
-            self._shot_geolocations = gpd.points_from_xy(
-                x=self['lon_lowestmode'],
-                y=self['lat_lowestmode'],
-                crs=WGS84,
-            )
-        return self._shot_geolocations
-
     def apply_filter(self, data):
 
         for key, value in self.quality_filter.items():
@@ -66,5 +53,6 @@ class L2ABeam(Beam):
         data["elevation_difference_tdx"] = (self['elev_lowestmode'][:] - self['digital_elevation_model'][:])
         
         data = self.apply_filter(pd.DataFrame(data))
+        
         return data
 
