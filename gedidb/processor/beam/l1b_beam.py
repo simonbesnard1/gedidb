@@ -26,7 +26,6 @@ class L1BBeam(Beam):
         
         data = {}
         
-        # First pass: gather all data and determine max length of rxwaveform variables
         for key, source in self.field_mapper.items():
             if key in ["granule_name"]:
                 data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
@@ -36,9 +35,20 @@ class L1BBeam(Beam):
                 data[key] = [self.name] * self.n_shots
             elif key == "waveform_start":
                 data[key] = self[source][:] - 1
-            elif key == "rxwaveform":
-                data[key] = self[source][:].tolist()
+            elif key in ["rxwaveform", "txwaveform"]:
+                rxwaveform = self[source][:]
+                sdsCount = self['rx_sample_count'][:]  # assuming sdsCount is available like this
+                sdsStart = self['rx_sample_start_index'][:]  # assuming sdsStart is available like this
+                num_shots = len(sdsCount)
+                data[key] = []        
+                for i in range(num_shots):
+                    start_idx = sdsStart[i]
+                    count = sdsCount[i]
+                    shot_waveform = rxwaveform[start_idx:start_idx + count]
+                    data[key].append(shot_waveform.tolist()) 
             else:
                 data[key] = self[source][:]
                   
         return pd.DataFrame(data)
+
+
