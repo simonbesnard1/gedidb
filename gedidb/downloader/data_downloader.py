@@ -67,7 +67,6 @@ class H5FileDownloader(GEDIDownloader):
             return _id, (product.value, str(file_path))
 
         try:
-            print(f"{product}: Downloading")
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
                 # make dir with _id as name if not existing:
@@ -75,7 +74,6 @@ class H5FileDownloader(GEDIDownloader):
                 with open(file_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
-                print(f"{product}: Done")
                 return _id, (product.value, str(file_path))
 
         except Exception as e:

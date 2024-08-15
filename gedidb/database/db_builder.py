@@ -11,13 +11,15 @@ from gedidb.processor import granule_parser
 from gedidb.utils.spark_session import create_spark
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 
-def log_execution(message=None):
+def log_execution(start_message=None, end_message=None):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            log_message = message or f"Executing {func.__name__}..."
+            log_message = start_message or f"Executing {func.__name__}..."
             print(log_message)
             result = func(*args, **kwargs)
+            log_message = end_message or f"Finished {func.__name__}..."
+            print(log_message)
             return result
         return wrapper
     return decorator
@@ -28,11 +30,11 @@ class GEDIDatabase:
         self.start_date = start_date
         self.end_date = end_date
 
-    @log_execution("Downloading GEDI data...")
+    @log_execution(start_message = "Downloading GEDI data...", end_message="GEDI data succesfully downloaded")
     def download_cmr_data(self):
         return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date)
     
-    @log_execution("Creating spark session...")
+    @log_execution(start_message = "Creating spark session...", end_message="Spark session created")
     def create_spark_session(self):
         return create_spark()
     
@@ -64,7 +66,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
                 
-    @log_execution("Starting computation process...")
+    @log_execution(start_message = "Starting computation process...", end_message='Data processing completed!')
     def compute(self):
         cmr_data = self.download_cmr_data().download()
         spark = self.create_spark_session()
@@ -100,38 +102,36 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 .rename({f"shot_number_{product}": "shot_number"}, axis=1)
             )
             
-        try:
-            gdf = (
-                gdfs[GediProduct.L1B.value]
-                .join(
-                    gdfs[GediProduct.L2A.value].set_index("shot_number"),
-                    on="shot_number",
-                    how="inner",
-                )
-                .join(
-                    gdfs[GediProduct.L2B.value].set_index("shot_number"),
-                    on="shot_number",
-                    how="inner",
-                )
-                .join(
-                    gdfs[GediProduct.L4A.value].set_index("shot_number"),
-                    on="shot_number",
-                    how="inner",
-                )
-                .join(
-                    gdfs[GediProduct.L4C.value].set_index("shot_number"),
-                    on="shot_number",
-                    how="inner",
-                )            
-                .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
-                .set_geometry("geometry_level1B")
-                .rename_geometry("geometry")
+        gdf = (
+            gdfs[GediProduct.L1B.value]
+            .join(
+                gdfs[GediProduct.L2A.value].set_index("shot_number"),
+                on="shot_number",
+                how="inner",
             )
-    
-            gdf["granule"] = granule_key
-            gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
-        except:
-            pass
+            .join(
+                gdfs[GediProduct.L2B.value].set_index("shot_number"),
+                on="shot_number",
+                how="inner",
+            )
+            .join(
+                gdfs[GediProduct.L4A.value].set_index("shot_number"),
+                on="shot_number",
+                how="inner",
+            )
+            .join(
+                gdfs[GediProduct.L4C.value].set_index("shot_number"),
+                on="shot_number",
+                how="inner",
+            )            
+            .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
+            .set_geometry("geometry_level1B")
+            .rename_geometry("geometry")
+        )
+
+        gdf["granule"] = granule_key
+        gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
+
         return return_value
 
     def _write_db(self, input):
@@ -148,8 +148,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         gedi_data = gedi_data[list(field_to_column.keys())]
         gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
-        print(f"Writing granule: {granule_key}")
-
+        
         with db.get_db_conn(db_url= self.db_path).begin() as conn:
             granule_entry = pd.DataFrame(
                 data={
@@ -164,17 +163,17 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 }
             )
             granule_entry.to_sql(
-                name="gedi_granules",
+                name=self.database_structure['granules']['table_name'],
                 con=conn,
                 index=False,
                 if_exists="append",
             )
             
             gedi_data.to_postgis(
-            name="filtered_l2ab_l4a_shots",
-            con=conn,
-            index=False,
-            if_exists="append",
+                name=self.database_structure['shots']['table_name'],
+                con=conn,
+                index=False,
+                if_exists="append",
             )
             conn.commit()
             del gedi_data
