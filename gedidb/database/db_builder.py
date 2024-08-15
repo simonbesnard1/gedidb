@@ -11,18 +11,6 @@ from gedidb.processor import granule_parser
 from gedidb.utils.spark_session import create_spark
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 
-
-# # Decorator for logging
-# def log_execution(func):
-#     @wraps(func)
-#     def wrapper(*args, **kwargs):
-#         print(f"Executing {func.__name__}...")
-#         result = func(*args, **kwargs)
-#         print(f"Finished {func.__name__}.")
-#         return result
-
-#     return wrapper
-
 def log_execution(message=None):
     def decorator(func):
         @wraps(func)
@@ -107,41 +95,43 @@ class GEDIGranuleProcessor(GEDIDatabase):
         # Parse each file and run per-product filtering
         for product, file in granules:
             gdfs[product] = (
-                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, field_mapping = self.field_mapping)
+                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, field_mapping = self.field_mapping, geom= self.geom)
                 .rename(lambda x: f"{x}_{product}", axis=1)
                 .rename({f"shot_number_{product}": "shot_number"}, axis=1)
             )
             
-        gdf = (
-            gdfs[GediProduct.L1B.value]
-            .join(
-                gdfs[GediProduct.L2A.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
+        try:
+            gdf = (
+                gdfs[GediProduct.L1B.value]
+                .join(
+                    gdfs[GediProduct.L2A.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+                .join(
+                    gdfs[GediProduct.L2B.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+                .join(
+                    gdfs[GediProduct.L4A.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+                .join(
+                    gdfs[GediProduct.L4C.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )            
+                .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
+                .set_geometry("geometry_level1B")
+                .rename_geometry("geometry")
             )
-            .join(
-                gdfs[GediProduct.L2B.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .join(
-                gdfs[GediProduct.L4A.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .join(
-                gdfs[GediProduct.L4C.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )            
-            .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
-            .set_geometry("geometry_level1B")
-            .rename_geometry("geometry")
-        )
-
-        gdf["granule"] = granule_key
-        gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
-
+    
+            gdf["granule"] = granule_key
+            gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
+        except:
+            pass
         return return_value
 
     def _write_db(self, input):

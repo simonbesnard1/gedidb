@@ -9,10 +9,12 @@ from gedidb.processor.granule.l4a_granule import L4AGranule
 from gedidb.processor.granule.l4c_granule import L4CGranule
 
 class GranuleParser:
-    def __init__(self, file: str, quality_filter: dict = None, field_mapping: dict = None):
+    def __init__(self, file: str, quality_filter: dict = None, field_mapping: dict = None, geom: gpd.GeoSeries=None):
         self.file = file
         self.quality_filter = quality_filter
         self.field_mapping = field_mapping
+        self.geom = geom
+        
 
     def parse_granule(self, granule: Granule) -> gpd.GeoDataFrame:
         granule_data = []
@@ -33,30 +35,30 @@ class GranuleParser:
 
 class L1BGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L1BGranule(self.file, self.quality_filter['level_1b'], self.field_mapping['level_1b'])
+        granule = L1BGranule(self.file, self.quality_filter['level_1b'], self.field_mapping['level_1b'], self.geom)
         return self.parse_granule(granule)
 
 class L2AGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L2AGranule(self.file, self.quality_filter['level_2a'], self.field_mapping['level_2a'])
+        granule = L2AGranule(self.file, self.quality_filter['level_2a'], self.field_mapping['level_2a'], self.geom)
         return self.parse_granule(granule)
 
 class L2BGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L2BGranule(self.file, self.quality_filter['level_2b'], self.field_mapping['level_2b'])
+        granule = L2BGranule(self.file, self.quality_filter['level_2b'], self.field_mapping['level_2b'], self.geom)
         return self.parse_granule(granule)
 
 class L4AGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L4AGranule(self.file, self.quality_filter['level_4a'], self.field_mapping['level_4a'])
+        granule = L4AGranule(self.file, self.quality_filter['level_4a'], self.field_mapping['level_4a'], self.geom)
         return self.parse_granule(granule)
 
 class L4CGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L4CGranule(self.file, self.quality_filter['level_4c'], self.field_mapping['level_4c'])
+        granule = L4CGranule(self.file, self.quality_filter['level_4c'], self.field_mapping['level_4c'], self.geom)
         return self.parse_granule(granule)
 
-def parse_h5_file(file: str, product: GediProduct, quality_filter: dict = None, field_mapping: dict = None) -> gpd.GeoDataFrame:
+def parse_h5_file(file: str, product: GediProduct, quality_filter: dict = None, field_mapping: dict = None, geom: gpd.GeoSeries=None) -> gpd.GeoDataFrame:
     parser_classes = {
         GediProduct.L1B.value: L1BGranuleParser,
         GediProduct.L2A.value: L2AGranuleParser,
@@ -69,5 +71,5 @@ def parse_h5_file(file: str, product: GediProduct, quality_filter: dict = None, 
     if parser_class is None:
         raise ValueError(f"Product {product} not supported")
     
-    parser = parser_class(file, quality_filter, field_mapping)
+    parser = parser_class(file, quality_filter, field_mapping, geom)
     return parser.parse()

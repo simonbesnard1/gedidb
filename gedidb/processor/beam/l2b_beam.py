@@ -8,9 +8,9 @@ from gedidb.utils.constants import WGS84
 
 class L2BBeam(Beam):
 
-    def __init__(self, granule: Granule, beam: str, quality_flag:dict, field_mapping:dict):
+    def __init__(self,granule: Granule, beam: str, quality_flag:dict, field_mapping:dict, geom: gpd.GeoSeries):
         
-        super().__init__(granule, beam, quality_flag, field_mapping)
+        super().__init__(granule, beam, quality_flag, field_mapping, geom)
     
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
@@ -42,7 +42,21 @@ class L2BBeam(Beam):
         return data
 
     def _get_main_data_dict(self) -> dict:
+        
+        # spatial_box = self.geom.total_bounds  # [minx, miny, maxx, maxy]
+        
+        # # Extract x and y coordinates from shot_geolocations
+        # longitudes_lastbin = self.shot_geolocations.x
+        # latitudes_lastbin = self.shot_geolocations.y
+        
+         
+        # spatial_mask = np.logical_and(np.logical_and(longitudes_lastbin >= spatial_box[0], longitudes_lastbin <= spatial_box[2]),
+        #                               np.logical_and(latitudes_lastbin >= spatial_box[1], latitudes_lastbin <= spatial_box[3]))
+        # # Filter shot_geolocations and other attributes using the spatial mask
+        # filtered_n_shots = np.sum(spatial_mask)  # Count of True values in spatial_mask
+        
         data = {}
+        
         
         # Populate data from general_data section
         for key, source in self.field_mapper.items():
@@ -57,22 +71,22 @@ class L2BBeam(Beam):
                 data[key] = [self.name] * self.n_shots
             elif key in ["cover_z", "pai_z", "pavd_z"]:
                 # Handle special cases for cover_z and pai_z
-                data[key] = self[source][:].tolist()
+                data[key] = self[source][()].tolist()
             elif key in "dz":
                 # Special treatment for keys ending with _z
-                data[key] = np.repeat(self[source][:], self.n_shots)
+                data[key] = np.repeat(self[source][()], self.n_shots)
             elif key in "waveform_start":
                 # Handle special cases for waveform_start 
                 data[key] = self[source][:] - 1
             elif key in ["absolute_time"]:     
                 gedi_l2b_count_start = pd.to_datetime(source)
-                data[key] = (gedi_l2b_count_start + pd.to_timedelta(self["delta_time"], unit="seconds"))
+                data[key] = (gedi_l2b_count_start + pd.to_timedelta(self["delta_time"][()], unit="seconds"))
             else:
                 # Default case: Access as if it's a dataset
-                data[key] = self[source][:]
-                
-        data["elevation_difference_tdx"] = (self['geolocation/elev_lowestmode'][:] - self['geolocation/digital_elevation_model'][:])
-
+                data[key] = self[source][()]
+                    
+            data["elevation_difference_tdx"] = (self['geolocation/elev_lowestmode'][()] - self['geolocation/digital_elevation_model'][()])
+        
         data = self.apply_filter(pd.DataFrame(data))
         
         return data

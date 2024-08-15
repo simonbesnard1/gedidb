@@ -8,14 +8,15 @@ from typing import Union, List
 
 class Beam(h5py.Group):
 
-    def __init__(self, granule, beam: str, quality_flag:dict, field_mapping:dict):
+    def __init__(self, granule, beam: str, quality_flag:dict, field_mapping:dict, geom: gpd.GeoSeries):
         super().__init__(granule[beam].id)
         self.parent_granule = granule
         self._cached_data = None
         self._shot_geolocations = None
         self.quality_flag = quality_flag
         self.field_mapping = field_mapping
-
+        self.geom = geom
+        
     @property
     def n_shots(self) -> int:
         return len(self["beam"])

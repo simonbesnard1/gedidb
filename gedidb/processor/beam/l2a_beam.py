@@ -1,5 +1,7 @@
 import pandas as pd
 import geopandas as gpd
+#import numpy as np
+
 from gedidb.processor.granule.granule import Granule
 from gedidb.processor.beam.beam import Beam
 from gedidb.utils.constants import WGS84
@@ -7,9 +9,9 @@ from gedidb.utils.constants import WGS84
 
 class L2ABeam(Beam):
 
-    def __init__(self, granule: Granule, beam: str, quality_flag:dict, field_mapping:dict):
+    def __init__(self,granule: Granule, beam: str, quality_flag:dict, field_mapping:dict, geom: gpd.GeoSeries):
         
-        super().__init__(granule, beam, quality_flag, field_mapping)
+        super().__init__(granule, beam, quality_flag, field_mapping, geom)
     
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
@@ -43,6 +45,17 @@ class L2ABeam(Beam):
 
     def _get_main_data_dict(self) -> dict:
 
+        # spatial_box = self.geom.total_bounds  # [minx, miny, maxx, maxy]
+        
+        # # Extract x and y coordinates from shot_geolocations
+        # longitudes_lastbin = self.shot_geolocations.x
+        # latitudes_lastbin = self.shot_geolocations.y
+                 
+        # spatial_mask = np.logical_and(np.logical_and(longitudes_lastbin >= spatial_box[0], longitudes_lastbin <= spatial_box[2]),
+        #                               np.logical_and(latitudes_lastbin >= spatial_box[1], latitudes_lastbin <= spatial_box[3]))
+        # # Filter shot_geolocations and other attributes using the spatial mask
+        # filtered_n_shots = np.sum(spatial_mask)  # Count of True values in spatial_mask
+        
         data = {}
         
         # Populate data from general_data section
@@ -55,21 +68,21 @@ class L2ABeam(Beam):
                 data[key] = [getattr(self, source)] * self.n_shots
             elif key in ["beam_name"]:                
                 # Handle special cases for beam_name
-                data[key] = [self.name] * self.n_shots   
+                data[key] = [self.name] * self.n_shots
             elif key in ["rh_data"]: 
                 for i in range(source + 1):
                     rh_key = f"rh_{i}"
                     data[rh_key] = self["rh"][:, i]
-            elif key in ["absolute_time"]:                
+            elif key in ["absolute_time"]:                      
                 # Handle special cases for beam_name
                 gedi_l2a_count_start = pd.to_datetime(source)
-                data[key] = (gedi_l2a_count_start + pd.to_timedelta(self["delta_time"], unit="seconds"))
+                data[key] = (gedi_l2a_count_start + pd.to_timedelta(self["delta_time"][()], unit="seconds"))
             else:
                 # Default case: Access as if it's a dataset
-                data[key] = self[source][:] 
-        
-        data["elevation_difference_tdx"] = (self['elev_lowestmode'][:] - self['digital_elevation_model'][:])
-        
+                data[key] = self[source][()] 
+            
+            data["elevation_difference_tdx"] = (self['elev_lowestmode'][()] - self['digital_elevation_model'][()])
+            
         data = self.apply_filter(pd.DataFrame(data))
         
         return data
