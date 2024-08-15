@@ -142,9 +142,11 @@ class Granules(Base):
     granule_name = mapped_column(String(60), nullable=False, primary_key=True)
     granule_hash = mapped_column(String(60), nullable=False)
     granule_file = mapped_column(String(100), nullable=False)
+    l1b_file = mapped_column(String(100), nullable=False)
     l2a_file = mapped_column(String(100), nullable=False)
     l2b_file = mapped_column(String(100), nullable=False)
     l4a_file = mapped_column(String(100), nullable=False)
+    l4c_file = mapped_column(String(100), nullable=False)
     # TODO(amelia): how do deal with versions across products?
     # major_version = mapped_column(SmallInteger, nullable=False)
     created_date = mapped_column(DateTime, nullable=False)
