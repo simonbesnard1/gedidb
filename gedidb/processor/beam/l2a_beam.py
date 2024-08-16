@@ -43,49 +43,39 @@ class L2ABeam(Beam):
         return data
 
 
-    def _get_main_data_dict(self) -> dict:
-
-        spatial_box = self.geom.total_bounds  # [minx, miny, maxx, maxy]
+    def _get_main_data(self) -> dict:
         
-        # Extract x and y coordinates from shot_geolocations
-        longitudes_lastbin = self.shot_geolocations.x
-        latitudes_lastbin = self.shot_geolocations.y
-                 
-        spatial_mask = np.logical_and(np.logical_and(longitudes_lastbin >= spatial_box[0], longitudes_lastbin <= spatial_box[2]),
-                                      np.logical_and(latitudes_lastbin >= spatial_box[1], latitudes_lastbin <= spatial_box[3]))
-        # Filter shot_geolocations and other attributes using the spatial mask
-        filtered_n_shots = np.sum(spatial_mask)  # Count of True values in spatial_mask
+        # # Filter shot_geolocations and other attributes using the spatial mask
+        # filtered_n_shots = np.sum(self.spatial_mask)  # Count of True values in self.spatial_mask
         
-        if filtered_n_shots >0:
-
-            data = {}
+        data = {}
+        
+        # Populate data from general_data section
+        for key, source in self.field_mapper.items():
+            if key in ["granule_name"]:
+                # Handle special case for granule_name
+                data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
+            elif key in ["beam_type"]:                
+                # Handle special cases for beam_type 
+                data[key] = [getattr(self, source)] * self.n_shots
+            elif key in ["beam_name"]:                
+                # Handle special cases for beam_name
+                data[key] = [self.name] * self.n_shots
+            elif key in ["rh_data"]: 
+                for i in range(source + 1):
+                    rh_key = f"rh_{i}"
+                    data[rh_key] = self["rh"][:, i]
+            elif key in ["absolute_time"]:                      
+                # Handle special cases for beam_name
+                gedi_l2a_count_start = pd.to_datetime(source)
+                data[key] = (gedi_l2a_count_start + pd.to_timedelta(self["delta_time"][()], unit="seconds"))
+            else:
+                # Default case: Access as if it's a dataset
+                data[key] = self[source][()] 
             
-            # Populate data from general_data section
-            for key, source in self.field_mapper.items():
-                if key in ["granule_name"]:
-                    # Handle special case for granule_name
-                    data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * filtered_n_shots
-                elif key in ["beam_type"]:                
-                    # Handle special cases for beam_type 
-                    data[key] = [getattr(self, source)] * filtered_n_shots
-                elif key in ["beam_name"]:                
-                    # Handle special cases for beam_name
-                    data[key] = [self.name] * filtered_n_shots
-                elif key in ["rh_data"]: 
-                    for i in range(source + 1):
-                        rh_key = f"rh_{i}"
-                        data[rh_key] = self["rh"][spatial_mask, i]
-                elif key in ["absolute_time"]:                      
-                    # Handle special cases for beam_name
-                    gedi_l2a_count_start = pd.to_datetime(source)
-                    data[key] = (gedi_l2a_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
-                else:
-                    # Default case: Access as if it's a dataset
-                    data[key] = self[source][(spatial_mask)] 
-                
-                data["elevation_difference_tdx"] = (self['elev_lowestmode'][(spatial_mask)] - self['digital_elevation_model'][(spatial_mask)])
-                
-            data = self.apply_filter(pd.DataFrame(data))
+            data["elevation_difference_tdx"] = (self['elev_lowestmode'][()] - self['digital_elevation_model'][()])
             
-            return data
-
+        data = self.apply_filter(pd.DataFrame(data))
+             
+        return data
+        

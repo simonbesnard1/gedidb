@@ -58,16 +58,16 @@ class GEDIGranuleProcessor(GEDIDatabase):
     def compute(self):
         cmr_data = self.download_cmr_data().download()
         spark = self.create_spark_session()
-
+    
         name_url = cmr_data[
             ["id", "name", "url", "product"]
         ].to_records(index=False)
-
+    
         urls = spark.sparkContext.parallelize(name_url)
         downloader = H5FileDownloader(self.download_path)
-
+    
         mapped_urls = urls.map(lambda x: downloader.download(x[0], x[2], GediProduct(x[3]))).groupByKey()
-        processed_granules = mapped_urls.map(self._process_granule)
+        processed_granules = mapped_urls.map(self._process_granule).filter(lambda x: x is not None)  # Filter out None values
         granule_entries = processed_granules.coalesce(8).map(self._write_db)
         granule_entries.count()
         spark.stop()
@@ -78,18 +78,27 @@ class GEDIGranuleProcessor(GEDIDatabase):
         included_files = sorted([fname[0] for fname in granules])
         outfile_path = os.path.join(self.parquet_path, f"filtered_l1b_l2ab_l4ac_{granule_key}.parquet")
         return_value = (granule_key, outfile_path, included_files)
+        
+        # If the output file already exists, return its path
         if os.path.exists(outfile_path):
             return return_value
-
+    
         gdfs = {}
         # Parse each file and run per-product filtering
         for product, file in granules:
             gdfs[product] = (
-                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, field_mapping = self.field_mapping, geom= self.geom)
+                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, field_mapping=self.field_mapping, geom=self.geom)
                 .rename(lambda x: f"{x}_{product}", axis=1)
                 .rename({f"shot_number_{product}": "shot_number"}, axis=1)
             )
-            
+    
+        # Check if any of the GeoDataFrames are empty or missing the 'shot_number' column
+        for product, gdf in gdfs.items():
+            if gdf.empty or "shot_number" not in gdf.columns:
+                print(f"Skipping granule {granule_key} due to missing or empty data in {product}.")
+                return None  # Or handle this case as needed
+    
+        # Perform the join operations if all necessary data is present
         gdf = (
             gdfs[GediProduct.L1B.value]
             .join(
@@ -111,33 +120,37 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 gdfs[GediProduct.L4C.value].set_index("shot_number"),
                 on="shot_number",
                 how="inner",
-            )            
+            )
             .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
             .set_geometry("geometry_level1B")
             .rename_geometry("geometry")
         )
-
+    
         gdf["granule"] = granule_key
         gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
-
+    
         return return_value
 
+
     def _write_db(self, input):
-
+        if input is None:
+            return  # Early exit if input is None
+    
         field_to_column = {v: k for k, v in self.COLUMN_TO_FIELD.items()}
-
+    
         granule_key, outfile_path, included_files = input
         gedi_data = gpd.read_parquet(outfile_path)
-
-        assert isinstance(gedi_data.empty, object)
+    
         if gedi_data.empty:
-            print("empty")
+            print(f"No data found for granule {granule_key}, skipping database write.")
             return
+    
         gedi_data = gedi_data[list(field_to_column.keys())]
         gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
-        
-        with db.get_db_conn(db_url= self.db_path).begin() as conn:
+    
+        # Assuming you have the database connection logic here...
+        with db.get_db_conn(db_url=self.db_path).begin() as conn:
             granule_entry = pd.DataFrame(
                 data={
                     "granule_name": [granule_key],
@@ -166,3 +179,4 @@ class GEDIGranuleProcessor(GEDIDatabase):
             conn.commit()
             del gedi_data
         return granule_entry
+
