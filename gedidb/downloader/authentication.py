@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # SPDX-License-Identifier: EUPL-1.2
 
 # Contact: besnard@gfz.de, felix.dombrowski@uni-potsdam.de and ah2174@cam.ac.uk
@@ -211,4 +210,3 @@ class EarthDataAuthenticator:
             check=True,
         )
         print("Earthdata cookies successfully fetched and saved.")
->>>>>>> add authenfication modules
