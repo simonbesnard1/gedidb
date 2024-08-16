@@ -1,6 +1,6 @@
 import pandas as pd
 import geopandas as gpd
-#import numpy as np
+import numpy as np
 
 from gedidb.processor.granule.granule import Granule
 from gedidb.processor.beam.beam import Beam
@@ -43,18 +43,10 @@ class L2ABeam(Beam):
         return data
 
 
-    def _get_main_data_dict(self) -> dict:
-
-        # spatial_box = self.geom.total_bounds  # [minx, miny, maxx, maxy]
+    def _get_main_data(self) -> dict:
         
-        # # Extract x and y coordinates from shot_geolocations
-        # longitudes_lastbin = self.shot_geolocations.x
-        # latitudes_lastbin = self.shot_geolocations.y
-                 
-        # spatial_mask = np.logical_and(np.logical_and(longitudes_lastbin >= spatial_box[0], longitudes_lastbin <= spatial_box[2]),
-        #                               np.logical_and(latitudes_lastbin >= spatial_box[1], latitudes_lastbin <= spatial_box[3]))
         # # Filter shot_geolocations and other attributes using the spatial mask
-        # filtered_n_shots = np.sum(spatial_mask)  # Count of True values in spatial_mask
+        # filtered_n_shots = np.sum(self.spatial_mask)  # Count of True values in self.spatial_mask
         
         data = {}
         
@@ -84,6 +76,6 @@ class L2ABeam(Beam):
             data["elevation_difference_tdx"] = (self['elev_lowestmode'][()] - self['digital_elevation_model'][()])
             
         data = self.apply_filter(pd.DataFrame(data))
-        
+             
         return data
-
+        

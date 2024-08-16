@@ -1,0 +1,28 @@
+table_name: filtered_l2ab_l4a_shots
+columns:
+  - name: shot_number
+    type: BigInteger
+    primary_key: true
+    autoincrement: false
+    nullable: false
+  - name: granule
+    type: String
+    length: 60
+    nullable: false
+  - name: beam_type
+    type: String
+    length: 20
+    nullable: false
+  - name: beam_name
+    type: String
+    length: 8
+    nullable: false
+  - name: delta_time
+    type: Float
+    nullable: false
+  # Add other columns here similarly
+  - name: geometry
+    type: Geometry
+    geometry_type: POINT
+    srid: 4326
+    nullable: false
