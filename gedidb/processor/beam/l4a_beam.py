@@ -1,6 +1,6 @@
 import pandas as pd
 import geopandas as gpd
-#import numpy as np
+import numpy as np
 
 from gedidb.processor.granule.granule import Granule
 from gedidb.processor.beam.beam import Beam
@@ -49,18 +49,10 @@ class L4ABeam(Beam):
         
         return data
     
-    def _get_main_data_dict(self) -> dict:
+    def _get_main_data(self) -> dict:
         
-        # spatial_box = self.geom.total_bounds  # [minx, miny, maxx, maxy]
-        
-        # # Extract x and y coordinates from shot_geolocations
-        # longitudes_lastbin = self.shot_geolocations.x
-        # latitudes_lastbin = self.shot_geolocations.y
-                 
-        # spatial_mask = np.logical_and(np.logical_and(longitudes_lastbin >= spatial_box[0], longitudes_lastbin <= spatial_box[2]),
-        #                               np.logical_and(latitudes_lastbin >= spatial_box[1], latitudes_lastbin <= spatial_box[3]))
         # # Filter shot_geolocations and other attributes using the spatial mask
-        # filtered_n_shots = np.sum(spatial_mask)  # Count of True values in spatial_mask
+        # filtered_n_shots = np.sum(self.spatial_mask)  # Count of True values in self.spatial_mask
         
         data = {}        
 
@@ -71,7 +63,7 @@ class L4ABeam(Beam):
                 data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
             elif key in ["beam_type"]:                
                 # Handle special cases for beam_type 
-                data[key] = [getattr(self, source)] *self.n_shots
+                data[key] = [getattr(self, source)] * self.n_shots
             elif key in ["beam_name"]:                
                 # Handle special cases for beam_name
                 data[key] = [self.name] * self.n_shots
@@ -88,3 +80,5 @@ class L4ABeam(Beam):
         data = self.apply_filter(pd.DataFrame(data))
         
         return data
+    
+                        

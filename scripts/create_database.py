@@ -2,7 +2,8 @@ from gedidb.core.gediprocessor import GEDIGranuleProcessor
 
 
 #%% Initiate database builder
-database_builder = GEDIGranuleProcessor(database_config_file = '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/database_params.yml', 
+database_builder = GEDIGranuleProcessor(database_config_file = '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/database_structure.yml', 
+                                        schema_config_file = '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/database_scheme.yaml',
                                         column_to_field_config_file = '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/column_to_field.yml',
                                         quality_config_file = '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/quality_filters.yml',
                                         field_mapping_config_file = '/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/field_mapping.yml')
