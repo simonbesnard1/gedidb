@@ -23,47 +23,39 @@ class L1BBeam(Beam):
             )
         return self._shot_geolocations
 
-    def _get_main_data_dict(self) -> dict:
+    def _get_main_data(self) -> dict:
         
-        spatial_box = self.geom.total_bounds  # [minx, miny, maxx, maxy]
+        # # Filter shot_geolocations and other attributes using the spatial mask
+        # filtered_n_shots = np.sum(self.spatial_mask)  # Count of True values in self.spatial_mask
+
+        # if filtered_n_shots >0:
+        data = {}
         
-        # Extract x and y coordinates from shot_geolocations
-        longitudes_lastbin = self.shot_geolocations.x
-        latitudes_lastbin = self.shot_geolocations.y
-                 
-        spatial_mask = np.logical_and(np.logical_and(longitudes_lastbin >= spatial_box[0], longitudes_lastbin <= spatial_box[2]),
-                                      np.logical_and(latitudes_lastbin >= spatial_box[1], latitudes_lastbin <= spatial_box[3]))
-        # Filter shot_geolocations and other attributes using the spatial mask
-        filtered_n_shots = np.sum(spatial_mask)  # Count of True values in spatial_mask
-
-        if filtered_n_shots >0:
-            data = {}
-            
-            for key, source in self.field_mapper.items():
-                if key in ["granule_name"]:
-                    data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * filtered_n_shots
-                elif key in ["beam_type"]:
-                    data[key] = [getattr(self, source)] * filtered_n_shots
-                elif key in ["beam_name"]:
-                    data[key] = [self.name] * filtered_n_shots
-                elif key == "waveform_start":
-                    data[key] = self[source][(spatial_mask)] - 1
-                elif key in ["rxwaveform", "txwaveform"]:
-                    rxwaveform = self[source][()]
-                    sdsCount = self['rx_sample_count'][(spatial_mask)]  # assuming sdsCount is available like this
-                    sdsStart = self['rx_sample_start_index'][(spatial_mask)]  # assuming sdsStart is available like this
-                    num_shots = len(sdsCount)
-                    data[key] = []        
-                    for i in range(num_shots):
-                        start_idx = sdsStart[i]
-                        count = sdsCount[i]
-                        shot_waveform = rxwaveform[start_idx:start_idx + count]
-                        data[key].append(shot_waveform.tolist())
-                else:
-                    data[key] = self[source][(spatial_mask)]
-                    
-            data = pd.DataFrame(data)
-                      
-            return data
-
+        for key, source in self.field_mapper.items():
+            if key in ["granule_name"]:
+                data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
+            elif key in ["beam_type"]:
+                data[key] = [getattr(self, source)] * self.n_shots
+            elif key in ["beam_name"]:
+                data[key] = [self.name] * self.n_shots
+            elif key == "waveform_start":
+                data[key] = self[source][()] - 1
+            elif key in ["rxwaveform", "txwaveform"]:
+                rxwaveform = self[source][()]
+                sdsCount = self['rx_sample_count'][()]  # assuming sdsCount is available like this
+                sdsStart = self['rx_sample_start_index'][()]  # assuming sdsStart is available like this
+                num_shots = len(sdsCount)
+                data[key] = []        
+                for i in range(num_shots):
+                    start_idx = sdsStart[i]
+                    count = sdsCount[i]
+                    shot_waveform = rxwaveform[start_idx:start_idx + count]
+                    data[key].append(shot_waveform.tolist())
+            else:
+                data[key] = self[source][()]
+                
+        data = pd.DataFrame(data)
+        
+        return data
+        
 
