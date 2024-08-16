@@ -27,10 +27,11 @@ def log_execution(start_message=None, end_message=None):
     
 class GEDIGranuleProcessor(GEDIDatabase):
     
-    def __init__(self, database_config_file: str = None, column_to_field_config_file: str = None, quality_config_file: str = None, field_mapping_config_file: str = None):
+    def __init__(self, database_config_file: str = None, schema_config_file: str = None, column_to_field_config_file: str = None, quality_config_file: str = None, field_mapping_config_file: str = None):
 
         self.COLUMN_TO_FIELD = self.load_config_file(column_to_field_config_file)
         self.database_structure = self.load_config_file(database_config_file)
+        self.database_schema = self.load_config_file(schema_config_file)
         self.quality_filter_config = self.load_config_file(quality_config_file)
         self.field_mapping = self.load_config_file(field_mapping_config_file)
         
