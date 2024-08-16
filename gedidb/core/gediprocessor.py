@@ -8,8 +8,9 @@ from functools import wraps
 from gedidb.utils.constants import GediProduct
 from gedidb.database import db
 from gedidb.processor import granule_parser
-from gedidb.utils.spark_session import create_spark
-from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
+from gedidb.downloader.data_downloader import H5FileDownloader
+from gedidb.core.gedidatabase import GEDIDatabase
+
 
 def log_execution(start_message=None, end_message=None):
     def decorator(func):
@@ -23,20 +24,6 @@ def log_execution(start_message=None, end_message=None):
             return result
         return wrapper
     return decorator
-
-class GEDIDatabase:
-    def __init__(self, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None):
-        self.geom = geom
-        self.start_date = start_date
-        self.end_date = end_date
-
-    @log_execution(start_message = "Downloading GEDI data...", end_message="GEDI data succesfully downloaded")
-    def download_cmr_data(self):
-        return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date)
-    
-    @log_execution(start_message = "Creating spark session...", end_message="Spark session created")
-    def create_spark_session(self):
-        return create_spark()
     
 class GEDIGranuleProcessor(GEDIDatabase):
     

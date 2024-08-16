@@ -1,4 +1,4 @@
-from gedidb.database.db_builder import GEDIGranuleProcessor
+from gedidb.core.gediprocessor import GEDIGranuleProcessor
 
 
 #%% Initiate database builder
