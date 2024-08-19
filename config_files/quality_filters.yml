@@ -3,7 +3,6 @@
 level_1b: None
   
 level_2a:
-  # elevation_difference_tdx : = elev_lowestmode - digital_elevation_model
   quality_flag: '==1'
   sensitivity_a0:
     - '>=0.9'
@@ -24,7 +23,6 @@ level_2a:
     - 'surface_flag'
 
 level_2b:
-  # elevation_difference_tdx = elev_lowestmode - digital_elevation_model
   l2a_quality_flag: '==1'
   l2b_quality_flag: '==1'
   sensitivity:
