@@ -2,8 +2,10 @@ data/
 output/
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
 *.py[cod]
+__pycache__
+.env
+.venv
 *$py.class
 
 # C extensions
@@ -105,4 +107,10 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-LICENSE
+
+# IDEs
+.idea
+*.swp
+.DS_Store
+.vscode/
+
