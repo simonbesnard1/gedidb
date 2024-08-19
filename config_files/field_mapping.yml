@@ -88,7 +88,7 @@ level_2b:
   region_class: "land_cover_data/region_class"
   selected_l2a_algorithm: "selected_l2a_algorithm"
   selected_rg_algorithm: "selected_rg_algorithm"
-  dz: "ancillary/dz"
+  #dz: "ancillary/dz"
   lon_highestreturn: "geolocation/lon_highestreturn"
   lon_lowestmode: "geolocation/lon_lowestmode"
   longitude_bin0: "geolocation/longitude_bin0"

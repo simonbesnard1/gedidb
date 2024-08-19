@@ -71,7 +71,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
         granule_entries = processed_granules.coalesce(8).map(self._write_db)
         granule_entries.count()
         spark.stop()
-        print("done")
 
     def _process_granule(self, row: tuple[str, tuple[GediProduct, str]]):
         granule_key, granules = row
@@ -84,51 +83,62 @@ class GEDIGranuleProcessor(GEDIDatabase):
             return return_value
     
         gdfs = {}
-        # Parse each file and run per-product filtering
         for product, file in granules:
-            gdfs[product] = (
-                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, field_mapping=self.field_mapping, geom=self.geom)
-                .rename(lambda x: f"{x}_{product}", axis=1)
-                .rename({f"shot_number_{product}": "shot_number"}, axis=1)
+            gdf = granule_parser.parse_h5_file(
+                file, 
+                product, 
+                quality_filter=self.quality_filter_config, 
+                field_mapping=self.field_mapping, 
+                geom=self.geom
             )
-    
+            
+            if gdf is not None:
+                # Only proceed if gdf is not None
+                gdfs[product] = (
+                    gdf.rename(lambda x: f"{x}_{product}", axis=1)
+                       .rename({f"shot_number_{product}": "shot_number"}, axis=1)
+                )
+            else:
+                print(f"Skipping product {product} for granule {granule_key} because parsing returned None.")
+
         # Check if any of the GeoDataFrames are empty or missing the 'shot_number' column
         for product, gdf in gdfs.items():
             if gdf.empty or "shot_number" not in gdf.columns:
                 print(f"Skipping granule {granule_key} due to missing or empty data in {product}.")
                 return None  # Or handle this case as needed
-    
-        # Perform the join operations if all necessary data is present
-        gdf = (
-            gdfs[GediProduct.L1B.value]
-            .join(
-                gdfs[GediProduct.L2A.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
+        
+        if gdfs:
+            # Perform the join operations if all necessary data is present
+            gdf = (
+                gdfs[GediProduct.L1B.value]
+                .join(
+                    gdfs[GediProduct.L2A.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+                .join(
+                    gdfs[GediProduct.L2B.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+                .join(
+                    gdfs[GediProduct.L4A.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+                .join(
+                    gdfs[GediProduct.L4C.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+                .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
+                .set_geometry("geometry_level1B")
+                .rename_geometry("geometry")
             )
-            .join(
-                gdfs[GediProduct.L2B.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .join(
-                gdfs[GediProduct.L4A.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .join(
-                gdfs[GediProduct.L4C.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
-            .set_geometry("geometry_level1B")
-            .rename_geometry("geometry")
-        )
-    
-        gdf["granule"] = granule_key
-        gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
-    
+        
+            gdf["granule"] = granule_key
+            gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
+        
         return return_value
 
 
@@ -138,45 +148,40 @@ class GEDIGranuleProcessor(GEDIDatabase):
     
         field_to_column = {v: k for k, v in self.COLUMN_TO_FIELD.items()}
     
-        granule_key, outfile_path, included_files = input
-        gedi_data = gpd.read_parquet(outfile_path)
+        # granule_key, outfile_path, included_files = input
+        # gedi_data = gpd.read_parquet(outfile_path)
+        # gedi_data = gedi_data[list(field_to_column.keys())]
+        # gedi_data = gedi_data.rename(columns=field_to_column)
+        # gedi_data = gedi_data.astype({"shot_number": "int64"})
     
-        if gedi_data.empty:
-            print(f"No data found for granule {granule_key}, skipping database write.")
-            return
-    
-        gedi_data = gedi_data[list(field_to_column.keys())]
-        gedi_data = gedi_data.rename(columns=field_to_column)
-        gedi_data = gedi_data.astype({"shot_number": "int64"})
-    
-        # Assuming you have the database connection logic here...
-        with db.get_db_conn(db_url=self.db_path).begin() as conn:
-            granule_entry = pd.DataFrame(
-                data={
-                    "granule_name": [granule_key],
-                    "granule_file": [outfile_path],
-                    "l1b_file": [included_files[0]],
-                    "l2a_file": [included_files[1]],
-                    "l2b_file": [included_files[2]],
-                    "l4a_file": [included_files[3]],
-                    "l4c_file": [included_files[4]],
-                    "created_date": [pd.Timestamp.utcnow()],
-                }
-            )
-            granule_entry.to_sql(
-                name=self.database_structure['granules']['table_name'],
-                con=conn,
-                index=False,
-                if_exists="append",
-            )
+        # # Assuming you have the database connection logic here...
+        # with db.get_db_conn(db_url=self.db_path).begin() as conn:
+        #     granule_entry = pd.DataFrame(
+        #         data={
+        #             "granule_name": [granule_key],
+        #             "granule_file": [outfile_path],
+        #             "l1b_file": [included_files[0]],
+        #             "l2a_file": [included_files[1]],
+        #             "l2b_file": [included_files[2]],
+        #             "l4a_file": [included_files[3]],
+        #             "l4c_file": [included_files[4]],
+        #             "created_date": [pd.Timestamp.utcnow()],
+        #         }
+        #     )
+        #     granule_entry.to_sql(
+        #         name=self.database_schema['granules']['table_name'],
+        #         con=conn,
+        #         index=False,
+        #         if_exists="append",
+        #     )
             
-            gedi_data.to_postgis(
-                name=self.database_structure['shots']['table_name'],
-                con=conn,
-                index=False,
-                if_exists="append",
-            )
-            conn.commit()
-            del gedi_data
-        return granule_entry
+        #     gedi_data.to_postgis(
+        #         name=self.database_schema['shots']['table_name'],
+        #         con=conn,
+        #         index=False,
+        #         if_exists="append",
+        #     )
+        #     conn.commit()
+        #     del gedi_data
+        # return granule_entry
 

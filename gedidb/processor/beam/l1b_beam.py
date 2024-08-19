@@ -15,47 +15,71 @@ class L1BBeam(Beam):
     
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
-        if self._shot_geolocations is None:
-            self._shot_geolocations = gpd.points_from_xy(
-                x=self["geolocation/longitude_lastbin"],
-                y=self["geolocation/latitude_lastbin"],
-                crs=WGS84,
-            )
+        self._shot_geolocations = gpd.points_from_xy(
+            x=self["geolocation/longitude_lastbin"],
+            y=self["geolocation/latitude_lastbin"],
+            crs=WGS84,
+        )
         return self._shot_geolocations
+
+    
+    def apply_filter(self, data: pd.DataFrame) -> pd.DataFrame:
+        
+        if self.quality_filter != "None":
+            
+            for key, value in self.quality_filter.items():
+                if key == 'drop':
+                    continue  # Skip dropping columns here
+                if isinstance(value, list):
+                    for v in value:
+                        data = data.query(f"{key} {v}")
+                else:
+                    data = data.query(f"{key} {value}")
+        
+            data = data.drop(columns=self.quality_filter.get('drop', []))
+        filtered_index = data.index  # Get the filtered indices
+        
+        self._filtered_index = filtered_index  # Store the filtered indices
+        
+        return data
+
 
     def _get_main_data(self) -> dict:
         
-        # # Filter shot_geolocations and other attributes using the spatial mask
-        # filtered_n_shots = np.sum(self.spatial_mask)  # Count of True values in self.spatial_mask
+        # Filter shot_geolocations and other attributes using the spatial mask
+        spatial_mask = np.array(self.spatial_mask, dtype=bool)
+        filtered_n_shots = np.sum(spatial_mask)  # Count of True values in self.spatial_mask
+        
+        if filtered_n_shots >0:
+            data = {}
+            
+            for key, source in self.field_mapper.items():
+                if key in ["granule_name"]:
+                    data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * filtered_n_shots
+                elif key in ["beam_type"]:
+                    data[key] = [getattr(self, source)] * filtered_n_shots
+                elif key in ["beam_name"]:
+                    data[key] = [self.name] * filtered_n_shots
+                elif key == "waveform_start":
+                    data[key] = self[source][()] - 1
+                elif key in ["rxwaveform", "txwaveform"]:
+                    rxwaveform = self[source][()]
+                    sdsCount = self['rx_sample_count'][(spatial_mask)]  # assuming sdsCount is available like this
+                    sdsStart = self['rx_sample_start_index'][(spatial_mask)]  # assuming sdsStart is available like this
+                    num_shots = len(sdsCount)
+                    data[key] = []        
+                    for i in range(num_shots):
+                        start_idx = sdsStart[i]
+                        count = sdsCount[i]
+                        shot_waveform = rxwaveform[start_idx:start_idx + count]
+                        data[key].append(shot_waveform.tolist())
+                else:
+                    data[key] = self[source][(spatial_mask)]
+                    
+            data = self.apply_filter(pd.DataFrame(data))
+            
+            if not data.empty:
+                return data        
 
-        # if filtered_n_shots >0:
-        data = {}
-        
-        for key, source in self.field_mapper.items():
-            if key in ["granule_name"]:
-                data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
-            elif key in ["beam_type"]:
-                data[key] = [getattr(self, source)] * self.n_shots
-            elif key in ["beam_name"]:
-                data[key] = [self.name] * self.n_shots
-            elif key == "waveform_start":
-                data[key] = self[source][()] - 1
-            elif key in ["rxwaveform", "txwaveform"]:
-                rxwaveform = self[source][()]
-                sdsCount = self['rx_sample_count'][()]  # assuming sdsCount is available like this
-                sdsStart = self['rx_sample_start_index'][()]  # assuming sdsStart is available like this
-                num_shots = len(sdsCount)
-                data[key] = []        
-                for i in range(num_shots):
-                    start_idx = sdsStart[i]
-                    count = sdsCount[i]
-                    shot_waveform = rxwaveform[start_idx:start_idx + count]
-                    data[key].append(shot_waveform.tolist())
-            else:
-                data[key] = self[source][()]
-                
-        data = pd.DataFrame(data)
-        
-        return data
         
 

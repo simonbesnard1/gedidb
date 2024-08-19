@@ -14,21 +14,23 @@ class GranuleParser:
         self.quality_filter = quality_filter
         self.field_mapping = field_mapping
         self.geom = geom
-        
 
     def parse_granule(self, granule: Granule) -> gpd.GeoDataFrame:
         granule_data = []
         print(f'Parsing {granule.short_name}')
         for beam in granule.iter_beams():
-            print(f'Parsing beam {beam.name}')
             beam.sql_format_arrays()
-            granule_data.append(beam.main_data)
-            print(f'Finished parsing beam {beam.name}')
-        df = pd.concat(granule_data, ignore_index=True)
-        gdf = gpd.GeoDataFrame(df, crs=WGS84)
-        granule.close()
-        print(f'Finished parsing {granule.short_name}')
-        return gdf
+            main_data = beam.main_data
+            
+            if main_data is not None:
+                granule_data.append(main_data)
+    
+        if granule_data:
+            df = pd.concat(granule_data, ignore_index=True)
+            gdf = gpd.GeoDataFrame(df, crs=WGS84)
+            print(f'Finished parsing {granule.short_name}')
+            
+            return gdf
 
     def parse(self) -> gpd.GeoDataFrame:
         raise NotImplementedError("This method should be implemented in child classes")
