@@ -1,4 +1,5 @@
 import os
+import logging
 import yaml
 import geopandas as gpd
 import pandas as pd
@@ -71,66 +72,72 @@ class GEDIGranuleProcessor(GEDIDatabase):
         granule_entries = processed_granules.coalesce(8).map(self._write_db)
         granule_entries.count()
         spark.stop()
-        print("done")
 
     def _process_granule(self, row: tuple[str, tuple[GediProduct, str]]):
         granule_key, granules = row
-        included_files = sorted([fname[0] for fname in granules])
         outfile_path = os.path.join(self.parquet_path, f"filtered_l1b_l2ab_l4ac_{granule_key}.parquet")
-        return_value = (granule_key, outfile_path, included_files)
         
-        # If the output file already exists, return its path
+        # If the output file already exists, return early
         if os.path.exists(outfile_path):
-            return return_value
+            return granule_key, outfile_path, sorted([fname[0] for fname in granules])
     
-        gdfs = {}
-        # Parse each file and run per-product filtering
-        for product, file in granules:
-            gdfs[product] = (
-                granule_parser.parse_h5_file(file, product, quality_filter=self.quality_filter_config, field_mapping=self.field_mapping, geom=self.geom)
-                .rename(lambda x: f"{x}_{product}", axis=1)
-                .rename({f"shot_number_{product}": "shot_number"}, axis=1)
-            )
-    
-        # Check if any of the GeoDataFrames are empty or missing the 'shot_number' column
-        for product, gdf in gdfs.items():
-            if gdf.empty or "shot_number" not in gdf.columns:
-                print(f"Skipping granule {granule_key} due to missing or empty data in {product}.")
-                return None  # Or handle this case as needed
-    
-        # Perform the join operations if all necessary data is present
-        gdf = (
-            gdfs[GediProduct.L1B.value]
-            .join(
-                gdfs[GediProduct.L2A.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .join(
-                gdfs[GediProduct.L2B.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .join(
-                gdfs[GediProduct.L4A.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .join(
-                gdfs[GediProduct.L4C.value].set_index("shot_number"),
-                on="shot_number",
-                how="inner",
-            )
-            .drop(["geometry_level2A", "geometry_level2B", "geometry_level4A", "geometry_level4C"], axis=1)
-            .set_geometry("geometry_level1B")
-            .rename_geometry("geometry")
-        )
+        gdf_dict = self._parse_granules(granules, granule_key)
+        if not gdf_dict:
+            logging.warning(f"Skipping granule {granule_key} due to missing or invalid data.")
+            return None
+        
+        gdf = self._join_gdfs(gdf_dict)
+        if gdf is None:
+            logging.warning(f"Skipping granule {granule_key} due to issues during the join operation.")
+            return None
     
         gdf["granule"] = granule_key
         gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
+        
+        return granule_key, outfile_path, sorted([fname[0] for fname in granules])
     
-        return return_value
-
+    def _parse_granules(self, granules, granule_key):
+        """Parse granules and handle None or invalid data."""
+        gdf_dict = {}
+        for product, file in granules:
+            gdf = granule_parser.parse_h5_file(
+                file, product, 
+                quality_filter=self.quality_filter_config, 
+                field_mapping=self.field_mapping, 
+                geom=self.geom
+            )
+            
+            if gdf is not None:
+                gdf = (gdf.rename(lambda x: f"{x}_{product}", axis=1)
+                          .rename({f"shot_number_{product}": "shot_number"}, axis=1))
+                gdf_dict[product] = gdf
+            else:
+                logging.info(f"Skipping product {product} for granule {granule_key} because parsing returned None.")
+        
+        # Validate GeoDataFrames
+        valid_gdf_dict = {k: v for k, v in gdf_dict.items() if not v.empty and "shot_number" in v.columns}
+        return valid_gdf_dict
+    
+    def _join_gdfs(self, gdf_dict):
+        """Perform the join operations on the GeoDataFrames."""
+        try:
+            gdf = gdf_dict[GediProduct.L1B.value]
+            for product in [GediProduct.L2A, GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
+                gdf = gdf.join(
+                    gdf_dict[product.value].set_index("shot_number"),
+                    on="shot_number",
+                    how="inner",
+                )
+            
+            return (gdf.drop(
+                        columns=[f"geometry_{GediProduct.L2A.value}", f"geometry_{GediProduct.L2B.value}", 
+                                 f"geometry_{GediProduct.L4A.value}", f"geometry_{GediProduct.L4C.value}"])
+                    .set_geometry("geometry_level1B")
+                    .rename_geometry("geometry"))
+        
+        except KeyError as e:
+            logging.error(f"Join operation failed due to missing product data: {e}")
+            return None
 
     def _write_db(self, input):
         if input is None:
@@ -140,11 +147,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
     
         granule_key, outfile_path, included_files = input
         gedi_data = gpd.read_parquet(outfile_path)
-    
-        if gedi_data.empty:
-            print(f"No data found for granule {granule_key}, skipping database write.")
-            return
-    
         gedi_data = gedi_data[list(field_to_column.keys())]
         gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
@@ -164,14 +166,14 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 }
             )
             granule_entry.to_sql(
-                name=self.database_structure['granules']['table_name'],
+                name=self.database_schema['granules']['table_name'],
                 con=conn,
                 index=False,
                 if_exists="append",
             )
             
             gedi_data.to_postgis(
-                name=self.database_structure['shots']['table_name'],
+                name=self.database_schema['shots']['table_name'],
                 con=conn,
                 index=False,
                 if_exists="append",
