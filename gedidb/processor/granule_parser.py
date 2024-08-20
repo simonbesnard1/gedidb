@@ -17,7 +17,7 @@ class GranuleParser:
 
     def parse_granule(self, granule: Granule) -> gpd.GeoDataFrame:
         granule_data = []
-        print(f'Parsing {granule.short_name}')
+        #print(f'Parsing {granule.short_name}')
         for beam in granule.iter_beams():
             beam.sql_format_arrays()
             main_data = beam.main_data
@@ -28,7 +28,7 @@ class GranuleParser:
         if granule_data:
             df = pd.concat(granule_data, ignore_index=True)
             gdf = gpd.GeoDataFrame(df, crs=WGS84)
-            print(f'Finished parsing {granule.short_name}')
+            #print(f'Finished parsing {granule.short_name}')
             
             return gdf
 

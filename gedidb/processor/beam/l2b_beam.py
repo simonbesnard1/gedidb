@@ -67,9 +67,9 @@ class L2BBeam(Beam):
                 elif key in ["cover_z", "pai_z", "pavd_z"]:
                     # Handle special cases for cover_z and pai_z
                     data[key] = self[source][(spatial_mask)].tolist()
-                # elif key in "dz":
-                #     # Special treatment for keys ending with _z
-                #     data[key] = np.repeat(self[source][(spatial_mask)], filtered_n_shots)
+                elif key in "dz":
+                    # Special treatment for keys ending with _z
+                    data[key] = np.repeat(self[source][()], self.n_shots)[spatial_mask]
                 elif key in "waveform_start":
                     # Handle special cases for waveform_start 
                     data[key] = self[source][(spatial_mask)] - 1
