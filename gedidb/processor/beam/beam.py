@@ -11,8 +11,6 @@ class Beam(h5py.Group):
     def __init__(self, granule, beam: str, quality_flag:dict, field_mapping:dict, geom: gpd.GeoSeries):
         super().__init__(granule[beam].id)
         self.parent_granule = granule
-        self._cached_data = None
-        self._shot_geolocations = None
         self.quality_flag = quality_flag
         self.field_mapping = field_mapping
         self.geom = geom
@@ -48,19 +46,19 @@ class Beam(h5py.Group):
     
     @property
     def main_data(self) -> gpd.GeoDataFrame:
-        if self._cached_data is None:
-            data = self._get_main_data()
+        data = self._get_main_data()
+        
+        if data is not None:
             geometry = self.shot_geolocations
             
             # Filter geometry using the filtered index from apply_filter
             if hasattr(self, '_filtered_index'):
                 geometry = geometry[self._filtered_index]
-            
+              
             self._cached_data = gpd.GeoDataFrame(
                 data, geometry=geometry, crs=WGS84
-            )
-    
-        return self._cached_data
+            )            
+            return self._cached_data
 
 
     def sql_format_arrays(self) -> None:
@@ -68,11 +66,12 @@ class Beam(h5py.Group):
 
         Until this function is called, array-type fields will be np.array() objects. This formatting can be undone by resetting the cache.
         """
-    
-        array_cols = [c for c in self.main_data.columns if c.endswith("_z")]
         
-        for c in array_cols:
-            self._cached_data[c] = self.main_data[c].map(self._arr_to_str)
+        if self.main_data is not None:
+            array_cols = [c for c in self.main_data.columns if c.endswith("_z")]
+            
+            for c in array_cols:
+                self._cached_data[c] = self.main_data[c].map(self._arr_to_str)
 
     def _arr_to_str(self, arr: Union[List[float], np.array, float]) -> str:
         """Converts array type data or single float values to SQL-friendly string."""

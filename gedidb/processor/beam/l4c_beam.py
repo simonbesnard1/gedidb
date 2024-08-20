@@ -15,44 +15,68 @@ class L4CBeam(Beam):
         
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
-        if self._shot_geolocations is None:
-            self._shot_geolocations = gpd.points_from_xy(
-                x=self["lon_lowestmode"],
-                y=self["lat_lowestmode"],
-                crs=WGS84,
-            )
+        self._shot_geolocations = gpd.points_from_xy(
+            x=self["lon_lowestmode"],
+            y=self["lat_lowestmode"],
+            crs=WGS84,
+        )
         return self._shot_geolocations
+
+    def apply_filter(self, data: pd.DataFrame) -> pd.DataFrame:
+        
+        if self.quality_filter != "None":
+            
+            for key, value in self.quality_filter.items():
+                if key == 'drop':
+                    continue  # Skip dropping columns here
+                if isinstance(value, list):
+                    for v in value:
+                        data = data.query(f"{key} {v}")
+                else:
+                    data = data.query(f"{key} {value}")
+        
+            data = data.drop(columns=self.quality_filter.get('drop', []))
+        
+        filtered_index = data.index  # Get the filtered indices
+        
+        self._filtered_index = filtered_index  # Store the filtered indices
+        
+        return data
 
     def _get_main_data(self) -> dict:
 
-        # Filter shot_geolocations and other attributes using the spatial mask
-        # filtered_n_shots = np.sum(self.spatial_mask)  # Count of True values in self.spatial_mask
+        spatial_mask = np.array(self.spatial_mask, dtype=bool)
+        filtered_n_shots = np.sum(spatial_mask)  # Count of True values in spatial_mask
         
-        data = {}        
-        
-        # Populate data from general_data section
-        for key, source in self.field_mapper.items():
-            if key in ["granule_name"]:
-                # Handle special case for granule_name
-                data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * self.n_shots
-            elif key in ["beam_type"]:                
-                # Handle special cases for beam_type 
-                data[key] = [getattr(self, source)] * self.n_shots
-            elif key in ["beam_name"]:                
-                # Handle special cases for beam_name
-                data[key] = [self.name] * self.n_shots
-            elif key in "waveform_start":
-                # Handle special cases for waveform_start 
-                data[key] = self[source][()] - 1
-            elif key in ["absolute_time"]:     
-                gedi_l2b_count_start = pd.to_datetime(source)
-                data[key] = (gedi_l2b_count_start + pd.to_timedelta(self["delta_time"][()], unit="seconds"))
-            else:
-                # Default case: Access as if it's a dataset
-                data[key] = self[source][()]
-                    
-        data = pd.DataFrame(data)
-        
-        return data
+        if filtered_n_shots > 0:
+            
+            data = {}        
+    
+            # Populate data from general_data section
+            for key, source in self.field_mapper.items():
+                if key in ["granule_name"]:
+                    # Handle special case for granule_name
+                    data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * filtered_n_shots
+                elif key in ["beam_type"]:                
+                    # Handle special cases for beam_type 
+                    data[key] = [getattr(self, source)] * filtered_n_shots
+                elif key in ["beam_name"]:                
+                    # Handle special cases for beam_name
+                    data[key] = [self.name] * filtered_n_shots
+                elif key in "waveform_start":
+                    # Handle special cases for waveform_start 
+                    data[key] = self[source][(spatial_mask)] - 1
+                elif key in ["absolute_time"]:     
+                    gedi_l2b_count_start = pd.to_datetime(source)
+                    data[key] = (gedi_l2b_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
+                else:
+                    # Default case: Access as if it's a dataset
+                    data[key] = self[source][(spatial_mask)]
+                        
+            data = self.apply_filter(pd.DataFrame(data))
+                
+            if not data.empty:
+                return data            
+
         
         
