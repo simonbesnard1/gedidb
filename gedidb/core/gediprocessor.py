@@ -160,17 +160,24 @@ class GEDIGranuleProcessor(GEDIDatabase):
         except KeyError as e:
             logging.error(f"Join operation failed due to missing product data: {e}")
             return None
-
-    def _write_db(self, granule_key, outfile_path, included_files, gedi_data):
-        field_to_column = {v: k for k, v in self.schema['columns'].items()}
+        
+    def _write_db(self, input):
+        if input is None:
+            return  # Early exit if input is None
+    
+        field_to_column = {v: k for k, v in self.COLUMN_TO_FIELD.items()}    
+        granule_key, outfile_path, included_files = input
+        gedi_data = gpd.read_parquet(outfile_path)
+        gedi_data = gedi_data[list(field_to_column.keys())]
         gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
-
+        
         with db.get_db_conn(db_url=self.db_path).begin() as conn:
             self._write_granule_entry(conn, granule_key, outfile_path, included_files)
             self._write_gedi_data(conn, gedi_data)
             conn.commit()
-
+            del gedi_data
+            
     def _write_granule_entry(self, conn, granule_key, outfile_path, included_files):
         granule_entry = pd.DataFrame(
             data={
@@ -199,4 +206,5 @@ class GEDIGranuleProcessor(GEDIDatabase):
             if_exists="append",
         )
 
+    
 
