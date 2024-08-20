@@ -11,6 +11,7 @@ from gedidb.database import db
 from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
+from gedidb.utils.geospatial_tools import ShapeProcessor
 
 
 def log_execution(start_message=None, end_message=None):
@@ -46,7 +47,8 @@ class GEDIGranuleProcessor(GEDIDatabase):
         os.makedirs(self.parquet_path, exist_ok=True)
         self.delete_h5_files = self.database_structure['delete_h5_files']
         self.db_path = self.database_structure['database_url']
-        self.geom = gpd.read_file(self.database_structure['region_of_interest'])
+        initial_geom = gpd.read_file(self.database_structure['region_of_interest'])
+        self.geom = ShapeProcessor(initial_geom).check_and_format(simplify=True)        
         self.start_date = datetime.strptime(self.database_structure['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.database_structure['end_date'], '%Y-%m-%d')
     
