@@ -159,71 +159,9 @@ shots:
     "interpolated_modis_treecover":
       type: "Float"
       nullable: false
-    "rh_0":
-      type: "Float"
-      nullable: false
-    "rh_5":
-      type: "Float"
-      nullable: false
-    "rh_10":
-      type: "Float"
-      nullable: false
-    "rh_15":
-      type: "Float"
-      nullable: false
-    "rh_20":
-      type: "Float"
-      nullable: false
-    "rh_25":
-      type: "Float"
-      nullable: false
-    "rh_30":
-      type: "Float"
-      nullable: false
-    "rh_35":
-      type: "Float"
-      nullable: false
-    "rh_40":
-      type: "Float"
-      nullable: false
-    "rh_45":
-      type: "Float"
-      nullable: false
-    "rh_50":
-      type: "Float"
-      nullable: false
-    "rh_55":
-      type: "Float"
-      nullable: false
-    "rh_60":
-      type: "Float"
-      nullable: false
-    "rh_65":
-      type: "Float"
-      nullable: false
-    "rh_70":
-      type: "Float"
-      nullable: false
-    "rh_75":
-      type: "Float"
-      nullable: false
-    "rh_80":
-      type: "Float"
-      nullable: false
-    "rh_85":
-      type: "Float"
-      nullable: false
-    "rh_90":
-      type: "Float"
-      nullable: false
-    "rh_95":
-      type: "Float"
-      nullable: false
-    "rh_98":
-      type: "Float"
-      nullable: false
-    "rh_100":
-      type: "Float"
+    "rh":
+      type: "ARRAY"
+      nested_type: "Float"
       nullable: false
     "cover":
       type: "Float"
@@ -299,6 +237,23 @@ shots:
       nullable: false
     "agbd_se":
       type: "Float"
+      nullable: false
+    "wsci":
+      type: "Float"
+      nullable: false
+    "wsci_pi_lower":
+      type: "Float"
+      nullable: false
+    "wsci_pi_upper":
+      type: "Float"
+      nullable: false
+    "rxwaveform":
+      type: "ARRAY"
+      nested_type: "Float"
+      nullable: false
+    "txwaveform":
+      type: "ARRAY"
+      nested_type: "Float"
       nullable: false
     "geometry":
       type: "Geometry"

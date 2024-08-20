@@ -5,6 +5,8 @@ level_1b:
  beam_name: "name"
  delta_time: "delta_time"
  rxwaveform: 'rxwaveform'
+ txwaveform: 'txwaveform'
+ 
 
 level_2a:
  granule_name: "parent_granule.filename"
@@ -39,7 +41,7 @@ level_2a:
  lon_highestreturn: "lon_highestreturn"
  lat_highestreturn: "lat_highestreturn"
  elev_highestreturn: "elev_highestreturn"
- rh_data: 100
+ rh: "rh"
   
 level_2b:
   granule_name: "parent_granule.filename"

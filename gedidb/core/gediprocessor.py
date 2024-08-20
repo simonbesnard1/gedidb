@@ -42,7 +42,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         """Load all configuration files."""
         self.database_structure = self.load_config_file(config_files['database'])
         self.database_schema = self.load_config_file(config_files['schema'])
-        self.COLUMN_TO_FIELD = self.load_config_file(config_files['column_to_field'])
+        self.column_to_field = self.load_config_file(config_files['column_to_field'])
         self.quality_filter_config = self.load_config_file(config_files['quality_filter'])
         self.field_mapping = self.load_config_file(config_files['field_mapping'])
 
@@ -165,7 +165,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if input is None:
             return  # Early exit if input is None
     
-        field_to_column = {v: k for k, v in self.COLUMN_TO_FIELD.items()}    
+        field_to_column = {v: k for k, v in self.column_to_field.items()}    
         granule_key, outfile_path, included_files = input
         gedi_data = gpd.read_parquet(outfile_path)
         gedi_data = gedi_data[list(field_to_column.keys())]
