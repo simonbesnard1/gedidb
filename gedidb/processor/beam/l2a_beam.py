@@ -64,10 +64,8 @@ class L2ABeam(Beam):
                 elif key in ["beam_name"]:                
                     # Handle special cases for beam_name
                     data[key] = [self.name] * filtered_n_shots
-                elif key in ["rh_data"]: 
-                    for i in range(source + 1):
-                        rh_key = f"rh_{i}"
-                        data[rh_key] = self["rh"][spatial_mask, i]
+                elif key in ["rh"]:
+                    data[key] = self[source][(spatial_mask)].tolist()
                 elif key in ["absolute_time"]:                      
                     # Handle special cases for beam_name
                     gedi_l2a_count_start = pd.to_datetime(source)
