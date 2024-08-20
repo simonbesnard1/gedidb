@@ -77,7 +77,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
 
     def _process_granule(self, row: tuple[str, tuple[GediProduct, str]]):
         granule_key, granules = row
-        outfile_path = os.path.join(self.parquet_path, f"filtered_l1b_l2ab_l4ac_{granule_key}.parquet")
+        outfile_path = os.path.join(self.parquet_path, f"filtered_granule_{granule_key}.parquet")
         
         # If the output file already exists, return early
         if os.path.exists(outfile_path):

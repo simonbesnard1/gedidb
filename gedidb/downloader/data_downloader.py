@@ -60,7 +60,8 @@ class H5FileDownloader(GEDIDownloader):
 
     @handle_exceptions
     def download(self, _id: str, url: str, product: GediProduct) -> tuple[str, tuple[GediProduct, str]]:
-        file_path = pathlib.Path(self.download_path) / f"{_id}/{product}.h5"
+        
+        file_path = pathlib.Path(self.download_path) / f"{_id}/{product.name}.h5"
         
         if file_path.exists():
             print(f"{file_path} Already exists")

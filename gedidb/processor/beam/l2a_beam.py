@@ -1,6 +1,7 @@
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+import os
 
 from gedidb.processor.granule.granule import Granule
 from gedidb.processor.beam.beam import Beam
@@ -56,7 +57,7 @@ class L2ABeam(Beam):
             for key, source in self.field_mapper.items():
                 if key in ["granule_name"]:
                     # Handle special case for granule_name
-                    data[key] = [getattr(self.parent_granule, source.split('.')[-1])] * filtered_n_shots
+                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source.split('.')[-1])))] * filtered_n_shots
                 elif key in ["beam_type"]:                
                     # Handle special cases for beam_type 
                     data[key] = [getattr(self, source)] * filtered_n_shots
