@@ -7,7 +7,7 @@ from datetime import datetime
 from functools import wraps
 
 from gedidb.utils.constants import GediProduct
-from gedidb.database import db
+from gedidb.database.db import DatabaseManager
 from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
@@ -172,11 +172,23 @@ class GEDIGranuleProcessor(GEDIDatabase):
         gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
         
-        with db.get_db_conn(db_url=self.db_path).begin() as conn:
-            self._write_granule_entry(conn, granule_key, outfile_path, included_files)
-            self._write_gedi_data(conn, gedi_data)
-            conn.commit()
-            del gedi_data
+        db_manager = DatabaseManager(db_url=self.db_path)
+        
+        # Ensure the database schema is correct and tables are created
+        db_manager.create_tables()
+        
+        # Use the DatabaseManager to manage the connection and transaction
+        engine = db_manager.get_connection()
+        
+        if engine:
+            with engine.begin() as conn:
+                self._write_granule_entry(conn, granule_key, outfile_path, included_files)
+                self._write_gedi_data(conn, gedi_data)
+                conn.commit()  # Note: In SQLAlchemy, committing is usually handled automatically with `begin()`
+                del gedi_data
+        else:
+            print("Failed to create a database connection.")
+    
             
     def _write_granule_entry(self, conn, granule_key, outfile_path, included_files):
         granule_entry = pd.DataFrame(
@@ -192,7 +204,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
             }
         )
         granule_entry.to_sql(
-            name=self.schema['granules']['table_name'],
+            name=self.database_schema['granules']['table_name'],
             con=conn,
             index=False,
             if_exists="append",
@@ -200,7 +212,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
 
     def _write_gedi_data(self, conn, gedi_data):
         gedi_data.to_postgis(
-            name=self.schema['shots']['table_name'],
+            name=self.database_schema['shots']['table_name'],
             con=conn,
             index=False,
             if_exists="append",
