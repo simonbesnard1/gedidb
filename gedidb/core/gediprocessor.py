@@ -32,32 +32,26 @@ class GEDIGranuleProcessor(GEDIDatabase):
     def __init__(self, config_files: dict):
         self.load_all_configs(config_files)
         super().__init__(
-            self.database_structure['region_of_interest'], 
-            self.database_structure['start_date'], 
-            self.database_structure['end_date']
+            self.data_info['region_of_interest'], 
+            self.data_info['start_date'], 
+            self.data_info['end_date']
         )
         self.setup_paths_and_dates()
     
     def load_all_configs(self, config_files):
         """Load all configuration files."""
-        self.database_structure = self.load_config_file(config_files['database'])
-        self.database_schema = self.load_config_file(config_files['schema'])
-        self.column_to_field = self.load_config_file(config_files['column_to_field'])
-        self.quality_filter_config = self.load_config_file(config_files['quality_filter'])
-        self.field_mapping = self.load_config_file(config_files['field_mapping'])
+        self.data_info = self.load_config_file(config_files['data_info'])
+        self.database_schema = self.load_config_file(config_files['database_schema'])
 
     def setup_paths_and_dates(self):
         """Set up paths and dates based on the configuration."""
-        self.sql_connector = self.database_structure['sql_connector']
-        self.save_cmr_data = self.database_structure['save_cmr_data']
-        self.download_path = self.ensure_directory(self.database_structure['download_path'])
-        self.parquet_path = self.ensure_directory(self.database_structure['parquet_path'])
-        self.delete_h5_files = self.database_structure['delete_h5_files']
-        self.db_path = self.database_structure['database_url']
-        initial_geom = gpd.read_file(self.database_structure['region_of_interest'])
+        self.download_path = self.ensure_directory(self.data_info['download_path'])
+        self.parquet_path = self.ensure_directory(self.data_info['parquet_path'])
+        self.db_path = self.data_info['database_url']
+        initial_geom = gpd.read_file(self.data_info['region_of_interest'])
         self.geom = ShapeProcessor(initial_geom).check_and_format(simplify=True)        
-        self.start_date = datetime.strptime(self.database_structure['start_date'], '%Y-%m-%d')
-        self.end_date = datetime.strptime(self.database_structure['end_date'], '%Y-%m-%d')
+        self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
+        self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
 
     @staticmethod
     def ensure_directory(path):
@@ -124,8 +118,8 @@ class GEDIGranuleProcessor(GEDIDatabase):
         for product, file in granules:
             gdf = granule_parser.parse_h5_file(
                 file, product, 
-                quality_filter=self.quality_filter_config, 
-                field_mapping=self.field_mapping, 
+                quality_filter=self.quality_filter, 
+                field_mapping=self.data_info['variables_selected'], 
                 geom=self.geom
             )
             
@@ -165,11 +159,11 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if input is None:
             return  # Early exit if input is None
     
-        field_to_column = {v: k for k, v in self.column_to_field.items()}    
+        #field_to_column = {v: k for k, v in self.column_to_field.items()}    
         granule_key, outfile_path, included_files = input
         gedi_data = gpd.read_parquet(outfile_path)
-        gedi_data = gedi_data[list(field_to_column.keys())]
-        gedi_data = gedi_data.rename(columns=field_to_column)
+        #gedi_data = gedi_data[list(field_to_column.keys())]
+        #gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
         
         db_manager = DatabaseManager(db_url=self.db_path)
