@@ -107,10 +107,8 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+LICENSE
 
-# IDEs
+# misc
+/testing
 .idea
-*.swp
-.DS_Store
-.vscode/
-

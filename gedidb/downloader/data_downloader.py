@@ -60,23 +60,53 @@ class H5FileDownloader(GEDIDownloader):
 
     @handle_exceptions
     def download(self, _id: str, url: str, product: GediProduct) -> tuple[str, tuple[GediProduct, str]]:
-        
-        file_path = pathlib.Path(self.download_path) / f"{_id}/{product.name}.h5"
+
+        if datetime.now().weekday() == 2:  # 2 corresponds to Wednesday
+            print("Wednesdays there is a scheduled maintenance. Download might be affected.")
+            return _id, (product, None)
+
+        file_path = pathlib.Path(self.download_path) / f"{_id}/{product}.h5"
         
         if file_path.exists():
             print(f"{file_path} Already exists")
-            return _id, (product.value, str(file_path))
+            return _id, (product, str(file_path))
 
-        try:
-            with requests.get(url, stream=True) as r:
+        dl_try = 1
+
+        def attempt_download():
+            with requests.get(url, stream=True, timeout=10) as r:
                 r.raise_for_status()
-                # make dir with _id as name if not existing:
                 os.makedirs(file_path.parent, exist_ok=True)
                 with open(file_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
-                return _id, (product.value, str(file_path))
+                if file_path.stat().st_size == 0 and dl_try == 2:
+                    self._write_debug_info(_id, url, product, ValueError("Downloaded file size is 0"))
+                    return _id, (product, None)
+                return _id, (product, str(file_path))
 
+
+        try:
+            return attempt_download()
         except Exception as e:
-            print(f"Error downloading {url}: {e}")
-            return _id, (product.value, None)
+            print(f"TRY {dl_try} Error downloading {url}: {e}")
+            dl_try += 1
+            try:
+                return attempt_download()
+                self._write_debug_info(_id, url, product, e)
+            except Exception as e:
+                print(f"TRY {dl_try} Error downloading {url}: {e}")
+                self._write_debug_info(_id, url, product, e)
+                return _id, (product, None)
+
+    def _write_debug_info(self, _id: str, url: str, product: GediProduct, error: Exception):#
+        # TODO: debug path?
+        # debug_file = pathlib.Path(self.debug_path) / f"{_id}_debug.log"
+        debug_file = pathlib.Path(self.download_path) / f"{_id}_debug.log"
+        with open(debug_file, 'a') as f:
+            f.write(f"Timestamp: {datetime.now()}\n")
+            f.write(f"Product: {product}\n")
+            f.write(f"URL: {url}\n")
+            f.write(f"Error: {error}\n")
+            f.write("\n")
+
