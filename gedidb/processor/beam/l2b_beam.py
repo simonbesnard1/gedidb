@@ -58,31 +58,30 @@ class L2BBeam(Beam):
             for key, source in self.field_mapper.items():
                 if key in ["granule_name"]:
                     # Handle special case for granule_name
-                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source.split('.')[-1])))] * filtered_n_shots
+                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['sourceVariableName'].split('.')[-1])))] * filtered_n_shots
                 elif key in ["beam_type"]:                
                     # Handle special cases for beam_type 
-                    data[key] = [getattr(self, source)] * filtered_n_shots
+                    data[key] = [getattr(self, source['sourceVariableName'])] * filtered_n_shots
                 elif key in ["beam_name"]:                
                     # Handle special cases for beam_name
                     data[key] = [self.name] * filtered_n_shots
                 elif key in ["cover_z", "pai_z", "pavd_z"]:
                     # Handle special cases for cover_z and pai_z
-                    data[key] = self[source][(spatial_mask)].tolist()
+                    data[key] = self[source['sourceVariableName']][(spatial_mask)].tolist()
                 elif key in "dz":
                     # Special treatment for keys ending with _z
-                    data[key] = np.repeat(self[source][()], self.n_shots)[spatial_mask]
+                    data[key] = np.repeat(self[source['sourceVariableName']][()], self.n_shots)[spatial_mask]
                 elif key in "waveform_start":
                     # Handle special cases for waveform_start 
-                    data[key] = self[source][(spatial_mask)] - 1
-                elif key in ["absolute_time"]:     
-                    gedi_l2b_count_start = pd.to_datetime(source)
-                    data[key] = (gedi_l2b_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
+                    data[key] = self[source['sourceVariableName']][(spatial_mask)] - 1
                 else:
                     # Default case: Access as if it's a dataset
-                    data[key] = self[source][(spatial_mask)]
+                    data[key] = self[source['sourceVariableName']][(spatial_mask)]
                         
-                data["elevation_difference_tdx"] = (self['geolocation/elev_lowestmode'][(spatial_mask)] - self['geolocation/digital_elevation_model'][(spatial_mask)])
-            
+            gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
+            data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
+            data["elevation_difference_tdx"] = (self['geolocation/elev_lowestmode'][(spatial_mask)] - self['geolocation/digital_elevation_model'][(spatial_mask)])
+        
             data = self.apply_filter(pd.DataFrame(data))
             
             if not data.empty:
