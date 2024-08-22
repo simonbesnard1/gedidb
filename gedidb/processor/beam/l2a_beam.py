@@ -65,17 +65,15 @@ class L2ABeam(Beam):
                     # Handle special cases for beam_name
                     data[key] = [self.name] * filtered_n_shots
                 elif key in ["rh"]:
-                    data[key] = self[source['sourceVariableName']][(spatial_mask)].tolist()
-                elif key in ["absolute_time"]:                      
-                    # Handle special cases for beam_name
-                    gedi_l2a_count_start = pd.to_datetime(source['sourceVariableName'])
-                    data[key] = (gedi_l2a_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
+                    data[key] = self[source['sourceVariableName']][(spatial_mask)].tolist()    
                 else:
                     # Default case: Access as if it's a dataset
                     data[key] = self[source['sourceVariableName']][(spatial_mask)] 
                 
-                data["elevation_difference_tdx"] = (self['elev_lowestmode'][(spatial_mask)] - self['digital_elevation_model'][(spatial_mask)])
-                
+            gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
+            data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
+            data["elevation_difference_tdx"] = (self['elev_lowestmode'][(spatial_mask)] - self['digital_elevation_model'][(spatial_mask)])
+            
             data = self.apply_filter(pd.DataFrame(data))
                  
             if not data.empty:

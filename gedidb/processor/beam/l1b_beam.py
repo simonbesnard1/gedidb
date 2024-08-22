@@ -77,6 +77,8 @@ class L1BBeam(Beam):
                 else:
                     data[key] = self[source['sourceVariableName']][(spatial_mask)]
                     
+            gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
+            data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))      
             data = self.apply_filter(pd.DataFrame(data))
             
             if not data.empty:

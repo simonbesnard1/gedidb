@@ -75,13 +75,13 @@ class L4ABeam(Beam):
                 elif key in "waveform_start":
                     # Handle special cases for waveform_start 
                     data[key] = self[source['sourceVariableName']][(spatial_mask)] - 1
-                elif key in ["absolute_time"]:     
-                    gedi_l2b_count_start = pd.to_datetime(source['sourceVariableName'])
-                    data[key] = (gedi_l2b_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
                 else:
                     # Default case: Access as if it's a dataset
                     data[key] = self[source['sourceVariableName']][(spatial_mask)]
-    
+                    
+            gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
+            data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
+
             data = self.apply_filter(pd.DataFrame(data))
             
             if not data.empty:
