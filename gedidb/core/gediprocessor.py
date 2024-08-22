@@ -118,8 +118,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         for product, file in granules:
             gdf = granule_parser.parse_h5_file(
                 file, product, 
-                quality_filter=self.quality_filter, 
-                field_mapping=self.data_info['variables_selected'], 
+                data_info=self.data_info, 
                 geom=self.geom
             )
             
@@ -165,7 +164,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         #gedi_data = gedi_data[list(field_to_column.keys())]
         #gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
-        
+                
         db_manager = DatabaseManager(db_url=self.db_path)
         
         # Ensure the database schema is correct and tables are created

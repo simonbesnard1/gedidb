@@ -57,22 +57,22 @@ class L2ABeam(Beam):
             for key, source in self.field_mapper.items():
                 if key in ["granule_name"]:
                     # Handle special case for granule_name
-                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source.split('.')[-1])))] * filtered_n_shots
+                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['sourceVariableName'].split('.')[-1])))] * filtered_n_shots
                 elif key in ["beam_type"]:                
                     # Handle special cases for beam_type 
-                    data[key] = [getattr(self, source)] * filtered_n_shots
+                    data[key] = [getattr(self, source['sourceVariableName'])] * filtered_n_shots
                 elif key in ["beam_name"]:                
                     # Handle special cases for beam_name
                     data[key] = [self.name] * filtered_n_shots
                 elif key in ["rh"]:
-                    data[key] = self[source][(spatial_mask)].tolist()
+                    data[key] = self[source['sourceVariableName']][(spatial_mask)].tolist()
                 elif key in ["absolute_time"]:                      
                     # Handle special cases for beam_name
-                    gedi_l2a_count_start = pd.to_datetime(source)
+                    gedi_l2a_count_start = pd.to_datetime(source['sourceVariableName'])
                     data[key] = (gedi_l2a_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))
                 else:
                     # Default case: Access as if it's a dataset
-                    data[key] = self[source][(spatial_mask)] 
+                    data[key] = self[source['sourceVariableName']][(spatial_mask)] 
                 
                 data["elevation_difference_tdx"] = (self['elev_lowestmode'][(spatial_mask)] - self['digital_elevation_model'][(spatial_mask)])
                 
