@@ -56,15 +56,15 @@ class L1BBeam(Beam):
             
             for key, source in self.field_mapper.items():
                 if key in ["granule_name"]:
-                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source.split('.')[-1])))] * filtered_n_shots
+                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['sourceVariableName'].split('.')[-1])))] * filtered_n_shots
                 elif key in ["beam_type"]:
-                    data[key] = [getattr(self, source)] * filtered_n_shots
+                    data[key] = [getattr(self, source['sourceVariableName'])] * filtered_n_shots
                 elif key in ["beam_name"]:
                     data[key] = [self.name] * filtered_n_shots
                 elif key == "waveform_start":
-                    data[key] = self[source][()] - 1
+                    data[key] = self[source['sourceVariableName']][()] - 1
                 elif key in ["rxwaveform", "txwaveform"]:
-                    rxwaveform = self[source][()]
+                    rxwaveform = self[source['sourceVariableName']][()]
                     sdsCount = self['rx_sample_count'][(spatial_mask)]  # assuming sdsCount is available like this
                     sdsStart = self['rx_sample_start_index'][(spatial_mask)]  # assuming sdsStart is available like this
                     num_shots = len(sdsCount)
@@ -75,7 +75,7 @@ class L1BBeam(Beam):
                         shot_waveform = rxwaveform[start_idx:start_idx + count]
                         data[key].append(shot_waveform.tolist())
                 else:
-                    data[key] = self[source][(spatial_mask)]
+                    data[key] = self[source['sourceVariableName']][(spatial_mask)]
                     
             data = self.apply_filter(pd.DataFrame(data))
             
