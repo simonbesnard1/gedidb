@@ -1,0 +1,300 @@
+shots:
+  table_name: "filtered_l2ab_l4a_shots"
+  columns: 
+    "shot_number":
+      type: "BigInteger"
+      primary_key: true
+      nullable: false
+      autoincrement: false
+    "granule":
+      type: "String"
+      length: 60
+      nullable: false
+    "beam_type":
+      type: "String"
+      length: 20
+      nullable: false
+    "beam_name":
+      type: "String"
+      length: 8
+      nullable: false
+    "delta_time":
+      type: "Float"
+      nullable: false
+    "absolute_time":
+      type: "DateTime"
+      nullable: false
+    "degrade_flag":
+      type: "SmallInteger"
+      nullable: false
+    "sensitivity_a0":
+      type: "Float"
+      nullable: false
+    "sensitivity_a1":
+      type: "Float"
+      nullable: false
+    "sensitivity_a2":
+      type: "Float"
+      nullable: false
+    "sensitivity_a3":
+      type: "Float"
+      nullable: false
+    "sensitivity_a4":
+      type: "Float"
+      nullable: false
+    "sensitivity_a5":
+      type: "Float"
+      nullable: false
+    "sensitivity_a6":
+      type: "Float"
+      nullable: false
+    "sensitivity_a10":
+      type: "Float"
+      nullable: false
+    "solar_elevation":
+      type: "Float"
+      nullable: false
+    "solar_azimuth":
+      type: "Float"
+      nullable: false
+    "energy_total":
+      type: "Float"
+      nullable: false
+    "elevation_difference_tdx":
+      type: "Float"
+      nullable: false
+    "l4_quality_flag":
+      type: "SmallInteger"
+      nullable: false
+    "l4_algorithm_run_flag":
+      type: "SmallInteger"
+      nullable: false
+    "l4_predictor_limit_flag":
+      type: "SmallInteger"
+      nullable: false
+    "l4_response_limit_flag":
+      type: "SmallInteger"
+      nullable: false
+    "stale_return_flag":
+      type: "SmallInteger"
+      nullable: false
+    "dem_tandemx":
+      type: "Float"
+      nullable: false
+    "dem_srtm":
+      type: "Float"
+      nullable: false
+    "selected_l2a_algorithm":
+      type: "SmallInteger"
+      nullable: false
+    "selected_rg_algorithm":
+      type: "SmallInteger"
+      nullable: false
+    "selected_mode":
+      type: "SmallInteger"
+      nullable: false
+    "dz":
+      type: "Float"
+      nullable: false
+    "lon_lowestmode":
+      type: "Float"
+      nullable: false
+    "longitude_bin0":
+      type: "Float"
+      nullable: false
+    "longitude_bin0_error":
+      type: "Float"
+      nullable: false
+    "lat_lowestmode":
+      type: "Float"
+      nullable: false
+    "latitude_bin0":
+      type: "Float"
+      nullable: false
+    "latitude_bin0_error":
+      type: "Float"
+      nullable: false
+    "elev_lowestmode":
+      type: "Float"
+      nullable: false
+    "elevation_bin0":
+      type: "Float"
+      nullable: false
+    "elevation_bin0_error":
+      type: "Float"
+      nullable: false
+    "lon_highestreturn":
+      type: "Float"
+      nullable: false
+    "lat_highestreturn":
+      type: "Float"
+      nullable: false
+    "elev_highestreturn":
+      type: "Float"
+      nullable: false
+    "gridded_pft_class":
+      type: "SmallInteger"
+      nullable: false
+    "gridded_region_class":
+      type: "SmallInteger"
+      nullable: false
+    "gridded_urban_proportion":
+      type: "Float"
+      nullable: false
+    "gridded_water_persistence":
+      type: "Float"
+      nullable: false
+    "gridded_leaf_off_flag":
+      type: "SmallInteger"
+      nullable: false
+    "gridded_leaf_on_doy":
+      type: "SmallInteger"
+      nullable: false
+    "gridded_leaf_on_cycle":
+      type: "SmallInteger"
+      nullable: false
+    "interpolated_modis_nonvegetated":
+      type: "Float"
+      nullable: false
+    "interpolated_modis_treecover":
+      type: "Float"
+      nullable: false
+    "rh":
+      type: "ARRAY"
+      nested_type: "Float"
+      nullable: false
+    "cover":
+      type: "Float"
+      nullable: false
+    "cover_z":
+      type: "ARRAY"
+      nested_type: "Float"
+      nullable: false
+    "fhd_normal":
+      type: "Float"
+      nullable: false
+    "num_detectedmodes":
+      type: "SmallInteger"
+      nullable: false
+    "omega":
+      type: "Float"
+      nullable: false
+    "pai":
+      type: "Float"
+      nullable: false
+    "pai_z":
+      type: "ARRAY"
+      nested_type: "Float"
+      nullable: false
+    "pavd_z":
+      type: "ARRAY"
+      nested_type: "Float"
+      nullable: false
+    "pgap_theta":
+      type: "Float"
+      nullable: false
+    "pgap_theta_error":
+      type: "Float"
+      nullable: false
+    "rg":
+      type: "Float"
+      nullable: false
+    "rhog":
+      type: "Float"
+      nullable: false
+    "rhog_error":
+      type: "Float"
+      nullable: false
+    "rhov":
+      type: "Float"
+      nullable: false
+    "rhov_error":
+      type: "Float"
+      nullable: false
+    "rossg":
+      type: "Float"
+      nullable: false
+    "rv":
+      type: "Float"
+      nullable: false
+    "rx_range_highestreturn":
+      type: "Float"
+      nullable: false
+    "agbd":
+      type: "Float"
+      nullable: false
+    "agbd_pi_lower":
+      type: "Float"
+      nullable: false
+    "agbd_pi_upper":
+      type: "Float"
+      nullable: false
+    "agbd_se":
+      type: "Float"
+      nullable: false
+    "agbd_t":
+      type: "Float"
+      nullable: false
+    "agbd_se":
+      type: "Float"
+      nullable: false
+    "wsci":
+      type: "Float"
+      nullable: false
+    "wsci_pi_lower":
+      type: "Float"
+      nullable: false
+    "wsci_pi_upper":
+      type: "Float"
+      nullable: false
+    "rxwaveform":
+      type: "ARRAY"
+      nested_type: "Float"
+      nullable: false
+    "txwaveform":
+      type: "ARRAY"
+      nested_type: "Float"
+      nullable: false
+    "geometry":
+      type: "Geometry"
+      nullable: false
+
+granules:
+  table_name: "gedi_granules"
+  columns:
+   "granule_name":
+     type: "String"
+     length: 60
+     nullable: false
+     primary_key: true
+   "granule_hash":
+     type: "String"
+     length: 60
+     nullable: false
+   "granule_file":
+     type: "String"
+     length: 100
+     nullable: false
+   "l1b_file":
+     type: "String"
+     length: 100
+     nullable: false
+   "l2a_file":
+     type: "String"
+     length: 100
+     nullable: false
+   "l2b_file":
+     type: "String"
+     length: 100
+     nullable: false
+   "l4a_file":
+     type: "String"
+     length: 100
+     nullable: false
+   "l4c_file":
+     type: "String"
+     length: 100
+     nullable: false
+   "created_date":
+     type: "DateTime"
+     nullable: false
