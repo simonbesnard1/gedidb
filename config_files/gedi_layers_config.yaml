@@ -1,0 +1,1378 @@
+Layers_Variables:
+- Data_Type: 16-bit unsigned integer
+  Description: Beam identifier
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: beam
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 12
+- Data_Type: 8-bit unsigned integer
+  Description: Channel identifier
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: channel
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 6
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating degraded state of pointing and/or positioning information
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: degrade_flag
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 99
+- Data_Type: 64-bit floating point
+  Description: Time delta since Jan 1 00:00 2018
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: delta_time
+  Scale_Factor: N/A
+  Units: Seconds
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: TanDEM-X elevation at GEDI footprint location
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: digital_elevation_model
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -962.0,10038.0
+- Data_Type: 32-bit floating point
+  Description: STRM elevation at GEDI footprint location
+  Fill_Value: '-999999'
+  No_Data_Value: N/A
+  SDS_Name: digital_elevation_model_srtm
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: Elevation of highest detected return relative to reference ellipsoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elev_highestreturn
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000.0 to 25000.0
+- Data_Type: 32-bit floating point
+  Description: Elevation of center of lowest mode relative to reference ellipsoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elev_lowestmode
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000.0 to 25000.0
+- Data_Type: 8-bit unsigned integer
+  Description: Elevations potentially affected by 4bin (~60 cm) ranging error
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elevation_bias_flag
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 32-bit floating point
+  Description: Error in elevation of bin 0
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elevation_bin0_error
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000 to 25000
+- Data_Type: 32-bit floating point
+  Description: Integrated counts in the return waveform relative to the mean noise
+    level
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: energy_total
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -5000 to 5000000
+- Data_Type: 64-bit floating point
+  Description: Latitude of highest detected return
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lat_highestreturn
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -55 to 55
+- Data_Type: 64-bit floating point
+  Description: Latitude of center of lowest mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lat_lowestmode
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -55 to 55
+- Data_Type: 32-bit floating point
+  Description: Error in latitude of bin 0
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: latitude_bin0_error
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: N/A
+- Data_Type: 64-bit floating point
+  Description: Longitude of highest detected return
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lon_highestreturn
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -180 to 180
+- Data_Type: 64-bit floating point
+  Description: Longitude of center of lowest mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lon_lowestmode
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -180 to 180
+- Data_Type: 32-bit floating point
+  Description: Error on longitude_bin0
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: longitude_bin0_error
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: N/A
+- Data_Type: 64-bit floating point
+  Description: Master time, fractional part
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: master_frac
+  Scale_Factor: N/A
+  Units: Seconds
+  Valid_Range: N/A
+- Data_Type: 32-bit unsigned integer
+  Description: Master time, integer part
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: master_int
+  Scale_Factor: N/A
+  Units: Seconds
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: Mean sea surface height above the WGS84 ellipsoid, includes the geoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mean_sea_surface
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: N/A
+- Data_Type: 8-bit unsigned integer
+  Description: Number of detected modes in rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: num_detectedmodes
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 20
+- Data_Type: 8-bit unsigned integer
+  Description: Flag simplifying selection of most useful data
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: quality_flag
+  Scale_Factor: N/A
+  Units: Quality Flag
+  Valid_Range: 0, 1
+- Data_Type: 32-bit floating point
+  Description: Relative height metrics at 1% interval
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rh
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -213 to 213
+- Data_Type: 8-bit unsigned integer
+  Description: Identifier of algorithm selected as identifying the lowest non-noise
+    mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: selected_algorithm
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 1 to 6
+- Data_Type: 8-bit unsigned integer
+  Description: Identifier of mode selected as lowest non-noise mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: selected_mode
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 20
+- Data_Type: 32-bit floating point
+  Description: Maxmimum canopy cover that can be penetrated
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: sensitivity
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 64-bit unsigned integer
+  Description: Shot number
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: shot_number
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: Solar azimuth
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: solar_azimuth
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: Solar elevation
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: solar_elevation
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: N/A
+- Data_Type: 8-bit unsigned integer
+  Description: Indicates elev_lowestmode is within 300 m of DEM or MSS
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: surface_flag
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 8-bit unsigned integer
+  Description: Number of L2A algorithm runs present in file
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: l2a_alg_count
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 10
+- Data_Type: 32-bit floating point
+  Description: Elevation of the highest return detected using algorithm N, relative
+    to reference ellipsoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elev_highestreturn_aN
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000 to 25000
+- Data_Type: 32-bit floating point
+  Description: Elevation of the center of the lowest mode detected using algorithm
+    N, relative to reference ellipsoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elev_lowestmode_aN
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000 to 25000
+- Data_Type: 32-bit floating point
+  Description: Elevation of lowest return detected using algorithm N, relative to
+    reference ellipsoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elev_lowestreturn_aN
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000 to 25000
+- Data_Type: 32-bit floating point
+  Description: Elevation corresponding to the center of a single Gaussian fit to the
+    waveform, relative to reference ellipsoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elevation_1gfit
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000 to 25000
+- Data_Type: 32-bit floating point
+  Description: Elevations of all modes detected using algorithm N, relative to reference
+    ellipsoid
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: elevs_allmodes_aN
+  Scale_Factor: N/A
+  Units: Meters
+  Valid_Range: -1000 to 25000
+- Data_Type: 32-bit floating point
+  Description: Energy of lowest mode, detected using algorithm N, in the waveform
+    above the mean noise level
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: energy_lowestmode_aN
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -5000 to 5000000
+- Data_Type: 64-bit floating point
+  Description: Latitude of the highest return detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lat_highestreturn_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -55 to 55
+- Data_Type: 64-bit floating point
+  Description: Latitude of the center of the lowest mode detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lat_lowestmode_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -55 to 55
+- Data_Type: 64-bit floating point
+  Description: Latitude of the lowest return detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lat_lowestreturn_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -55 to 55
+- Data_Type: 64-bit floating point
+  Description: Latitude corresponding to the center of a single Gaussian fit to the
+    waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: latitude_1gfit
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -55 to 55
+- Data_Type: 64-bit floating point
+  Description: Latitudes of all modes detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lats_allmodes_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -55 to 55
+- Data_Type: 64-bit floating point
+  Description: Longitude of the highest return detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lon_highestreturn_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -180 to 180
+- Data_Type: 64-bit floating point
+  Description: Longitude of the center of lowest mode detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lon_lowestmode_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -180 to 180
+- Data_Type: 64-bit floating point
+  Description: Longitude of lowest return detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lon_lowestreturn_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -180 to 180
+- Data_Type: 64-bit floating point
+  Description: Longitude corresponding to the center of a single Gaussian fit to the
+    waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: longitude_1gfit
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -180 to 180
+- Data_Type: 64-bit floating point
+  Description: Longitudes of all modes detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lons_allmodes_aN
+  Scale_Factor: N/A
+  Units: Degree
+  Valid_Range: -180 to 180
+- Data_Type: 8-bit unsigned integer
+  Description: Number of detected modes detected using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: num_detectedmodes_aN
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 20
+- Data_Type: 8-bit unsigned integer
+  Description: Flag simplifying selection of most useful data
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: quality_flag_aN
+  Scale_Factor: N/A
+  Units: Quality Flag
+  Valid_Range: 0, 1
+- Data_Type: 16-bit signed integer
+  Description: Relative height metrics at 1% intervals using algorithm N
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rh_aN
+  Scale_Factor: N/A
+  Units: cm
+  Valid_Range: -213 to 213
+- Data_Type: 32-bit floating point
+  Description: Maxmimum canopy cover, using algorithm N, that can be penetrated considering
+    the SNR of the waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: sensitivity_aN
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating return signal above detection threshold was not detected
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: stale_return_flag
+  Scale_Factor: N/A
+  Units: Class Flag
+  Valid_Range: 0, 1
+- Data_Type: 64-bit floating point
+  Description: Tree cover in the year 2010, defined as canopy closure for all vegetation
+    taller than 5 m in height as a percentage per output grid cell
+  Fill_Value: '-9999'
+  No_Data_Value: N/A
+  SDS_Name: landsat_treecover
+  Scale_Factor: N/A
+  Units: Percent
+  Valid_Range: N/A
+- Data_Type: 64-bit floating point
+  Description: Percent tree cover from MODIS MOD44B V6 data
+  Fill_Value: '-9999'
+  No_Data_Value: N/A
+  SDS_Name: modis_treecover
+  Scale_Factor: N/A
+  Units: Percent
+  Valid_Range: N/A
+- Data_Type: 64-bit floating point
+  Description: Percent tree cover standard deviation from MODIS MOD44B V6 data
+  Fill_Value: '-9999'
+  No_Data_Value: N/A
+  SDS_Name: modis_treecover_sd
+  Scale_Factor: N/A
+  Units: Percent
+  Valid_Range: N/A
+- Data_Type: 64-bit floating point
+  Description: Percent non-vegetated from MODIS MOD44B V6 data
+  Fill_Value: '-9999'
+  No_Data_Value: N/A
+  SDS_Name: modis_nonvegetated
+  Scale_Factor: N/A
+  Units: Percent
+  Valid_Range: N/A
+- Data_Type: 64-bit floating point
+  Description: Percent non-vegetated standard deviation from MODIS MOD44B V6 data
+  Fill_Value: '-9999'
+  No_Data_Value: N/A
+  SDS_Name: modis_nonvegetated_sd
+  Scale_Factor: N/A
+  Units: Percent
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: Amplitude of single Gaussian fit to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gamplitude
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Error in ampltiude estimate for single Gaussian fit to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gamplitude_error
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Bias estimated in fitting a single Gaussian to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gbias
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 350
+- Data_Type: 32-bit floating point
+  Description: Error on rx_gbias parameter estimate
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gbias_error
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 350
+- Data_Type: 32-bit floating point
+  Description: Chi-squared value of Gaussian fit to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gchisq
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 10000
+- Data_Type: 8-bit unsigned integer
+  Description: Gaussian fit status flag (no further improvement)
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gflag
+  Scale_Factor: N/A
+  Units: Class Flag
+  Valid_Range: 0 to 9
+- Data_Type: 16-bit unsigned integer
+  Description: Number of iterations to converge Gaussian fit to rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_giters
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 1 to 100
+- Data_Type: 32-bit floating point
+  Description: Location (mean) of the Gaussian fit to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gloc
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Error on rx_gloc parameter estimate
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gloc_error
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Width (1 sigma) of the Gaussian fit to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gwidth
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Error on rx_gwidth parameter estimate
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_gwidth_error
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 300
+- Data_Type: 64-bit signed integer
+  Description: Maximum number of function evalutions allowed for fitting the Gaussian/extended
+    Gaussian to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mpfit_max_func_evals
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 100
+- Data_Type: 64-bit signed integer
+  Description: Maximum number of iterations allowed for fitting the Gaussian/extended
+    Gaussian to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mpfit_maxiters
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 100
+- Data_Type: 64-bit floating point
+  Description: Convergence tolerance when fitting the Gaussian/extended Gaussian to
+    the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mpfit_tolerance
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 64-bit floating point
+  Description: Lower allowable limit for the RX Gaussian fit amplitude
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_constraint_gamplitude_lower
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Upper allowable limit for the RX Gaussian fit amplitude
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_constraint_gamplitude_upper
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Lower allowable limit for the RX Gaussian fit location
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_constraint_gloc_lower
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 64-bit floating point
+  Description: Upper allowable limit for the RX Gaussian fit location
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_constraint_gloc_upper
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 64-bit floating point
+  Description: Lower allowable limit for the RX Gaussian fit width
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_constraint_gwidth_lower
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1000
+- Data_Type: 64-bit floating point
+  Description: Upper allowable limit for the RX Gaussian fit width
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_constraint_gwidth_upper
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1000
+- Data_Type: 32-bit signed integer
+  Description: If set to 1, a bias was estimated as part of the Gaussian fit; set
+    to 0 otherwise
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_estimate_bias
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 64-bit floating point
+  Description: If amplitude is less than this value, no Gaussian fitting is performed
+    to the rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_mean_noise_level
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 350
+- Data_Type: 64-bit floating point
+  Description: Smoothing width to apply to waveforms before Gaussian fitting
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_smoothwidth
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 50
+- Data_Type: 32-bit floating point
+  Description: Mean noise estimate used in RX waveform interpretation algorithm
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mean
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Average amplitude within 10 km search window with energy from rxwaveform
+    removed
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mean_64kadjusted
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 1000000
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating return suitable for use in sensor parameter estimation
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: ocean_calibration_shot_flag
+  Scale_Factor: N/A
+  Units: Class Flag
+  Valid_Range: 0, 1
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating likely invalid waveform (1=valid, 0=invalid)
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: quality_flag
+  Scale_Factor: N/A
+  Units: Quality Flag
+  Valid_Range: 0, 1
+- Data_Type: 16-bit unsigned integer
+  Description: Flags indicating various error conditions possible in rxwaveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_assess_flag
+  Scale_Factor: N/A
+  Units: Class Flag
+  Valid_Range: 0, 1
+- Data_Type: 16-bit unsigned integer
+  Description: Location of first waveform sample exceeding clip amplitude
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_clipbin0
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 1420
+- Data_Type: 16-bit unsigned integer
+  Description: Number of consecutive waveform samples affected by clipping
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_clipbin_count
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Total energy of rxwaveform, mean noise removed
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_energy
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -1000 to 1000000
+- Data_Type: 32-bit floating point
+  Description: Maximum amplitude of rxwaveform relative to mean noise level
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_maxamp
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: N/A
+- Data_Type: 16-bit unsigned integer
+  Description: Waveform sample where maximum amplitude of waveform occurs
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_maxpeakloc
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 1 to 1420
+- Data_Type: 32-bit floating point
+  Description: Noise standard deviation, corrected for odd/even digitizer bin errors
+    based on pre-launch calibrations
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: sd_corrected
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 20
+- Data_Type: 64-bit unsigned integer
+  Description: Shot number
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: shot_number
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: N/A
+- Data_Type: 64-bit floating point
+  Description: Lower limit used for pulse amplitude flag
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_ampbounds_ll
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Upper limit used for pulse amplitude flag
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_ampbounds_ul
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Ampltiude above which clipping may occur
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_clipamp
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Amplitude used to flag low amplitude return waveforms
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_pulsethresh
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Multipler on noise stddev to detect presence of ringing below the mean
+    in the pulse
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_ringthresh
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Used in debugging only
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: smoothing_width_locs
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Threshold used to detect lowest elevation return energy
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: back_threshold
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Waveform sample location of lowest detected return energy relative
+    to bin0 of waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: botloc
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Amplitude at lowest detected energy return
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: botloc_amp
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Total energy of smoothed waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: energy_sm
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -1000 to 100000
+- Data_Type: 32-bit floating point
+  Description: Threshold used to detect highest elevation return energy
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: front_threshold
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Energy in lowest detected mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: lastmodeenergy
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -1000 to 100000
+- Data_Type: 32-bit floating point
+  Description: Mean noise level used in algorithm
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mean
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Mean noise level after smoothing
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: mean_sm
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Integrated area of the computed minimally-detectable Gaussian
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: min_detection_energy
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -1000 to 100000
+- Data_Type: 32-bit floating point
+  Description: Detection threshold used to compute the minimally detected gaussian
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: min_detection_threshold
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Peak amplitude of raw waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: peak
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -100 to 1420
+- Data_Type: 32-bit floating point
+  Description: Peak ampltiude of smoothed waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: pk_sm
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -100 to 1420
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating signal was detected and algorithm ran successfully
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_algrunflag
+  Scale_Factor: N/A
+  Units: Class Flag
+  Valid_Range: 0, 1
+- Data_Type: 32-bit floating point
+  Description: Waveform bin numbers of integer percents of integrated energy from
+    cumulative waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_cumulative
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Fraction of integrated waveform at location of each detected mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_iwaveamps
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0, 1
+- Data_Type: 32-bit floating point
+  Description: Amplitudes of each detected mode within waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_modeamps
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -100 to 1420
+- Data_Type: 32-bit floating point
+  Description: Total energy from the center of each detected waveform mode to botloc
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_modeenergytobotloc
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -1000 to 1000000
+- Data_Type: 32-bit floating point
+  Description: Energy between +/- 8 samples of each detected mode, mean noise level
+    removed
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_modelocalenergy
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -1000 to 1000000
+- Data_Type: 32-bit floating point
+  Description: Energy between +/- 8 samples of each detected mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_modelocalenergyabovemean
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -1000 to 1000000
+- Data_Type: 32-bit floating point
+  Description: Signal trend within +/- 8 samples of each detected mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_modelocalslope
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -100 to 100
+- Data_Type: 32-bit floating point
+  Description: Sample numbers of each detected mode (relative to bin 0 of waveform)
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_modelocs
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: 1 sigma width estimates of each detected mode in waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_modewidths
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 700
+- Data_Type: 8-bit unsigned integer
+  Description: Number of modes detected in waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: rx_nummodes
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: Noise standard deviation of the smoothed waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: sd_sm
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 100
+- Data_Type: 32-bit floating point
+  Description: Sample number indicating end of signal search
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: search_end
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Sample number indicating start of signal search
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: search_start
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 8-bit unsigned integer
+  Description: Identifier of mode selected as lowest non-noise mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: selected_mode
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 40
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating status of selected_mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: selected_mode_flag
+  Scale_Factor: N/A
+  Units: Class Flag
+  Valid_Range: 0 to 4
+- Data_Type: 64-bit unsigned integer
+  Description: Shot number
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: shot_number
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: N/A
+- Data_Type: 32-bit floating point
+  Description: Width of Gaussian function used to smooth noise sections of waveforms
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: smoothwidth
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 20
+- Data_Type: 32-bit floating point
+  Description: Width of Gaussian function used to smooth waveform between botloc and
+    toploc
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: smoothwidth_zcross
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 20
+- Data_Type: 32-bit floating point
+  Description: Noise standdard deviation used in algorithm
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: stddev
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Sample number of highest detected return
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: toploc
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 1420
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating algorithm didn't detect valid toploc value
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: toploc_miss
+  Scale_Factor: N/A
+  Units: Class Flag
+  Valid_Range: 0, 1
+- Data_Type: 32-bit floating point
+  Description: Sample number of center of lowest mode above noise level
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: zcross
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Location of center of highest mode above noise level relative to bin0
+    of waveform
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: zcross0
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 1420
+- Data_Type: 32-bit floating point
+  Description: Amplitude of smoothed waveform at lowest detected mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: zcross_amp
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 32-bit floating point
+  Description: Energy of last mode above local slope
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: zcross_localenergy
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: -100 to 10000
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: amp_thresh
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 148
+  No_Data_Value: N/A
+  SDS_Name: ampval_limit2
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 149
+  No_Data_Value: N/A
+  SDS_Name: ampval_limit3
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 4096
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 150
+  No_Data_Value: N/A
+  SDS_Name: botlocdist_limit1
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 50
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 151
+  No_Data_Value: N/A
+  SDS_Name: botlocdist_limit2
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 50
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 152
+  No_Data_Value: N/A
+  SDS_Name: botlocdist_limit3
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 50
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 153
+  No_Data_Value: N/A
+  SDS_Name: cumulative_energy_minimum
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0, 1
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 154
+  No_Data_Value: N/A
+  SDS_Name: cumulative_energy_thresh
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0, 1
+- Data_Type: 32-bit signed integer
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 155
+  No_Data_Value: N/A
+  SDS_Name: enable_select_mode
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 156
+  No_Data_Value: N/A
+  SDS_Name: energy_thresh
+  Scale_Factor: N/A
+  Units: Number
+  Valid_Range: 0 to 1000
+- Data_Type: 64-bit floating point
+  Description: Initial search threshold multiplier to detect signal start and end
+  Fill_Value: 0, 157
+  No_Data_Value: N/A
+  SDS_Name: preprocessor_threshold
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 100
+- Data_Type: 64-bit floating point
+  Description: Final ground return pulse selection parameter
+  Fill_Value: 0, 158
+  No_Data_Value: N/A
+  SDS_Name: pulse_sep_thresh
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 100
+- Data_Type: 64-bit floating point
+  Description: Noise stddev multiplier used to detect the lowest elevation signal
+  Fill_Value: 0, 159
+  No_Data_Value: N/A
+  SDS_Name: rx_back_threshold
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 100
+- Data_Type: 64-bit floating point
+  Description: Noise stddev multiplier used to detect the highest elevation signal
+  Fill_Value: 0, 160
+  No_Data_Value: N/A
+  SDS_Name: rx_front_threshold
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 100
+- Data_Type: 64-bit signed integer
+  Description: Maximum number of modes saved for each footprint
+  Fill_Value: 0, 161
+  No_Data_Value: N/A
+  SDS_Name: rx_max_mode_count
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 40
+- Data_Type: 64-bit floating point
+  Description: In combination with preprocessor_threshold, used to define area of
+    waveform to be searched by algorithm
+  Fill_Value: 0, 162
+  No_Data_Value: N/A
+  SDS_Name: rx_searchsize
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 500
+- Data_Type: 64-bit floating point
+  Description: Location of sentinel pulse used by sensitivity algorithm
+  Fill_Value: 0, 163
+  No_Data_Value: N/A
+  SDS_Name: rx_sentinel_location
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 300
+- Data_Type: 64-bit floating point
+  Description: Width of Guassian pulse convolved with waveform to reduce noise prior
+    to toploc/botloc identification
+  Fill_Value: 0, 164
+  No_Data_Value: N/A
+  SDS_Name: rx_smoothing_width_locs
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 30
+- Data_Type: 64-bit floating point
+  Description: Width of Guassian pulse convolved with waveform to reduce noise prior
+    to pulse mode identification
+  Fill_Value: 0, 165
+  No_Data_Value: N/A
+  SDS_Name: rx_smoothing_width_zcross
+  Scale_Factor: N/A
+  Units: Nanoseconds
+  Valid_Range: 0 to 30
+- Data_Type: 64-bit signed integer
+  Description: "Factor of increased vertical resolution relative to native waveform\
+    \ resolution\_(~0.15 m)"
+  Fill_Value: 0, 166
+  No_Data_Value: N/A
+  SDS_Name: rx_subbin_resolution
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 10
+- Data_Type: 32-bit signed integer
+  Description: Noise stddev multipliers used to detect the highest and lowest elevation
+    returns
+  Fill_Value: 0, 167
+  No_Data_Value: N/A
+  SDS_Name: rx_use_fixed_thresholds
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0, 1
+- Data_Type: 8-bit unsigned integer
+  Description: Percent UMD GLAD Landsat observations with classified surface water
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: landsat_water_persistence
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 100
+- Data_Type: 16-bit signed integer
+  Description: GEDI 1 km EASE 2.0 grid leaf-off start day-of-year
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: leaf_off_doy
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 1 to 365
+- Data_Type: 8-bit unsigned integer
+  Description: GEDI 1 km EASE 2.0 grid flag
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: leaf_off_flag
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 1
+- Data_Type: 8-bit unsigned integer
+  Description: Flag that indicates the vegetation growing cycle for leaf-on observations
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: leaf_on_cycle
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 1 to 2
+- Data_Type: 16-bit signed integer
+  Description: GEDI 1 km EASE 2.0 grid leaf-on start day-of-year
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: leaf_on_doy
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 1 to 365
+- Data_Type: 8-bit unsigned integer
+  Description: GEDI 1 km EASE 2.0 grid Plant Functional Type (PFT)
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: pft_class
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 11
+- Data_Type: 8-bit unsigned integer
+  Description: GEDI 1 km EASE 2.0 grid world continental regions
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: region_class
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 7
+- Data_Type: 8-bit unsigned integer
+  Description: The focal window size used to calculate urban_proportion
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: urban_focal_window_size
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 3 to 5
+- Data_Type: 8-bit unsigned integer
+  Description: The percentage proportion of land area within a focal area surrounding
+    each shot that is urban land cover.
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: urban_proportion
+  Scale_Factor: N/A
+  Units: Select Units
+  Valid_Range: 0 to 100
+- Data_Type: 8-bit unsigned integer
+  Description: Flag indicating status of selected_mode
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: selected_mode_flag
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 4
+- Data_Type: 8-bit unsigned integer
+  Description: lag from digitizer indicating the real-time pulse detection algorithm
+    did not detect a return signal above its detection threshold within the entire
+    10 km search window.
+  Fill_Value: N/A
+  No_Data_Value: N/A
+  SDS_Name: state_return_flag
+  Scale_Factor: N/A
+  Units: N/A
+  Valid_Range: 0 to 1
