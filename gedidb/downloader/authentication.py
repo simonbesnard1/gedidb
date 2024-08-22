@@ -9,10 +9,10 @@ class EarthDataAuthenticator:
         with open(config_file, 'r') as file:
             config = yaml.safe_load(file)
 
-        self.username = config['earthdata']['username']
-        self.password = config['earthdata']['password']
-        self.user_path = Path(config['paths']['user_path'])
-        self.cookie_file = Path(config['paths']['earth_data_cookie_file'])
+        self.username = config['earth_data_info']['credentials']['username']
+        self.password = config['earth_data_info']['credentials']['password']
+        self.user_path = Path(config['earth_data_info']['paths']['user_path'])
+        self.cookie_file = Path(config['earth_data_info']['paths']['earth_data_cookie_file'])
         self.netrc_file = self.user_path / ".netrc"
     
     def authenticate(self):
