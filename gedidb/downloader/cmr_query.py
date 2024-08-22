@@ -1,4 +1,8 @@
 import requests
+import urllib3.exceptions
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from requests.exceptions import RetryError
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
@@ -21,9 +25,12 @@ def handle_exceptions(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except urllib3.exceptions.MaxRetryError:
+            print("max retry error")
         except Exception as e:
             print(f"Error occurred in {func.__name__}: {e}")
             # Additional error handling logic can be placed here
+
     return wrapper
 
 class CMRQuery:
@@ -91,12 +98,24 @@ class GranuleQuery(CMRQuery):
 
     @handle_exceptions
     def query_granules(self, page_size: int = 2000, page_num: int = 1) -> pd.DataFrame:
+
         cmr_params = self._construct_query_params(self.product, self.geom, self.start_date, self.end_date, page_size, page_num)
         granule_data = []
+
+        adapter = HTTPAdapter(max_retries=Retry(
+            total=3,
+            backoff_factor=0.1,
+            status_forcelist=[429,500,502,503,504],
+            allowed_methods=["GET"]
+        ))
+        session = requests.Session()
+        session.mount('https://', adapter)
         
         while True:
             cmr_params["page_num"] = page_num
-            response = requests.get(CMR_URL, params=cmr_params)
+            # response = requests.get(CMR_URL, params=cmr_params)
+            response = session.get(CMR_URL, params=cmr_params)
+            print(response.status_code)
             response.raise_for_status()
             cmr_response = response.json()["feed"]["entry"]
 
@@ -105,6 +124,7 @@ class GranuleQuery(CMRQuery):
                 page_num += 1
             else:
                 break
+        session.close()
 
         granule_data = [{
             'id': self._get_id(item),
