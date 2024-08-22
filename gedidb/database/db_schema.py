@@ -1,87 +1,71 @@
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, BigInteger, Integer, String, Float, DateTime, SmallInteger, ARRAY
-
+from sqlalchemy.orm import DeclarativeBase, mapped_column
+from sqlalchemy import BigInteger, Integer, String, Float, DateTime, SmallInteger, ARRAY
 from geoalchemy2 import Geometry
+from sqlalchemy.ext.declarative import declared_attr
 
 
 class Base(DeclarativeBase):
     pass
 
+class DynamicSchemaBuilder:
+    def __init__(self, config_file):
+        self.config = self.config_file
 
-def create_columns_from_config(config):
-    columns = {}
-    
-    # Map of column types for dynamic column creation
-    column_type_map = {
-        "BigInteger": BigInteger,
-        "Integer": Integer,
-        "String": String,
-        "Float": Float,
-        "DateTime": DateTime,
-        "SmallInteger": SmallInteger,
-        "ARRAY": ARRAY,
-        "Geometry": Geometry
-    }
-    
-    for col in config["columns"]:
-        col_type = column_type_map[col["type"]]
-        
-        # Handle string lengths
-        if col["type"] == "String":
-            col_type = col_type(col.get("length", 255))
-        
-        # Handle geometry types
-        elif col["type"] == "Geometry":
-            col_type = col_type("POINT", srid=4326)
-        
-        # Handle ARRAY types
-        elif col["type"] == "ARRAY":
-            # The nested type for the ARRAY
-            nested_type = column_type_map[col["nested_type"]]
-            col_type = col_type(nested_type)
-        
-        # Create column
-        columns[col["name"]] = Column(
-            col_type,
-            primary_key=col.get("primary_key", False),
-            nullable=col.get("nullable", True),
-            autoincrement=col.get("autoincrement", True)
-        )
+    def _create_columns(self, columns_config):
+        """Dynamically create columns based on the configuration."""
+        columns = {}
+        column_type_map = {
+            "BigInteger": BigInteger,
+            "Integer": Integer,
+            "String": String,
+            "Float": Float,
+            "DateTime": DateTime,
+            "SmallInteger": SmallInteger,
+            "ARRAY": ARRAY,
+            "Geometry": Geometry
+        }
 
-class Shots(Base):
-    __tablename__ = "filtered_l2ab_l4a_shots"  # Default value, will be overridden by config
+        for col_name, col_attributes in columns_config.items():
+            col_type = column_type_map[col_attributes["type"]]
 
-    def __init__(self):
-        # Retrieve the configuration from the parent class
-        self.config = self.database_structure['shots']
+            # Handle additional parameters based on type
+            if col_attributes["type"] == "String":
+                col_type = col_type(col_attributes.get("length", 255))
+            elif col_attributes["type"] == "Geometry":
+                col_type = col_type(col_attributes.get("geometry_type", "POINT"), srid=col_attributes.get("srid", 4326))
+            elif col_attributes["type"] == "ARRAY":
+                nested_type = column_type_map[col_attributes["nested_type"]]
+                col_type = col_type(nested_type)
 
-        # Update the table name if specified in the config
-        if "table_name" in self.config:
-            self.__tablename__ = self.config["table_name"]
+            columns[col_name] = mapped_column(
+                col_type,
+                primary_key=col_attributes.get("primary_key", False),
+                nullable=col_attributes.get("nullable", True),
+                autoincrement=col_attributes.get("autoincrement", True)
+            )
 
-        # Dynamically add columns based on the config
-        self._setup_columns()
+        return columns
 
-    def _setup_columns(self):
-        columns = create_columns_from_config(self.config)
-        for name, column in columns.items():
-            setattr(self.__class__, name, column)
-    
-class Granules(Base):
-    __tablename__ = "gedi_granules"  # Default value, will be overridden by config
+    def build_schema(self):
+        """Build and return SQLAlchemy model classes for both shots and granules."""
+        models = {}
 
-    def __init__(self):
-        # Retrieve the configuration from the parent class
-        self.config = self.database_structure['granules']
+        for table_type, config in self.config.items():
+            columns = self._create_columns(config['columns'])
+            class_name = f"{table_type.capitalize()}_{config['table_name'].capitalize()}"
 
-        # Update the table name if specified in the config
-        if "table_name" in self.config:
-            self.__tablename__ = self.config["table_name"]
+            class DynamicSchema(Base):
+                __tablename__ = config['table_name']
 
-        # Dynamically add columns based on the config
-        self._setup_columns()
+                @declared_attr
+                def __table_args__(cls):
+                    return {'extend_existing': True}
 
-    def _setup_columns(self):
-        columns = create_columns_from_config(self.config)
-        for name, column in columns.items():
-            setattr(self.__class__, name, column)
+                # Add the dynamically created columns to the class
+                locals().update(columns)
+
+            # Dynamically create the model class with a unique name
+            DynamicSchema.__name__ = class_name
+            models[table_type] = DynamicSchema
+
+        return models
