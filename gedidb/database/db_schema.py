@@ -9,7 +9,7 @@ class Base(DeclarativeBase):
 
 class DynamicSchemaBuilder:
     def __init__(self, config_file):
-        self.config = self.config_file
+        self.config = config_file
 
     def _create_columns(self, columns_config):
         """Dynamically create columns based on the configuration."""

@@ -57,18 +57,18 @@ class L2ABeam(Beam):
             for key, source in self.field_mapper.items():
                 if key in ["granule_name"]:
                     # Handle special case for granule_name
-                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['sourceVariableName'].split('.')[-1])))] * filtered_n_shots
+                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['SDS_Name'].split('.')[-1])))] * filtered_n_shots
                 elif key in ["beam_type"]:                
                     # Handle special cases for beam_type 
-                    data[key] = [getattr(self, source['sourceVariableName'])] * filtered_n_shots
+                    data[key] = [getattr(self, source['SDS_Name'])] * filtered_n_shots
                 elif key in ["beam_name"]:                
                     # Handle special cases for beam_name
                     data[key] = [self.name] * filtered_n_shots
                 elif key in ["rh"]:
-                    data[key] = self[source['sourceVariableName']][(spatial_mask)].tolist()    
+                    data[key] = self[source['SDS_Name']][(spatial_mask)].tolist()    
                 else:
                     # Default case: Access as if it's a dataset
-                    data[key] = self[source['sourceVariableName']][(spatial_mask)] 
+                    data[key] = self[source['SDS_Name']][(spatial_mask)] 
                 
             gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
             data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))

@@ -56,15 +56,15 @@ class L1BBeam(Beam):
             
             for key, source in self.field_mapper.items():
                 if key in ["granule_name"]:
-                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['sourceVariableName'].split('.')[-1])))] * filtered_n_shots
+                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['SDS_Name'].split('.')[-1])))] * filtered_n_shots
                 elif key in ["beam_type"]:
-                    data[key] = [getattr(self, source['sourceVariableName'])] * filtered_n_shots
+                    data[key] = [getattr(self, source['SDS_Name'])] * filtered_n_shots
                 elif key in ["beam_name"]:
                     data[key] = [self.name] * filtered_n_shots
                 elif key == "waveform_start":
-                    data[key] = self[source['sourceVariableName']][()] - 1
+                    data[key] = self[source['SDS_Name']][()] - 1
                 elif key in ["rxwaveform", "txwaveform"]:
-                    rxwaveform = self[source['sourceVariableName']][()]
+                    rxwaveform = self[source['SDS_Name']][()]
                     sdsCount = self['rx_sample_count'][(spatial_mask)]  # assuming sdsCount is available like this
                     sdsStart = self['rx_sample_start_index'][(spatial_mask)]  # assuming sdsStart is available like this
                     num_shots = len(sdsCount)
@@ -75,7 +75,7 @@ class L1BBeam(Beam):
                         shot_waveform = rxwaveform[start_idx:start_idx + count]
                         data[key].append(shot_waveform.tolist())
                 else:
-                    data[key] = self[source['sourceVariableName']][(spatial_mask)]
+                    data[key] = self[source['SDS_Name']][(spatial_mask)]
                     
             gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
             data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][(spatial_mask)], unit="seconds"))      
