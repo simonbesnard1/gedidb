@@ -158,13 +158,10 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if input is None:
             return  # Early exit if input is None
     
-        #field_to_column = {v: k for k, v in self.column_to_field.items()}    
         granule_key, outfile_path, included_files = input
         gedi_data = gpd.read_parquet(outfile_path)
-        #gedi_data = gedi_data[list(field_to_column.keys())]
-        #gedi_data = gedi_data.rename(columns=field_to_column)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
-                
+    
         db_manager = DatabaseManager(db_url=self.db_path)
         
         # Ensure the database schema is correct and tables are created
@@ -172,18 +169,48 @@ class GEDIGranuleProcessor(GEDIDatabase):
         
         # Use the DatabaseManager to manage the connection and transaction
         engine = db_manager.get_connection()
-        
+    
         if engine:
             with engine.begin() as conn:
-                self._write_granule_entry(conn, granule_key, outfile_path, included_files)
-                self._write_gedi_data(conn, gedi_data)
-                conn.commit()  # Note: In SQLAlchemy, committing is usually handled automatically with `begin()`
+                # Retrieve or create the version ID
+                version_id = self._get_or_create_version_id(conn)
+    
+                # Pass the version_id when writing the granule entry and GEDI data
+                self._write_granule_entry(conn, granule_key, outfile_path, included_files, version_id)
+                self._write_gedi_data(conn, gedi_data, version_id)
+                conn.commit()
                 del gedi_data
         else:
             print("Failed to create a database connection.")
     
-            
-    def _write_granule_entry(self, conn, granule_key, outfile_path, included_files):
+    def _get_or_create_version_id(self, conn):
+        """
+        Retrieve the version_id for the current GEDI version or create it if it doesn't exist.
+        """
+        #TODO : need to be retrieve from the metadata or the granules h5 object.
+        version = "2.0"
+        release_date = datetime(2022, 5, 1)
+        description = "GEDI Product Version 2"
+    
+        # Assuming `GediVersion` is the model class for the version table
+        gedi_version = conn.execute(
+            "SELECT id FROM gedi_versions WHERE version = :version",
+            {"version": version}
+        ).fetchone()
+    
+        if not gedi_version:
+            conn.execute(
+                "INSERT INTO gedi_versions (version, release_date, description) VALUES (:version, :release_date, :description)",
+                {"version": version, "release_date": release_date, "description": description}
+            )
+            gedi_version = conn.execute(
+                "SELECT id FROM gedi_versions WHERE version = :version",
+                {"version": version}
+            ).fetchone()
+    
+        return gedi_version.id
+
+    def _write_granule_entry(self, conn, granule_key, outfile_path, included_files, version_id):
         granule_entry = pd.DataFrame(
             data={
                 "granule_name": [granule_key],
@@ -193,6 +220,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 "l2b_file": [included_files[2]],
                 "l4a_file": [included_files[3]],
                 "l4c_file": [included_files[4]],
+                "version_id": [version_id],  # Include version ID
                 "created_date": [pd.Timestamp.utcnow()],
             }
         )
@@ -202,8 +230,11 @@ class GEDIGranuleProcessor(GEDIDatabase):
             index=False,
             if_exists="append",
         )
-
-    def _write_gedi_data(self, conn, gedi_data):
+    
+    def _write_gedi_data(self, conn, gedi_data, version_id):
+        # Add version_id to the gedi_data dataframe
+        gedi_data['version_id'] = version_id
+        
         gedi_data.to_postgis(
             name=self.database_schema['shots']['table_name'],
             con=conn,
