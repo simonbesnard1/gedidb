@@ -65,7 +65,6 @@ class L4CGranuleParser(GranuleParser):
 def parse_h5_file(file: str, product: GediProduct, data_info: dict = None,
                   geom: gpd.GeoSeries=None) -> gpd.GeoDataFrame:
     parser_classes = {
-        GediProduct.L1B.value: L1BGranuleParser,
         GediProduct.L2A.value: L2AGranuleParser,
         GediProduct.L2B.value: L2BGranuleParser,
         GediProduct.L4A.value: L4AGranuleParser,

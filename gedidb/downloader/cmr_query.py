@@ -115,7 +115,6 @@ class GranuleQuery(CMRQuery):
             cmr_params["page_num"] = page_num
             # response = requests.get(CMR_URL, params=cmr_params)
             response = session.get(CMR_URL, params=cmr_params)
-            print(response.status_code)
             response.raise_for_status()
             cmr_response = response.json()["feed"]["entry"]
 
