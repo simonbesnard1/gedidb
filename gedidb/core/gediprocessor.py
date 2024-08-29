@@ -5,6 +5,7 @@ import geopandas as gpd
 import pandas as pd
 from datetime import datetime
 from functools import wraps
+from sqlalchemy import text
 
 from gedidb.utils.constants import GediProduct
 from gedidb.database.db import DatabaseManager
@@ -193,17 +194,17 @@ class GEDIGranuleProcessor(GEDIDatabase):
     
         # Assuming `GediVersion` is the model class for the version table
         gedi_version = conn.execute(
-            "SELECT id FROM gedi_versions WHERE version = :version",
+            text("SELECT id FROM gedi_versions WHERE version = :version"),
             {"version": version}
         ).fetchone()
     
         if not gedi_version:
             conn.execute(
-                "INSERT INTO gedi_versions (version, release_date, description) VALUES (:version, :release_date, :description)",
+                text("INSERT INTO gedi_versions (version, release_date, description) VALUES (:version, :release_date, :description)"),
                 {"version": version, "release_date": release_date, "description": description}
             )
             gedi_version = conn.execute(
-                "SELECT id FROM gedi_versions WHERE version = :version",
+                text("SELECT id FROM gedi_versions WHERE version = :version"),
                 {"version": version}
             ).fetchone()
     
@@ -213,11 +214,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
         granule_entry = pd.DataFrame(
             data={
                 "granule_name": [granule_key],
-                "granule_file": [outfile_path],
-                "l2a_file": [included_files[0]],
-                "l2b_file": [included_files[1]],
-                "l4a_file": [included_files[2]],
-                "l4c_file": [included_files[3]],
                 "version_id": [version_id],  # Include version ID
                 "created_date": [pd.Timestamp.utcnow()],
             }

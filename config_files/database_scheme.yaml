@@ -267,29 +267,9 @@ granules:
      length: 60
      nullable: false
      primary_key: true
-   "granule_hash":
+   "version_id":
      type: "String"
      length: 60
-     nullable: false
-   "granule_file":
-     type: "String"
-     length: 100
-     nullable: false
-   "l2a_file":
-     type: "String"
-     length: 100
-     nullable: false
-   "l2b_file":
-     type: "String"
-     length: 100
-     nullable: false
-   "l4a_file":
-     type: "String"
-     length: 100
-     nullable: false
-   "l4c_file":
-     type: "String"
-     length: 100
      nullable: false
    "created_date":
      type: "DateTime"
