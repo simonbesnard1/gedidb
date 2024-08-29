@@ -136,8 +136,8 @@ class GEDIGranuleProcessor(GEDIDatabase):
     def _join_gdfs(self, gdf_dict):
         """Perform the join operations on the GeoDataFrames."""
         try:
-            gdf = gdf_dict[GediProduct.L1B.value]
-            for product in [GediProduct.L2A, GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
+            gdf = gdf_dict[GediProduct.L2A.value]
+            for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
                 gdf = gdf.join(
                     gdf_dict[product.value].set_index("shot_number"),
                     on="shot_number",
@@ -145,9 +145,8 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 )
             
             return (gdf.drop(
-                        columns=[f"geometry_{GediProduct.L2A.value}", f"geometry_{GediProduct.L2B.value}", 
-                                 f"geometry_{GediProduct.L4A.value}", f"geometry_{GediProduct.L4C.value}"])
-                    .set_geometry("geometry_level1B")
+                        columns=[f"geometry_{GediProduct.L2B.value}", f"geometry_{GediProduct.L4A.value}", f"geometry_{GediProduct.L4C.value}"])
+                    .set_geometry("geometry_level2A")
                     .rename_geometry("geometry"))
         
         except KeyError as e:
@@ -215,11 +214,10 @@ class GEDIGranuleProcessor(GEDIDatabase):
             data={
                 "granule_name": [granule_key],
                 "granule_file": [outfile_path],
-                "l1b_file": [included_files[0]],
-                "l2a_file": [included_files[1]],
-                "l2b_file": [included_files[2]],
-                "l4a_file": [included_files[3]],
-                "l4c_file": [included_files[4]],
+                "l2a_file": [included_files[0]],
+                "l2b_file": [included_files[1]],
+                "l4a_file": [included_files[2]],
+                "l4c_file": [included_files[3]],
                 "version_id": [version_id],  # Include version ID
                 "created_date": [pd.Timestamp.utcnow()],
             }
