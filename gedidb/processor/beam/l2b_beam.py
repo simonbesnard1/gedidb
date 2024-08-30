@@ -46,28 +46,38 @@ class L2BBeam(Beam):
 
     def _get_main_data(self) -> dict:
         
-        data = {}
-                
+        gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
+        delta_time = self["delta_time"][()]
+        elev_lowestmode = self['geolocation/elev_lowestmode'][()]
+        digital_elevation_model = self['geolocation/digital_elevation_model'][()]
+        
+        # Initialize the data dictionary
+        data = {
+            "absolute_time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds"),
+            "elevation_difference_tdx": elev_lowestmode - digital_elevation_model,
+        }
+    
         for key, source in self.field_mapper.items():
-            if key in ["granule_name"]:
-                data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['SDS_Name'].split('.')[-1])))] * self.n_shots
-            elif key in ["beam_type"]:                
-                data[key] = [getattr(self, source['SDS_Name'])] * self.n_shots
-            elif key in ["beam_name"]:                
+            sds_name = source['SDS_Name']
+    
+            if key == "granule_name":
+                granule_name = os.path.basename(os.path.dirname(getattr(self.parent_granule, sds_name.split('.')[-1])))
+                data[key] = [granule_name] * self.n_shots
+            elif key == "beam_type":
+                beam_type = getattr(self, sds_name)
+                data[key] = [beam_type] * self.n_shots
+            elif key == "beam_name":
                 data[key] = [self.name] * self.n_shots
             elif key in ["cover_z", "pai_z", "pavd_z"]:
-                data[key] = self[source['SDS_Name']][()].tolist()
-            elif key in "dz":
-                data[key] = np.repeat(self[source['SDS_Name']][()], self.n_shots)
-            elif key in "waveform_start":
-                data[key] = self[source['SDS_Name']][()] - 1
+                data[key] = self[sds_name][()].tolist()
+            elif key == "dz":
+                data[key] = np.repeat(self[sds_name][()], self.n_shots)
+            elif key == "waveform_start":
+                data[key] = self[sds_name][()] - 1
             else:
-                data[key] = self[source['SDS_Name']][()]
-                    
-        gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
-        data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][()], unit="seconds"))
-        data["elevation_difference_tdx"] = (self['geolocation/elev_lowestmode'][()] - self['geolocation/digital_elevation_model'][()])
+                data[key] = self[sds_name][()]
     
+        # Apply filter and convert to DataFrame
         data = self.apply_filter(pd.DataFrame(data))
         
         if not data.empty:

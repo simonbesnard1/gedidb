@@ -52,24 +52,30 @@ class L4ABeam(Beam):
         return data
     
     def _get_main_data(self) -> dict:
-        
-    
-        data = {}        
-
-        for key, source in self.field_mapper.items():
-            if key in ["granule_name"]:
-                data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['SDS_Name'].split('.')[-1])))] * self.n_shots
-            elif key in ["beam_type"]:                
-                data[key] = [getattr(self, source['SDS_Name'])] * self.n_shots
-            elif key in ["beam_name"]:                
-                data[key] = [self.name] * self.n_shots
-            elif key in "waveform_start":
-                data[key] = self[source['SDS_Name']][()] - 1
-            else:
-                data[key] = self[source['SDS_Name']][()]
-                
+            
         gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
-        data["absolute_time"] = (gedi_count_start + pd.to_timedelta(self["delta_time"][()], unit="seconds"))
+        delta_time = self["delta_time"][()]
+        
+        # Initialize the data dictionary
+        data = {
+            "absolute_time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds")
+        }
+        
+        for key, source in self.field_mapper.items():
+            sds_name = source['SDS_Name']
+    
+            if key == "granule_name":
+                granule_name = os.path.basename(os.path.dirname(getattr(self.parent_granule, sds_name.split('.')[-1])))
+                data[key] = [granule_name] * self.n_shots
+            elif key == "beam_type":
+                beam_type = getattr(self, sds_name)
+                data[key] = [beam_type] * self.n_shots
+            elif key == "beam_name":
+                data[key] = [self.name] * self.n_shots
+            elif key == "waveform_start":
+                data[key] = self[sds_name][()] - 1
+            else:
+                data[key] = self[sds_name][()]
 
         data = self.apply_filter(pd.DataFrame(data))
         
