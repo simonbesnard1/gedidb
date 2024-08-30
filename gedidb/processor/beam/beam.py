@@ -8,12 +8,11 @@ from typing import Union, List
 
 class Beam(h5py.Group):
 
-    def __init__(self, granule, beam: str, quality_flag:dict, field_mapping:dict, geom: gpd.GeoSeries):
+    def __init__(self, granule, beam: str, quality_flag:dict, field_mapping:dict):
         super().__init__(granule[beam].id)
         self.parent_granule = granule
         self.quality_flag = quality_flag
         self.field_mapping = field_mapping
-        self.geom = geom
         
     @property
     def n_shots(self) -> int:
@@ -30,19 +29,6 @@ class Beam(h5py.Group):
     @property
     def field_mapper(self):
         return self.field_mapping
-    
-    @property
-    def spatial_mask(self):
-        
-        spatial_box = self.geom.total_bounds  # [minx, miny, maxx, maxy]
-        
-        # Extract x and y coordinates from shot_geolocations
-        longitudes_lastbin = self.shot_geolocations.x
-        latitudes_lastbin = self.shot_geolocations.y
-                 
-        spatial_mask = np.logical_and(np.logical_and(longitudes_lastbin >= spatial_box[0], longitudes_lastbin <= spatial_box[2]),
-                                      np.logical_and(latitudes_lastbin >= spatial_box[1], latitudes_lastbin <= spatial_box[3]))
-        return spatial_mask
     
     @property
     def main_data(self) -> gpd.GeoDataFrame:
