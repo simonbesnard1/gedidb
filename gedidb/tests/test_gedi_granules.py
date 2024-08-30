@@ -1,7 +1,10 @@
 import unittest
-from gedidb.granule import gedi_l4a, gedi_l2b, gedi_l2a, gedi_l1b
+from gedidb.processor import granule_parser
+from gedidb.utils.constants import GediProduct
 import pathlib
 import warnings
+import h5py
+
 
 THIS_DIR = pathlib.Path(__file__).parent
 L4A_NAME = (
@@ -25,48 +28,143 @@ class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         warnings.simplefilter("ignore", DeprecationWarning)
 
-    def _generic_test_parse_granule(self, granule):
-        n_filtered = 0
-        for beam in granule.iter_beams():
-            hdf_beam_len = beam.n_shots
-            # All beams are non-empty
-            # (Not true for all files -- but true for the test files)
-            self.assertNotEqual(hdf_beam_len, 0)
-            gdf = beam.main_data
-            data_len_orig = len(gdf)
-            # The exported shots are equal to the number of shots in the h5 file
-            self.assertEqual(data_len_orig, hdf_beam_len)
+    _data_info = {
+        "level_2a": {
+            "quality_filter": "None",
+            "variables": {
+                "shot_number": {
+                    "SDS_Name": "shot_number",
+                },
+                "beam_name": {
+                    "SDS_Name": "name",
+                },
+                "lat_lowestmode": {
+                    "SDS_Name": "lat_lowestmode",
+                },
+                "lon_lowestmode": {
+                    "SDS_Name": "lon_lowestmode",
+                },
+                "rh": {
+                    "SDS_Name": "rh",
+                },
+            },
+        },
+        "level_2b": {
+            "quality_filter": "None",
+            "variables": {
+                "shot_number": {
+                    "SDS_Name": "shot_number",
+                },
+                "beam_name": {
+                    "SDS_Name": "name",
+                },
+                "lat_lowestmode": {
+                    "SDS_Name": "geolocation/lat_lowestmode",
+                },
+                "lon_lowestmode": {
+                    "SDS_Name": "geolocation/lon_lowestmode",
+                },
+                "pai_z": {
+                    "SDS_Name": "pai_z",
+                },
+            },
+        },
+        "level_4a": {
+            "quality_filter": "None",
+            "variables": {
+                "shot_number": {
+                    "SDS_Name": "shot_number",
+                },
+                "beam_name": {
+                    "SDS_Name": "name",
+                },
+                "lat_lowestmode": {
+                    "SDS_Name": "lat_lowestmode",
+                },
+                "lon_lowestmode": {
+                    "SDS_Name": "lon_lowestmode",
+                },
+                "agbd": {
+                    "SDS_Name": "agbd",
+                },
+            },
+        },
+    }
 
-            beam.sql_format_arrays()
-            gdf = beam.main_data
-            # SQL formatting doesn't change the number of shots
-            self.assertEqual(data_len_orig, len(gdf))
+    def _generic_test_parse_granule(self, file, data):
+        # All beams are non-empty
+        # (Not true for all files -- but true for the test files)
+        beam_data = data.groupby("beam_name").count()
+        self.assertEqual(len(beam_data), 8)
+        for beam in beam_data.index:
+            self.assertNotEqual(beam_data.loc[beam, "shot_number"], 0)
 
-            # Quality filtering doesn't crash
-            beam.quality_filter()
-            gdf = beam.main_data
-            # Quality filtering should drop at least some shots
-            self.assertLessEqual(len(gdf), data_len_orig)
-            n_filtered += len(gdf)
-        # But at least _some_ shots should be valid
-        # (Again, maybe not true for all files --
-        # but true for the test files)
-        self.assertNotEqual(n_filtered, 0)
+        # The exported shots are equal to the number of shots in the h5 file
+        data_orig = h5py.File(file, "r")
+        for beam in beam_data.index:
+            hdf_beam_len = len(data_orig[beam]["shot_number"])
+            self.assertEqual(beam_data.loc[beam, "shot_number"], hdf_beam_len)
 
     def test_parse_granule_l4a(self):
-        granule = gedi_l4a.L4AGranule(L4A_NAME)
-        self.assertEqual(granule.n_beams, 8)
-        self._generic_test_parse_granule(granule)
+        data = granule_parser.parse_h5_file(
+            L4A_NAME,
+            GediProduct.L4A.value,
+            data_info=self._data_info,
+        )
+
+        self._generic_test_parse_granule(L4A_NAME, data)
+        # Some of the data is correct
+        data_orig = h5py.File(L4A_NAME, "r")
+        idx = 1
+        shot_number = data_orig["BEAM1000"]["shot_number"][idx]
+        lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
+        lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]
+        agbd = data_orig["BEAM1000"]["agbd"][idx]
+
+        row = data.loc[data["shot_number"] == shot_number]
+        self.assertEqual(row["lat_lowestmode"].values[0], lat)
+        self.assertEqual(row["lon_lowestmode"].values[0], lon)
+        self.assertEqual(row["agbd"].values[0], agbd)
 
     def test_parse_granule_l2b(self):
-        granule = gedi_l2b.L2BGranule(L2B_NAME)
-        self.assertEqual(granule.n_beams, 8)
-        self._generic_test_parse_granule(granule)
+        data = granule_parser.parse_h5_file(
+            L2B_NAME,
+            GediProduct.L2B.value,
+            data_info=self._data_info,
+        )
+        data_orig = h5py.File(L2B_NAME, "r")
+        idx = 1646
+        shot_number = data_orig["BEAM1000"]["shot_number"][idx]
+        lat = data_orig["BEAM1000"]["geolocation"]["lat_lowestmode"][idx]
+        lon = data_orig["BEAM1000"]["geolocation"]["lon_lowestmode"][idx]
+        pai_z0 = data_orig["BEAM1000"]["pai_z"][idx][0]
+
+        row = data.loc[data["shot_number"] == shot_number]
+        self.assertEqual(row["lat_lowestmode"].values[0], lat)
+        self.assertEqual(row["lon_lowestmode"].values[0], lon)
+        self.assertEqual(row["pai_z"].values[0][0], pai_z0)
 
     def test_parse_granule_l2a(self):
-        granule = gedi_l2a.L2AGranule(L2A_NAME)
-        self.assertEqual(granule.n_beams, 8)
-        self._generic_test_parse_granule(granule)
+        data = granule_parser.parse_h5_file(
+            L2A_NAME,
+            GediProduct.L2A.value,
+            data_info=self._data_info,
+        )
+        self._generic_test_parse_granule(L2A_NAME, data)
+        # Some of the data is correct
+        data_orig = h5py.File(L2A_NAME, "r")
+        idx = 1
+        shot_number = data_orig["BEAM1000"]["shot_number"][idx]
+        lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
+        lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]
+        rh_98 = data_orig["BEAM1000"]["rh"][idx][98]
+
+        row = data.loc[data["shot_number"] == shot_number]
+        self.assertEqual(row["lat_lowestmode"].values[0], lat)
+        self.assertEqual(row["lon_lowestmode"].values[0], lon)
+        self.assertEqual(row["rh"].values[0][98], rh_98)
+
+    # TODO basic tests of quality filtering
 
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestCase)
