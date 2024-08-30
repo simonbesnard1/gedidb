@@ -46,6 +46,7 @@ class Beam(h5py.Group):
     
     @property
     def main_data(self) -> gpd.GeoDataFrame:
+
         data = self._get_main_data()
         
         if data is not None:
@@ -57,28 +58,7 @@ class Beam(h5py.Group):
               
             self._cached_data = gpd.GeoDataFrame(
                 data, geometry=geometry, crs=WGS84
-            )            
+            )
+
+
             return self._cached_data
-
-
-    def sql_format_arrays(self) -> None:
-        """Forces array-type fields to be sql-formatted (text strings).
-
-        Until this function is called, array-type fields will be np.array() objects. This formatting can be undone by resetting the cache.
-        """
-        
-        if self.main_data is not None:
-            array_cols = [c for c in self.main_data.columns if c.endswith("_z")]
-            
-            for c in array_cols:
-                self._cached_data[c] = self.main_data[c].map(self._arr_to_str)
-
-    def _arr_to_str(self, arr: Union[List[float], np.array, float]) -> str:
-        """Converts array type data or single float values to SQL-friendly string."""
-        if isinstance(arr, (list, np.ndarray)):
-            return "{" + ", ".join(map(str, arr)) + "}"
-        elif isinstance(arr, float):
-            return str(arr)  # Handle single float values
-        else:
-            return "{}"  # Handle unexpected cases, or raise an error if necessary
-

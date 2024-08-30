@@ -11,8 +11,7 @@ class L2AGranule(Granule):
         self.quality_flag = quality_flag
         self.field_mapping = field_mapping
         self.geom = geom
-        
-        print(self.version)
+
     def _beam_from_name(self, beam: str) -> Beam:
 
         if beam not in self.beam_names:

@@ -59,17 +59,16 @@ class H5FileDownloader(GEDIDownloader):
         self.download_path = download_path
 
     @handle_exceptions
-    def download(self, _id: str, url: str, product: GediProduct) -> tuple[str, tuple[GediProduct, str]]:
+    def download(self, _id: str, url: str, product: GediProduct, version: str) -> tuple[str, tuple[GediProduct, str, str]]:
 
         if datetime.now().weekday() == 2:  # 2 corresponds to Wednesday
             print("Wednesdays there is a scheduled maintenance. Download might be affected.")
-            return _id, (product.value, None)
 
         file_path = pathlib.Path(self.download_path) / f"{_id}/{product.name}.h5"
         
         if file_path.exists():
             print(f"{file_path} Already exists")
-            return _id, (product.value, str(file_path))
+            return _id, (product.value, version, str(file_path))
 
         dl_try = 1
 
@@ -82,8 +81,8 @@ class H5FileDownloader(GEDIDownloader):
                         f.write(chunk)
                 if file_path.stat().st_size == 0 and dl_try == 2:
                     self._write_debug_info(_id, url, product.value, ValueError("Downloaded file size is 0"))
-                    return _id, (product.value, None)
-                return _id, (product.value, str(file_path))
+                    return _id, (product.value, version, None)
+                return _id, (product.value, version, str(file_path))
 
 
         try:
@@ -93,13 +92,13 @@ class H5FileDownloader(GEDIDownloader):
             dl_try += 1
             try:
                 return attempt_download()
-                self._write_debug_info(_id, url, product, e)
+                self._write_debug_info(_id, url, product, version, e)
             except Exception as e:
                 print(f"TRY {dl_try} Error downloading {url}: {e}")
-                self._write_debug_info(_id, url, product, e)
-                return _id, (product.value, None)
+                self._write_debug_info(_id, url, product, version, e)
+                return _id, (product.value, version, None)
 
-    def _write_debug_info(self, _id: str, url: str, product: GediProduct, error: Exception):#
+    def _write_debug_info(self, _id: str, url: str, product: GediProduct, version: str, error: Exception):#
         # TODO: debug path?
         # debug_file = pathlib.Path(self.debug_path) / f"{_id}_debug.log"
         debug_file = pathlib.Path(self.download_path) / f"{_id}_debug.log"
@@ -107,6 +106,7 @@ class H5FileDownloader(GEDIDownloader):
             f.write(f"Timestamp: {datetime.now()}\n")
             f.write(f"Product: {product.value}\n")
             f.write(f"URL: {url}\n")
+            f.write(f"Version: {version}\n")
             f.write(f"Error: {error}\n")
             f.write("\n")
 

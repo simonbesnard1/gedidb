@@ -1,4 +1,7 @@
+from typing import Union, List
+
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from gedidb.utils.constants import WGS84, GediProduct
 from gedidb.processor.granule.granule import Granule
@@ -17,8 +20,10 @@ class GranuleParser:
     def parse_granule(self, granule: Granule) -> gpd.GeoDataFrame:
         granule_data = []
         for beam in granule.iter_beams():
-            beam.sql_format_arrays()
+            #beam.sql_format_arrays()
             main_data = beam.main_data
+
+            main_data = self.sql_format_arrays(main_data)
             
             if main_data is not None:
                 granule_data.append(main_data)
@@ -31,6 +36,23 @@ class GranuleParser:
 
     def parse(self) -> gpd.GeoDataFrame:
         raise NotImplementedError("This method should be implemented in child classes")
+
+    def sql_format_arrays(self, data):
+        """Forces array-type fields to be sql-formatted (text strings).
+
+        Until this function is called, array-type fields will be np.array() objects. This formatting can be undone by resetting the cache.
+        """
+
+        if data is not None:
+            array_cols = [c for c in data.columns if c.endswith("_z") or c == "rh"]
+
+            for c in array_cols:
+                data[c] = data[c].map(self._arr_to_str)
+        return data
+    def _arr_to_str(self, arr: Union[List[float], np.array, float]) -> str:
+        """Converts array type data or single float values to SQL-friendly string."""
+        return "{" + ", ".join(map(str, arr)) + "}"
+
 
 class L1BGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:

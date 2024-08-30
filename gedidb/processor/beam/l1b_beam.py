@@ -55,9 +55,7 @@ class L1BBeam(Beam):
             data = {}
             
             for key, source in self.field_mapper.items():
-                if key in ["granule_name"]:
-                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['SDS_Name'].split('.')[-1])))] * filtered_n_shots
-                elif key in ["beam_type"]:
+                if key in ["beam_type"]:
                     data[key] = [getattr(self, source['SDS_Name'])] * filtered_n_shots
                 elif key in ["beam_name"]:
                     data[key] = [self.name] * filtered_n_shots
