@@ -1,4 +1,6 @@
+import psycopg2
 import sqlalchemy
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from gedidb.database.db_schema import Base
 
@@ -51,8 +53,13 @@ class DatabaseManager:
         engine = self.get_connection()
         if engine:
             try:
+                with open('../config_files/db_scheme.sql', 'r') as file:
+                    sql_script = file.read()
+
                 with engine.begin() as conn:
-                    Base.metadata.create_all(conn)
+                    # Base.metadata.create_all(conn)
+                    conn.execute(text(sql_script))
+
                 print("Tables created successfully.")
             except SQLAlchemyError as e:
                 print(f"Error creating tables: {e}")
@@ -73,7 +80,7 @@ class DatabaseManager:
         if engine:
             try:
                 with engine.connect() as conn:
-                    result = conn.execute(query)
+                    result = conn.execute(text(query))
                     return result
             except SQLAlchemyError as e:
                 print(f"Error executing query: {e}")
