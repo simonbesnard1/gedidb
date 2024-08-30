@@ -119,8 +119,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         for product, file in granules:
             gdf = granule_parser.parse_h5_file(
                 file, product, 
-                data_info=self.data_info, 
-                geom=self.geom
+                data_info=self.data_info
             )
             
             if gdf is not None:
