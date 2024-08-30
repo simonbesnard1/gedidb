@@ -55,10 +55,7 @@ class L4CBeam(Beam):
     
             # Populate data from general_data section
             for key, source in self.field_mapper.items():
-                if key in ["granule_name"]:
-                    # Handle special case for granule_name
-                    data[key] = [os.path.basename(os.path.dirname(getattr(self.parent_granule, source['SDS_Name'].split('.')[-1])))] * filtered_n_shots
-                elif key in ["beam_type"]:                
+                if key in ["beam_type"]:
                     # Handle special cases for beam_type 
                     data[key] = [getattr(self, source['SDS_Name'])] * filtered_n_shots
                 elif key in ["beam_name"]:                
