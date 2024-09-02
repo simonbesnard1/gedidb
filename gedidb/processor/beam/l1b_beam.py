@@ -1,17 +1,21 @@
 import geopandas as gpd
 import pandas as pd
-import os
+import numpy as np
 
 from gedidb.processor.granule.granule import Granule
 from gedidb.processor.beam.beam import Beam
 from gedidb.utils.constants import WGS84
 
 
+DEFAULT_QUALITY_FILTERS = None
+
 class L1BBeam(Beam):
 
-    def __init__(self,granule: Granule, beam: str, quality_flag:dict, field_mapping:dict):
+    def __init__(self,granule: Granule, beam: str, field_mapping:dict):
         
-        super().__init__(granule, beam, quality_flag, field_mapping)
+        super().__init__(granule, beam, field_mapping)
+        self._shot_geolocations = None
+        self._filtered_index = None
     
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
@@ -21,29 +25,7 @@ class L1BBeam(Beam):
             crs=WGS84,
         )
         return self._shot_geolocations
-
     
-    def apply_filter(self, data: pd.DataFrame) -> pd.DataFrame:
-        
-        if self.quality_filter != "None":
-            
-            for key, value in self.quality_filter.items():
-                if key == 'drop':
-                    continue  # Skip dropping columns here
-                if isinstance(value, list):
-                    for v in value:
-                        data = data.query(f"{key} {v}")
-                else:
-                    data = data.query(f"{key} {value}")
-        
-            data = data.drop(columns=self.quality_filter.get('drop', []))
-        filtered_index = data.index  # Get the filtered indices
-        
-        self._filtered_index = filtered_index  # Store the filtered indices
-        
-        return data
-
-
     def _get_main_data(self) -> dict:
         
         gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
@@ -57,32 +39,29 @@ class L1BBeam(Beam):
         
         for key, source in self.field_mapper.items():
             sds_name = source['SDS_Name']
-    
-            if key == "granule_name":
-                granule_name = os.path.basename(os.path.dirname(getattr(self.parent_granule, sds_name.split('.')[-1])))
-                data[key] = [granule_name] * self.n_shots
-            elif key == "beam_type":
+            if key == "beam_type":
                 beam_type = getattr(self, sds_name)
-                data[key] = [beam_type] * self.n_shots
+                data[key] = np.array([beam_type] * self.n_shots)
             elif key == "beam_name":
-                data[key] = [self.name] * self.n_shots
+                data[key] = np.array([self.name] * self.n_shots)
             elif key == "waveform_start":
-                data[key] = self[sds_name][()] - 1
+                data[key] = np.array(self[sds_name][()] - 1)
             elif key in ["rxwaveform", "txwaveform"]:
                 rxwaveform = self[sds_name][()]
                 sdsCount = self['rx_sample_count'][()]
                 sdsStart = self['rx_sample_start_index'][()]
-                data[key] = [
-                    rxwaveform[start:start + count].tolist() 
-                    for start, count in zip(sdsStart, sdsCount)
-                ]
+                data[key] = np.array([
+                                        rxwaveform[start:start + count].tolist() 
+                                        for start, count in zip(sdsStart, sdsCount)
+                                    ])
             else:
-                data[key] = self[sds_name][()]
+                data[key] = np.array(self[sds_name][()])
+
+        # Apply filter and get the filtered indices
+        self._filtered_index = self.apply_filter(data, filters=DEFAULT_QUALITY_FILTERS)
         
-        # Apply filter and convert to DataFrame
-        data = self.apply_filter(pd.DataFrame(data))
+        # Filter the data using the mask
+        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
         
-        if not data.empty:
-            return data
-        
+        return filtered_data if filtered_data else None      
 

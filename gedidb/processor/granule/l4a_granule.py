@@ -5,14 +5,13 @@ from gedidb.processor.beam.beam import Beam
 
 class L4AGranule(Granule):
 
-    def __init__(self, file_path, quality_flag, field_mapping):
+    def __init__(self, file_path, field_mapping):
         super().__init__(file_path)
         
-        self.quality_flag = quality_flag
         self.field_mapping = field_mapping
         
     def _beam_from_name(self, beam: str) -> Beam:
 
         if beam not in self.beam_names:
             raise ValueError(f"Beam name must be one of {self.beam_names}")
-        return L4ABeam(self, beam, self.quality_flag, self.field_mapping)
+        return L4ABeam(self, beam, self.field_mapping)

@@ -19,11 +19,8 @@ class GranuleParser:
     def parse_granule(self, granule: Granule) -> gpd.GeoDataFrame:
         granule_data = []
         for beam in granule.iter_beams():
-            #beam.sql_format_arrays()
             main_data = beam.main_data
 
-            main_data = self.sql_format_arrays(main_data)
-            
             if main_data is not None:
                 granule_data.append(main_data)
     
@@ -36,51 +33,29 @@ class GranuleParser:
     def parse(self) -> gpd.GeoDataFrame:
         raise NotImplementedError("This method should be implemented in child classes")
 
-    def sql_format_arrays(self, data):
-        """Forces array-type fields to be sql-formatted (text strings).
-
-        Until this function is called, array-type fields will be np.array() objects. This formatting can be undone by resetting the cache.
-        """
-
-        if data is not None:
-            array_cols = [c for c in data.columns if c.endswith("_z") or c == "rh"]
-
-            for c in array_cols:
-                data[c] = data[c].map(self._arr_to_str)
-        return data
-    def _arr_to_str(self, arr: Union[List[float], np.array, float]) -> str:
-        """Converts array type data or single float values to SQL-friendly string."""
-        return "{" + ", ".join(map(str, arr)) + "}"
-
-
 class L1BGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L1BGranule(self.file, self.data_info['level_1b']['quality_filter'], 
-                             self.data_info['level_1b']['variables'])
+        granule = L1BGranule(self.file, self.data_info['level_1b']['variables'])
         return self.parse_granule(granule)
 
 class L2AGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L2AGranule(self.file, self.data_info['level_2a']['quality_filter'], 
-                             self.data_info['level_2a']['variables'])
+        granule = L2AGranule(self.file, self.data_info['level_2a']['variables'])
         return self.parse_granule(granule)
 
 class L2BGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L2BGranule(self.file, self.data_info['level_2b']['quality_filter'], 
-                             self.data_info['level_2b']['variables'])
+        granule = L2BGranule(self.file, self.data_info['level_2b']['variables'])
         return self.parse_granule(granule)
 
 class L4AGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L4AGranule(self.file, self.data_info['level_4a']['quality_filter'], 
-                             self.data_info['level_4a']['variables'])
+        granule = L4AGranule(self.file, self.data_info['level_4a']['variables'])
         return self.parse_granule(granule)
 
 class L4CGranuleParser(GranuleParser):
     def parse(self) -> gpd.GeoDataFrame:
-        granule = L4CGranule(self.file, self.data_info['level_4c']['quality_filter'], 
-                             self.data_info['level_4c']['variables'])
+        granule = L4CGranule(self.file, self.data_info['level_4c']['variables'])
         return self.parse_granule(granule)
 
 def parse_h5_file(file: str, product: GediProduct, data_info: dict = None) -> gpd.GeoDataFrame:
