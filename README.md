@@ -5,9 +5,9 @@
 </p>
 
 ***
-# GEDI toolbox: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L1B, L2A-B and L4A-C data #
+# GEDI toolbox: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data #
 
-### *by Felix Dombrowski, [Simon Besnard](https://simonbesnard1.github.io/) and [Amelia Holcomb](https://ameliaholcomb.github.io/)*
+### *by [Amelia Holcomb](https://ameliaholcomb.github.io/), Felix Dombrowski and [Simon Besnard](https://simonbesnard1.github.io/)*
 
 ## Table of Contents
 
@@ -22,19 +22,22 @@
 - [Contact person](#contact-person)
 
 ## Overview
-This repository contains the code and data associated to download, process, store and visualise GEDI L1B, L2A-B and L4A-C data. The data are stored in a PostgreSQL database. 
+This repository contains the code and data associated to download, process, store and visualise GEDI L2A-B and L4A-C data. The data are stored in a PostgreSQL database. 
 
 ## Repository Structure
 
 ```plaintext
 ├── config_files
 ├── data
-├── GEDItools 		# Core of the package
+├── gedidb 		           # Core of the package
+│   ├── core
 │   ├── database
 │   ├── downloader
 │   ├── processor
-│   ├── provider
+│   ├── providers
+│   ├── tests
 │   ├── utils
+├── images
 ├── scripts
 ├── LICENSE
 ├── README.md
@@ -62,29 +65,21 @@ cd gedi-toolbox; pip install -e .
 
 ## Getting started
 
-### 1 .Adding the data schema to the database
-```
-
-
-```
-
-### 2. Download, process and store to the database
+### 1. Download, process and store GEDI data to the database
 ```
 from gedidb.database.db_builder import GEDIGranuleProcessor
 
 
 #%% Initiate database builder
-database_builder = GEDIGranuleProcessor(database_config_file = './config_files/database_params.yml', 
-                                        column_to_field_config_file = './config_files/column_to_field.yml',
-                                        quality_config_file = './config_files/quality_filters.yml',
-                                        field_mapping_config_file = './config_files/field_mapping.yml')
+database_builder = GEDIGranuleProcessor(data_config_file = "./config_files/data_config.yml", 
+                                        sql_config_file='./config_files/db_scheme.sql')
 
 #%% Process GEDI data
 database_builder.compute()
 
 ```
 
-### 3. Reading and visualise the database
+### 2. Reading and visualise the database
 ```
 
 
@@ -115,5 +110,7 @@ Please note that the default quality filtering is based on the [data processing 
 ](https://www.sciencedirect.com/science/article/pii/S0034425724001925?via%3Dihub#f0035) if you end up using the default filters.
 
 ## Contact person
-For any questions or inquiries, please contact Felix Dombrowski (felix.dombrowski@uni-potsdam.de), Simon Besnard (besnard@gfz-potsdam.de) and Amelia Holcomb (ah2174@cam.ac.uk)
+For any questions or inquiries, please contact Amelia Holcomb (ah2174@cam.ac.uk), Felix Dombrowski (felix.dombrowski@uni-potsdam.de) and Simon Besnard (besnard@gfz-potsdam.de) 
 
+## Acknowledgments
+We acknowledge funding support by the European Union through the FORWARDS (https://forwards-project.eu/) and OpenEarthMonitor (https://earthmonitor.org/) projects. We also would like to thank the R2D2 Workshop (March 2024, GFZ. Potsdam) for providing the opportunity to meet and discuss GEDI data processing.
