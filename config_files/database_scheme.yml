@@ -1,4 +1,0 @@
-shots:
-  table_name: "filtered_l2ab_l4ac_shots"
-granules:
-  table_name: "gedi_granules"
