@@ -1,8 +1,6 @@
-import psycopg2
 import sqlalchemy
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from gedidb.database.db_schema import Base
 
 class DatabaseManager:
     def __init__(self, db_url: str, echo: bool = False):
@@ -43,7 +41,7 @@ class DatabaseManager:
             return self.create_engine()
         return self.engine
 
-    def create_tables(self):
+    def create_tables(self, sql_script):
         """
         Create tables in the database based on the models defined in Base metadata.
 
@@ -53,9 +51,7 @@ class DatabaseManager:
         engine = self.get_connection()
         if engine:
             try:
-                with open('../config_files/db_scheme.sql', 'r') as file:
-                    sql_script = file.read()
-
+                
                 with engine.begin() as conn:
                     # Base.metadata.create_all(conn)
                     conn.execute(text(sql_script))

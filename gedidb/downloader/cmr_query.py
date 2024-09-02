@@ -1,5 +1,3 @@
-import json
-
 import requests
 import urllib3.exceptions
 from requests.adapters import HTTPAdapter
@@ -72,7 +70,7 @@ class CMRQuery:
     def _get_id(item):
         if "LPDAAC" in item["data_center"]:
             _id = item['producer_granule_id'].split('_')
-            return f"{_id[9]}"
+            return f"{_id[3]}_{_id[4]}"
         if "ORNL" in item["data_center"]:
             if item['collection_concept_id'] == 'C2237824918-ORNL_CLOUD':
                 _id = item['title'].split('_')
@@ -80,21 +78,6 @@ class CMRQuery:
             if item['collection_concept_id'] == 'C3049900163-ORNL_CLOUD':
                 _id = item['title'].split('_')
                 return f"{_id[5]}_{_id[6]}"
-        else:
-            raise ValueError("Data center not recognized")
-
-    @staticmethod
-    def _get_version(item):
-        if "LPDAAC" in item["data_center"]:
-            _id = item['producer_granule_id'].split('_')
-            return f"{_id[9].split('.')[0]}"
-        if "ORNL" in item["data_center"]:
-            if item['collection_concept_id'] == 'C2237824918-ORNL_CLOUD':
-                _id = item['title'].split('_')
-                return f"{_id[14].split('.')[0]}"
-            if item['collection_concept_id'] == 'C3049900163-ORNL_CLOUD':
-                _id = item['title'].split('_')
-                return f"{_id[11].split('.')[0]}"
         else:
             raise ValueError("Data center not recognized")
 
@@ -133,7 +116,6 @@ class GranuleQuery(CMRQuery):
             # response = requests.get(CMR_URL, params=cmr_params)
             response = session.get(CMR_URL, params=cmr_params)
             response.raise_for_status()
-
             cmr_response = response.json()["feed"]["entry"]
 
             if cmr_response:
@@ -148,13 +130,12 @@ class GranuleQuery(CMRQuery):
             'name': self._get_name(item),
             'url': item['links'][0]['href'],
             'size': float(item['granule_size']),
-            'product': self.product.value,
-            'version': self._get_version(item)
+            'product': self.product.value
         } for item in granule_data]
 
         df_granule = pd.DataFrame(
             granule_data,
-            columns=['id', 'name', 'url', 'size', 'product', 'version']
+            columns=['id', 'name', 'url', 'size', 'product']
         )
 
         print(f"Total {self.product.value} granules found:", len(df_granule))
