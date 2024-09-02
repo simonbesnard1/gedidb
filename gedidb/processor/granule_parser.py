@@ -1,7 +1,4 @@
-from typing import Union, List
-
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 from gedidb.utils.constants import WGS84, GediProduct
 from gedidb.processor.granule.granule import Granule
