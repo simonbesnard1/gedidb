@@ -60,7 +60,7 @@ or clone the repository locally and install with
 
 ```
 git clone git@git.gfz-potsdam.de:global-land-monitoring/gedi-toolbox.git
-cd gedi-toolbox; pip install -e .
+cd gedi-toolbox; pip install .
 ```
 
 ## Getting started
