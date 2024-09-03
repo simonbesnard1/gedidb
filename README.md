@@ -79,7 +79,7 @@ database_builder.compute()
 
 ```
 
-### 2. Reading and visualise the database
+### 2. Reading data from the database
 ```
 from gedidb.providers.gedi_provider import GEDIProvider
 
