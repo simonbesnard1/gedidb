@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gedidb"
+version = "2.0.0"  # Update as necessary
+description = "A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data"
+readme = "README.md"
+authors = [
+    { name = "Simon Besnard", email = "besnard@gfz-potsdam.de" },
+    { name = "Felix Dombrowski", email = "felix@example.com" },
+    { name = "Amelia Holcomb", email = "amelia@example.com" }
+]
+license = { file = "EUPL-1.2" }
+keywords = ["geospatial", "GEDI", "database"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: EUROPEAN UNION PUBLIC LICENCE v.1.2 (EUPL-1.2)",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pandas==2.2.2",
+    "pyarrow==17.0.0",
+    "geopandas==1.0.1",
+    "SQLAlchemy==2.0.31",
+    "GeoAlchemy2==0.15.2",
+    "h5py==3.11.0",
+    "numpy==2.0.1",
+    "pyspark==3.5.1",
+    "psycopg2==2.9.9",
+    "xarray==2024.7.0",
+    "Cartopy==0.23.0"
+]
+
+[project.urls]
+"Source Code" = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
+
+[tool.setuptools]
+include-package-data = true
+packages = [
+    "gedidb",
+    "gedidb.core",
+    "gedidb.database",
+    "gedidb.downloader",
+    "gedidb.processor",
+    "gedidb.providers",
+    "gedidb.tests",
+    "gedidb.utils"    
+]
+
