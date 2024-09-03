@@ -3,8 +3,11 @@ import geopandas as gpd
 import pandas as pd
 import pyproj
 from sqlalchemy import inspect
+from geoalchemy2 import Geometry # required to prevent warnings on column types
 import yaml
 import warnings
+
+
 from gedidb.utils.constants import WGS84
 from gedidb.database.db import DatabaseManager
 
@@ -62,11 +65,15 @@ class SQLQueryBuilder:
                     "ignore",
                     message="__len__ for multi-part geometries is deprecated and will be removed in Shapely 2.0",
                 )
-                queries = [
-                    "ST_Intersects(geometry, "
-                    f"ST_GeomFromText('{geom}', {crs.to_epsg()}))"
-                    for geom in self.geometry.to_wkt().values
-                ]
+        
+                # Flatten the 2D array and get WKT strings
+                wkt_strings = self.geometry.to_wkt().values.flatten()
+                
+                queries = []
+                for geom in wkt_strings:
+                    queries.append(f"ST_Intersects(geometry, ST_GeomFromText('{geom}', {crs.to_epsg()}))")
+                
+                # Combine the conditions correctly
                 conditions.append(f"({' OR '.join(queries)})")
 
         # Filter conditions
@@ -155,8 +162,6 @@ class GediDatabase:
             sql_query = query_builder.build()
         else:
             raise ValueError("A valid SQLQueryBuilder object must be provided.")
-
-        #logger.debug("SQL Query: %s", sql_query)
 
         # Execute the query using GeoPandas or Pandas depending on the user's preference
         if use_geopandas:
