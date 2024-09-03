@@ -61,7 +61,9 @@ setuptools.setup(
         "h5py==3.11.0",
         "numpy==2.0.1",
         "pyspark==3.5.1",
-        "psycopg2==2.9.9"
+        "psycopg2==2.9.9",
+        'xarray==2024.7.0',
+        'Cartopy==0.23.0'
         ],
     include_package_data=True,
 )
