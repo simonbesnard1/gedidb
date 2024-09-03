@@ -40,8 +40,8 @@ class GEDIGranuleProcessor(GEDIDatabase):
     
     def setup_paths_and_dates(self):
         """Set up paths and dates based on the configuration."""
-        self.download_path = self.ensure_directory(self.data_info['download_path'])
-        self.parquet_path = self.ensure_directory(self.data_info['parquet_path'])
+        self.download_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
+        self.parquet_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
         self.db_path = self.data_info['database_url']
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
         self.geom = ShapeProcessor(initial_geom).check_and_format(simplify=True)        

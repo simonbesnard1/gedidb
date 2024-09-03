@@ -1,19 +1,24 @@
 import os
 import subprocess
-from pathlib import Path
 import yaml
 
 class EarthDataAuthenticator:
     def __init__(self, config_file: str):
         # Load the configuration from the YAML file
         with open(config_file, 'r') as file:
-            config = yaml.safe_load(file)
+            self.data_info = yaml.safe_load(file)
 
-        self.username = config['earth_data_info']['credentials']['username']
-        self.password = config['earth_data_info']['credentials']['password']
-        self.user_path = Path(config['earth_data_info']['paths']['user_path'])
-        self.cookie_file = Path(config['earth_data_info']['paths']['earth_data_cookie_file'])
-        self.netrc_file = self.user_path / ".netrc"
+        self.username = self.data_info['earth_data_info']['credentials']['username']
+        self.password = self.data_info['earth_data_info']['credentials']['password']
+        self.earth_data = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'earth_data'))
+        self.netrc_file = self.earth_data / ".netrc"
+        self.cookie_file = self.earth_data / ".cookies"
+        
+    @staticmethod
+    def ensure_directory(path):
+        """Ensure that a directory exists."""
+        os.makedirs(path, exist_ok=True)
+        return path
     
     def authenticate(self):
         if self.cookie_file.exists():
@@ -50,7 +55,6 @@ class EarthDataAuthenticator:
         # Set file permissions outside of the 'with' block to avoid closing the file first
         os.fchmod(fileno, 0o600)
         print("Credentials added to .netrc file.")
-
 
     def _fetch_earthdata_cookies(self):
         """Uses wget to fetch Earthdata cookies and store them in the cookie file."""
