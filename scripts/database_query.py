@@ -19,9 +19,10 @@ db = GediDatabase(data_config_file = config_file)
 #%% Create the query builder
 query_builder = SQLQueryBuilder(
                                 table_name="filtered_l2ab_l4ac_shots",
-                                columns=["shot_number", "beam_name", "pai", "pavd_z", 'geometry'],
+                                columns=["shot_number", "beam_name", 'absolute_time', 'geometry',
+                                         "pavd_z", "pai"],
                                 #geometry = roi_,
-                                start_time="2021-01-01",
+                                start_time="2019-01-01",
                                 end_time="2023-12-31",
                                 limit=1000,
                                 force=True,
