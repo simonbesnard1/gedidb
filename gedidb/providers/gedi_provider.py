@@ -71,7 +71,24 @@ class GEDIProvider:
 
         return dataset
 
-    def get_dataset(self, variables, geometry=None, start_time=None, end_time=None, limit=None, force=False, order_by=None) -> xr.Dataset:
+    def get_dataset(self, variables, geometry=None, start_time=None, end_time=None, limit=None, force=False, order_by=None, return_type="xarray"):
+        """
+        Get the dataset as a Pandas DataFrame or Xarray Dataset.
+    
+        Parameters:
+            variables (list): List of variables to query.
+            geometry (optional): Geometry for spatial filtering.
+            start_time (optional): Start time for temporal filtering.
+            end_time (optional): End time for temporal filtering.
+            limit (optional): Limit the number of rows returned.
+            force (bool): Force retrieval if certain conditions are not met.
+            order_by (optional): Column to order the data by.
+            return_type (str): "pandas" to return a Pandas DataFrame, "xarray" to return an Xarray Dataset (default: "xarray").
+        
+        Returns:
+            Either a Pandas DataFrame or an Xarray Dataset, depending on the return_type argument.
+        """
+        # Query the data
         df = self.query_data(
             variables=variables,
             geometry=geometry,
@@ -81,5 +98,11 @@ class GEDIProvider:
             force=force,
             order_by=order_by
         )
-
-        return self.to_xarray(df)
+    
+        # Return based on the return_type argument
+        if return_type == "pandas":
+            return df
+        elif return_type == "xarray":
+            return self.to_xarray(df)
+        else:
+            raise ValueError(f"Invalid return_type '{return_type}'. Choose either 'pandas' or 'xarray'.")
