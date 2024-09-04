@@ -4,6 +4,8 @@ import yaml
 import geopandas as gpd
 from datetime import datetime
 from functools import wraps
+from sqlalchemy import Table, MetaData
+
 
 from gedidb.utils.constants import GediProduct
 from gedidb.database.db import DatabaseManager
@@ -11,7 +13,6 @@ from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.geospatial_tools import ShapeProcessor
-
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +184,9 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if engine:
             with engine.begin() as conn:
                 self._write_gedi_data(conn, gedi_data)
+                
+                self._write_metadata(conn, gedi_data.columns)
+
                 conn.commit()
                 del gedi_data
         else:
@@ -198,6 +202,23 @@ class GEDIGranuleProcessor(GEDIDatabase):
             # TODO: remove this
             if_exists="append",
         )
+        
+    def _write_metadata(self, conn, variables):
+        """Insert metadata information into the metadata table."""
+        metadata_table = Table(self.data_info['table_names']['metadata'], MetaData(), autoload_with=conn)
+        
+        # Insert metadata for each variable in the data
+        for var in variables:
+            if var in self.metadata['variables']:
+                var_meta = self.metadata['variables'][var]
+                insert_stmt = metadata_table.insert().values(
+                    variable_name=var,
+                    description=var_meta.get('description', ''),
+                    data_type=var_meta.get('data_type', 'unknown'),
+                    units=var_meta.get('units', ''),
+                    source_table=self.data_info['table_names']['shots']
+                )
+                conn.execute(insert_stmt)
 
     
 
