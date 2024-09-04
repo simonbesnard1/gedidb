@@ -2,7 +2,6 @@ import requests
 import urllib3.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from requests.exceptions import RetryError
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
@@ -43,7 +42,7 @@ class CMRQuery:
             "collection_concept_id": CMR_PRODUCT_IDS[str(product)],
             "page_size": page_size,
             "page_num": page_num,
-            "bounding_box": CMRQuery._construct_spacial_params(geom),
+            "bounding_box": CMRQuery._construct_spatial_params(geom),
             "temporal": CMRQuery._construct_temporal_params(start_date, end_date)
         }
 
@@ -63,9 +62,9 @@ class CMRQuery:
 
     @staticmethod
     @handle_exceptions
-    def _construct_spacial_params(geom: gpd.GeoSeries) -> str:
+    def _construct_spatial_params(geom: gpd.GeoSeries) -> str:
         return ','.join([str(x) for x in geom.total_bounds])
-
+    
     @staticmethod
     def _get_id(item):
         if "LPDAAC" in item["data_center"]:
@@ -113,7 +112,6 @@ class GranuleQuery(CMRQuery):
         
         while True:
             cmr_params["page_num"] = page_num
-            # response = requests.get(CMR_URL, params=cmr_params)
             response = session.get(CMR_URL, params=cmr_params)
             response.raise_for_status()
             cmr_response = response.json()["feed"]["entry"]
