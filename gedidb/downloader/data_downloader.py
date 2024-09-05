@@ -1,6 +1,5 @@
 import os
 import pathlib
-import time
 import requests
 from datetime import datetime
 import pandas as pd
@@ -9,6 +8,7 @@ from requests.exceptions import RequestException
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
 from functools import wraps
+from retry import retry
 
 # Decorator for handling exceptions
 def handle_exceptions(func):
@@ -21,32 +21,6 @@ def handle_exceptions(func):
             # Additional error handling logic can be placed here
     return wrapper
 
-# Retry decorator for extended backoff (up to 24 hours)
-def retry_with_extended_backoff(retries=10, backoff_in_seconds=60, max_wait_time_hours=24):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            total_wait_time = 0
-            
-            while attempts < retries and total_wait_time < max_wait_time_hours * 3600:
-                try:
-                    return func(*args, **kwargs)
-                except RequestException as e:
-                    attempts += 1
-                    wait_time = backoff_in_seconds * (2 ** (attempts - 1))
-                    total_wait_time += wait_time
-                    print(f"Attempt {attempts} failed: {e}. Retrying in {wait_time // 60} minutes...")
-                    
-                    # If the wait time exceeds 1 hour, cap it at 1 hour per retry
-                    if wait_time > 3600:
-                        wait_time = 3600
-                    time.sleep(wait_time)
-            print(f"All {retries} attempts or {max_wait_time_hours} hours of waiting have failed.")
-            return None
-        return wrapper
-    return decorator
-
 class GEDIDownloader:
     @handle_exceptions
     def _download(self, *args, **kwargs):
@@ -58,23 +32,84 @@ class CMRDataDownloader(GEDIDownloader):
         self.start_date = start_date
         self.end_date = end_date
 
-    @retry_with_extended_backoff(retries=20, backoff_in_seconds=60, max_wait_time_hours=24)
-    @handle_exceptions
+    @retry((ValueError, TypeError), tries=10, delay=5, backoff=3)
     def download(self) -> pd.DataFrame:
+        """
+        Download granules across all GEDI products and ensure ID consistency.
+        Retry mechanism is applied if the IDs across products are inconsistent.
+        
+        :return: A DataFrame containing granule data for all products.
+        :raises: ValueError if no granules found or ID consistency fails after retries.
+        """
         cmr_df = pd.DataFrame()
-
+        products_checked = []
+    
+        # Iterate over all GEDI products and fetch granules
         for product in GediProduct:
             try:
                 granule_query = GranuleQuery(product, self.geom, self.start_date, self.end_date)
                 granules = granule_query.query_granules()
-                cmr_df = pd.concat([cmr_df, granules])
+    
+                if not granules.empty:
+                    # Add the product column to the granules DataFrame
+                    granules['product'] = product.value
+                    # Keep track of the products that have data
+                    products_checked.append(product.value)
+    
+                    # Concatenate to the cumulative DataFrame
+                    cmr_df = pd.concat([cmr_df, granules], ignore_index=True)
+    
             except Exception as e:
                 print(f"Failed to download granules for {product.name}: {e}")
-
+                continue
+    
         if len(cmr_df) == 0:
             raise ValueError("No granules found after retry attempts.")
-        
+    
+        # Ensure that all products have granules
+        if not self._check_all_products_present(products_checked):
+            print("Not all products have granules. Retrying...")
+            raise ValueError("Missing granules for some products.")
+    
+        # Ensure IDs are consistent across products
+        if not self._check_id_consistency(cmr_df):
+            print("ID inconsistency detected. Retrying...")
+            raise ValueError("Inconsistent IDs found across products.")
+    
         return cmr_df
+    
+    def _check_all_products_present(self, products_checked: list) -> bool:
+        """
+        Ensure that granules for all products are present in the download.
+        
+        :param products_checked: List of products for which granules were successfully retrieved.
+        :return: True if granules for all required products are present, False otherwise.
+        """
+        required_products = {'level2A', 'level2B', 'level4A', 'level4C'}
+        
+        missing_products = required_products - set(products_checked)
+        if missing_products:
+            return False
+    
+        return True
+    
+    def _check_id_consistency(self, df: pd.DataFrame) -> bool:
+        """
+        Check if IDs are consistent across all products in the DataFrame.
+        
+        :param df: The DataFrame containing granule data with 'id' and 'product' columns.
+        :return: True if IDs are consistent, False otherwise.
+        """
+        # Get the set of IDs for each product
+        ids_by_product = df.groupby('product')['id'].apply(set)
+    
+        # Ensure that each product has the same set of IDs
+        first_product_ids = ids_by_product.iloc[0]
+        for product_ids in ids_by_product:
+            if product_ids != first_product_ids:
+                return False
+    
+        return True
 
     @staticmethod
     @handle_exceptions
@@ -90,8 +125,7 @@ class H5FileDownloader(GEDIDownloader):
     def __init__(self, download_path: str = "."):
         self.download_path = download_path
 
-    @retry_with_extended_backoff(retries=20, backoff_in_seconds=60, max_wait_time_hours=24)
-    @handle_exceptions
+    @retry((ValueError, TypeError), tries=10, delay=5, backoff=3)
     def download(self, _id: str, url: str, product: GediProduct) -> tuple[str, tuple[GediProduct, str]]:
         file_path = pathlib.Path(self.download_path) / f"{_id}/{product.name}.h5"
         

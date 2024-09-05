@@ -4,8 +4,7 @@ import yaml
 import geopandas as gpd
 from datetime import datetime
 from functools import wraps
-from sqlalchemy import Table, MetaData
-
+from sqlalchemy import Table, MetaData, select
 
 from gedidb.utils.constants import GediProduct
 from gedidb.database.db import DatabaseManager
@@ -47,44 +46,13 @@ class GEDIGranuleProcessor(GEDIDatabase):
         """Set up paths and dates based on the configuration."""
         self.download_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
         self.parquet_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
-        self.metadata = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))        
+        self.metadata_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))        
         self.db_path = self.data_info['database_url']
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
         self.geom = ShapeProcessor(initial_geom).check_and_format(simplify=True)        
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
         
-    def extract_and_store_metadata(self, product_type: str):
-        """
-        Extract metadata for a specific GEDI product type and save it as a YAML file.
-        
-        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
-        """
-        # Get the URL for the given product type
-        url = self.data_info['earth_data_info']['METADATA_INFORMATION'].get(product_type)
-        
-        if url is None:
-            raise ValueError(f"No URL found for product type '{product_type}'.")
-
-        # Create the output file path in the self.metadata directory
-        output_file = os.path.join(self.metadata, f"gedi_{product_type.lower()}_metadata.yaml")
-        
-        # Instantiate and run the metadata extractor
-        extractor = GediMetaDataExtractor(url, output_file, data_type=product_type)
-        extractor.run()
-
-        print(f"Metadata for {product_type} stored at {output_file}")
-
-    def extract_all_metadata(self):
-        """
-        Loop through all product types in the METADATA_INFORMATION and extract metadata for each.
-        """
-        for product_type in self.metadata_info.keys():
-            try:
-                self.extract_and_store_metadata(product_type)
-            except Exception as e:
-                print(f"Failed to extract metadata for {product_type}: {e}")
-
     @staticmethod
     def ensure_directory(path):
         """Ensure that a directory exists."""
@@ -103,7 +71,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 
     @log_execution(start_message = "Starting computation process...", end_message='Data processing completed!')
     def compute(self):
-        cmr_data = self.download_cmr_data().download()
+        cmr_data = self.download_cmr_data()
         spark = self.create_spark_session()
     
         name_url = cmr_data[
@@ -221,7 +189,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
             with engine.begin() as conn:
                 self._write_gedi_data(conn, gedi_data)
                 
-                self._write_metadata(conn, gedi_data.columns)
+                self.write_all_metadata(conn)
 
                 conn.commit()
                 del gedi_data
@@ -239,22 +207,94 @@ class GEDIGranuleProcessor(GEDIDatabase):
             if_exists="append",
         )
         
-    def _write_metadata(self, conn, variables):
-        """Insert metadata information into the metadata table."""
-        metadata_table = Table(self.data_info['table_names']['metadata'], MetaData(), autoload_with=conn)
+    def extract_and_store_metadata(self, product_type: str):
+        """
+        Extract metadata for a specific GEDI product type and save it as a YAML file.
         
-        # Insert metadata for each variable in the data
-        for var in variables:
-            if var in self.metadata['variables']:
-                var_meta = self.metadata['variables'][var]
-                insert_stmt = metadata_table.insert().values(
-                    variable_name=var,
-                    description=var_meta.get('description', ''),
-                    data_type=var_meta.get('data_type', 'unknown'),
-                    units=var_meta.get('units', ''),
-                    source_table=self.data_info['table_names']['shots']
-                )
-                conn.execute(insert_stmt)
+        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
+        """
+        url = self.metadata_info.get(product_type)
+        if not url:
+            logger.warning(f"No URL found for product type '{product_type}'. Skipping metadata extraction.")
+            return
+
+        output_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
+        
+        extractor = GediMetaDataExtractor(url, output_file, data_type=product_type)
+        extractor.run()
+        logger.info(f"Metadata for {product_type} stored at {output_file}")
+
+    def extract_all_metadata(self):
+        """Loop through all product types and extract metadata for each."""
+        for product_type in self.metadata_info:
+            self.extract_and_store_metadata(product_type)
+
+    def _load_metadata_file(self, product_type: str):
+        """
+        Load the metadata file for a specific product type.
+        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
+        :return: Parsed YAML data as a dictionary.
+        """
+        metadata_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
+        if not os.path.exists(metadata_file):
+            logger.warning(f"Metadata file for {product_type} not found. Skipping.")
+            return None
+        
+        with open(metadata_file, 'r') as file:
+            return yaml.safe_load(file)
+
+    def _get_columns_in_data(self, conn):
+        """Get all columns (variables) from the shots table."""
+        data_table = Table(self.data_info['table_names']['shots'], MetaData(), autoload_with=conn)
+        return data_table.columns.keys()
+    
+    def _variable_exists_in_metadata(self, conn, metadata_table, variable_name):
+        """Check if a variable already exists in the metadata table."""
+        query = select([metadata_table.c.sds_name]).where(metadata_table.c.sds_name == variable_name)
+        return conn.execute(query).fetchone() is not None
+    
+    def _insert_metadata(self, conn, metadata_table, variable_name, var_meta):
+        """Insert metadata into the metadata table."""
+        insert_stmt = metadata_table.insert().values(
+            sds_name=variable_name, 
+            description=var_meta.get('Description', ''),
+            units=var_meta.get('Units', ''),
+            source_table=self.data_info['table_names']['shots']
+        )
+        conn.execute(insert_stmt)
+        logger.info(f"Inserted metadata for variable '{variable_name}'.")
+    
+    def _write_metadata(self, conn, product_type):
+        """Write metadata information for the given product type into the metadata table."""
+        metadata = self._load_metadata_file(product_type)
+        if not metadata:
+            return
+    
+        metadata_table = Table(self.data_info['table_names']['metadata'], MetaData(), autoload_with=conn)
+    
+        # Get all columns from the data (shots) table
+        data_columns = self._get_columns_in_data(conn)
+    
+        # Iterate through all columns (variables) in the data table
+        for variable_name in data_columns:
+            # Attempt to find metadata for this column (variable)
+            var_meta = next((item for item in metadata.get('Layers_Variables', []) if item.get('sds_name') == variable_name), None)
+    
+            if var_meta is None:
+                logger.info(f"No metadata found for variable '{variable_name}'. Skipping.")
+                continue
+    
+            # Check if the variable already exists in the metadata table
+            if self._variable_exists_in_metadata(conn, metadata_table, variable_name):
+                logger.info(f"Variable '{variable_name}' already exists in the metadata table. Skipping.")
+                continue
+    
+            # Insert metadata
+            self._insert_metadata(conn, metadata_table, variable_name, var_meta)
+    
+    def write_all_metadata(self, conn):
+        """Write metadata for all products into the database, but only for variables that exist in the data table."""
+        for product_type in ['L2A', 'L2B', 'L4A', 'L4C']:
+            self._write_metadata(conn, product_type)
 
     
-

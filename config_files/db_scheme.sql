@@ -110,11 +110,7 @@ CREATE TABLE IF NOT EXISTS public.filtered_l2ab_l4ac_shots (
 CREATE TABLE IF NOT EXISTS public.variable_metadata (
     SDS_Name VARCHAR(255) PRIMARY KEY,
     Description TEXT,
-    Data_Type VARCHAR(255),
     units VARCHAR(100),
-    Fill_Value FLOAT,
-    Scale_Factor FLOAT,
-    Valid_Range VARCHAR(100),
     source_table VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

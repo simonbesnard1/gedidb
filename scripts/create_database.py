@@ -5,5 +5,5 @@ database_builder = GEDIGranuleProcessor(data_config_file = "./config_files/data_
                                         sql_config_file='./config_files/db_scheme.sql')
 
 #%% Process GEDI data
-#database_builder.compute()
+database_builder.compute()
 
