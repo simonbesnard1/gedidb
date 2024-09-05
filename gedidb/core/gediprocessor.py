@@ -11,7 +11,7 @@ from gedidb.database.db import DatabaseManager
 from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
-from gedidb.utils.geospatial_tools import ShapeProcessor
+from gedidb.utils import geospatial_tools
 
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         self.parquet_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
         self.db_path = self.data_info['database_url']
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
-        self.geom = ShapeProcessor(initial_geom).check_and_format(simplify=True)        
+        self.geom = geospatial_tools.check_and_format_shape(initial_geom, simplify=True)       
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
 
