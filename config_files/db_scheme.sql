@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS public.gedi_granules (
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_GRANULE_TABLE} (
 
    granule_name VARCHAR(60) PRIMARY KEY,
    version_id VARCHAR(60),
@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS public.gedi_granules (
 
 );
 
-CREATE TABLE IF NOT EXISTS public.filtered_l2ab_l4ac_shots (
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     shot_number BIGINT PRIMARY KEY,
     granule VARCHAR(60),
     version VARCHAR(60),
