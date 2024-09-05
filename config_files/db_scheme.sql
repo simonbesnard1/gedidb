@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS public.filtered_l2ab_l4ac_shots (
     geometry geometry(Point,4326)
 );
 
-CREATE TABLE variable_metadata (
+CREATE TABLE IF NOT EXISTS public.variable_metadata (
     SDS_Name VARCHAR(255) PRIMARY KEY,
     Description TEXT,
     Data_Type VARCHAR(255),
