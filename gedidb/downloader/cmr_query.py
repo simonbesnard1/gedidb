@@ -11,9 +11,8 @@ from functools import wraps
 
 CMR_URL = "https://cmr.earthdata.nasa.gov/search/granules.json"
 CMR_PRODUCT_IDS = {
-    "GediProduct.L1B": "C1908344278-LPDAAC_ECS",
-    "GediProduct.L2A": "C1908348134-LPDAAC_ECS",
-    "GediProduct.L2B": "C1908350066-LPDAAC_ECS",
+    "GediProduct.L2A": "C2142771958-LPCLOUD",
+    "GediProduct.L2B": "C2142776747-LPCLOUD",
     "GediProduct.L4A": "C2237824918-ORNL_CLOUD",
     "GediProduct.L4C": "C3049900163-ORNL_CLOUD",
 }
@@ -85,7 +84,7 @@ class CMRQuery:
 
     @staticmethod
     def _get_name(item):
-        if "LPDAAC" in item["data_center"]:
+        if "LPCLOUD" in item["data_center"]:
             return item["producer_granule_id"]
         if "ORNL" in item["data_center"]:
             return item["title"].split(".", maxsplit=1)[1]
@@ -105,7 +104,6 @@ class GranuleQuery(CMRQuery):
         self.start_date = start_date
         self.end_date = end_date
 
-    @handle_exceptions
     def query_granules(
         self, page_size: int = 2000, page_num: int = 1
     ) -> pd.DataFrame:
