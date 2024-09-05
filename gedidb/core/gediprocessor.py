@@ -31,7 +31,14 @@ class GEDIGranuleProcessor(GEDIDatabase):
     
     def __init__(self, data_config_file: str, sql_config_file:str):
         self.data_info = self.load_yaml_file(data_config_file)
-        self.sql_script = self.load_sql_file(sql_config_file)
+        raw_sql_data = self.load_sql_file(sql_config_file)
+        table_names = {
+            "DEFAULT_GRANULE_TABLE": self.data_info["database"]["tables"]["granules"],
+            "DEFAULT_SHOT_TABLE": self.data_info["database"]["tables"]["shots"],
+            "DEFAULT_SCHEMA": self.data_info["database"]["schema"]
+        }
+        self.sql_script = raw_sql_data.format(**table_names)
+
         super().__init__(
             self.data_info['region_of_interest'], 
             self.data_info['start_date'], 
@@ -61,12 +68,15 @@ class GEDIGranuleProcessor(GEDIDatabase):
             return yaml.safe_load(file)
         
     @staticmethod
-    def load_sql_file(file_path: str = "field_mapping.yml") -> dict:
+    def load_sql_file(file_path: str = "field_mapping.yml") -> str:
         with open(file_path, 'r') as file:
             return file.read()        
                 
     @log_execution(start_message = "Starting computation process...", end_message='Data processing completed!')
     def compute(self):
+
+        self._create_db()
+
         cmr_data = self.download_cmr_data().download()
         spark = self.create_spark_session()
     
@@ -164,6 +174,11 @@ class GEDIGranuleProcessor(GEDIDatabase):
         except KeyError as e:
             logging.error(f"Join operation failed due to missing product data: {e}")
             return None
+
+    def _create_db(self):
+        db_manager = DatabaseManager(db_url=self.db_path)
+        # Ensure the database schema is correct and tables are created
+        db_manager.create_tables(sql_script=self.sql_script)
         
     def _write_db(self, input):
         if input is None:
@@ -174,9 +189,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
         gedi_data = gedi_data.astype({"shot_number": "int64"})
     
         db_manager = DatabaseManager(db_url=self.db_path)
-        
-        # Ensure the database schema is correct and tables are created
-        db_manager.create_tables(sql_script=self.sql_script)
         
         # Use the DatabaseManager to manage the connection and transaction
         engine = db_manager.get_connection()
@@ -193,7 +205,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         # Add version_id to the gedi_data dataframe
         
         gedi_data.to_postgis(
-            name=self.data_info['table_names']['shots'],
+            name=self.data_info['database']['tables']['shots'],
             con=conn,
             index=False,
             # TODO: remove this
