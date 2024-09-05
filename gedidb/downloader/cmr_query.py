@@ -135,8 +135,5 @@ class GranuleQuery(CMRQuery):
             granule_data,
             columns=['id', 'name', 'url', 'size', 'product']
         )
-
-        print(f"Total {self.product.value} granules found:", len(df_granule))
-        print("Total file size (MB): ", '{0:,.2f}'.format(df_granule['size'].sum()))
-
+        
         return df_granule
