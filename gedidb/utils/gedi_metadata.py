@@ -150,7 +150,6 @@ class GediMetaDataExtractor:
         """
         with open(self.output_file, "w") as file:
             yaml.dump(data, file, default_flow_style=False)
-        print(f"Config file saved successfully to {self.output_file}!")
 
     def run(self):
         """

@@ -13,6 +13,7 @@ from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.geospatial_tools import ShapeProcessor
+from gedidb.utils.gedi_metadata import GediMetaDataExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -32,22 +33,57 @@ class GEDIGranuleProcessor(GEDIDatabase):
     def __init__(self, data_config_file: str, sql_config_file:str):
         self.data_info = self.load_yaml_file(data_config_file)
         self.sql_script = self.load_sql_file(sql_config_file)
+        self.metadata_info = self.data_info['earth_data_info']['METADATA_INFORMATION']
+        
         super().__init__(
             self.data_info['region_of_interest'], 
             self.data_info['start_date'], 
             self.data_info['end_date']
         )
         self.setup_paths_and_dates()
-    
+        self.extract_all_metadata()
+        
     def setup_paths_and_dates(self):
         """Set up paths and dates based on the configuration."""
         self.download_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
         self.parquet_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
+        self.metadata = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))        
         self.db_path = self.data_info['database_url']
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
         self.geom = ShapeProcessor(initial_geom).check_and_format(simplify=True)        
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
+        
+    def extract_and_store_metadata(self, product_type: str):
+        """
+        Extract metadata for a specific GEDI product type and save it as a YAML file.
+        
+        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
+        """
+        # Get the URL for the given product type
+        url = self.data_info['earth_data_info']['METADATA_INFORMATION'].get(product_type)
+        
+        if url is None:
+            raise ValueError(f"No URL found for product type '{product_type}'.")
+
+        # Create the output file path in the self.metadata directory
+        output_file = os.path.join(self.metadata, f"gedi_{product_type.lower()}_metadata.yaml")
+        
+        # Instantiate and run the metadata extractor
+        extractor = GediMetaDataExtractor(url, output_file, data_type=product_type)
+        extractor.run()
+
+        print(f"Metadata for {product_type} stored at {output_file}")
+
+    def extract_all_metadata(self):
+        """
+        Loop through all product types in the METADATA_INFORMATION and extract metadata for each.
+        """
+        for product_type in self.metadata_info.keys():
+            try:
+                self.extract_and_store_metadata(product_type)
+            except Exception as e:
+                print(f"Failed to extract metadata for {product_type}: {e}")
 
     @staticmethod
     def ensure_directory(path):
