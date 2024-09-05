@@ -2,6 +2,7 @@ import os
 import logging
 import yaml
 import geopandas as gpd
+import pandas as pd
 from datetime import datetime
 from functools import wraps
 
@@ -142,7 +143,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
                     gdf_dict[product.value].set_index("shot_number"),
                     on="shot_number",
                     how="inner",
-                    lsuffix=f'_{product.value}'  # Right suffix
+                    rsuffix=f'_{product.value}'  # Right suffix
                 )
 
 

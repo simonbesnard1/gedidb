@@ -1,5 +1,6 @@
 import geopandas as gpd
 import pandas as pd
+import re
 from gedidb.utils.constants import WGS84, GediProduct
 from gedidb.processor.granule.granule import Granule
 from gedidb.processor.granule.l1b_granule import L1BGranule
@@ -23,6 +24,15 @@ class GranuleParser:
     
         if granule_data:
             df = pd.concat(granule_data, ignore_index=True)
+
+            # We're getting the version of each product from the 'fileName' of the metadata
+            # It seems like product L4C somehow uses V001 and is also defined as GEDI_WSCI
+            # We do have a consistent version number in our database because when joining the different
+            # products together, version L2A has priority. So the product version being used in the database
+            # is always L2A, even though it might differ between different products.
+            df['version'] = re.search(r'V\d{3}', granule.version_granule).group()
+            # print(f"Granule: {granule.product} Version: {granule.version_granule}" )
+
             gdf = gpd.GeoDataFrame(df, crs=WGS84)
             
             return gdf
