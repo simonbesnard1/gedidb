@@ -22,8 +22,12 @@ class Granule(h5py.File):
         return self._parsed_filename_metadata
 
     @property
-    def version(self) -> str:
+    def version_product(self) -> str:
         return self["METADATA"]["DatasetIdentification"].attrs["VersionID"]
+
+    @property
+    def version_granule(self) -> str:
+        return self["METADATA"]["DatasetIdentification"].attrs["fileName"]
 
     @property
     def start_datetime(self) -> pd.Timestamp:

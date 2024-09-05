@@ -2,6 +2,7 @@ import os
 import logging
 import yaml
 import geopandas as gpd
+import pandas as pd
 from datetime import datetime
 from functools import wraps
 from sqlalchemy import Table, MetaData, select
@@ -12,7 +13,7 @@ from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.geospatial_tools import ShapeProcessor
-from gedidb.utils.gedi_metadata import GediMetaDataExtractor
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,17 @@ class GEDIGranuleProcessor(GEDIDatabase):
     
     def __init__(self, data_config_file: str, sql_config_file:str):
         self.data_info = self.load_yaml_file(data_config_file)
+        raw_sql_data = self.load_sql_file(sql_config_file)
+        table_names = {
+            "DEFAULT_GRANULE_TABLE": self.data_info["database"]["tables"]["granules"],
+            "DEFAULT_SHOT_TABLE": self.data_info["database"]["tables"]["shots"],
+            "DEFAULT_SCHEMA": self.data_info["database"]["schema"]
+        }
+        self.sql_script = raw_sql_data.format(**table_names)
+
         self.sql_script = self.load_sql_file(sql_config_file)
         self.metadata_info = self.data_info['earth_data_info']['METADATA_INFORMATION']
-        
+
         super().__init__(
             self.data_info['region_of_interest'], 
             self.data_info['start_date'], 
@@ -41,18 +50,18 @@ class GEDIGranuleProcessor(GEDIDatabase):
         )
         self.setup_paths_and_dates()
         self.extract_all_metadata()
-        
+
     def setup_paths_and_dates(self):
         """Set up paths and dates based on the configuration."""
         self.download_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
         self.parquet_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
-        self.metadata_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))        
+        self.metadata_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))
         self.db_path = self.data_info['database_url']
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
         self.geom = ShapeProcessor(initial_geom).check_and_format(simplify=True)        
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
-        
+
     @staticmethod
     def ensure_directory(path):
         """Ensure that a directory exists."""
@@ -71,6 +80,10 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 
     @log_execution(start_message = "Starting computation process...", end_message='Data processing completed!')
     def compute(self):
+
+        self._create_db()
+
+        cmr_data = self.download_cmr_data().download()
         cmr_data = self.download_cmr_data()
         spark = self.create_spark_session()
     
@@ -147,7 +160,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
                     gdf_dict[product.value].set_index("shot_number"),
                     on="shot_number",
                     how="inner",
-                    lsuffix=f'_{product.value}'  # Right suffix
+                    rsuffix=f'_{product.value}'  # Right suffix
                 )
 
 
@@ -168,7 +181,12 @@ class GEDIGranuleProcessor(GEDIDatabase):
         except KeyError as e:
             logging.error(f"Join operation failed due to missing product data: {e}")
             return None
-        
+
+    def _create_db(self):
+        db_manager = DatabaseManager(db_url=self.db_path)
+        # Ensure the database schema is correct and tables are created
+        db_manager.create_tables(sql_script=self.sql_script)
+
     def _write_db(self, input):
         if input is None:
             return  # Early exit if input is None
@@ -178,17 +196,14 @@ class GEDIGranuleProcessor(GEDIDatabase):
         gedi_data = gedi_data.astype({"shot_number": "int64"})
     
         db_manager = DatabaseManager(db_url=self.db_path)
-        
-        # Ensure the database schema is correct and tables are created
-        db_manager.create_tables(sql_script=self.sql_script)
-        
+
         # Use the DatabaseManager to manage the connection and transaction
         engine = db_manager.get_connection()
     
         if engine:
             with engine.begin() as conn:
                 self._write_gedi_data(conn, gedi_data)
-                
+
                 self.write_all_metadata(conn)
 
                 conn.commit()
@@ -200,17 +215,17 @@ class GEDIGranuleProcessor(GEDIDatabase):
         # Add version_id to the gedi_data dataframe
         
         gedi_data.to_postgis(
-            name=self.data_info['table_names']['shots'],
+            name=self.data_info['database']['tables']['shots'],
             con=conn,
             index=False,
             # TODO: remove this
             if_exists="append",
         )
-        
+
     def extract_and_store_metadata(self, product_type: str):
         """
         Extract metadata for a specific GEDI product type and save it as a YAML file.
-        
+
         :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
         """
         url = self.metadata_info.get(product_type)
@@ -219,7 +234,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
             return
 
         output_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
-        
+
         extractor = GediMetaDataExtractor(url, output_file, data_type=product_type)
         extractor.run()
         logger.info(f"Metadata for {product_type} stored at {output_file}")
@@ -239,7 +254,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if not os.path.exists(metadata_file):
             logger.warning(f"Metadata file for {product_type} not found. Skipping.")
             return None
-        
+
         with open(metadata_file, 'r') as file:
             return yaml.safe_load(file)
 
@@ -247,54 +262,54 @@ class GEDIGranuleProcessor(GEDIDatabase):
         """Get all columns (variables) from the shots table."""
         data_table = Table(self.data_info['table_names']['shots'], MetaData(), autoload_with=conn)
         return data_table.columns.keys()
-    
+
     def _variable_exists_in_metadata(self, conn, metadata_table, variable_name):
         """Check if a variable already exists in the metadata table."""
         query = select([metadata_table.c.sds_name]).where(metadata_table.c.sds_name == variable_name)
         return conn.execute(query).fetchone() is not None
-    
+
     def _insert_metadata(self, conn, metadata_table, variable_name, var_meta):
         """Insert metadata into the metadata table."""
         insert_stmt = metadata_table.insert().values(
-            sds_name=variable_name, 
+            sds_name=variable_name,
             description=var_meta.get('Description', ''),
             units=var_meta.get('Units', ''),
             source_table=self.data_info['table_names']['shots']
         )
         conn.execute(insert_stmt)
         logger.info(f"Inserted metadata for variable '{variable_name}'.")
-    
+
     def _write_metadata(self, conn, product_type):
         """Write metadata information for the given product type into the metadata table."""
         metadata = self._load_metadata_file(product_type)
         if not metadata:
             return
-    
+
         metadata_table = Table(self.data_info['table_names']['metadata'], MetaData(), autoload_with=conn)
-    
+
         # Get all columns from the data (shots) table
         data_columns = self._get_columns_in_data(conn)
-    
+
         # Iterate through all columns (variables) in the data table
         for variable_name in data_columns:
             # Attempt to find metadata for this column (variable)
             var_meta = next((item for item in metadata.get('Layers_Variables', []) if item.get('sds_name') == variable_name), None)
-    
+
             if var_meta is None:
                 logger.info(f"No metadata found for variable '{variable_name}'. Skipping.")
                 continue
-    
+
             # Check if the variable already exists in the metadata table
             if self._variable_exists_in_metadata(conn, metadata_table, variable_name):
                 logger.info(f"Variable '{variable_name}' already exists in the metadata table. Skipping.")
                 continue
-    
+
             # Insert metadata
             self._insert_metadata(conn, metadata_table, variable_name, var_meta)
-    
+
     def write_all_metadata(self, conn):
         """Write metadata for all products into the database, but only for variables that exist in the data table."""
         for product_type in ['L2A', 'L2B', 'L4A', 'L4C']:
             self._write_metadata(conn, product_type)
 
-    
+
