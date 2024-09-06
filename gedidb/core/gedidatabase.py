@@ -25,9 +25,9 @@ class GEDIDatabase:
         self.start_date = start_date
         self.end_date = end_date
 
-    @log_execution(start_message = "Downloading GEDI data...", end_message="GEDI data succesfully downloaded")
+    @log_execution(start_message = "Retrieving CMR data...", end_message="CMR data succesfully retrieved")
     def download_cmr_data(self):
-        return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date)
+        return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date).download()
     
     @log_execution(start_message = "Creating spark session...", end_message="Spark session created")
     def create_spark_session(self):

@@ -3,15 +3,16 @@ from bs4 import BeautifulSoup
 import yaml
 
 class GediMetaDataExtractor:
-    def __init__(self, url: str, output_file: str):
+    def __init__(self, url: str, output_file: str, data_type:str):
         """
-        Initialize the GediDataExtractor with a URL and an output file path.
+        Initialize the GediMetaDataExtractor with a URL and an output file path.
 
         :param url: The URL of the page to scrape.
         :param output_file: The path to save the extracted data as a YAML file.
         """
         self.url = url
         self.output_file = output_file
+        self.data_type = data_type
         self.soup = None
 
     def fetch_html_content(self):
@@ -25,7 +26,16 @@ class GediMetaDataExtractor:
 
     def locate_table(self, header_text: str):
         """
-        Locate a table in the HTML content based on a header text.
+        Locate the relevant table in the HTML content based on the data type (L2A, L4A, L4C).
+        """
+        if self.data_type in ['L2A', 'L2B']:
+            return self.locate_table_l2(header_text)
+        elif self.data_type in ['L4A', 'L4C']:
+            return self.locate_table_l4(header_text)
+
+    def locate_table_l2(self, header_text: str):
+        """
+        Locate a table for L2A/L2B in the HTML content based on a header text.
         
         :param header_text: The text of the header preceding the table.
         :return: The BeautifulSoup table element.
@@ -37,6 +47,29 @@ class GediMetaDataExtractor:
         if header_text == "Layers / Variables":
             return self.locate_layers_table()
         raise ValueError(f"Could not locate the table with header '{header_text}'.")
+
+    def locate_table_l4(self, header_text: str):
+        """
+        Locate all tables for L4A/L4C data that have the specified header text.
+        
+        :param header_text: The text of the header preceding the tables.
+        :return: A list of BeautifulSoup table elements.
+        """
+        tables = self.soup.find_all("table")
+        matched_tables = []
+        
+        for table in tables:
+            # Find the previous h2 element
+            previous_h2 = table.find_previous("h2")
+            
+            # Check if the h2 element exists and has text
+            if previous_h2 and previous_h2.text and header_text in previous_h2.text:
+                matched_tables.append(table)
+        
+        if not matched_tables:
+            raise ValueError(f"Could not locate any tables with header '{header_text}'.")
+        
+        return matched_tables
 
     def locate_layers_table(self):
         """
@@ -66,7 +99,7 @@ class GediMetaDataExtractor:
                 data[key] = value
         return data
 
-    def extract_layers_data(self, table):
+    def extract_layers_l2data(self, table):
         """
         Extract the layers/variables data from the table.
 
@@ -90,6 +123,25 @@ class GediMetaDataExtractor:
                 layers_data.append(layer_info)
         return layers_data
 
+    def extract_layers_l4data(self, table):
+        """
+        Extract the layers/variables data from the table.
+
+        :param table: The BeautifulSoup table element.
+        :return: A list of dictionaries containing the layers data.
+        """
+        layers_data = []
+        for row in table.find_all("tr")[1:]:  # Skip the header row
+            cols = row.find_all("td")
+            if len(cols) == 3:  # Ensure the row has the expected number of columns
+                layer_info = {
+                    "SDS_Name": cols[0].text.strip(),
+                    "Units": cols[1].text.strip(),
+                    "Description": cols[2].text.strip()
+                }
+                layers_data.append(layer_info)
+        return layers_data
+
     def save_to_yaml(self, data):
         """
         Save the extracted data to a YAML file.
@@ -98,31 +150,49 @@ class GediMetaDataExtractor:
         """
         with open(self.output_file, "w") as file:
             yaml.dump(data, file, default_flow_style=False)
-        print(f"Config file saved successfully to {self.output_file}!")
 
     def run(self):
         """
         Execute the entire extraction process for both the Layers/Variables and Collection/Granule data.
+        
+        :param dataset_type: The type of dataset being processed (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
         """
         self.fetch_html_content()
+        
+        if self.data_type in ["L2A", "L2B"]:
+        
+            # Extracting Collection data
+            collection_table = self.locate_table("Collection")
+            collection_data = self.extract_table_data(collection_table)
 
-        # Extracting Collection data
-        collection_table = self.locate_table("Collection")
-        collection_data = self.extract_table_data(collection_table)
+            # Extracting Granule data
+            granule_table = self.locate_table("Granule")
+            granule_data = self.extract_table_data(granule_table)
 
-        # Extracting Granule data
-        granule_table = self.locate_table("Granule")
-        granule_data = self.extract_table_data(granule_table)
+            # Extracting Layers/Variables data
+            layers_table = self.locate_table("Layers / Variables")            
+            layers_data = self.extract_layers_l2data(layers_table)
+            
+            # Combine all data
+            data = {
+                "Collection": collection_data,
+                "Granule": granule_data,
+                "Layers_Variables": layers_data
+            }
 
-        # Extracting Layers/Variables data
-        layers_table = self.locate_table("Layers / Variables")
-        layers_data = self.extract_layers_data(layers_table)
+        elif self.data_type in ["L4A", "L4C"]:
+            # Extract multiple tables with the header 'Data Characteristics'
+            layers_tables = self.locate_table('Data Characteristics')       
+            layers_data = []
+            
+            # Loop through each located table and extract data
+            for table in layers_tables:
+                table_data = self.extract_layers_l4data(table)
+                layers_data.extend(table_data)  # Append data from each table to layers_data
+                
+            data = {
+                "Layers_Variables": layers_data
+            }
 
-        # Combine all data
-        data = {
-            "Collection": collection_data,
-            "Granule": granule_data,
-            "Layers_Variables": layers_data
-        }
-
+            
         self.save_to_yaml(data)
