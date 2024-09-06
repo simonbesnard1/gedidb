@@ -5,18 +5,18 @@ from urllib3.util.retry import Retry
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
+from gedidb.processor.granule import granule_name
 from gedidb.utils.constants import GediProduct
 from functools import wraps
 
-CMR_URL= "https://cmr.earthdata.nasa.gov/search/granules.json"
+CMR_URL = "https://cmr.earthdata.nasa.gov/search/granules.json"
 CMR_PRODUCT_IDS = {
-    "GediProduct.L1B": 'C1908344278-LPDAAC_ECS',
-    "GediProduct.L2A": 'C1908348134-LPDAAC_ECS',
-    "GediProduct.L2B": 'C1908350066-LPDAAC_ECS',
-    "GediProduct.L4A": 'C2237824918-ORNL_CLOUD',
-    "GediProduct.L4C": 'C3049900163-ORNL_CLOUD',
-
+    "GediProduct.L2A": "C2142771958-LPCLOUD",
+    "GediProduct.L2B": "C2142776747-LPCLOUD",
+    "GediProduct.L4A": "C2237824918-ORNL_CLOUD",
+    "GediProduct.L4C": "C3049900163-ORNL_CLOUD",
 }
+
 
 # Decorator for handling exceptions
 def handle_exceptions(func):
@@ -32,23 +32,35 @@ def handle_exceptions(func):
 
     return wrapper
 
+
 class CMRQuery:
-    
+
     @staticmethod
     @handle_exceptions
-    def _construct_query_params(product: GediProduct, geom: gpd.GeoSeries, start_date: datetime, end_date: datetime, page_size: int, page_num: int) -> dict:
-        
+    def _construct_query_params(
+        product: GediProduct,
+        geom: gpd.GeoSeries,
+        start_date: datetime,
+        end_date: datetime,
+        page_size: int,
+        page_num: int,
+    ) -> dict:
+
         return {
             "collection_concept_id": CMR_PRODUCT_IDS[str(product)],
             "page_size": page_size,
             "page_num": page_num,
             "bounding_box": CMRQuery._construct_spatial_params(geom),
-            "temporal": CMRQuery._construct_temporal_params(start_date, end_date)
+            "temporal": CMRQuery._construct_temporal_params(
+                start_date, end_date
+            ),
         }
 
     @staticmethod
     @handle_exceptions
-    def _construct_temporal_params(start_date: datetime, end_date: datetime) -> str:
+    def _construct_temporal_params(
+        start_date: datetime, end_date: datetime
+    ) -> str:
         if start_date and end_date:
             if start_date > end_date:
                 raise ValueError("Start date must be before end date")
@@ -58,58 +70,65 @@ class CMRQuery:
         if end_date:
             return f'/{end_date.strftime("%Y-%m-%dT23:59:59Z")}'
         else:
-            return ''
+            return ""
 
     @staticmethod
     @handle_exceptions
     def _construct_spatial_params(geom: gpd.GeoSeries) -> str:
-        return ','.join([str(x) for x in geom.total_bounds])
-    
+        return ",".join([str(x) for x in geom.total_bounds])
+
     @staticmethod
-    def _get_id(item):
-        if "LPDAAC" in item["data_center"]:
-            _id = item['producer_granule_id'].split('_')
-            return f"{_id[3]}_{_id[4]}"
-        if "ORNL" in item["data_center"]:
-            if item['collection_concept_id'] == 'C2237824918-ORNL_CLOUD':
-                _id = item['title'].split('_')
-                return f"{_id[8]}_{_id[9]}"
-            if item['collection_concept_id'] == 'C3049900163-ORNL_CLOUD':
-                _id = item['title'].split('_')
-                return f"{_id[5]}_{_id[6]}"
-        else:
-            raise ValueError("Data center not recognized")
+    def _get_id(name):
+        metadata = granule_name.parse_granule_filename(name)
+        return f"{metadata.orbit}_{metadata.sub_orbit_granule}"
 
     @staticmethod
     def _get_name(item):
-        if "LPDAAC" in item["data_center"]:
+        if "LPCLOUD" in item["data_center"]:
             return item["producer_granule_id"]
         if "ORNL" in item["data_center"]:
             return item["title"].split(".", maxsplit=1)[1]
         return None
 
+
 class GranuleQuery(CMRQuery):
-    def __init__(self, product: GediProduct, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None):
+    def __init__(
+        self,
+        product: GediProduct,
+        geom: gpd.GeoSeries,
+        start_date: datetime = None,
+        end_date: datetime = None,
+    ):
         self.product = product
         self.geom = geom
         self.start_date = start_date
         self.end_date = end_date
 
-    @handle_exceptions
-    def query_granules(self, page_size: int = 2000, page_num: int = 1) -> pd.DataFrame:
+    def query_granules(
+        self, page_size: int = 2000, page_num: int = 1
+    ) -> pd.DataFrame:
 
-        cmr_params = self._construct_query_params(self.product, self.geom, self.start_date, self.end_date, page_size, page_num)
+        cmr_params = self._construct_query_params(
+            self.product,
+            self.geom,
+            self.start_date,
+            self.end_date,
+            page_size,
+            page_num,
+        )
         granule_data = []
 
-        adapter = HTTPAdapter(max_retries=Retry(
-            total=3,
-            backoff_factor=0.1,
-            status_forcelist=[429,500,502,503,504],
-            allowed_methods=["GET"]
-        ))
+        adapter = HTTPAdapter(
+            max_retries=Retry(
+                total=3,
+                backoff_factor=0.1,
+                status_forcelist=[429, 500, 502, 503, 504],
+                allowed_methods=["GET"],
+            )
+        )
         session = requests.Session()
-        session.mount('https://', adapter)
-        
+        session.mount("https://", adapter)
+
         while True:
             cmr_params["page_num"] = page_num
             response = session.get(CMR_URL, params=cmr_params)
@@ -123,17 +142,19 @@ class GranuleQuery(CMRQuery):
                 break
         session.close()
 
-        granule_data = [{
-            'id': self._get_id(item),
-            'name': self._get_name(item),
-            'url': item['links'][0]['href'],
-            'size': float(item['granule_size']),
-            'product': self.product.value
-        } for item in granule_data]
+        granule_data = [
+            {
+                "id": self._get_id(self._get_name(item)),
+                "name": self._get_name(item),
+                "url": item["links"][0]["href"],
+                "size": float(item["granule_size"]),
+                "product": self.product.value,
+            }
+            for item in granule_data
+        ]
 
         df_granule = pd.DataFrame(
-            granule_data,
-            columns=['id', 'name', 'url', 'size', 'product']
+            granule_data, columns=["id", "name", "url", "size", "product"]
         )
         
         return df_granule
