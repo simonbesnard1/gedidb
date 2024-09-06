@@ -31,7 +31,8 @@ dependencies = [
     "pyspark==3.5.1",
     "psycopg2==2.9.9",
     "xarray==2024.7.0",
-    "Cartopy==0.23.0"
+    "Cartopy==0.23.0",
+    "retry==0.9.2"
 ]
 
 [project.urls]
