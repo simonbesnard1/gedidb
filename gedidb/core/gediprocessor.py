@@ -12,6 +12,7 @@ from gedidb.database.db import DatabaseManager
 from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
+from gedidb.utils.gedi_metadata import GediMetaDataExtractor
 from gedidb.utils.geospatial_tools import ShapeProcessor
 
 
@@ -36,11 +37,10 @@ class GEDIGranuleProcessor(GEDIDatabase):
         table_names = {
             "DEFAULT_GRANULE_TABLE": self.data_info["database"]["tables"]["granules"],
             "DEFAULT_SHOT_TABLE": self.data_info["database"]["tables"]["shots"],
+            "DEFAULT_METADATA_TABLE": self.data_info["database"]["tables"]["metadata"],
             "DEFAULT_SCHEMA": self.data_info["database"]["schema"]
         }
         self.sql_script = raw_sql_data.format(**table_names)
-
-        self.sql_script = self.load_sql_file(sql_config_file)
         self.metadata_info = self.data_info['earth_data_info']['METADATA_INFORMATION']
 
         super().__init__(
@@ -74,7 +74,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
             return yaml.safe_load(file)
         
     @staticmethod
-    def load_sql_file(file_path: str = "field_mapping.yml") -> dict:
+    def load_sql_file(file_path: str = "field_mapping.yml") -> str:
         with open(file_path, 'r') as file:
             return file.read()        
                 
@@ -83,7 +83,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
 
         self._create_db()
 
-        cmr_data = self.download_cmr_data().download()
         cmr_data = self.download_cmr_data()
         spark = self.create_spark_session()
     
@@ -260,12 +259,12 @@ class GEDIGranuleProcessor(GEDIDatabase):
 
     def _get_columns_in_data(self, conn):
         """Get all columns (variables) from the shots table."""
-        data_table = Table(self.data_info['table_names']['shots'], MetaData(), autoload_with=conn)
+        data_table = Table(self.data_info['database']['tables']['shots'], MetaData(), autoload_with=conn)
         return data_table.columns.keys()
 
     def _variable_exists_in_metadata(self, conn, metadata_table, variable_name):
         """Check if a variable already exists in the metadata table."""
-        query = select([metadata_table.c.sds_name]).where(metadata_table.c.sds_name == variable_name)
+        query = select(metadata_table.c.sds_name).where(metadata_table.c.sds_name == variable_name)
         return conn.execute(query).fetchone() is not None
 
     def _insert_metadata(self, conn, metadata_table, variable_name, var_meta):
@@ -274,7 +273,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
             sds_name=variable_name,
             description=var_meta.get('Description', ''),
             units=var_meta.get('Units', ''),
-            source_table=self.data_info['table_names']['shots']
+            source_table=self.data_info['database']['tables']['shots']
         )
         conn.execute(insert_stmt)
         logger.info(f"Inserted metadata for variable '{variable_name}'.")
@@ -285,7 +284,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         if not metadata:
             return
 
-        metadata_table = Table(self.data_info['table_names']['metadata'], MetaData(), autoload_with=conn)
+        metadata_table = Table(self.data_info['database']['tables']['metadata'], MetaData(), autoload_with=conn)
 
         # Get all columns from the data (shots) table
         data_columns = self._get_columns_in_data(conn)
@@ -293,7 +292,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         # Iterate through all columns (variables) in the data table
         for variable_name in data_columns:
             # Attempt to find metadata for this column (variable)
-            var_meta = next((item for item in metadata.get('Layers_Variables', []) if item.get('sds_name') == variable_name), None)
+            var_meta = next((item for item in metadata.get('Layers_Variables', []) if item.get('SDS_Name') == variable_name), None)
 
             if var_meta is None:
                 logger.info(f"No metadata found for variable '{variable_name}'. Skipping.")
