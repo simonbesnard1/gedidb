@@ -1,43 +1,13 @@
 from pyspark.sql import SparkSession
 
-"""
-utils = (
-    SparkSession.builder.appName("degradationSample")
-    .config(
-        "utils.jars.packages",
-        "net.postgis:postgis-jdbc:2021.1.0,"
-        "net.postgis:postgis-geometry:2021.1.0,"
-        "org.postgresql:postgresql:42.5.4,",
-    )
-    .getOrCreate()
-)
-
-utils.sparkContext.setSystemProperty(
-    "org.geotools.referencing.forceXY", "true"
-)
-
-jdbcDF = (utils.read.format("jdbc")
-          .option(
-    "url",
-    f"jdbc:postgresql_postGIS://mefe27:5434/glmdb",
-)
-          .option("query", "select * from spatial_ref_sys where srid = 2000")
-          # .option("dbtable", "spatial_ref_sys")
-          .option("driver", "net.postgis.jdbc.DriverWrapper")
-          .option("user", "glmadmin")
-          .option("password", "SimonGFZ")
-          .load()
-          )
-
-jdbcDF.show()
-"""
-
-
-def create_spark() -> SparkSession:
-
-    spark_session = (
-        SparkSession.builder.appName("sparkSession")
-        .getOrCreate()
-    )
-
+def create_spark():
+    
+    spark_session = (SparkSession.builder
+             .appName("GEDI Processing")
+             .config("spark.executor.instances", "4")  # Number of workers (executors)
+             .config("spark.executor.cores", "4")      # Number of cores per executor
+             .config("spark.executor.memory", "4g")    # Memory per executor
+             .config("spark.driver.memory", "2g")      # Driver memory
+             .getOrCreate())
+    
     return spark_session

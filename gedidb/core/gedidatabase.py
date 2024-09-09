@@ -1,7 +1,6 @@
 import geopandas as gpd
 from datetime import datetime
 from functools import wraps
-from dask.distributed import Client, LocalCluster
 
 from gedidb.utils.spark_session import create_spark
 from gedidb.downloader.data_downloader import CMRDataDownloader
@@ -35,11 +34,3 @@ class GEDIDatabase:
     @log_execution(start_message = "Creating spark session...", end_message="Spark session created")
     def create_spark_session(self):
         return create_spark()
-    
-    @log_execution(start_message="Starting Dask cluster...", end_message="Dask cluster started")
-    def create_dask_client(self):
-        """Initialize a Dask distributed client."""
-        # You can configure the cluster or leave it to default, depending on your resources
-        cluster = LocalCluster()  # You can tweak this with the number of workers and memory as needed
-        client = Client(cluster)
-        return client
