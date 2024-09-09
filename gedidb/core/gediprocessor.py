@@ -2,7 +2,6 @@ import os
 import logging
 import yaml
 import geopandas as gpd
-import pandas as pd
 from datetime import datetime
 from functools import wraps
 from sqlalchemy import Table, MetaData, select
@@ -13,7 +12,7 @@ from gedidb.processor import granule_parser
 from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.gedi_metadata import GediMetaDataExtractor
-from gedidb.utils.geospatial_tools import ShapeProcessor
+from gedidb.utils.geospatial_tools import check_and_format_shape
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,8 @@ class GEDIGranuleProcessor(GEDIDatabase):
         super().__init__(
             self.data_info['region_of_interest'], 
             self.data_info['start_date'], 
-            self.data_info['end_date']
+            self.data_info['end_date'],
+            self.data_info['earth_data_info']
         )
         self.setup_paths_and_dates()
         self.extract_all_metadata()
@@ -58,7 +58,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         self.metadata_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))
         self.db_path = self.data_info['database_url']
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
-        self.geom = geospatial_tools.check_and_format_shape(initial_geom, simplify=True)       
+        self.geom = check_and_format_shape(initial_geom, simplify=True)       
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
 

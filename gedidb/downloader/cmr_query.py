@@ -9,14 +9,6 @@ from gedidb.processor.granule import granule_name
 from gedidb.utils.constants import GediProduct
 from functools import wraps
 
-CMR_URL = "https://cmr.earthdata.nasa.gov/search/granules.json"
-CMR_PRODUCT_IDS = {
-    "GediProduct.L2A": "C2142771958-LPCLOUD",
-    "GediProduct.L2B": "C2142776747-LPCLOUD",
-    "GediProduct.L4A": "C2237824918-ORNL_CLOUD",
-    "GediProduct.L4C": "C3049900163-ORNL_CLOUD",
-}
-
 
 # Decorator for handling exceptions
 def handle_exceptions(func):
@@ -42,12 +34,13 @@ class CMRQuery:
         geom: gpd.GeoSeries,
         start_date: datetime,
         end_date: datetime,
+        earth_data_info:dict,
         page_size: int,
         page_num: int,
     ) -> dict:
 
         return {
-            "collection_concept_id": CMR_PRODUCT_IDS[str(product)],
+            "collection_concept_id": earth_data_info["CMR_PRODUCT_IDS"][str(product)],
             "page_size": page_size,
             "page_num": page_num,
             "bounding_box": CMRQuery._construct_spatial_params(geom),
@@ -98,12 +91,14 @@ class GranuleQuery(CMRQuery):
         geom: gpd.GeoSeries,
         start_date: datetime = None,
         end_date: datetime = None,
+        earth_data_info = None
     ):
         self.product = product
         self.geom = geom
         self.start_date = start_date
         self.end_date = end_date
-
+        self.earth_data_info = earth_data_info
+        
     def query_granules(
         self, page_size: int = 2000, page_num: int = 1
     ) -> pd.DataFrame:
@@ -113,6 +108,7 @@ class GranuleQuery(CMRQuery):
             self.geom,
             self.start_date,
             self.end_date,
+            self.earth_data_info,
             page_size,
             page_num,
         )
@@ -131,7 +127,7 @@ class GranuleQuery(CMRQuery):
 
         while True:
             cmr_params["page_num"] = page_num
-            response = session.get(CMR_URL, params=cmr_params)
+            response = session.get(self.earth_data_info["CMR_URL"], params=cmr_params)
             response.raise_for_status()
             cmr_response = response.json()["feed"]["entry"]
 
