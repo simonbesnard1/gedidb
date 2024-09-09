@@ -14,7 +14,6 @@ from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.gedi_metadata import GediMetaDataExtractor
 from gedidb.utils.geospatial_tools import check_and_format_shape
 
-
 logger = logging.getLogger(__name__)
 
 def log_execution(start_message=None, end_message=None):
@@ -78,7 +77,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         with open(file_path, 'r') as file:
             return file.read()        
                 
-    @log_execution(start_message = "Starting computation process...", end_message='Data processing completed!')
+    @log_execution(start_message="Starting computation process...", end_message='Data processing completed!')
     def compute(self):
 
         self._create_db()
@@ -183,8 +182,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
 
     def _create_db(self):
         db_manager = DatabaseManager(db_url=self.db_path)
-        # Ensure the database schema is correct and tables are created
-        db_manager.create_tables(sql_script=self.sql_script)
+        db_manager.create_tables(sql_script=self.sql_script) # Ensure the database schema is correct and tables are created
 
     def _write_db(self, input):
         if input is None:
