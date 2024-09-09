@@ -29,6 +29,7 @@ class SQLQueryBuilder:
     def __init__(
         self,
         table_name: str,
+        metadata_table:str,
         columns: Union[str, List[str]] = "*",
         geometry: Optional[gpd.GeoDataFrame] = None,
         crs: str = WGS84,
@@ -40,6 +41,7 @@ class SQLQueryBuilder:
         **filters
     ):
         self.table_name = table_name
+        self.metadata_table = metadata_table
         self.columns = columns
         self.geometry = geometry
         self.crs = crs
@@ -117,12 +119,22 @@ class SQLQueryBuilder:
             raise UserWarning("Warning! This will load the entire table. To proceed set `force`=True.")
         
         return sql_query
+    
+    def build_metadata_query(self) -> str:
+        """
+        Build a query to fetch metadata for the given variable names from the metadata table.
+        
+        :param variable_names: List of variable names to fetch metadata for.
+        :return: SQL query string for fetching metadata.
+        """
+        variable_list = ', '.join([f"'{var}'" for var in self.columns])
+        return f"SELECT * FROM {self.metadata_table} WHERE SDS_Name IN ({variable_list})"
+
 
 class GediDatabase:
     """Database connector for the GEDI DB."""
 
     def __init__(self, data_config_file):
-        
         self.data_info = self.load_yaml_file(data_config_file)
         self.engine = DatabaseManager(self.data_info['database_url'], echo=False).create_engine()
         self.inspector = inspect(self.engine)
@@ -141,31 +153,35 @@ class GediDatabase:
 
     def query(
         self,
-        table_name: str,
         query_builder: Optional[SQLQueryBuilder] = None,
         use_geopandas: bool = False,
-    ) -> pd.DataFrame:
+    ) -> dict:
         """
-        Query the database using an SQLQueryBuilder object or direct parameters.
+        Query the database and retrieve both data and metadata.
 
         Args:
-            table_name (str): The name of the table to query.
             query_builder (Optional[SQLQueryBuilder]): The SQLQueryBuilder object to construct the SQL query.
             use_geopandas (bool): Specify if geopandas should be used for result.
 
         Returns:
-            pd.DataFrame: A dataframe containing the rows that match the query.
+            dict: A dictionary with 'data' containing the result dataframe and 'metadata' containing the metadata.
         """
 
-        # If query_builder is provided, use it to build the SQL query
         if query_builder is not None:
+            # Build and execute the query to get the data
             sql_query = query_builder.build()
+            if use_geopandas:
+                data_df = gpd.read_postgis(sql_query, con=self.engine, geom_col="geometry")
+            else:
+                data_df = pd.read_sql(sql_query, con=self.engine)
+
+            # Fetch the metadata for the variables in the data
+            variable_names = query_builder.columns
+            metadata_query = query_builder.build_metadata_query(variable_names)
+            metadata_df = pd.read_sql(metadata_query, con=self.engine)
+            
+            return {"data": data_df, "metadata": metadata_df}
         else:
             raise ValueError("A valid SQLQueryBuilder object must be provided.")
 
-        # Execute the query using GeoPandas or Pandas depending on the user's preference
-        if use_geopandas:
-            return gpd.read_postgis(sql_query, con=self.engine, geom_col="geometry")
-        else:
-            return pd.read_sql(sql_query, con=self.engine)
 
