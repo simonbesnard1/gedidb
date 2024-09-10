@@ -120,14 +120,14 @@ class SQLQueryBuilder:
         
         return sql_query
     
-    def build_metadata_query(self) -> str:
+    def build_metadata_query(self, variable_names) -> str:
         """
         Build a query to fetch metadata for the given variable names from the metadata table.
         
         :param variable_names: List of variable names to fetch metadata for.
         :return: SQL query string for fetching metadata.
         """
-        variable_list = ', '.join([f"'{var}'" for var in self.columns])
+        variable_list = ', '.join([f"'{var}'" for var in variable_names])
         return f"SELECT * FROM {self.metadata_table} WHERE SDS_Name IN ({variable_list})"
 
 
