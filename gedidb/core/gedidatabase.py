@@ -20,14 +20,16 @@ def log_execution(start_message=None, end_message=None):
     return decorator
 
 class GEDIDatabase:
-    def __init__(self, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None):
+    def __init__(self, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None, earth_data_info =None):
         self.geom = geom
         self.start_date = start_date
         self.end_date = end_date
+        self.earth_data_info = earth_data_info
 
     @log_execution(start_message = "Retrieving CMR data...", end_message="CMR data succesfully retrieved")
     def download_cmr_data(self):
-        return CMRDataDownloader(self.geom, start_date=self.start_date, end_date=self.end_date).download()
+        return CMRDataDownloader(self.geom, start_date=self.start_date, 
+                                 end_date=self.end_date, earth_data_info= self.earth_data_info).download()
     
     @log_execution(start_message = "Creating spark session...", end_message="Spark session created")
     def create_spark_session(self):

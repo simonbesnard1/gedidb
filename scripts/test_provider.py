@@ -8,8 +8,9 @@ Created on Tue Sep  3 12:53:09 2024
 from gedidb.providers.gedi_provider import GEDIProvider
 
 #%% Instantiate the GEDIProvider
-provider = GEDIProvider(config_file='/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml',
-                        table_name="filtered_l2ab_l4ac_shots")
+provider = GEDIProvider(config_file='./config_files/data_config.yml',
+                        table_name="filtered_l2ab_l4ac_shots",
+                        metadata_table="variable_metadata")
 
 #%% Define the columns to query and additional parameters
 vars_selected = ["rh", "pavd_z", "pai"]

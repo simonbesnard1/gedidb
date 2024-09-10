@@ -27,10 +27,11 @@ class GEDIDownloader:
         raise NotImplementedError("This method should be implemented by subclasses.")
 
 class CMRDataDownloader(GEDIDownloader):
-    def __init__(self, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None):
+    def __init__(self, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None, earth_data_info = None):
         self.geom = geom
         self.start_date = start_date
         self.end_date = end_date
+        self.earth_data_info = earth_data_info        
 
     @retry((ValueError, TypeError), tries=10, delay=5, backoff=3)
     def download(self) -> pd.DataFrame:
@@ -47,7 +48,7 @@ class CMRDataDownloader(GEDIDownloader):
         # Iterate over all GEDI products and fetch granules
         for product in GediProduct:
             try:
-                granule_query = GranuleQuery(product, self.geom, self.start_date, self.end_date)
+                granule_query = GranuleQuery(product, self.geom, self.start_date, self.end_date, self.earth_data_info)
                 granules = granule_query.query_granules()
     
                 if not granules.empty:
