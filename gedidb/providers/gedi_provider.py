@@ -72,15 +72,15 @@ class GEDIProvider:
     
         # Add metadata as attributes for each variable
         for var in variables:
-            if var in metadata['SDS_Name'].values:  # Assuming 'SDS_Name' is the variable name in the metadata
-                var_metadata = metadata[metadata['SDS_Name'] == var].iloc[0]
-                dataset[var].attrs['description'] = var_metadata.get('Description', 'No description available')
-                dataset[var].attrs['units'] = var_metadata.get('Units', 'No units specified')
-                dataset[var].attrs['source_table'] = var_metadata.get('source_table', 'Unknown source')
-                # Add any other metadata attributes if needed
+            if var in metadata['sds_name'].values:  # Assuming 'SDS_Name' is the variable name in the metadata
+                var_metadata = metadata[metadata['sds_name'] == var].iloc[0]
+                dataset[var].attrs['description'] = var_metadata.get('description')
+                dataset[var].attrs['units'] = var_metadata.get('units')
+                dataset[var].attrs['source_table'] = var_metadata.get('source_table')
+                dataset[var].attrs['created_at'] = var_metadata.get('created_at')
     
         return dataset
-s
+    
     def get_dataset(self, variables, geometry=None, start_time=None, end_time=None, 
                 limit=None, force=False, order_by=None, return_type="xarray"):
         """
