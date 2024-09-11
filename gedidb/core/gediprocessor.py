@@ -5,6 +5,9 @@ import geopandas as gpd
 from datetime import datetime
 from functools import wraps
 from sqlalchemy import Table, MetaData, select
+import numpy as np
+import pandas as pd
+import pathlib
 
 from gedidb.utils.constants import GediProduct
 from gedidb.database.db import DatabaseManager
@@ -40,7 +43,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         }
         self.sql_script = raw_sql_data.format(**table_names)
         self.metadata_info = self.data_info['earth_data_info']['METADATA_INFORMATION']
-
+        
         super().__init__(
             self.data_info['region_of_interest'], 
             self.data_info['start_date'], 
@@ -49,7 +52,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         )
         self.setup_paths_and_dates()
         self.extract_all_metadata()
-
+        
     def setup_paths_and_dates(self):
         """Set up paths and dates based on the configuration."""
         self.download_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
@@ -57,7 +60,7 @@ class GEDIGranuleProcessor(GEDIDatabase):
         self.metadata_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))
         self.db_path = self.data_info['database_url']
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
-        self.geom = check_and_format_shape(initial_geom, simplify=True)       
+        self.geom = check_and_format_shape(initial_geom, simplify=True)      
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
 
@@ -76,28 +79,83 @@ class GEDIGranuleProcessor(GEDIDatabase):
     def load_sql_file(file_path: str = "field_mapping.yml") -> str:
         with open(file_path, 'r') as file:
             return file.read()        
-                
+        
     @log_execution(start_message="Starting computation process...", end_message='Data processing completed!')
     def compute(self):
-
+        """
+        The main computation method to process GEDI granules.
+        It ensures only unprocessed granules are downloaded and processed.
+        """
         self._create_db()
 
+        # Step 1: Download the granule metadata
         cmr_data = self.download_cmr_data()
+        
+        # Extract granule IDs from cmr_data
+        granule_ids = np.unique(cmr_data["id"]).tolist()
+        
+        # Step 2: Check for already processed granules
+        processed_granules = self.get_processed_granules(granule_ids)
+        
+        # Filter out granules that have already been processed
+        unprocessed_cmr_data = cmr_data[~cmr_data["id"].isin(processed_granules)]
+        
+        if unprocessed_cmr_data.empty:
+           print("All requested granules are already processed. No further computation needed.")
+           return
+       
+        # Step 3: Process unprocessed granules
         spark = self.create_spark_session()
-    
-        name_url = cmr_data[
+        
+        name_url = unprocessed_cmr_data[
             ["id", "name", "url", "product"]
         ].to_records(index=False)
-    
+        
         urls = spark.sparkContext.parallelize(name_url)
         downloader = H5FileDownloader(self.download_path)
     
         mapped_urls = urls.map(lambda x: downloader.download(x[0], x[2], GediProduct(x[3]))).groupByKey()
         
         processed_granules = mapped_urls.map(self._process_granule).filter(lambda x: x is not None)  # Filter out None values
+        
         granule_entries = processed_granules.coalesce(8).map(self._write_db)
         granule_entries.count()
         spark.stop()
+    
+    def _download_granule(self, granule_info):
+        """Handle downloading of a single granule outside of Spark."""
+        _id, url, product = granule_info
+        file_path = pathlib.Path(self.download_path) / f"{_id}/{product}.h5"
+        
+        # Check if the file already exists before downloading
+        if file_path.exists():
+            print(f"{file_path} already exists.")
+            return _id, (product, str(file_path))
+
+        # Perform the download here
+        downloader = H5FileDownloader(self.download_path)
+        return downloader.download(_id, url, product)
+    
+    def get_processed_granules(self, granule_ids):
+        """
+        Check which granules have already been processed and are in the database.
+    
+        :param granule_ids: A list of granule IDs to check.
+        :return: A set of processed granule IDs.
+        """
+        # Query the database to find granules that already exist
+        db_manager = DatabaseManager(db_url=self.db_path)
+        engine = db_manager.get_connection()
+    
+        if engine:
+            with engine.begin() as conn:
+        
+                granules_table = Table(self.data_info['database']['tables']['granules'], MetaData(), autoload_with=conn)
+                query = select(granules_table.c.granule_name).where(granules_table.c.granule_name.in_(granule_ids))
+                result = conn.execute(query)
+        
+        # Return the set of processed granule IDs
+        return {row[0] for row in result}
 
     def _process_granule(self, row: tuple[str, tuple[GediProduct, str, str]]):
         granule_key, granules = row
@@ -161,7 +219,6 @@ class GEDIGranuleProcessor(GEDIDatabase):
                     rsuffix=f'_{product.value}'  # Right suffix
                 )
 
-
             # Identify columns to drop (those with suffixes from the right joins)
             columns_to_drop = [col for col in gdf.columns if any(col.endswith(suffix) for suffix in
                                                                  [f'_{GediProduct.L2B.value}',
@@ -182,13 +239,22 @@ class GEDIGranuleProcessor(GEDIDatabase):
 
     def _create_db(self):
         db_manager = DatabaseManager(db_url=self.db_path)
-        db_manager.create_tables(sql_script=self.sql_script) # Ensure the database schema is correct and tables are created
+        # Ensure the database schema is correct and tables are created
+        db_manager.create_tables(sql_script=self.sql_script)
 
     def _write_db(self, input):
         if input is None:
             return  # Early exit if input is None
     
         granule_key, outfile_path, included_files = input
+        
+        granule_entry = pd.DataFrame(
+           data={
+               "granule_name": [granule_key],
+               "created_date": [pd.Timestamp.utcnow()],
+           }
+       )
+        
         gedi_data = gpd.read_parquet(outfile_path)
         gedi_data = gedi_data.astype({"shot_number": "int64"})
     
@@ -199,6 +265,9 @@ class GEDIGranuleProcessor(GEDIDatabase):
     
         if engine:
             with engine.begin() as conn:
+                
+                self._write_granule_entry(conn, granule_entry)
+
                 self._write_gedi_data(conn, gedi_data)
 
                 self.write_all_metadata(conn)
@@ -207,9 +276,9 @@ class GEDIGranuleProcessor(GEDIDatabase):
                 del gedi_data
         else:
             print("Failed to create a database connection.")
+
     
     def _write_gedi_data(self, conn, gedi_data):
-        # Add version_id to the gedi_data dataframe
         
         gedi_data.to_postgis(
             name=self.data_info['database']['tables']['shots'],
@@ -218,7 +287,16 @@ class GEDIGranuleProcessor(GEDIDatabase):
             # TODO: remove this
             if_exists="append",
         )
-
+        
+    def _write_granule_entry(self, conn, granule_entry):
+    
+        granule_entry.to_sql(
+            name=self.data_info['database']['tables']['granules'],
+            con=conn,
+            index=False,
+            if_exists="append",
+        )
+        
     def extract_and_store_metadata(self, product_type: str):
         """
         Extract metadata for a specific GEDI product type and save it as a YAML file.
