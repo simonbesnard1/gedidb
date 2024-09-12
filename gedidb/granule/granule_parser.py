@@ -2,12 +2,12 @@ import geopandas as gpd
 import pandas as pd
 import re
 from gedidb.utils.constants import WGS84, GediProduct
-from gedidb.processor.granule.granule import Granule
-from gedidb.processor.granule.l1b_granule import L1BGranule
-from gedidb.processor.granule.l2a_granule import L2AGranule
-from gedidb.processor.granule.l2b_granule import L2BGranule
-from gedidb.processor.granule.l4a_granule import L4AGranule
-from gedidb.processor.granule.l4c_granule import L4CGranule
+from gedidb.granule.granule.granule import Granule
+from gedidb.granule.granule.l1b_granule import L1BGranule
+from gedidb.granule.granule.l2a_granule import L2AGranule
+from gedidb.granule.granule.l2b_granule import L2BGranule
+from gedidb.granule.granule.l4a_granule import L4AGranule
+from gedidb.granule.granule.l4c_granule import L4CGranule
 
 class GranuleParser:
     def __init__(self, file: str, data_info: dict = None,  geom: gpd.GeoSeries=None):

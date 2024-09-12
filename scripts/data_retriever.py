@@ -1,5 +1,5 @@
 from gedidb.providers.db_provider import DatabaseInfoRetriever
-from gedidb.database.db import DatabaseManager
+from gedidb.database.db_creation import DatabaseManager
 
 #%%
 

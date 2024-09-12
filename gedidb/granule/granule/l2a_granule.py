@@ -1,6 +1,6 @@
-from gedidb.processor.granule.granule import Granule
-from gedidb.processor.beam.l2a_beam import L2ABeam
-from gedidb.processor.beam.beam import Beam
+from gedidb.granule.granule.granule import Granule
+from gedidb.granule.beam.l2a_beam import L2ABeam
+from gedidb.granule.beam.beam import Beam
 
 
 class L2AGranule(Granule):

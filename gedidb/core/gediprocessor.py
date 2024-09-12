@@ -3,388 +3,179 @@ import logging
 import yaml
 import geopandas as gpd
 from datetime import datetime
-from functools import wraps
-from sqlalchemy import Table, MetaData, select
+from collections import defaultdict
+import dask
+from dask.delayed import delayed
+from dask.distributed import Client
 import numpy as np
-import pandas as pd
-import pathlib
 
 from gedidb.utils.constants import GediProduct
-from gedidb.database.db import DatabaseManager
-from gedidb.processor import granule_parser
-from gedidb.downloader.data_downloader import H5FileDownloader
+from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
-from gedidb.utils.gedi_metadata import GediMetaDataExtractor
 from gedidb.utils.geospatial_tools import check_and_format_shape
+from gedidb.core.gedimetadata import GediMetadataManager
+from gedidb.core.gedigranule import GEDIGranule
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def log_execution(start_message=None, end_message=None):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            logger.info(start_message or f"Executing {func.__name__}...")
-            result = func(*args, **kwargs)
-            logger.info(end_message or f"Finished {func.__name__}...")
-            return result
-        return wrapper
-    return decorator
+class GEDIProcessor(GEDIDatabase):
     
-class GEDIGranuleProcessor(GEDIDatabase):
+    def __init__(self, data_config_file: str, sql_config_file: str):
+        """
+        Initialize the GEDIProcessor with configuration files and prepare the necessary paths and metadata handler.
+        
+        :param data_config_file: YAML configuration file for data settings.
+        :param sql_config_file: SQL file containing table creation queries.
+        """
+        # Load configurations
+        self.data_info = self._load_yaml_file(data_config_file)
+        self.sql_script = self._load_sql_file(sql_config_file).format(**self._get_table_names())
+        self.metadata_info = self.data_info['earth_data_info']['METADATA_INFORMATION']
+        
+        # Set up paths, dates, and metadata handler
+        self._setup_paths_and_dates()
+        self.metadata_handler = GediMetadataManager(metadata_info = self.metadata_info, metadata_path = self.metadata_path, 
+                                                    data_table_name = self.data_info['database']['tables']['shots'])
+        self.granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
+
+        # Initialize the database connection via superclass
+        super().__init__(
+            db_path=self.db_path,
+            sql_script=self.sql_script,
+            tables=self.data_info['database']['tables'],
+            metadata_handler=self.metadata_handler
+        )
     
-    def __init__(self, data_config_file: str, sql_config_file:str):
-        self.data_info = self.load_yaml_file(data_config_file)
-        raw_sql_data = self.load_sql_file(sql_config_file)
-        table_names = {
+    def _get_table_names(self):
+        """Return formatted table names for SQL queries."""
+        return {
             "DEFAULT_GRANULE_TABLE": self.data_info["database"]["tables"]["granules"],
             "DEFAULT_SHOT_TABLE": self.data_info["database"]["tables"]["shots"],
             "DEFAULT_METADATA_TABLE": self.data_info["database"]["tables"]["metadata"],
             "DEFAULT_SCHEMA": self.data_info["database"]["schema"]
         }
-        self.sql_script = raw_sql_data.format(**table_names)
-        self.metadata_info = self.data_info['earth_data_info']['METADATA_INFORMATION']
+
+    def _setup_paths_and_dates(self):
+        """Set up paths and date information from the configuration."""
+        self.download_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
+        self.parquet_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
+        self.metadata_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))
+        self.db_path = self.data_info['database']['url']
         
-        super().__init__(
-            self.data_info['region_of_interest'], 
-            self.data_info['start_date'], 
-            self.data_info['end_date'],
-            self.data_info['earth_data_info']
-        )
-        self.setup_paths_and_dates()
-        self.extract_all_metadata()
-        
-    def setup_paths_and_dates(self):
-        """Set up paths and dates based on the configuration."""
-        self.download_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
-        self.parquet_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
-        self.metadata_path = self.ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))
-        self.db_path = self.data_info['database_url']
+        # Load and format region of interest geometry
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
-        self.geom = check_and_format_shape(initial_geom, simplify=True)      
+        self.geom = check_and_format_shape(initial_geom, simplify=True)
+        
+        # Parse dates
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
 
     @staticmethod
-    def ensure_directory(path):
-        """Ensure that a directory exists."""
+    def _ensure_directory(path):
+        """Ensure a directory exists and return its path."""
         os.makedirs(path, exist_ok=True)
         return path
-    
+
     @staticmethod
-    def load_yaml_file(file_path: str = "field_mapping.yml") -> dict:
+    def _load_yaml_file(file_path: str) -> dict:
+        """Load a YAML configuration file."""
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
         
     @staticmethod
-    def load_sql_file(file_path: str = "field_mapping.yml") -> str:
+    def _load_sql_file(file_path: str) -> str:
+        """Load an SQL file containing table creation scripts."""
         with open(file_path, 'r') as file:
-            return file.read()        
-        
-    @log_execution(start_message="Starting computation process...", end_message='Data processing completed!')
+            return file.read()
+
     def compute(self):
-        """
-        The main computation method to process GEDI granules.
-        It ensures only unprocessed granules are downloaded and processed.
-        """
+        """Main method to download and process GEDI granules, no arguments needed."""
+        
+        # Create the database schema
         self._create_db()
 
-        # Step 1: Download the granule metadata
-        cmr_data = self.download_cmr_data()
-        
-        # Extract granule IDs from cmr_data
-        granule_ids = np.unique(cmr_data["id"]).tolist()
-        
-        # Step 2: Check for already processed granules
-        processed_granules = self.get_processed_granules(granule_ids)
-        
-        # Filter out granules that have already been processed
-        unprocessed_cmr_data = cmr_data[~cmr_data["id"].isin(processed_granules)]
-        
+        # Download and filter CMR data
+        cmr_data = self._download_cmr_data()
+        unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
+
         if unprocessed_cmr_data.empty:
-           print("All requested granules are already processed. No further computation needed.")
-           return
-       
-        # Step 3: Process unprocessed granules
-        spark = self.create_spark_session()
+            logger.info("All requested granules are already processed. No further computation needed.")
+            return
         
-        name_url = unprocessed_cmr_data[
-            ["id", "name", "url", "product"]
-        ].to_records(index=False)
-        
-        urls = spark.sparkContext.parallelize(name_url)
-        downloader = H5FileDownloader(self.download_path)
-    
-        mapped_urls = urls.map(lambda x: downloader.download(x[0], x[2], GediProduct(x[3]))).groupByKey()
-        
-        processed_granules = mapped_urls.map(self._process_granule).filter(lambda x: x is not None)  # Filter out None values
-        
-        granule_entries = processed_granules.coalesce(8).map(self._write_db)
-        granule_entries.count()
-        spark.stop()
-    
-    def _download_granule(self, granule_info):
-        """Handle downloading of a single granule outside of Spark."""
-        _id, url, product = granule_info
-        file_path = pathlib.Path(self.download_path) / f"{_id}/{product}.h5"
-        
-        # Check if the file already exists before downloading
-        if file_path.exists():
-            print(f"{file_path} already exists.")
-            return _id, (product, str(file_path))
+        # Process the granules with Dask
+        self._process_granules(unprocessed_cmr_data)
 
-        # Perform the download here
-        downloader = H5FileDownloader(self.download_path)
-        return downloader.download(_id, url, product)
+    def _download_cmr_data(self):
+        """Download the CMR metadata for the specified date range and region."""
+        downloader = CMRDataDownloader(self.geom, self.start_date, self.end_date, self.data_info['earth_data_info'])
+        return downloader.download()
     
-    def get_processed_granules(self, granule_ids):
-        """
-        Check which granules have already been processed and are in the database.
-    
-        :param granule_ids: A list of granule IDs to check.
-        :return: A set of processed granule IDs.
-        """
-        # Query the database to find granules that already exist
-        db_manager = DatabaseManager(db_url=self.db_path)
-        engine = db_manager.get_connection()
-    
-        if engine:
-            with engine.begin() as conn:
-        
-                granules_table = Table(self.data_info['database']['tables']['granules'], MetaData(), autoload_with=conn)
-                query = select(granules_table.c.granule_name).where(granules_table.c.granule_name.in_(granule_ids))
-                result = conn.execute(query)
-        
-        # Return the set of processed granule IDs
-        return {row[0] for row in result}
+    def _filter_unprocessed_granules(self, cmr_data):
+        """Filter out granules that have already been processed."""
+        granule_ids = np.unique(cmr_data["id"]).tolist()
+        processed_granules = self.granule_processor.get_processed_granules(granule_ids)
+        return cmr_data[~cmr_data["id"].isin(processed_granules)]
 
-    def _process_granule(self, row: tuple[str, tuple[GediProduct, str, str]]):
-        granule_key, granules = row
-    
-        outfile_path = self.get_output_path(granule_key)
-    
-        if os.path.exists(outfile_path):
-            return self._prepare_return_value(granule_key, outfile_path, granules)
+    @delayed
+    def download_granule(self, granule_id, url, product, downloader):
+        """Download a granule using the H5FileDownloader."""
+        return downloader.download(granule_id, url, GediProduct(product))
+
+    @delayed
+    def process_granule(self, granule_id, download_futures):
+        """Process the granule after all the products have been downloaded."""
+        return self.granule_processor.process_granule(download_futures)
+
+    @delayed
+    def write_to_db(self, result):
+        """Write the processed granule to the database."""
+        return self._write_db(result)
+
+    def _process_granules(self, unprocessed_cmr_data, n_workers=5):
+        """Process unprocessed granules in parallel using Dask with controlled worker limits."""
         
-        gdf_dict = self._parse_granules(granules, granule_key)
-        if not gdf_dict:
-            logger.warning(f"Skipping granule {granule_key} due to missing or invalid data.")
-            return None
-    
-        gdf = self._join_gdfs(gdf_dict)
-        if gdf is None:
-            logger.warning(f"Skipping granule {granule_key} due to issues during the join operation.")
-            return None
-    
-        self.save_gdf_to_parquet(gdf, granule_key, outfile_path)
-        return self._prepare_return_value(granule_key, outfile_path, granules)
-    
-    def get_output_path(self, granule_key):
-        return os.path.join(self.parquet_path, f"filtered_granule_{granule_key}.parquet")
-    
-    def _prepare_return_value(self, granule_key, outfile_path, granules):
-        return granule_key, outfile_path, sorted([fname[0] for fname in granules])
-    
-    def save_gdf_to_parquet(self, gdf, granule_key, outfile_path):
-        gdf["granule"] = granule_key
-        gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
-    
-    def _parse_granules(self, granules, granule_key):
-        """Parse granules and handle None or invalid data."""
-        gdf_dict = {}
-        for product, file in granules:
-            gdf = granule_parser.parse_h5_file(
-                file, product, 
-                data_info=self.data_info
-            )
+        # Start a Dask client with the specified number of workers
+        with Client(n_workers=n_workers) as client:
             
-            if gdf is not None:
-                gdf_dict[product] = gdf
-            else:
-                logging.info(f"Skipping product {product} for granule {granule_key} because parsing returned None.")
-        
-        # Validate GeoDataFrames
-        valid_gdf_dict = {k: v for k, v in gdf_dict.items() if not v.empty and "shot_number" in v.columns}
-        return valid_gdf_dict
-    
-    def _join_gdfs(self, gdf_dict):
-        """Perform the join operations on the GeoDataFrames."""
-        try:
-            gdf = gdf_dict[GediProduct.L2A.value]
-
-            for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
-                gdf = gdf.join(
-                    gdf_dict[product.value].set_index("shot_number"),
-                    on="shot_number",
-                    how="inner",
-                    rsuffix=f'_{product.value}'  # Right suffix
-                )
-
-            # Identify columns to drop (those with suffixes from the right joins)
-            columns_to_drop = [col for col in gdf.columns if any(col.endswith(suffix) for suffix in
-                                                                 [f'_{GediProduct.L2B.value}',
-                                                                  f'_{GediProduct.L4A.value}',
-                                                                  f'_{GediProduct.L4C.value}'])]
-
-            # Drop the identified duplicate columns
-            gdf = gdf.drop(columns=columns_to_drop)
-
-            # Set the geometry column and rename it
-            gdf = gdf.set_geometry("geometry")
-
-            return gdf
-        
-        except KeyError as e:
-            logging.error(f"Join operation failed due to missing product data: {e}")
-            return None
-
-    def _create_db(self):
-        db_manager = DatabaseManager(db_url=self.db_path)
-        # Ensure the database schema is correct and tables are created
-        db_manager.create_tables(sql_script=self.sql_script)
-
-    def _write_db(self, input):
-        if input is None:
-            return  # Early exit if input is None
-    
-        granule_key, outfile_path, included_files = input
-        
-        granule_entry = pd.DataFrame(
-           data={
-               "granule_name": [granule_key],
-               "created_date": [pd.Timestamp.utcnow()],
-           }
-       )
-        
-        gedi_data = gpd.read_parquet(outfile_path)
-        gedi_data = gedi_data.astype({"shot_number": "int64"})
-    
-        db_manager = DatabaseManager(db_url=self.db_path)
-
-        # Use the DatabaseManager to manage the connection and transaction
-        engine = db_manager.get_connection()
-    
-        if engine:
-            with engine.begin() as conn:
+            # Extract necessary data from the unprocessed CMR data
+            name_url = unprocessed_cmr_data[["id", "name", "url", "product"]].to_records(index=False)
+            
+            # Group the products by granule_id
+            granules = defaultdict(list)
+            for granule in name_url:
+                granule_id, name, url, product = granule
+                granules[granule_id].append((url, product))
+            
+            # Create a downloader instance
+            downloader = H5FileDownloader(self.download_path)
+            
+            # List to store Dask delayed tasks
+            futures = []
+            
+            # Loop through grouped granules (grouped by granule_id)
+            for granule_id, product_info in granules.items():
                 
-                self._write_granule_entry(conn, granule_entry)
-
-                self._write_gedi_data(conn, gedi_data)
-
-                self.write_all_metadata(conn)
-
-                conn.commit()
-                del gedi_data
-        else:
-            print("Failed to create a database connection.")
-
+                # Create download tasks for all products of this granule
+                download_futures = [
+                    self.download_granule(granule_id, url, product, downloader)
+                    for url, product in product_info
+                ]
+                
+                # Group the download futures into a single list for this granule
+                download_futures_combined = delayed(lambda *args: args)(*download_futures)
+                
+                # Process all products for this granule together once they are downloaded
+                process_future = self.process_granule(granule_id, download_futures_combined)
+                
+                # Append the final task (download + processing) to the futures list
+                futures.append(process_future)
+            
+            # Trigger execution with Dask compute and run all tasks with n_workers workers
+            results = dask.compute(*futures)
     
-    def _write_gedi_data(self, conn, gedi_data):
-        
-        gedi_data.to_postgis(
-            name=self.data_info['database']['tables']['shots'],
-            con=conn,
-            index=False,
-            # TODO: remove this
-            if_exists="append",
-        )
-        
-    def _write_granule_entry(self, conn, granule_entry):
-    
-        granule_entry.to_sql(
-            name=self.data_info['database']['tables']['granules'],
-            con=conn,
-            index=False,
-            if_exists="append",
-        )
-        
-    def extract_and_store_metadata(self, product_type: str):
-        """
-        Extract metadata for a specific GEDI product type and save it as a YAML file.
-
-        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
-        """
-        url = self.metadata_info.get(product_type)
-        if not url:
-            logger.warning(f"No URL found for product type '{product_type}'. Skipping metadata extraction.")
-            return
-
-        output_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
-
-        extractor = GediMetaDataExtractor(url, output_file, data_type=product_type)
-        extractor.run()
-        logger.info(f"Metadata for {product_type} stored at {output_file}")
-
-    def extract_all_metadata(self):
-        """Loop through all product types and extract metadata for each."""
-        for product_type in self.metadata_info:
-            self.extract_and_store_metadata(product_type)
-
-    def _load_metadata_file(self, product_type: str):
-        """
-        Load the metadata file for a specific product type.
-        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
-        :return: Parsed YAML data as a dictionary.
-        """
-        metadata_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
-        if not os.path.exists(metadata_file):
-            logger.warning(f"Metadata file for {product_type} not found. Skipping.")
-            return None
-
-        with open(metadata_file, 'r') as file:
-            return yaml.safe_load(file)
-
-    def _get_columns_in_data(self, conn):
-        """Get all columns (variables) from the shots table."""
-        data_table = Table(self.data_info['database']['tables']['shots'], MetaData(), autoload_with=conn)
-        return data_table.columns.keys()
-
-    def _variable_exists_in_metadata(self, conn, metadata_table, variable_name):
-        """Check if a variable already exists in the metadata table."""
-        query = select(metadata_table.c.sds_name).where(metadata_table.c.sds_name == variable_name)
-        return conn.execute(query).fetchone() is not None
-
-    def _insert_metadata(self, conn, metadata_table, variable_name, var_meta):
-        """Insert metadata into the metadata table."""
-        insert_stmt = metadata_table.insert().values(
-            sds_name=variable_name,
-            description=var_meta.get('Description', ''),
-            units=var_meta.get('Units', ''),
-            source_table=self.data_info['database']['tables']['shots']
-        )
-        conn.execute(insert_stmt)
-        logger.info(f"Inserted metadata for variable '{variable_name}'.")
-
-    def _write_metadata(self, conn, product_type):
-        """Write metadata information for the given product type into the metadata table."""
-        metadata = self._load_metadata_file(product_type)
-        if not metadata:
-            return
-
-        metadata_table = Table(self.data_info['database']['tables']['metadata'], MetaData(), autoload_with=conn)
-
-        # Get all columns from the data (shots) table
-        data_columns = self._get_columns_in_data(conn)
-
-        # Iterate through all columns (variables) in the data table
-        for variable_name in data_columns:
-            # Attempt to find metadata for this column (variable)
-            var_meta = next((item for item in metadata.get('Layers_Variables', []) if item.get('SDS_Name') == variable_name), None)
-
-            if var_meta is None:
-                logger.info(f"No metadata found for variable '{variable_name}'. Skipping.")
-                continue
-
-            # Check if the variable already exists in the metadata table
-            if self._variable_exists_in_metadata(conn, metadata_table, variable_name):
-                logger.info(f"Variable '{variable_name}' already exists in the metadata table. Skipping.")
-                continue
-
-            # Insert metadata
-            self._insert_metadata(conn, metadata_table, variable_name, var_meta)
-
-    def write_all_metadata(self, conn):
-        """Write metadata for all products into the database, but only for variables that exist in the data table."""
-        for product_type in ['L2A', 'L2B', 'L4A', 'L4C']:
-            self._write_metadata(conn, product_type)
-
-
+            # Write results to the database in parallel (post-processing)
+            write_futures = [self.write_to_db(result) for result in results if result is not None]
+            
+            dask.compute(*write_futures)
