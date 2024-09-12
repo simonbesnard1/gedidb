@@ -3,8 +3,8 @@ from typing import Iterable, Union
 import pathlib
 import pandas as pd
 
-from gedidb.processor.beam.beam import Beam
-from gedidb.processor.granule.granule_name import GediNameMetadata, parse_granule_filename
+from gedidb.granule.beam.beam import Beam
+from gedidb.granule.granule.granule_name import GediNameMetadata, parse_granule_filename
 
 class Granule(h5py.File):
     """Represents a GEDI Granule HDF5 file, providing access to metadata and beams."""

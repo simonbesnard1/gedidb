@@ -9,7 +9,7 @@ import warnings
 
 
 from gedidb.utils.constants import WGS84
-from gedidb.database.db import DatabaseManager
+from gedidb.database.db_creation import DatabaseManager
 
 
 class QueryPredicate:
@@ -131,7 +131,7 @@ class SQLQueryBuilder:
         return f"SELECT * FROM {self.metadata_table} WHERE SDS_Name IN ({variable_list})"
 
 
-class GediDatabase:
+class GediDataBuilder:
     """Database connector for the GEDI DB."""
 
     def __init__(self, data_config_file):

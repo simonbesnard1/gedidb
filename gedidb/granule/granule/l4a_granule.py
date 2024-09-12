@@ -1,9 +1,9 @@
-from gedidb.processor.beam.beam import Beam
-from gedidb.processor.beam.l1b_beam import L1BBeam
-from gedidb.processor.granule.granule import Granule
+from gedidb.granule.granule.granule import Granule
+from gedidb.granule.beam.l4a_beam import L4ABeam
+from gedidb.granule.beam.beam import Beam
 
 
-class L1BGranule(Granule):
+class L4AGranule(Granule):
 
     def __init__(self, file_path, field_mapping):
         super().__init__(file_path)
@@ -14,4 +14,4 @@ class L1BGranule(Granule):
 
         if beam not in self.beam_names:
             raise ValueError(f"Beam name must be one of {self.beam_names}")
-        return L1BBeam(self, beam, self.field_mappings)
+        return L4ABeam(self, beam, self.field_mapping)
