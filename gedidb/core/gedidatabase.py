@@ -140,4 +140,4 @@ class GEDIDatabase:
                 logger.info(f"Variable '{variable_name}' already exists in the metadata table. Skipping.")
                 continue
 
-            self.metadata_handler.insert_metadata(conn, metadata_table, variable_name, var_meta)
+            self.metadata_handler.insert_metadata(conn, metadata_table, variable_name, var_meta, self.tables['shots'])

@@ -50,13 +50,18 @@ class GEDIGranule:
 
         :param row: Tuple containing granule key and granule information.
         :return: Tuple containing the granule key, output path, and list of included files.
-        """
-        granule_key, granules = row
+        """        
+        # Extract the granule key from the first element
+        granule_key = row[0][0]  # The first tuple's first element is the granule_key
+    
+        # Extract the granules (all products) from the row
+        granules = [item[1] for item in row]  # The second element of each tuple is the product data
+
         outfile_path = self.get_output_path(granule_key)
 
         if os.path.exists(outfile_path):
             return self._prepare_return_value(granule_key, outfile_path, granules)
-
+        
         gdf_dict = self.parse_granules(granules, granule_key)
 
         if not gdf_dict:
