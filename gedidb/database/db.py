@@ -56,7 +56,6 @@ class DatabaseManager:
                     # Base.metadata.create_all(conn)
                     conn.execute(text(sql_script))
 
-                print("Tables created successfully.")
             except SQLAlchemyError as e:
                 print(f"Error creating tables: {e}")
         else:

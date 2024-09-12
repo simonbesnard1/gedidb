@@ -2,8 +2,8 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
-from gedidb.processor.granule.granule import Granule
-from gedidb.processor.beam.beam import Beam
+from gedidb.granule.granule.granule import Granule
+from gedidb.granule.beam.beam import Beam
 from gedidb.utils.constants import WGS84
 
 
