@@ -6,8 +6,12 @@ __license__ = 'EUPL-1.2'
 __copyright__ = '2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences'
 
 from gedidb import (
+    core,
     database,
     downloader,
-    processor,
+    granule,
+    metadata,
+    providers,
+    tests,
     utils
 )

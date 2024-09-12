@@ -2,7 +2,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 
-from gedidb.providers.db_query import SQLQueryBuilder, GediDatabase
+from gedidb.providers.db_query import SQLQueryBuilder, GediDataBuilder
 
 
 DEFAULT_DIMS = ["shot_number", "beam_name", 'absolute_time', 'geometry']
@@ -11,7 +11,7 @@ DEFAULT_DIMS = ["shot_number", "beam_name", 'absolute_time', 'geometry']
 class GEDIProvider:
     def __init__(self, config_file: str, table_name: str, metadata_table:str):
         # Load the database configuration
-        self.db = GediDatabase(data_config_file=config_file)
+        self.db = GediDataBuilder(data_config_file=config_file)
         self.table_name = table_name
         self.metadata_table = metadata_table
 

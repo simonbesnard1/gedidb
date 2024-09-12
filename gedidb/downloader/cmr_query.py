@@ -5,10 +5,10 @@ from urllib3.util.retry import Retry
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
-from gedidb.processor.granule import granule_name
-from gedidb.utils.constants import GediProduct
 from functools import wraps
 
+from gedidb.granule.granule import granule_name
+from gedidb.utils.constants import GediProduct
 
 # Decorator for handling exceptions
 def handle_exceptions(func):
