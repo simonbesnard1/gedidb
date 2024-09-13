@@ -1,6 +1,6 @@
 <p align="center">
 <a href="https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git">
-    <img src="images/logo.png" alt="Master" height="120px" hspace="10px" vspace="0px" align="right">
+    <img src="images/logo2.png" alt="Master" height="150px" hspace="10px" vspace="0px" align="right">
   </a>
 </p>
 
