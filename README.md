@@ -5,7 +5,7 @@
 </p>
 
 ***
-# GEDI toolbox: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data #
+# gediDB: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data #
 
 ### *by [Amelia Holcomb](https://ameliaholcomb.github.io/), Felix Dombrowski and [Simon Besnard](https://simonbesnard1.github.io/)*
 
