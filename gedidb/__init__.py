@@ -1,17 +1,25 @@
-__title__ = 'gedidb'
-__version__ = '1.0'
-__author__ = 'Amelia Holcomb, Felix Dombrowski and Simon Besnard'
-__author_email__ = 'ah2174@cam.ac.uk, felix.dombrowski@uni-potsdam.de and besnard@gfz-potsdam.de'
-__license__ = 'EUPL-1.2'
-__copyright__ = '2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences'
+from importlib.metadata import version as _version
 
-from gedidb import (
-    core,
-    database,
-    downloader,
-    granule,
-    metadata,
-    providers,
-    tests,
-    utils
-)
+# Import core functionality and classes from internal modules
+from gedidb.core.gedidatabase import GEDIDatabase
+from gedidb.core.gediprocessor import GEDIProcessor
+from gedidb.core.gedigranule import GEDIGranule
+from gedidb.core.gedimetadata import GEDIMetadataManager
+from gedidb.core.gediprocessor import GEDIProcessor
+from gedidb.utils.print_versions import show_versions
+
+try:
+    __version__ = _version("gedidb")
+except Exception:
+    __version__ = "9999"
+
+# Define the public API, so users only see these when importing the package
+__all__ = [
+    "GEDIDatabase",
+    "GEDIProcessor",
+    "GEDIGranule",
+    "GEDIMetadataManager",
+    "GEDIProcessor",
+    "show_versions",
+    "__version__",
+]

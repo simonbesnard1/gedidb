@@ -3,11 +3,11 @@ import logging
 from sqlalchemy import Table, MetaData, select
 import yaml
 
-from gedidb.metadata.metadata_operations import GediMetaDataDownloader
+from gedidb.metadata.metadata_operations import GEDIMetaDataDownloader
 
 logger = logging.getLogger(__name__)
 
-class GediMetadataManager:
+class GEDIMetadataManager:
     def __init__(self, metadata_info: dict, metadata_path: str, data_table_name: str = 'shots_table'):
         """
         Initialize the GediMetadataManager with metadata information, the path to store metadata files, 
@@ -37,7 +37,7 @@ class GediMetadataManager:
             return
 
         output_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
-        extractor = GediMetaDataDownloader(url, output_file, data_type=product_type)
+        extractor = GEDIMetaDataDownloader(url, output_file, data_type=product_type)
         extractor.build_metadata()
 
         logger.info(f"Metadata for {product_type} stored at {output_file}")

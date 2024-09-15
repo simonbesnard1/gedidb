@@ -13,7 +13,7 @@ from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.geospatial_tools import check_and_format_shape
-from gedidb.core.gedimetadata import GediMetadataManager
+from gedidb.core.gedimetadata import GEDIMetadataManager
 from gedidb.core.gedigranule import GEDIGranule
 
 # Configure logging
@@ -36,7 +36,7 @@ class GEDIProcessor(GEDIDatabase):
         
         # Set up paths, dates, and metadata handler
         self._setup_paths_and_dates()
-        self.metadata_handler = GediMetadataManager(metadata_info = self.metadata_info, metadata_path = self.metadata_path, 
+        self.metadata_handler = GEDIMetadataManager(metadata_info = self.metadata_info, metadata_path = self.metadata_path, 
                                                     data_table_name = self.data_info['database']['tables']['shots'])
         self.granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
 
