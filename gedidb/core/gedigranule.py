@@ -1,12 +1,9 @@
 import os
 import logging
-import pathlib
 from sqlalchemy import Table, MetaData, select
-from pyspark.sql import SparkSession
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
-from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.database.db import DatabaseManager
 
 logger = logging.getLogger(__name__)
@@ -158,13 +155,3 @@ class GEDIGranule:
         except KeyError as e:
             logger.error(f"Join operation failed due to missing product data: {e}")
             return None
-
-    def _create_spark_session(self) -> SparkSession:
-        """Create and return a Spark session."""
-        return (SparkSession.builder
-                .appName("GEDI Processing")
-                .config("spark.executor.instances", "4")
-                .config("spark.executor.cores", "4")
-                .config("spark.executor.memory", "4g")
-                .config("spark.driver.memory", "2g")
-                .getOrCreate())

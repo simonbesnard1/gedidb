@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class GediMetaDataDownloader:
+class GEDIMetaDataDownloader:
     def __init__(self, url: str, output_file: str, data_type:str):
         """
         Initialize the GediMetaDataExtractor with a URL and an output file path.
