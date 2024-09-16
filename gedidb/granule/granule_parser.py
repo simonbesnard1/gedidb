@@ -14,7 +14,8 @@ class GranuleParser:
         self.file = file
         self.data_info = data_info
         
-    def parse_granule(self, granule: Granule) -> gpd.GeoDataFrame:
+    @staticmethod
+    def parse_granule(granule: Granule) -> gpd.GeoDataFrame:
         granule_data = []
         for beam in granule.iter_beams():
             main_data = beam.main_data

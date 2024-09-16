@@ -80,16 +80,16 @@ class SQLQueryBuilder:
 
         # Filter conditions
         for column, value in self.filters.items():
-            comparitor = "="
+            comparator = "="
             if isinstance(value, list):
-                comparitor = "IN"
+                comparator = "IN"
                 value = [self._escape_value(v) for v in value]
             elif isinstance(value, QueryPredicate):
-                comparitor = value.predicate
+                comparator = value.predicate
                 value = self._escape_value(value.value)
             else:
                 value = self._escape_value(value)
-            conditions.append(f"({column} {comparitor} {value})")
+            conditions.append(f"({column} {comparator} {value})")
 
         return conditions
 

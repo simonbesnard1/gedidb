@@ -1,6 +1,7 @@
 import os
 import logging
 from sqlalchemy import Table, MetaData, select
+from typing import Tuple
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
@@ -22,45 +23,40 @@ class GEDIGranule:
         self.download_path = download_path
         self.parquet_path = parquet_path
         self.data_info = data_info
-        self.db_manager = DatabaseManager(db_url=self.db_path)
         
     def get_processed_granules(self, granule_ids):
         """
         Check which granules have already been processed and stored in the database.
-
+        
         :param granule_ids: A list of granule IDs to check.
         :return: A set of processed granule IDs.
         """
-        engine = self.db_manager.get_connection()
-
+        # Create a new connection in this method instead of using a class-level connection
+        db_manager = DatabaseManager(db_url=self.db_path)
+        engine = db_manager.get_connection()
+    
         if engine:
-            with engine.begin() as conn:
+            # Use the engine to connect and fetch the data within a context manager
+            with engine.connect() as conn:
                 granules_table = Table(self.data_info['database']['tables']['granules'], MetaData(), autoload_with=conn)
                 query = select(granules_table.c.granule_name).where(granules_table.c.granule_name.in_(granule_ids))
                 result = conn.execute(query)
+    
+                return {row[0] for row in result}
 
-        return {row[0] for row in result}
-
-    def process_granule(self, row: tuple[str, tuple[GediProduct, str, str]]):
+        
+    def process_granule(self, row):
         """
         Process a granule by parsing, joining, and saving it.
-
-        :param row: Tuple containing granule key and granule information.
-        :return: Tuple containing the granule key, output path, and list of included files.
-        """        
-        # Extract the granule key from the first element
-        granule_key = row[0][0]  # The first tuple's first element is the granule_key
-    
-        # Extract the granules (all products) from the row
+        """
+        granule_key = row[0][0]  # Extract the granule key from the first element
         granules = [item[1] for item in row]  # The second element of each tuple is the product data
-
         outfile_path = self.get_output_path(granule_key)
 
         if os.path.exists(outfile_path):
             return self._prepare_return_value(granule_key, outfile_path, granules)
-        
-        gdf_dict = self.parse_granules(granules, granule_key)
 
+        gdf_dict = self.parse_granules(granules, granule_key)
         if not gdf_dict:
             logger.warning(f"Skipping granule {granule_key} due to missing or invalid data.")
             return None
@@ -82,7 +78,8 @@ class GEDIGranule:
         """
         return os.path.join(self.parquet_path, f"filtered_granule_{granule_key}.parquet")
 
-    def _prepare_return_value(self, granule_key, outfile_path, granules):
+    @staticmethod
+    def _prepare_return_value(granule_key, outfile_path, granules):
         """
         Prepare the return value after processing a granule.
 
@@ -93,7 +90,8 @@ class GEDIGranule:
         """
         return granule_key, outfile_path, sorted([fname[0] for fname in granules])
 
-    def save_gdf_to_parquet(self, gdf, granule_key, outfile_path):
+    @staticmethod
+    def save_gdf_to_parquet(gdf, granule_key, outfile_path):
         """
         Save the processed GeoDataFrame to a parquet file.
 
@@ -124,7 +122,8 @@ class GEDIGranule:
         valid_gdf_dict = {k: v for k, v in gdf_dict.items() if not v.empty and "shot_number" in v.columns}
         return valid_gdf_dict
 
-    def _join_gdfs(self, gdf_dict):
+    @staticmethod
+    def _join_gdfs(gdf_dict):
         """
         Join multiple GeoDataFrames based on the shot number.
 

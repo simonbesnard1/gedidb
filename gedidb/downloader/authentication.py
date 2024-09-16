@@ -52,7 +52,7 @@ class EarthDataAuthenticator:
             # Set file permissions before the file is closed
             fileno = f.fileno()
         
-        # Set file permissions outside of the 'with' block to avoid closing the file first
+        # Set file permissions outside the 'with' block to avoid closing the file first
         os.fchmod(fileno, 0o600)
         print("Credentials added to .netrc file.")
 
