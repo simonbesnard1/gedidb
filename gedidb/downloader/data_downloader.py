@@ -5,6 +5,9 @@ from datetime import datetime
 import pandas as pd
 import geopandas as gpd
 from requests.exceptions import RequestException
+from typing import Tuple, Any
+
+
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
 from functools import wraps
@@ -79,7 +82,8 @@ class CMRDataDownloader(GEDIDownloader):
     
         return cmr_df
     
-    def _check_all_products_present(self, products_checked: list) -> bool:
+    @staticmethod
+    def _check_all_products_present(products_checked: list) -> bool:
         """
         Ensure that granules for all products are present in the download.
         
@@ -94,7 +98,8 @@ class CMRDataDownloader(GEDIDownloader):
     
         return True
     
-    def _check_id_consistency(self, df: pd.DataFrame) -> bool:
+    @staticmethod
+    def _check_id_consistency(df: pd.DataFrame) -> bool:
         """
         Check if IDs are consistent across all products in the DataFrame.
         
@@ -127,11 +132,10 @@ class H5FileDownloader(GEDIDownloader):
         self.download_path = download_path
 
     @retry((ValueError, TypeError), tries=10, delay=5, backoff=3)
-    def download(self, _id: str, url: str, product: GediProduct) -> tuple[str, tuple[GediProduct, str]]:
+    def download(self, _id: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, None]]:
         file_path = pathlib.Path(self.download_path) / f"{_id}/{product.name}.h5"
         
         if file_path.exists():
-            print(f"{file_path} already exists.")
             return _id, (product.value, str(file_path))
 
         try:

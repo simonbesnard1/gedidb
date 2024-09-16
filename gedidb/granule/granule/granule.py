@@ -1,5 +1,5 @@
 import h5py
-from typing import Iterable, Union
+from typing import Iterable, Union, List
 import pathlib
 import pandas as pd
 
@@ -80,7 +80,7 @@ class Granule(h5py.File):
         for beam_index in range(self.n_beams):
             yield self._beam_from_index(beam_index)
 
-    def list_beams(self) -> list[Beam]:
+    def list_beams(self) -> List[Beam]:
         """Return a list of all beams in the granule."""
         return list(self.iter_beams())
 

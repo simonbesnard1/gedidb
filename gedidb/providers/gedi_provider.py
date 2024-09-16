@@ -34,7 +34,8 @@ class GEDIProvider:
     
         return result['data'], result['metadata']
 
-    def to_xarray(self, df: pd.DataFrame, metadata: pd.DataFrame) -> xr.Dataset:
+    @staticmethod
+    def to_xarray(df: pd.DataFrame, metadata: pd.DataFrame) -> xr.Dataset:
         # Identify dimensions and variables
         dimensions = DEFAULT_DIMS
         variables = [col for col in df.columns if col not in dimensions]

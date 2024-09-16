@@ -99,5 +99,4 @@ class GEDIMetadataManager:
             source_table=data_table_name
         )
         conn.execute(insert_stmt)
-        logger.info(f"Inserted metadata for variable '{variable_name}'.")
 
