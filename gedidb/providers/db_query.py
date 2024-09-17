@@ -9,7 +9,7 @@ import warnings
 import logging
 
 from gedidb.utils.constants import WGS84
-from gedidb.database.db_creation import DatabaseManager
+from gedidb.database.db import DatabaseManager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ class GediDataBuilder:
         :param data_config_file: Path to the YAML configuration file.
         """
         self.data_info = self.load_yaml_file(data_config_file)
-        self.engine = DatabaseManager(self.data_info['database_url'], echo=False).create_engine()
+        self.engine = DatabaseManager(self.data_info['database']['url'], echo=False).create_engine()
         self.inspector = inspect(self.engine)
         self.allowed_cols = {
             table_name: {col["name"] for col in self.inspector.get_columns(table_name)}
@@ -156,7 +156,6 @@ class GediDataBuilder:
         try:
             with open(file_path, 'r') as file:
                 data = yaml.safe_load(file)
-                logger.info(f"Loaded configuration from {file_path}")
                 return data
         except FileNotFoundError:
             logger.error(f"Configuration file not found: {file_path}")
@@ -178,7 +177,6 @@ class GediDataBuilder:
         
         # Build and execute the SQL query
         sql_query = query_builder.build()
-        logger.info(f"Executing query: {sql_query}")
 
         if use_geopandas:
             data_df = gpd.read_postgis(sql_query, con=self.engine, geom_col="geometry")
@@ -190,5 +188,4 @@ class GediDataBuilder:
         metadata_query = query_builder.build_metadata_query(variable_names)
         metadata_df = pd.read_sql(metadata_query, con=self.engine)
 
-        logger.info(f"Query successful: Retrieved {len(data_df)} rows of data.")
         return {"data": data_df, "metadata": metadata_df}

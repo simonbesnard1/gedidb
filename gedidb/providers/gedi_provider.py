@@ -165,10 +165,8 @@ class GEDIProvider:
         )
     
         if return_type == "pandas":
-            logger.info("Returning dataset as Pandas DataFrame.")
             return df
         elif return_type == "xarray":
-            logger.info("Returning dataset as Xarray Dataset.")
             return self.to_xarray(df, metadata)
         else:
             logger.error(f"Invalid return_type '{return_type}'. Choose either 'pandas' or 'xarray'.")
