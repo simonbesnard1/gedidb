@@ -163,7 +163,6 @@ class H5FileDownloader(GEDIDownloader):
                 with open(file_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
-                logger.info(f"Successfully downloaded: {file_path}")
                 return _id, (product.value, str(file_path))
 
         except RequestException as e:

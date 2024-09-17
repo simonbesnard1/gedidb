@@ -102,12 +102,19 @@ class GEDIMetaDataDownloader:
         """
         try:
             tables = self.soup.find_all("table")
-            matched_tables = [
-                table for table in tables
-                if header_text in table.find_previous("h2").text
-            ]
+            matched_tables = []
+            
+            for table in tables:
+                # Find the previous h2 element
+                previous_h2 = table.find_previous("h2")
+                
+                # Check if the h2 element exists and has text
+                if previous_h2 and previous_h2.text and header_text in previous_h2.text:
+                    matched_tables.append(table)
+            
             if not matched_tables:
                 raise ValueError(f"Could not locate any tables with header '{header_text}'.")
+            
             return matched_tables
         except Exception as e:
             logger.error(f"Error locating L4 tables with header '{header_text}': {e}")

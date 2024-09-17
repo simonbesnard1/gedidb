@@ -2,6 +2,7 @@ import os
 import logging
 from sqlalchemy import Table, MetaData, select
 import yaml
+
 from gedidb.metadata.metadata_operations import GEDIMetaDataDownloader
 
 logger = logging.getLogger(__name__)
@@ -59,8 +60,6 @@ class GEDIMetadataManager:
         extractor = GEDIMetaDataDownloader(url, output_file, data_type=product_type)
         extractor.build_metadata()
         
-        logger.info(f"Metadata for {product_type} stored at {output_file}")
-
     def extract_all_metadata(self):
         """
         Extract metadata for all product types listed in the metadata_info dictionary.

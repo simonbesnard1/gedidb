@@ -80,6 +80,7 @@ class GEDIProcessor:
         # Initialize GEDI granule processor, metadata handler, and database writer
         self.granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
         self.metadata_handler = self._initialize_metadata_handler()
+        self.metadata_handler.extract_all_metadata()
         self.database_writer = self._initialize_database_writer()
 
     def _initialize_dask_client(self, n_workers: int) -> Client:
@@ -179,6 +180,7 @@ class GEDIProcessor:
         """
         name_url = unprocessed_cmr_data[["id", "name", "url", "product"]].to_records(index=False)
         granules = defaultdict(list)
+        
         for granule in name_url:
             granule_id, name, url, product = granule
             granules[granule_id].append((url, product))
@@ -188,11 +190,19 @@ class GEDIProcessor:
     
         for granule_id, product_info in granules.items():
             # Create delayed tasks for downloading granules
-            download_futures = [delayed(downloader.download)(granule_id, url, GediProduct(product)) for url, product in product_info]
+            download_futures = []
+            for url, product in product_info:
+                download_futures.append(delayed(downloader.download)(granule_id, url, GediProduct(product)))
+            
             download_futures_combined = delayed(list)(download_futures)
     
-            # Process the granule and write it to the database in a single workflow
+            # Log processing start
+            logger.info(f"Processing granule: {granule_id}")
+            
+            # Process the granule
             process_future = delayed(self.granule_processor.process_granule)(download_futures_combined)
+            
+            # Write to the database
             write_future = delayed(self.database_writer._write_db)(process_future)
             
             # Append the combined process and write future to the list
@@ -201,3 +211,4 @@ class GEDIProcessor:
         # Compute the entire workflow with a single Dask computation and progress bar
         with ProgressBar():
             dask.compute(*futures)
+        
