@@ -15,6 +15,7 @@ from gedidb.core.gediprocessor import GEDIProcessor
 from gedidb.core.gedigranule import GEDIGranule
 from gedidb.core.gedimetadata import GEDIMetadataManager
 from gedidb.core.gediprocessor import GEDIProcessor
+from gedidb.providers.gedi_provider import GEDIProvider
 from gedidb.utils.print_versions import show_versions
 
 try:
@@ -26,6 +27,7 @@ except Exception:
 __all__ = [
     "GEDIDatabase",
     "GEDIProcessor",
+    "GEDIProvider",
     "GEDIGranule",
     "GEDIMetadataManager",
     "GEDIProcessor",
