@@ -1,40 +1,70 @@
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+from typing import Dict, Optional
 
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
 from gedidb.utils.constants import WGS84
 
+# Default quality filters for L4C beam (currently not specified)
 DEFAULT_QUALITY_FILTERS = None
 
-class L4CBeam(Beam):
 
-    def __init__(self,granule: Granule, beam: str, field_mapping:dict):
-        
+class L4CBeam(Beam):
+    """
+    Represents a Level 4C (L4C) GEDI beam and processes the beam data.
+    This class extracts geolocation, time, and additional variables from the beam
+    and applies quality filters (if provided).
+    """
+
+    def __init__(self, granule: Granule, beam: str, field_mapping: Dict[str, Dict[str, str]]):
+        """
+        Initialize the L4CBeam class.
+
+        Args:
+            granule (Granule): The parent granule object.
+            beam (str): The beam name within the granule.
+            field_mapping (Dict[str, Dict[str, str]]): A dictionary mapping fields to SDS names.
+        """
         super().__init__(granule, beam, field_mapping)
-        self._shot_geolocations = None
-        self._filtered_index = None
-        
+        self._shot_geolocations: Optional[gpd.array.GeometryArray] = None  # Cache for geolocations
+        self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
+
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
-        self._shot_geolocations = gpd.points_from_xy(
-            x=self["lon_lowestmode"],
-            y=self["lat_lowestmode"],
-            crs=WGS84,
-        )
+        """
+        Get the geolocations (latitude/longitude) of shots in the beam.
+        This property lazily loads and caches the geolocations.
+
+        Returns:
+            gpd.array.GeometryArray: The geolocations of the shots in the beam.
+        """
+        if self._shot_geolocations is None:
+            self._shot_geolocations = gpd.points_from_xy(
+                x=self["lon_lowestmode"],
+                y=self["lat_lowestmode"],
+                crs=WGS84,
+            )
         return self._shot_geolocations
 
-    def _get_main_data(self) -> dict:
+    def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
+        """
+        Extract the main data for the beam, including time and other variables.
+        This method applies quality filters if they are defined.
 
+        Returns:
+            Optional[Dict[str, np.ndarray]]: The filtered data as a dictionary or None if no data is present.
+        """
         gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
         delta_time = self["delta_time"][()]
-        
-        # Initialize the data dictionary
+
+        # Initialize the data dictionary with time and geolocation fields
         data = {
             "absolute_time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds")
         }
-        
+
+        # Populate data dictionary with fields from the field mapping
         for key, source in self.field_mapper.items():
             sds_name = source['SDS_Name']
             if key == "beam_type":
@@ -45,14 +75,12 @@ class L4CBeam(Beam):
             else:
                 data[key] = np.array(self[sds_name][()])
 
-        # Apply filter and get the filtered indices
-        self._filtered_index = self.apply_filter(data, filters=DEFAULT_QUALITY_FILTERS)
-        
-        # Filter the data using the mask
-        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
-        
+        # Apply quality filters if available
+        if DEFAULT_QUALITY_FILTERS:
+            self._filtered_index = self.apply_filter(data, filters=DEFAULT_QUALITY_FILTERS)
+            # Filter the data using the mask
+            filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
+        else:
+            filtered_data = data
+
         return filtered_data if filtered_data else None
-        
-        
-        
-        

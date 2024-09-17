@@ -5,8 +5,21 @@ import re
 class GediNameMetadata:
     """
     Container for metadata derived from GEDI file name conventions.
-
-    The order of attributes must match the order of the regex groups used in parsing.
+    
+    Attributes:
+        product (str): The product type (e.g., L1B, L2A).
+        year (str): The year of data acquisition (4 digits).
+        julian_day (str): The Julian day of the year when data was acquired.
+        hour (str): The hour (UTC) when data was acquired.
+        minute (str): The minute (UTC) when data was acquired.
+        second (str): The second (UTC) when data was acquired.
+        orbit (str): The orbit number associated with the granule.
+        sub_orbit_granule (str): The sub-orbit granule identifier.
+        ground_track (str): The ground track number.
+        positioning (str): The positioning number.
+        release_number (str): The release version of the product.
+        granule_production_version (str): The granule production version.
+        major_version_number (str): The major version of the product.
     """
     product: str
     year: str
@@ -22,41 +35,42 @@ class GediNameMetadata:
     granule_production_version: str
     major_version_number: str
 
-# Precompile the GEDI filename pattern for reuse
+
+# Precompile the GEDI filename pattern for efficient reuse
 GEDI_FILENAME_PATTERN = re.compile(
     (
-        r"(?P<product>\w+_\w)"
-        r"_(?P<year>\d{4})"
-        r"(?P<julian_day>\d{3})"
-        r"(?P<hour>\d{2})"
-        r"(?P<minute>\d{2})"
-        r"(?P<second>\d{2})"
-        r"_(?P<orbit>O\d+)"
-        r"_(?P<sub_orbit_granule>\d{2})"
-        r"_(?P<ground_track>T\d+)"
-        r"_(?P<positioning>\d{2})"
-        r"_(?P<release_number>\d{3})"
-        r"_(?P<granule_production_version>\d{2})"
-        r"_(?P<major_version_number>V\d+)"
+        r"(?P<product>\w+_\w)"                # Product identifier (e.g., GEDI_L2A)
+        r"_(?P<year>\d{4})"                   # Year (4 digits)
+        r"(?P<julian_day>\d{3})"              # Julian day (3 digits)
+        r"(?P<hour>\d{2})"                    # Hour (2 digits)
+        r"(?P<minute>\d{2})"                  # Minute (2 digits)
+        r"(?P<second>\d{2})"                  # Second (2 digits)
+        r"_(?P<orbit>O\d+)"                   # Orbit (O followed by digits)
+        r"_(?P<sub_orbit_granule>\d{2})"      # Sub-orbit granule (2 digits)
+        r"_(?P<ground_track>T\d+)"            # Ground track (T followed by digits)
+        r"_(?P<positioning>\d{2})"            # Positioning number (2 digits)
+        r"_(?P<release_number>\d{3})"         # Release number (3 digits)
+        r"_(?P<granule_production_version>\d{2})"  # Granule production version (2 digits)
+        r"_(?P<major_version_number>V\d+)"    # Major version number (V followed by digits)
     )
 )
 
 def parse_granule_filename(gedi_filename: str) -> GediNameMetadata:
     """
-    Parses the GEDI filename into its metadata components.
-
+    Parses the GEDI filename and extracts metadata into a structured format.
+    
     Parameters:
-    - gedi_filename (str): The filename to parse.
-
+        gedi_filename (str): The GEDI filename to parse.
+    
     Returns:
-    - GediNameMetadata: An instance of GediNameMetadata containing parsed components.
-
+        GediNameMetadata: An instance of GediNameMetadata with extracted components.
+    
     Raises:
-    - ValueError: If the filename does not conform to the expected pattern.
+        ValueError: If the filename does not match the expected GEDI naming pattern.
     """
-    parse_result = GEDI_FILENAME_PATTERN.search(gedi_filename)
-    if parse_result is None:
+    match = GEDI_FILENAME_PATTERN.search(gedi_filename)
+    if match is None:
         raise ValueError(
-            f"Filename '{gedi_filename}' does not conform to the expected GEDI naming pattern: {GEDI_FILENAME_PATTERN.pattern}"
+            f"Filename '{gedi_filename}' does not match the expected GEDI naming pattern: {GEDI_FILENAME_PATTERN.pattern}"
         )
-    return GediNameMetadata(**parse_result.groupdict())
+    return GediNameMetadata(**match.groupdict())
