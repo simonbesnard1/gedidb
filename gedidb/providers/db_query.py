@@ -3,33 +3,37 @@ import geopandas as gpd
 import pandas as pd
 import pyproj
 from sqlalchemy import inspect
-from geoalchemy2 import Geometry # required to prevent warnings on column types
+from geoalchemy2 import Geometry  # Required to prevent warnings on column types
 import yaml
 import warnings
-
+import logging
 
 from gedidb.utils.constants import WGS84
 from gedidb.database.db_creation import DatabaseManager
 
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class QueryPredicate:
+    """Base class to represent query predicates such as LIKE or RegEx."""
+    
     def __init__(self, value: Any):
         self.value = value
 
-
 class Like(QueryPredicate):
     predicate = "LIKE"
-
 
 class RegEx(QueryPredicate):
     predicate = "~"
 
 
 class SQLQueryBuilder:
+    """A class to construct SQL queries with optional spatial and temporal filters."""
+
     def __init__(
         self,
         table_name: str,
-        metadata_table:str,
+        metadata_table: str,
         columns: Union[str, List[str]] = "*",
         geometry: Optional[gpd.GeoDataFrame] = None,
         crs: str = WGS84,
@@ -53,6 +57,7 @@ class SQLQueryBuilder:
         self.filters = filters
 
     def _build_conditions(self) -> List[str]:
+        """Build SQL conditions for spatial, temporal, and filter-based queries."""
         conditions = []
 
         # Temporal conditions
@@ -67,15 +72,10 @@ class SQLQueryBuilder:
                     "ignore",
                     message="__len__ for multi-part geometries is deprecated and will be removed in Shapely 2.0",
                 )
-        
-                # Flatten the 2D array and get WKT strings
+
+                # Flatten the geometry to WKT strings and create spatial conditions
                 wkt_strings = self.geometry.to_wkt().values.flatten()
-                
-                queries = []
-                for geom in wkt_strings:
-                    queries.append(f"ST_Intersects(geometry, ST_GeomFromText('{geom}', {crs.to_epsg()}))")
-                
-                # Combine the conditions correctly
+                queries = [f"ST_Intersects(geometry, ST_GeomFromText('{geom}', {crs.to_epsg()}))" for geom in wkt_strings]
                 conditions.append(f"({' OR '.join(queries)})")
 
         # Filter conditions
@@ -95,93 +95,100 @@ class SQLQueryBuilder:
 
     @staticmethod
     def _escape_value(value: Any) -> Any:
+        """Escape string values for use in SQL queries."""
         if isinstance(value, str):
             return f"'{value}'"
         return value
 
     def build(self) -> str:
+        """Build the final SQL query with conditions, limits, and ordering."""
         conditions = self._build_conditions()
-
-        # Combining conditions
         condition = f" WHERE {' AND '.join(conditions)}" if conditions else ""
-        
-        # Setting limits
         limits = f" LIMIT {self.limit}" if self.limit is not None else ""
-        
-        # Order by clauses
-        order = "" if not self.order_by else " ORDER BY "
-        order += ", ".join([(f"{x[1:]} DESC" if x[0] == "-" else x) for x in self.order_by])
-        
-        # Final SQL query
+        order = " ORDER BY " + ", ".join([(f"{x[1:]} DESC" if x[0] == "-" else x) for x in self.order_by]) if self.order_by else ""
+
         sql_query = f"SELECT {', '.join(self.columns)} FROM {self.table_name}{condition}{order}{limits}"
-        
+
         if not self.force and not condition and not limits:
             raise UserWarning("Warning! This will load the entire table. To proceed set `force`=True.")
-        
+
+        logger.debug(f"Generated SQL query: {sql_query}")
         return sql_query
-    
+
     def build_metadata_query(self, variable_names) -> str:
         """
         Build a query to fetch metadata for the given variable names from the metadata table.
-        
+
         :param variable_names: List of variable names to fetch metadata for.
         :return: SQL query string for fetching metadata.
         """
         variable_list = ', '.join([f"'{var}'" for var in variable_names])
-        return f"SELECT * FROM {self.metadata_table} WHERE SDS_Name IN ({variable_list})"
+        metadata_query = f"SELECT * FROM {self.metadata_table} WHERE SDS_Name IN ({variable_list})"
+        logger.debug(f"Generated metadata query: {metadata_query}")
+        return metadata_query
 
 
 class GediDataBuilder:
-    """Database connector for the GEDI DB."""
+    """Database connector for querying GEDI data and metadata."""
 
-    def __init__(self, data_config_file):
+    def __init__(self, data_config_file: str):
+        """
+        Initialize the GediDataBuilder with a data configuration file.
+        
+        :param data_config_file: Path to the YAML configuration file.
+        """
         self.data_info = self.load_yaml_file(data_config_file)
         self.engine = DatabaseManager(self.data_info['database_url'], echo=False).create_engine()
         self.inspector = inspect(self.engine)
+        self.allowed_cols = {
+            table_name: {col["name"] for col in self.inspector.get_columns(table_name)}
+            for table_name in self.inspector.get_table_names()
+        }
 
-        self.allowed_cols = {}
-        for table_name in self.inspector.get_table_names():
-            allowed_cols = {
-                col["name"] for col in self.inspector.get_columns(table_name)
-            }
-            self.allowed_cols[table_name] = allowed_cols
-            
     @staticmethod
-    def load_yaml_file(file_path: str = "field_mapping.yml") -> dict:
-        with open(file_path, 'r') as file:
-            return yaml.safe_load(file)
+    def load_yaml_file(file_path: str) -> dict:
+        """
+        Load the YAML configuration file.
+        
+        :param file_path: Path to the YAML file.
+        :return: Parsed YAML content as a dictionary.
+        """
+        try:
+            with open(file_path, 'r') as file:
+                data = yaml.safe_load(file)
+                logger.info(f"Loaded configuration from {file_path}")
+                return data
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {file_path}")
+            raise
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML file: {file_path}. Error: {e}")
+            raise
 
-    def query(
-        self,
-        query_builder: Optional[SQLQueryBuilder] = None,
-        use_geopandas: bool = False,
-    ) -> dict:
+    def query(self, query_builder: Optional[SQLQueryBuilder] = None, use_geopandas: bool = False) -> dict:
         """
         Query the database and retrieve both data and metadata.
 
-        Args:
-            query_builder (Optional[SQLQueryBuilder]): The SQLQueryBuilder object to construct the SQL query.
-            use_geopandas (bool): Specify if geopandas should be used for result.
-
-        Returns:
-            dict: A dictionary with 'data' containing the result dataframe and 'metadata' containing the metadata.
+        :param query_builder: The SQLQueryBuilder object to construct the SQL query.
+        :param use_geopandas: Specify if geopandas should be used for result.
+        :return: A dictionary with 'data' containing the result dataframe and 'metadata' containing the metadata.
         """
-
-        if query_builder is not None:
-            # Build and execute the query to get the data
-            sql_query = query_builder.build()
-            if use_geopandas:
-                data_df = gpd.read_postgis(sql_query, con=self.engine, geom_col="geometry")
-            else:
-                data_df = pd.read_sql(sql_query, con=self.engine)
-
-            # Fetch the metadata for the variables in the data
-            variable_names = query_builder.columns
-            metadata_query = query_builder.build_metadata_query(variable_names)
-            metadata_df = pd.read_sql(metadata_query, con=self.engine)
-            
-            return {"data": data_df, "metadata": metadata_df}
-        else:
+        if query_builder is None:
             raise ValueError("A valid SQLQueryBuilder object must be provided.")
+        
+        # Build and execute the SQL query
+        sql_query = query_builder.build()
+        logger.info(f"Executing query: {sql_query}")
 
+        if use_geopandas:
+            data_df = gpd.read_postgis(sql_query, con=self.engine, geom_col="geometry")
+        else:
+            data_df = pd.read_sql(sql_query, con=self.engine)
 
+        # Fetch metadata for the variables
+        variable_names = query_builder.columns
+        metadata_query = query_builder.build_metadata_query(variable_names)
+        metadata_df = pd.read_sql(metadata_query, con=self.engine)
+
+        logger.info(f"Query successful: Retrieved {len(data_df)} rows of data.")
+        return {"data": data_df, "metadata": metadata_df}
