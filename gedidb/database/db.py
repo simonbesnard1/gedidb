@@ -58,7 +58,6 @@ class DatabaseManager:
             try:
                 with engine.begin() as conn:
                     conn.execute(text(sql_script))
-                    logger.info("Tables created successfully.")
             except SQLAlchemyError as e:
                 logger.error(f"Error creating tables: {e}")
         else:
