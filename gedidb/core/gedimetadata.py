@@ -2,34 +2,53 @@ import os
 import logging
 from sqlalchemy import Table, MetaData, select
 import yaml
-
 from gedidb.metadata.metadata_operations import GEDIMetaDataDownloader
 
 logger = logging.getLogger(__name__)
 
 class GEDIMetadataManager:
+    """
+    GEDIMetadataManager handles the extraction, storage, and insertion of metadata for various GEDI product types.
+    
+    Attributes:
+    ----------
+    metadata_info : dict
+        Dictionary mapping GEDI product types (e.g., 'L2A', 'L2B', etc.) to their metadata URLs.
+    metadata_path : str
+        Path where metadata YAML files will be saved.
+    data_table_name : str
+        The name of the data table where shot information is stored.
+    """
+
     def __init__(self, metadata_info: dict, metadata_path: str, data_table_name: str = 'shots_table'):
         """
-        Initialize the GediMetadataManager with metadata information, the path to store metadata files, 
+        Initialize the GEDIMetadataManager with metadata information, the path to store metadata files,
         and the name of the data table for metadata insertion.
 
-        :param metadata_info: A dictionary mapping product types to their metadata URLs.
-        :param metadata_path: The path where metadata YAML files will be saved.
-        :param data_table_name: The name of the data table where shot information is stored.
+        Parameters:
+        ----------
+        metadata_info : dict
+            A dictionary mapping product types to their metadata URLs.
+        metadata_path : str
+            The path where metadata YAML files will be saved.
+        data_table_name : str, optional
+            The name of the data table where shot information is stored. Default is 'shots_table'.
         """
         self.metadata_info = metadata_info
         self.metadata_path = metadata_path
         self.data_table_name = data_table_name
 
         # Ensure the metadata path exists
-        if not os.path.exists(self.metadata_path):
-            os.makedirs(self.metadata_path)
-        
+        os.makedirs(self.metadata_path, exist_ok=True)
+
     def extract_and_store_metadata(self, product_type: str):
         """
         Extract metadata for a specific GEDI product type and save it as a YAML file.
-        
-        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
+
+        Parameters:
+        ----------
+        product_type : str
+            The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
         """
         url = self.metadata_info.get(product_type)
         if not url:
@@ -39,12 +58,12 @@ class GEDIMetadataManager:
         output_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
         extractor = GEDIMetaDataDownloader(url, output_file, data_type=product_type)
         extractor.build_metadata()
-
+        
         logger.info(f"Metadata for {product_type} stored at {output_file}")
 
     def extract_all_metadata(self):
         """
-        Loop through all product types and extract metadata for each.
+        Extract metadata for all product types listed in the metadata_info dictionary.
         """
         if not self.metadata_info or not self.metadata_path:
             raise ValueError("Metadata info or path is not set.")
@@ -53,13 +72,21 @@ class GEDIMetadataManager:
             self.extract_and_store_metadata(product_type)
 
     @staticmethod
-    def load_metadata_file(metadata_path, product_type: str):
+    def load_metadata_file(metadata_path: str, product_type: str):
         """
-        Load the metadata file for a specific product type.
+        Load the metadata file for a specific GEDI product type.
 
-        :param metadata_path: The directory where metadata files are stored.
-        :param product_type: The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
-        :return: Parsed YAML data as a dictionary.
+        Parameters:
+        ----------
+        metadata_path : str
+            The directory where metadata files are stored.
+        product_type : str
+            The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
+
+        Returns:
+        -------
+        dict or None
+            Parsed YAML data as a dictionary, or None if the file does not exist.
         """
         metadata_file = os.path.join(metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
         if not os.path.exists(metadata_file):
@@ -70,27 +97,64 @@ class GEDIMetadataManager:
             return yaml.safe_load(file)
 
     @staticmethod
-    def get_columns_in_data(conn, data_table_name):
-        """Get all columns (variables) from the shots table."""
+    def get_columns_in_data(conn, data_table_name: str):
+        """
+        Retrieve all columns (variables) from a data table.
+
+        Parameters:
+        ----------
+        conn : sqlalchemy.engine.Connection
+            Active database connection.
+        data_table_name : str
+            Name of the data table from which to retrieve columns.
+
+        Returns:
+        -------
+        list
+            List of column names in the specified data table.
+        """
         data_table = Table(data_table_name, MetaData(), autoload_with=conn)
         return data_table.columns.keys()
 
     @staticmethod
-    def variable_exists_in_metadata(conn, metadata_table, variable_name):
-        """Check if a variable already exists in the metadata table."""
+    def variable_exists_in_metadata(conn, metadata_table, variable_name: str) -> bool:
+        """
+        Check if a variable already exists in the metadata table.
+
+        Parameters:
+        ----------
+        conn : sqlalchemy.engine.Connection
+            Active database connection.
+        metadata_table : sqlalchemy.Table
+            Metadata table object.
+        variable_name : str
+            The variable name to check for.
+
+        Returns:
+        -------
+        bool
+            True if the variable exists, False otherwise.
+        """
         query = select(metadata_table.c.sds_name).where(metadata_table.c.sds_name == variable_name)
         return conn.execute(query).fetchone() is not None
 
     @staticmethod
-    def insert_metadata(conn, metadata_table, variable_name, var_meta, data_table_name):
+    def insert_metadata(conn, metadata_table, variable_name: str, var_meta: dict, data_table_name: str):
         """
-        Insert metadata into the metadata table.
+        Insert metadata for a variable into the metadata table.
 
-        :param conn: Database connection.
-        :param metadata_table: The metadata table to insert data into.
-        :param variable_name: The name of the variable being inserted.
-        :param var_meta: The metadata associated with the variable.
-        :param data_table_name: The source table where the variable is located.
+        Parameters:
+        ----------
+        conn : sqlalchemy.engine.Connection
+            Active database connection.
+        metadata_table : sqlalchemy.Table
+            Metadata table object.
+        variable_name : str
+            The name of the variable being inserted.
+        var_meta : dict
+            Dictionary containing metadata associated with the variable.
+        data_table_name : str
+            The name of the source data table for the variable.
         """
         insert_stmt = metadata_table.insert().values(
             sds_name=variable_name,
@@ -99,4 +163,3 @@ class GEDIMetadataManager:
             source_table=data_table_name
         )
         conn.execute(insert_stmt)
-
