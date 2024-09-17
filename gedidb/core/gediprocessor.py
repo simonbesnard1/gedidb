@@ -10,6 +10,7 @@ from dask.distributed import Client
 from dask.diagnostics import ProgressBar
 import numpy as np
 from functools import wraps
+import pandas as pd
 
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
@@ -23,6 +24,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 def log_execution(start_message=None, end_message=None):
+    """
+    A decorator to log the execution of a method.
+    
+    :param start_message: Custom start message for logging.
+    :param end_message: Custom end message for logging.
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -36,43 +43,59 @@ def log_execution(start_message=None, end_message=None):
     return decorator
 
 class GEDIProcessor:
+    """
+    GEDIProcessor class is responsible for processing GEDI granules, handling metadata, 
+    and writing data into the database.
     
-    def __init__(self, data_config_file: str, sql_config_file: str, n_workers:int = None, dask_client:Client = None):
+    Attributes:
+    ----------
+    dask_client : Client
+        Dask client for parallel processing.
+    data_info : dict
+        Configuration data loaded from the YAML file.
+    sql_script : str
+        SQL script to create database tables.
+    metadata_handler : GEDIMetadataManager
+        Handler for managing metadata operations.
+    database_writer : GEDIDatabase
+        Database writer for managing database operations.
+    """
+
+    def __init__(self, data_config_file: str, sql_config_file: str, n_workers: int = None, dask_client: Client = None):
         """
-        Initialize the GEDIProcessor with configuration files and prepare the necessary paths and metadata handler.
-        
+        Initialize the GEDIProcessor with configuration files and prepare the necessary components.
+
         :param data_config_file: YAML configuration file for data settings.
         :param sql_config_file: SQL file containing table creation queries.
+        :param n_workers: Number of Dask workers. Default is None, which uses the default worker count.
+        :param dask_client: Existing Dask client, or a new one will be created if None.
         """
-        # Set up the Dask client
         self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers)
 
-        # Load configurations
+        # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(data_config_file)
         self.sql_script = self._load_sql_file(sql_config_file).format(**self._get_table_names())
-        
-        # Set up paths, dates, and initialize components
         self._setup_paths_and_dates()
+
+        # Initialize GEDI granule processor, metadata handler, and database writer
         self.granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
-        
-        # Initialize handlers
         self.metadata_handler = self._initialize_metadata_handler()
         self.database_writer = self._initialize_database_writer()
 
-    def _initialize_dask_client(self, n_workers) :
-        """Initialize Dask client with 5 workers."""
-        return Client(n_workers)
+    def _initialize_dask_client(self, n_workers: int) -> Client:
+        """Initialize and return a Dask client."""
+        return Client(n_workers=n_workers)
 
-    def _initialize_metadata_handler(self):
-        """Set up and return the metadata handler."""
+    def _initialize_metadata_handler(self) -> GEDIMetadataManager:
+        """Initialize and return the metadata handler."""
         return GEDIMetadataManager(
             metadata_info=self.data_info['earth_data_info']['METADATA_INFORMATION'],
             metadata_path=self.metadata_path,
             data_table_name=self.data_info['database']['tables']['shots']
         )
-    
-    def _initialize_database_writer(self):
-        """Set up and return the database writer."""
+
+    def _initialize_database_writer(self) -> GEDIDatabase:
+        """Initialize and return the database writer."""
         return GEDIDatabase(
             db_path=self.db_path,
             sql_script=self.sql_script,
@@ -80,7 +103,7 @@ class GEDIProcessor:
             metadata_handler=self.metadata_handler
         )
 
-    def _get_table_names(self):
+    def _get_table_names(self) -> dict:
         """Return formatted table names for SQL queries."""
         return {
             "DEFAULT_GRANULE_TABLE": self.data_info["database"]["tables"]["granules"],
@@ -105,7 +128,7 @@ class GEDIProcessor:
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
 
     @staticmethod
-    def _ensure_directory(path):
+    def _ensure_directory(path: str) -> str:
         """Ensure a directory exists and return its path."""
         os.makedirs(path, exist_ok=True)
         return path
@@ -124,7 +147,7 @@ class GEDIProcessor:
     
     @log_execution(start_message="Processing requested granules...", end_message="Granules successfully processed")
     def compute(self):
-        """Main method to download and process GEDI granules, no arguments needed."""
+        """Main method to download and process GEDI granules."""
         # Create the database schema
         self.database_writer._create_db()
 
@@ -139,18 +162,18 @@ class GEDIProcessor:
         # Process the granules with Dask
         self._process_granules(unprocessed_cmr_data)
 
-    def _download_cmr_data(self):
+    def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""
         downloader = CMRDataDownloader(self.geom, self.start_date, self.end_date, self.data_info['earth_data_info'])
         return downloader.download()
     
-    def _filter_unprocessed_granules(self, cmr_data):
+    def _filter_unprocessed_granules(self, cmr_data: pd.DataFrame) -> pd.DataFrame:
         """Filter out granules that have already been processed."""
         granule_ids = np.unique(cmr_data["id"]).tolist()
         processed_granules = self.granule_processor.get_processed_granules(granule_ids)
         return cmr_data[~cmr_data["id"].isin(processed_granules)]
 
-    def _process_granules(self, unprocessed_cmr_data):
+    def _process_granules(self, unprocessed_cmr_data: pd.DataFrame):
         """
         Process unprocessed granules in parallel using Dask, including writing to the database.
         """
