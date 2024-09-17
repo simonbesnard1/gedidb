@@ -5,20 +5,12 @@
 # SPDX-FileCopyrightText: 2024 Felix Dombrowski
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-#!/usr/bin/env python3
-
 #
 
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Sep  3 12:53:09 2024
-
-@author: simon
-"""
-from gedidb.providers.gedi_provider import GEDIProvider
+import gedidb as gdb
 
 #%% Instantiate the GEDIProvider
-provider = GEDIProvider(config_file='./config_files/data_config.yml',
+provider = gdb.GEDIProvider(config_file='./config_files/data_config.yml',
                         table_name="filtered_l2ab_l4ac_shots",
                         metadata_table="variable_metadata")
 
