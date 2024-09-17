@@ -1,6 +1,7 @@
 import geopandas as gpd
 import pandas as pd
 import re
+
 from gedidb.utils.constants import WGS84, GediProduct
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.granule.l1b_granule import L1BGranule

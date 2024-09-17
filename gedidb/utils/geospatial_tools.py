@@ -1,60 +1,78 @@
 import logging
 import geopandas as gpd
-from shapely.geometry import polygon, multipolygon
-from shapely import Geometry  # for typing only
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry.polygon import orient
+from shapely.geometry.base import BaseGeometry  # for typing only
 
+# Maximum number of coordinates allowed for NASA CMR API
 MAX_CMR_COORDS = 4999
 
-
 class DetailError(Exception):
-    """Raised when too many points in a shape for NASA's API"""
+    """
+    Exception raised when the shape exceeds the maximum number of points allowed by NASA's API.
 
+    Attributes:
+        n_coords (int): Number of coordinates in the shape that caused the error.
+    """
     def __init__(self, n_coords: int):
         self.n_coords = n_coords
-        super().__init__(
-            f"Shape contains {n_coords} coordinates, exceeding the limit."
-        )
+        super().__init__(f"Shape contains {n_coords} coordinates, exceeding the limit of {MAX_CMR_COORDS}.")
 
+def _count_coordinates(geom: BaseGeometry) -> int:
+    """
+    Count the total number of coordinates in a given geometry object.
 
-def _count_coordinates(geom: Geometry) -> int:
-    if isinstance(geom, multipolygon.MultiPolygon):
+    Args:
+        geom (BaseGeometry): A shapely geometry object (Polygon or MultiPolygon).
+
+    Returns:
+        int: Total number of exterior coordinates in the geometry.
+    """
+    if isinstance(geom, MultiPolygon):
         return sum([len(part.exterior.coords) for part in geom.geoms])
     return len(geom.exterior.coords)
-
 
 def check_and_format_shape(
     shp: gpd.GeoDataFrame, simplify: bool = False
 ) -> gpd.GeoSeries:
-    """Check if shapefile is valid for the NASA CMR API and format if needed.
+    """
+    Validate and format a GeoDataFrame's geometry for NASA's CMR API.
 
-    The CMR API cannot accept a shapefile with more than 5000 points,
-    so we offer to simplify the shape to just a convex hull around the region.
-    The CMR API also requires that the polygon is oriented correctly.
+    This function checks if the shape has more than the allowed number of points,
+    simplifies the shape if necessary, and ensures proper polygon orientation.
+
+    Args:
+        shp (gpd.GeoDataFrame): The input GeoDataFrame containing a single polygon or multipolygon.
+        simplify (bool): Whether to simplify the shape to a convex hull if it exceeds the allowed point limit.
+
     Raises:
-        ValueError: If more than one polygon is passed.
-        DetailError: If the shapefile has too many points and simplify is False,
-            or if the simplified shape still has too many points.
+        ValueError: If more than one polygon is passed in the GeoDataFrame.
+        DetailError: If the shape has too many points and cannot be simplified.
+
+    Returns:
+        gpd.GeoSeries: A formatted GeoSeries with a valid geometry for the CMR API.
     """
     if len(shp) > 1:
-        raise ValueError("Only one polygon at a time supported.")
-    row = shp.geometry.values[0]
+        raise ValueError("Only one polygon at a time is supported.")
 
-    n_coords = _count_coordinates(row)
+    geom = shp.geometry.values[0]
+    n_coords = _count_coordinates(geom)
+
+    # Check if the shape exceeds the maximum coordinate limit
     if n_coords > MAX_CMR_COORDS:
         if not simplify:
             raise DetailError(n_coords)
-        logging.info(
-            f"Simplifying shape with {n_coords} coordinates to convex hull."
-        )
-        row = row.convex_hull
-        n_coords = _count_coordinates(row)
+        
+        logging.info(f"Simplifying shape with {n_coords} coordinates to convex hull.")
+        geom = geom.convex_hull
+        n_coords = _count_coordinates(geom)
         logging.info(f"Simplified shape to {n_coords} coordinates.")
+        
         if n_coords > MAX_CMR_COORDS:
             raise DetailError(n_coords)
 
-    if isinstance(row, multipolygon.MultiPolygon):
-        return gpd.GeoSeries(
-            [polygon.orient(s) for s in row.geoms], crs=shp.crs
-        )
+    # Ensure proper orientation for polygons and multipolygons
+    if isinstance(geom, MultiPolygon):
+        return gpd.GeoSeries([orient(p) for p in geom.geoms], crs=shp.crs)
     else:
-        return gpd.GeoSeries(polygon.orient(row), crs=shp.crs)
+        return gpd.GeoSeries(orient(geom), crs=shp.crs)
