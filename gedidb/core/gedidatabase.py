@@ -42,7 +42,7 @@ class GEDIDatabase:
         self.sql_script = sql_script
         self.tables = tables
         self.metadata_handler = metadata_handler
-
+        
     def _create_db(self):
         """
         Create the database schema using the provided SQL script.

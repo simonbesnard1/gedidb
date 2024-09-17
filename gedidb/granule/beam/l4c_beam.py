@@ -75,12 +75,10 @@ class L4CBeam(Beam):
             else:
                 data[key] = np.array(self[sds_name][()])
 
-        # Apply quality filters if available
-        if DEFAULT_QUALITY_FILTERS:
-            self._filtered_index = self.apply_filter(data, filters=DEFAULT_QUALITY_FILTERS)
-            # Filter the data using the mask
-            filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
-        else:
-            filtered_data = data
-
+        # Apply filter and get the filtered indices
+        self._filtered_index = self.apply_filter(data, filters=DEFAULT_QUALITY_FILTERS)
+        
+        # Filter the data using the mask
+        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
+        
         return filtered_data if filtered_data else None

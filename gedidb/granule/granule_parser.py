@@ -5,7 +5,6 @@ from typing import Optional
 
 from gedidb.utils.constants import WGS84, GediProduct
 from gedidb.granule.granule.granule import Granule
-from gedidb.granule.granule.l1b_granule import L1BGranule
 from gedidb.granule.granule.l2a_granule import L2AGranule
 from gedidb.granule.granule.l2b_granule import L2BGranule
 from gedidb.granule.granule.l4a_granule import L4AGranule
@@ -65,15 +64,6 @@ class GranuleParser:
         """
         raise NotImplementedError("This method should be implemented in child classes")
 
-
-class L1BGranuleParser(GranuleParser):
-    """Parser for L1B granules."""
-    
-    def parse(self) -> gpd.GeoDataFrame:
-        granule = L1BGranule(self.file, self.data_info['level_1b']['variables'])
-        return self.parse_granule(granule)
-
-
 class L2AGranuleParser(GranuleParser):
     """Parser for L2A granules."""
     
@@ -127,8 +117,7 @@ def parse_h5_file(file: str, product: GediProduct, data_info: Optional[dict] = N
         GediProduct.L4A.value: L4AGranuleParser,
         GediProduct.L4C.value: L4CGranuleParser,
     }
-
-    parser_class = parser_classes.get(product.value)
+    parser_class = parser_classes.get(product)
     if parser_class is None:
         raise ValueError(f"Product {product.value} is not supported.")
     
