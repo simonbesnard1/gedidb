@@ -67,7 +67,6 @@ class GEDIMetaDataDownloader:
             response = requests.get(self.url)
             response.raise_for_status()
             self.soup = BeautifulSoup(response.content, 'html.parser')
-            logger.info(f"Successfully fetched content from {self.url}")
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch page content from {self.url}: {e}")
             raise
@@ -191,7 +190,6 @@ class GEDIMetaDataDownloader:
         try:
             with open(self.output_file, "w") as file:
                 yaml.dump(data, file, default_flow_style=False)
-            logger.info(f"Data successfully saved to {self.output_file}")
         except IOError as e:
             logger.error(f"Failed to write data to {self.output_file}: {e}")
             raise

@@ -14,7 +14,7 @@ import logging
 from typing import Optional, List, Union
 import geopandas as gpd
 
-from gedidb.providers.db_query import SQLQueryBuilder, GediDataBuilder
+from gedidb.database.db_query import SQLQueryBuilder, GediDataBuilder
 
 # Default dimensions for the GEDI data
 DEFAULT_DIMS = ["shot_number", "beam_name", 'absolute_time', 'geometry']
@@ -138,7 +138,7 @@ class GEDIProvider:
     
         return dataset
     
-    def get_dataset(
+    def get_data(
         self, 
         variables: List[str], 
         geometry: Optional[gpd.GeoDataFrame] = None, 
