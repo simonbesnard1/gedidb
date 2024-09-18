@@ -269,7 +269,7 @@ class GEDIProcessor:
         # Use a ThreadPoolExecutor to download all products in parallel
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Submit download tasks for each product in the product_info list
-            futures = [executor.submit(downloader.download, granule_id, url, GediProduct(product))
+            futures = [executor.submit(downloader.download, granule_id, url, GediProduct(product), self.parquet_path)
                        for url, product in product_info]
             
             # Gather the results from all download tasks

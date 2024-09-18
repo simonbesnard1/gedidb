@@ -142,7 +142,7 @@ class H5FileDownloader(GEDIDownloader):
         self.download_path = download_path
 
     @retry((ValueError, TypeError, HTTPError), tries=10, delay=5, backoff=3)
-    def download(self, _id: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, None]]:
+    def download(self, granule_key: str, url: str, product: GediProduct, parquet_path) -> Tuple[str, Tuple[Any, None]]:
         """
         Download an HDF5 file for a specific granule and product.
         
@@ -151,8 +151,11 @@ class H5FileDownloader(GEDIDownloader):
         :param product: GEDI product.
         :return: Tuple containing the granule ID and a tuple of product name and file path.
         """
-        file_path = pathlib.Path(self.download_path) / f"{_id}/{product.name}.h5"
+        file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
 
+        if os.path.join(parquet_path, f"filtered_granule_{granule_key}.parquet"):
+            return granule_key, (product.value, str(file_path)) 
+        
         try:
             with requests.get(url, stream=True, timeout=30) as r:
                 r.raise_for_status()
@@ -160,8 +163,8 @@ class H5FileDownloader(GEDIDownloader):
                 with open(file_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
-                return _id, (product.value, str(file_path))
+                return granule_key, (product.value, str(file_path))
 
         except RequestException as e:
             logger.error(f"Error downloading {url}: {e}")
-            return _id, (product.value, None)
+            return granule_key, (product.value, None)

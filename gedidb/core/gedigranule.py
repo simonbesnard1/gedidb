@@ -97,6 +97,7 @@ class GEDIGranule:
         outfile_path = self.get_output_path(granule_key)
 
         if os.path.exists(outfile_path):
+            logger.info(f"Parquet file for granule {granule_key} already exists. Skipping h5 files processing.")
             return self._prepare_return_value(granule_key, outfile_path, granules)
 
         gdf_dict = self.parse_granules(granules, granule_key)
