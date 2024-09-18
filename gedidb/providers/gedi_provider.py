@@ -39,6 +39,25 @@ class GEDIProvider:
         self.table_name = table_name
         self.metadata_table = metadata_table
 
+    def get_available_variables(self) -> pd.DataFrame:
+        """
+        Retrieve specific columns (sds_name, description, units) from the metadata table and return them as a dictionary.
+
+        :return: A dictionary with sds_name as keys and description, units as values.
+        """
+        try:
+            # Query the selected columns from the metadata table
+            query = f"SELECT sds_name, description, units FROM {self.metadata_table};"
+            selected_metadata_df = pd.read_sql(query, con=self.db.engine)
+
+            # Convert the DataFrame to a dictionary with sds_name as the key
+            metadata_dict = selected_metadata_df.set_index('sds_name')[['description', 'units']].to_dict(orient='index')
+            
+            return metadata_dict
+        except Exception as e:
+            logger.error(f"Failed to retrieve metadata as dictionary: {e}")
+            raise
+
     def query_data(
         self, 
         variables: List[str], 

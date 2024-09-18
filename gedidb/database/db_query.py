@@ -153,7 +153,7 @@ class GediDataBuilder:
             table_name: {col["name"] for col in self.inspector.get_columns(table_name)}
             for table_name in self.inspector.get_table_names()
         }
-
+        
     @staticmethod
     def load_yaml_file(file_path: str) -> dict:
         """
