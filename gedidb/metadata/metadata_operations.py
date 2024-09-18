@@ -11,6 +11,9 @@ import requests
 from bs4 import BeautifulSoup
 import yaml
 import logging
+from retry import retry
+from requests.exceptions import HTTPError
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -58,7 +61,7 @@ class GEDIMetaDataDownloader:
         self.output_file = output_file
         self.data_type = data_type
         self.soup = None
-
+    
     def fetch_html_content(self):
         """
         Fetch the HTML content from the specified URL.
@@ -194,6 +197,7 @@ class GEDIMetaDataDownloader:
             logger.error(f"Failed to write data to {self.output_file}: {e}")
             raise
 
+    @retry((ValueError, TypeError, HTTPError), tries=10, delay=5, backoff=3)
     def build_metadata(self):
         """
         Execute the entire extraction process for both the Layers/Variables and Collection/Granule data.

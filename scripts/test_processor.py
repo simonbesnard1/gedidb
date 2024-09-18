@@ -16,5 +16,5 @@ if __name__ == '__main__':
                                          sql_config_file='./config_files/db_scheme.sql')
     
     #%% Process GEDI data
-    database_builder.compute(n_workers=2)
+    database_builder.compute(n_workers=4)
 

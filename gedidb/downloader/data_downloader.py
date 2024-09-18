@@ -19,6 +19,7 @@ from functools import wraps
 from retry import retry
 import logging
 from collections import defaultdict
+from requests.exceptions import HTTPError
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -58,7 +59,7 @@ class CMRDataDownloader(GEDIDownloader):
         self.end_date = end_date
         self.earth_data_info = earth_data_info        
 
-    @retry((ValueError, TypeError), tries=10, delay=5, backoff=3)
+    @retry((ValueError, TypeError, HTTPError), tries=10, delay=5, backoff=3)
     def download(self) -> dict:
         """
         Download granules across all GEDI products and ensure ID consistency.
@@ -140,7 +141,7 @@ class H5FileDownloader(GEDIDownloader):
     def __init__(self, download_path: str = "."):
         self.download_path = download_path
 
-    @retry((ValueError, TypeError), tries=10, delay=5, backoff=3)
+    @retry((ValueError, TypeError, HTTPError), tries=10, delay=5, backoff=3)
     def download(self, _id: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, None]]:
         """
         Download an HDF5 file for a specific granule and product.

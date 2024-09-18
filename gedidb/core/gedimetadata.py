@@ -66,6 +66,10 @@ class GEDIMetadataManager:
             return
 
         output_file = os.path.join(self.metadata_path, f"gedi_{product_type.lower()}_metadata.yaml")
+        
+        if os.path.exists(output_file):
+            return 
+
         extractor = GEDIMetaDataDownloader(url, output_file, data_type=product_type)
         extractor.build_metadata()
         
