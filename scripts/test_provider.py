@@ -16,7 +16,7 @@ provider = gdb.GEDIProvider(config_file='./config_files/data_config.yml',
 
 #%% Define the columns to query and additional parameters
 vars_selected = ["rh", "pavd_z", "pai"]
-dataset = provider.get_dataset(variables=vars_selected, geometry=None, 
+dataset = provider.get_data(variables=vars_selected, geometry=None, 
                                start_time="2018-01-01", end_time="2023-12-31", 
                                limit=100, force=True, order_by=["-shot_number"], 
                                return_type='xarray')

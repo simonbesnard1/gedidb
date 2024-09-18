@@ -12,12 +12,8 @@ import logging
 import yaml
 import geopandas as gpd
 from datetime import datetime
-from collections import defaultdict
-import dask
-from dask.delayed import delayed
-from dask.distributed import Client
-from dask.diagnostics import ProgressBar
-import numpy as np
+from dask.distributed import Client, LocalCluster, as_completed
+import concurrent.futures
 from functools import wraps
 import pandas as pd
 
@@ -70,7 +66,7 @@ class GEDIProcessor:
         Database writer for managing database operations.
     """
 
-    def __init__(self, data_config_file: str, sql_config_file: str, n_workers: int = None, dask_client: Client = None):
+    def __init__(self, data_config_file: str, sql_config_file: str, dask_client: Client = None):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
 
@@ -79,7 +75,7 @@ class GEDIProcessor:
         :param n_workers: Number of Dask workers. Default is None, which uses the default worker count.
         :param dask_client: Existing Dask client, or a new one will be created if None.
         """
-        self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers)
+        #self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers)
 
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(data_config_file)
@@ -156,8 +152,12 @@ class GEDIProcessor:
             return file.read()
     
     @log_execution(start_message="Processing requested granules...", end_message="Granules successfully processed")
-    def compute(self):
-        """Main method to download and process GEDI granules."""
+    def compute(self, n_workers:int=1):
+        """
+        Main method to download and process GEDI granules.
+        
+        :param n_workers: Number of workers.
+        """
         # Create the database schema
         self.database_writer._create_db()
 
@@ -165,59 +165,120 @@ class GEDIProcessor:
         cmr_data = self._download_cmr_data()
         unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
 
-        if unprocessed_cmr_data.empty:
+        if not unprocessed_cmr_data:
             logger.info("All requested granules are already processed. No further computation needed.")
             return
         
         # Process the granules with Dask
-        self._process_granules(unprocessed_cmr_data)
+        self._process_granules(unprocessed_cmr_data, n_workers)
 
     def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""
         downloader = CMRDataDownloader(self.geom, self.start_date, self.end_date, self.data_info['earth_data_info'])
         return downloader.download()
     
-    def _filter_unprocessed_granules(self, cmr_data: pd.DataFrame) -> pd.DataFrame:
-        """Filter out granules that have already been processed."""
-        granule_ids = np.unique(cmr_data["id"]).tolist()
+    def _filter_unprocessed_granules(self, cmr_data: dict) -> dict:
+        """
+        Filter out granules that have already been processed.
+        
+        :param cmr_data: Dictionary where keys are granule IDs and values are lists of (url, product) tuples.
+        :return: Filtered dictionary containing only unprocessed granules.
+        """
+        granule_ids = cmr_data.keys()
         processed_granules = self.granule_processor.get_processed_granules(granule_ids)
-        return cmr_data[~cmr_data["id"].isin(processed_granules)]
+        
+        # Filter the cmr_data dictionary, keeping only granules that are not in processed_granules
+        unprocessed_granules = {granule_id: product_info for granule_id, product_info in cmr_data.items() if granule_id not in processed_granules}
+        return unprocessed_granules
 
-    def _process_granules(self, unprocessed_cmr_data: pd.DataFrame):
+    def _process_granules(self, unprocessed_cmr_data: dict, n_workers: int = None):
         """
         Process unprocessed granules in parallel using Dask, including writing to the database.
-        """
-        name_url = unprocessed_cmr_data[["id", "name", "url", "product"]].to_records(index=False)
-        granules = defaultdict(list)
-        
-        for granule in name_url:
-            granule_id, name, url, product = granule
-            granules[granule_id].append((url, product))
     
-        downloader = H5FileDownloader(self.download_path)
+        :param unprocessed_cmr_data: A dictionary where the keys are granule IDs and the values are lists of (url, product) tuples.
+        :param n_workers: Number of workers. Controls the number of concurrent granule processing tasks.
+        """
+        # Setup Dask LocalCluster with specified number of workers
+        cluster = LocalCluster(n_workers=n_workers, 
+                               threads_per_worker=1,  # Use processes with 1 thread per worker
+                               processes=True)  
+        client = Client(cluster)  # Connect the client to the cluster
+    
         futures = []
     
-        for granule_id, product_info in granules.items():
-            # Create delayed tasks for downloading granules
-            download_futures = []
-            for url, product in product_info:
-                download_futures.append(delayed(downloader.download)(granule_id, url, GediProduct(product)))
-            
-            download_futures_combined = delayed(list)(download_futures)
+        for granule_id, product_info in unprocessed_cmr_data.items():
+            # Phase 1: Download all products for this granule concurrently within the function
+            download_future = client.submit(self.download_products_for_granule, granule_id, product_info)
     
-            # Log processing start
-            logger.info(f"Processing granule: {granule_id}")
-            
-            # Process the granule
-            process_future = delayed(self.granule_processor.process_granule)(download_futures_combined)
-            
-            # Write to the database
-            write_future = delayed(self.database_writer._write_db)(process_future)
-            
-            # Append the combined process and write future to the list
+            # Phase 2: Process the granule once all downloads are completed
+            process_future = client.submit(self.granule_processor.process_granule, download_future)
+    
+            # Phase 3: Write to the database once processing is complete
+            write_future = client.submit(self.database_writer._write_db, process_future)
+    
+            # Add the write task future to the futures list for tracking
             futures.append(write_future)
     
-        # Compute the entire workflow with a single Dask computation and progress bar
-        with ProgressBar():
-            dask.compute(*futures)
+        # Use `as_completed` to process futures as they finish
+        for completed_future in as_completed(futures):
+            try:
+                _ = completed_future.result()  # Wait for the result
+            except Exception as e:
+                logger.error(f"Error processing granule: {e}")
+        
+        # Shut down the Dask client and cluster when done
+        client.close()
+        cluster.close()
+
+    def download_products_for_granule(self, granule_id: str, product_info: list) -> list:
+        """
+        Downloads all products for a specific granule in parallel using multithreading.
+    
+        This function uses a `ThreadPoolExecutor` to download multiple products for a given granule concurrently.
+        Each product associated with the granule is downloaded in parallel to speed up the overall granule processing time.
+    
+        Args:
+            granule_id (str): The ID of the granule to be downloaded. This ID is used for naming and organizing the downloaded files.
+            product_info (list): A list of tuples containing the URL and product type (e.g., 'level2A', 'level2B') for the products 
+                                 associated with the granule. Each tuple has the format: (url, product).
+    
+        Returns:
+            list: A list of results from the download process, where each result corresponds to a product download. 
+                  The result format is typically a tuple containing the granule ID and a tuple of product name and file path.
+                  
+                  Example return value:
+                  [
+                      ('O02064_04', ('level2A', '/path/to/downloaded/file_level2A.h5')),
+                      ('O02064_04', ('level2B', '/path/to/downloaded/file_level2B.h5'))
+                  ]
+    
+        Example Usage:
+            granule_id = 'O02064_04'
+            product_info = [
+                ('https://example.com/level2A.h5', 'level2A'),
+                ('https://example.com/level2B.h5', 'level2B')
+            ]
+            download_results = self.download_products_for_granule(granule_id, product_info)
+        
+        Notes:
+            - This function runs product downloads in parallel using threads, not processes.
+            - It is ideal for I/O-bound tasks, such as downloading files, where multithreading can significantly speed up the process.
+        """
+        downloader = H5FileDownloader(self.download_path)
+        
+        # Use a ThreadPoolExecutor to download all products in parallel
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit download tasks for each product in the product_info list
+            futures = [executor.submit(downloader.download, granule_id, url, GediProduct(product))
+                       for url, product in product_info]
+            
+            # Gather the results from all download tasks
+            results = [f.result() for f in futures]
+        
+        return results
+
+
+
+
+
         
