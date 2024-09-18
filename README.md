@@ -67,25 +67,25 @@ cd gedi-toolbox; pip install .
 
 ### 1. Download, process and store GEDI data to the database
 ```
-from gedidb.database.db_builder import GEDIGranuleProcessor
+import gedidb as gdb
 
 
 #%% Initiate database builder
-database_builder = GEDIGranuleProcessor(data_config_file = "./config_files/data_config.yml", 
-                                        sql_config_file='./config_files/db_scheme.sql')
+database_builder = gdb.GEDIProcessor(data_config_file = "./config_files/data_config.yml", 
+                                     sql_config_file='./config_files/db_scheme.sql')
 
 #%% Process GEDI data
 database_builder.compute()
-
 ```
 
 ### 2. Reading data from the database
 ```
-from gedidb.providers.gedi_provider import GEDIProvider
+import gedidb as gdb
 
 #%% Instantiate the GEDIProvider
-provider = GEDIProvider(config_file='./config_files/data_config.yml',
-                        table_name="filtered_l2ab_l4ac_shots")
+provider = gdb.GEDIProvider(config_file='./config_files/data_config.yml',
+                        table_name="filtered_l2ab_l4ac_shots",
+                        metadata_table="variable_metadata")
 
 #%% Define the columns to query and additional parameters
 vars_selected = ["rh", "pavd_z", "pai"]
@@ -93,7 +93,6 @@ dataset = provider.get_dataset(variables=vars_selected, geometry=None,
                                start_time="2018-01-01", end_time="2023-12-31", 
                                limit=100, force=True, order_by=["-shot_number"], 
                                return_type='xarray')
-
 ```
 
 ## Contributing
