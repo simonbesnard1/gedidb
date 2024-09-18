@@ -151,19 +151,20 @@ class H5FileDownloader(GEDIDownloader):
         :param product: GEDI product.
         :return: Tuple containing the granule ID and a tuple of product name and file path.
         """
-        file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
+        h5file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
+        parquetfile_path = os.path.join(parquet_path, f"filtered_granule_{granule_key}.parquet")
 
-        if os.path.join(parquet_path, f"filtered_granule_{granule_key}.parquet"):
-            return granule_key, (product.value, str(file_path)) 
+        if os.path.exists(parquetfile_path):
+            return granule_key, (product.value, str(h5file_path)) 
         
         try:
             with requests.get(url, stream=True, timeout=30) as r:
                 r.raise_for_status()
-                os.makedirs(file_path.parent, exist_ok=True)
-                with open(file_path, 'wb') as f:
+                os.makedirs(h5file_path.parent, exist_ok=True)
+                with open(h5file_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
-                return granule_key, (product.value, str(file_path))
+                return granule_key, (product.value, str(h5file_path))
 
         except RequestException as e:
             logger.error(f"Error downloading {url}: {e}")

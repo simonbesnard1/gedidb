@@ -10,6 +10,8 @@
 import os
 import logging
 from sqlalchemy import Table, MetaData, select
+import shutil
+
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
 from gedidb.database.db import DatabaseManager
@@ -184,13 +186,21 @@ class GEDIGranule:
             Dictionary of GeoDataFrames for each product.
         """
         gdf_dict = {}
+        granule_dir = os.path.join(self.download_path, granule_key)
+        
         for product, file in granules:
             gdf = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
             if gdf is not None:
                 gdf_dict[product] = gdf
+            
             else:
                 logger.info(f"Skipping product {product} for granule {granule_key} due to parsing failure.")
-
+        
+        try:
+            shutil.rmtree(granule_dir)
+        except Exception as e:
+            logger.error(f"Error deleting directory {granule_dir}: {e}")
+        
         # Filter valid data frames
         return {k: v for k, v in gdf_dict.items() if not v.empty and "shot_number" in v.columns}
 
