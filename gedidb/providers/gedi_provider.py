@@ -152,8 +152,9 @@ class GEDIProvider:
                 var_metadata = metadata[metadata['sds_name'] == var].iloc[0]
                 dataset[var].attrs['description'] = var_metadata.get('description', '')
                 dataset[var].attrs['units'] = var_metadata.get('units', '')
+                dataset[var].attrs['product'] = var_metadata.get('product', '')
                 dataset[var].attrs['source_table'] = var_metadata.get('source_table', '')
-                dataset[var].attrs['created_at'] = var_metadata.get('created_at', '')
+                dataset[var].attrs['created_date'] = var_metadata.get('created_date', '')
     
         return dataset
     
