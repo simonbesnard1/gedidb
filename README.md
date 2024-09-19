@@ -1,13 +1,11 @@
 <p align="center">
 <a href="https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git">
-    <img src="images/logo2.png" alt="Master" height="130px" hspace="10px" vspace="0px" align="right">
+    <img src="docs/images/logo2.png" alt="Master" height="130px" hspace="10px" vspace="0px" align="right">
   </a>
 </p>
 
 ***
 # gediDB: A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data #
-
-### *by [Amelia Holcomb](https://ameliaholcomb.github.io/), Felix Dombrowski and [Simon Besnard](https://simonbesnard1.github.io/)*
 
 ## Table of Contents
 
