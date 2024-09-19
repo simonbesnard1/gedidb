@@ -1,8 +1,7 @@
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_GRANULE_TABLE} (
 
    granule_name VARCHAR(60) PRIMARY KEY,
-   version_id VARCHAR(60),
-   created_date DATE
+   created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 );
 
@@ -41,12 +40,7 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     l2_quality_flag SMALLINT,
     l2b_quality_flag SMALLINT,
     l4_quality_flag SMALLINT,
-    l4_algorithm_run_flag SMALLINT,
-    l4_predictor_limit_flag SMALLINT,
-    l4_response_limit_flag SMALLINT,
     stale_return_flag SMALLINT,
-    dem_tandemx FLOAT,
-    dem_srtm FLOAT,
     algorithmrun_flag SMALLINT,
     surface_flag SMALLINT,
     algorithm_run_flag SMALLINT,
@@ -111,7 +105,8 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_METADATA_TABLE} (
     SDS_Name VARCHAR(255) PRIMARY KEY,
     Description TEXT,
     units VARCHAR(100),
+    product VARCHAR(100),
     source_table VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

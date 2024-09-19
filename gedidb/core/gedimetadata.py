@@ -172,6 +172,7 @@ class GEDIMetadataManager:
             sds_name=variable_name,
             description=var_meta.get('Description', ''),
             units=var_meta.get('Units', ''),
+            product=var_meta.get('Product', ''),
             source_table=data_table_name
         )
         conn.execute(insert_stmt)

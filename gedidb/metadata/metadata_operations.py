@@ -18,30 +18,6 @@ from requests.exceptions import HTTPError
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def extract_layers_l2data(table):
-    """
-    Extract the layers/variables data from the L2 table.
-
-    :param table: The BeautifulSoup table element.
-    :return: A list of dictionaries containing the layers data.
-    """
-    layers_data = []
-    for row in table.find_all("tr")[1:]:  # Skip the header row
-        cols = row.find_all("td")
-        if len(cols) == 8:  # Ensure the row has the expected number of columns
-            layer_info = {
-                "SDS_Name": cols[0].text.strip(),
-                "Description": cols[1].text.strip(),
-                "Units": cols[2].text.strip(),
-                "Data_Type": cols[3].text.strip(),
-                "Fill_Value": cols[4].text.strip(),
-                "No_Data_Value": cols[5].text.strip(),
-                "Valid_Range": cols[6].text.strip(),
-                "Scale_Factor": cols[7].text.strip(),
-            }
-            layers_data.append(layer_info)
-    return layers_data
-
 class GEDIMetaDataDownloader:
     """
     A class to download and extract metadata for GEDI products (L2A, L2B, L4A, L4C) from a given URL.
@@ -165,7 +141,33 @@ class GEDIMetaDataDownloader:
         return data
 
     @staticmethod
-    def extract_layers_l4data(table):
+    def extract_layers_l2data(table, data_type):
+        """
+        Extract the layers/variables data from the L2 table.
+    
+        :param table: The BeautifulSoup table element.
+        :return: A list of dictionaries containing the layers data.
+        """
+        layers_data = []
+        for row in table.find_all("tr")[1:]:  # Skip the header row
+            cols = row.find_all("td")
+            if len(cols) == 8:  # Ensure the row has the expected number of columns
+                layer_info = {
+                    "SDS_Name": cols[0].text.strip(),
+                    "Description": cols[1].text.strip(),
+                    "Units": cols[2].text.strip(),
+                    "Data_Type": cols[3].text.strip(),
+                    "Fill_Value": cols[4].text.strip(),
+                    "No_Data_Value": cols[5].text.strip(),
+                    "Valid_Range": cols[6].text.strip(),
+                    "Scale_Factor": cols[7].text.strip(),
+                    "Product": data_type
+                }
+                layers_data.append(layer_info)
+        return layers_data
+
+    @staticmethod
+    def extract_layers_l4data(table, data_type):
         """
         Extract the layers/variables data from the L4 table.
 
@@ -179,7 +181,8 @@ class GEDIMetaDataDownloader:
                 layer_info = {
                     "SDS_Name": cols[0].text.strip(),
                     "Units": cols[1].text.strip(),
-                    "Description": cols[2].text.strip()
+                    "Description": cols[2].text.strip(),
+                    "Product": data_type
                 }
                 layers_data.append(layer_info)
         return layers_data
@@ -213,7 +216,7 @@ class GEDIMetaDataDownloader:
                 granule_data = self.extract_table_data(granule_table)
 
                 layers_table = self.locate_table("Layers / Variables")
-                layers_data = extract_layers_l2data(layers_table)
+                layers_data = self.extract_layers_l2data(layers_table, self.data_type)
 
                 data = {
                     "Collection": collection_data,
@@ -225,10 +228,11 @@ class GEDIMetaDataDownloader:
                 layers_tables = self.locate_table('Data Characteristics')
                 layers_data = []
                 for table in layers_tables:
-                    layers_data.extend(self.extract_layers_l4data(table))
+                    layers_data.extend(self.extract_layers_l4data(table, self.data_type))
 
                 data = {
                     "Layers_Variables": layers_data
+                    
                 }
 
             self.save_to_yaml(data)
