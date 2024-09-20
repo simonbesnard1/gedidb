@@ -5,17 +5,14 @@ Credits
 Development
 -----------
 
-The S2Downloader is developed by the team of FERN.Lab.
-
-* FernLab <fernlab@gfz-potsdam.de>
+The gediDB is developed by members of the GLM teams and Amelia Holcomb.
 
 Team Members
 ------------
 
-* Dr. Romulo Goncalves <romulo.goncalves@gfz-potsdam.de>
-* Johannes Knoch <jknoch@gfz-potsdam.de>
-* Arash Madadi <arashmad@gfz-potsdam.de>
-* Daniela Rabe <dara@gfz-potsdam.de>
+* Dr. Simon Besnard <besnard@gfz-potsdam.de>
+* Felix Dombrowski <felix.dombrowski@uni-potsdam.de>
+* Amelia Holcomb <ah2174@cam.ac.uk>
 
 Contributors
 ------------

@@ -16,7 +16,7 @@
 Downloader for Sentinel-2 data.
 ===============================
 .. image:: https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange
-        :target: https://fernlab.git-pages.gfz-potsdam.de/products/data-portal/s2downloader/doc/
+        :target: https://gedi-toolbox.readthedocs.io/en/latest/
         :alt: Documentation
 .. image:: https://zenodo.org/badge/832612594.svg
         :target: https://zenodo.org/doi/10.5281/zenodo.13123060
