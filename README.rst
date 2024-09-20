@@ -3,7 +3,7 @@
 ======================
 
 .. |gedidblogo| image:: https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/docs/images/gediDB_logo.png
-  :target: https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox
+  :target: https://git.gfz-potsdam.de/global-land-monitoring
   :width: 50px
 
 * Free software: EUPL 1.2
@@ -70,21 +70,21 @@ Installation
 History / Changelog
 -------------------
 
-You can find the protocol of recent changes in the S2Downloader package
+You can find the protocol of recent changes in the gediDB package
 `here <https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/-/blob/main/HISTORY.rst>`__.
 
 
 Contribution
 ------------
 
-Contributions are always welcome. Please contact us, if you wish to contribute to the S2Downloader.
+Contributions are always welcome. Please contact us, if you wish to contribute to the gediDB.
 
 
 Developed by
 ------------
 
 .. image:: https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/docs/images/GLM_logo.png
-  :target: https://www.gfz-potsdam.de/sektion/fernerkundung-und-geoinformatik/themen/global-land-monitoring
+  :target: https://git.gfz-potsdam.de/global-land-monitoring
   :width: 10 %
 
 gediDB has been developed by Simon Besnard (besnard@gfz-potsdam.de) and Felix Dombrowski (felix.dombrowski@uni-potsdam.de) from the `Global Land Monitoring group <https://www.gfz-potsdam.de/sektion/fernerkundung-und-geoinformatik/themen/global-land-monitoring>`_, located at the `Helmholtz Centre Potsdam, GFZ German Research Centre for Geosciences <https://www.gfz-potsdam.de/en/>`_ and Amelia Holcomb (ah2174@cam.ac.uk).
