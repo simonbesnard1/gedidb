@@ -47,11 +47,11 @@ class GEDIProvider:
         """
         try:
             # Query the selected columns from the metadata table
-            query = f"SELECT sds_name, description, units FROM {self.metadata_table};"
+            query = f"SELECT sds_name, description, units, product FROM {self.metadata_table};"
             selected_metadata_df = pd.read_sql(query, con=self.db.engine)
 
             # Convert the DataFrame to a dictionary with sds_name as the key
-            metadata_dict = selected_metadata_df.set_index('sds_name')[['description', 'units']].to_dict(orient='index')
+            metadata_dict = selected_metadata_df.set_index('sds_name')[['description', 'units', 'product']].to_dict(orient='index')
             
             return metadata_dict
         except Exception as e:
