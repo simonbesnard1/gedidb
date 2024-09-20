@@ -13,7 +13,7 @@
 * Submit feedback by filing an issue `here <https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/-/issues>`__
 
 ===============================
-Downloader for Sentinel-2 data.
+Toolbox for GEDI data.
 ===============================
 .. image:: https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange
         :target: https://gedi-toolbox.readthedocs.io/en/latest/
