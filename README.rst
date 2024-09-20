@@ -1,16 +1,16 @@
 ======================
-|s2logo| S2Downloader
+|gediDBlogo| gediDB
 ======================
 
-.. |s2logo| image:: https://fernlab.git-pages.gfz-potsdam.de/products/data-portal/s2downloader/images/s2downloader_logo.svg
-  :target: https://git.gfz-potsdam.de/fernlab/products/data-portal/s2downloader
+.. |gediDBlogo| image:: https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/docs/images/logo2.png
+  :target: https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox
   :width: 50px
 
 * Free software: EUPL 1.2
-* **Documentation:** https://fernlab.git-pages.gfz-potsdam.de/products/data-portal/s2downloader/doc/
-* Information on how to **cite the S2Downloader Python package** can be found in the
+* **Documentation:** https://gedi-toolbox.readthedocs.io/en/latest/
+* Information on how to **cite the gediDB Python package** can be found in the
   `CITATION <https://git.gfz-potsdam.de/fernlab/products/data-portal/s2downloader/-/blob/main/CITATION>`__ file.
-* Submit feedback by filing an issue `here <https://git.gfz-potsdam.de/fernlab/products/data-portal/s2downloader/issues>`__
+* Submit feedback by filing an issue `here <https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/-/issues>`__
 
 ===============================
 Downloader for Sentinel-2 data.
