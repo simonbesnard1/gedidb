@@ -134,7 +134,7 @@ devhelp:
 	@echo "Build finished."
 	@echo "To view the help file:"
 	@echo "# mkdir -p $$HOME/.local/share/devhelp/gedidb"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/gedidbz"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/gedidb"
 	@echo "# devhelp"
 
 .PHONY: epub
