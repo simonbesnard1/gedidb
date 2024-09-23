@@ -1,3 +1,9 @@
+<p align="center">
+<a href="https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git">
+    <img src="docs/_static/logos/gediDB_logo.svg" alt="Master" height="120px" hspace="0px" vspace="30px" align="left">
+  </a>
+</p>
+
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
 [![CI](https://github.com/pydata/xarray/workflows/CI/badge.svg?branch=main)](https://github.com/pydata/xarray/actions?query=workflow%3ACI)
