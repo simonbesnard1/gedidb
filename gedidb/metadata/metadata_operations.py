@@ -177,10 +177,18 @@ class GEDIMetaDataDownloader:
         layers_data = []
         for row in table.find_all("tr")[1:]:  # Skip the header row
             cols = row.find_all("td")
-            if len(cols) == 3:
+            if len(cols) == 3 and data_type == 'L4A':
                 layer_info = {
                     "SDS_Name": cols[0].text.strip(),
                     "Units": cols[1].text.strip(),
+                    "Description": cols[2].text.strip(),
+                    "Product": data_type
+                }
+                layers_data.append(layer_info)
+            elif len(cols) == 5 and data_type == 'L4C':
+                layer_info = {
+                    "SDS_Name": cols[0].text.strip(),
+                    "Units": cols[1].text.strip().replace('\r', '').replace('\n', '').replace('\t', ''),
                     "Description": cols[2].text.strip(),
                     "Product": data_type
                 }
