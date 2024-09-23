@@ -37,7 +37,7 @@ package that makes working with GEDI L2A-B and L4A-C data easy and fun!
 
 ## Documentation
 
-Learn more about xarray in its official documentation at
+Learn more about gediDB in its official documentation at
 <https://gedi-toolbox.readthedocs.io/en/latest/>.
 
 Try out an [interactive Jupyter
