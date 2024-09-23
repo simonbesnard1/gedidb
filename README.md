@@ -6,11 +6,11 @@
 
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
-[![CI](https://github.com/pydata/xarray/workflows/CI/badge.svg?branch=main)](https://github.com/pydata/xarray/actions?query=workflow%3ACI)
-[![Code coverage](https://codecov.io/gh/pydata/xarray/branch/main/graph/badge.svg?flag=unittests)](https://codecov.io/gh/pydata/xarray)
+[![CI](https://github.com/pydata/xarray/workflows/CI/badge.svg?branch=main)]()
+[![Code coverage](https://codecov.io/gh/pydata/xarray/branch/main/graph/badge.svg?flag=unittests)]()
 [![Docs](https://readthedocs.org/projects/xray/badge/?version=latest)](https://docs.xarray.dev/)
-[![Benchmarked with asv](https://img.shields.io/badge/benchmarked%20by-asv-green.svg?style=flat)](https://pandas.pydata.org/speed/xarray/)
-[![Available on pypi](https://img.shields.io/pypi/v/xarray.svg)](https://pypi.python.org/pypi/xarray/)
+[![Benchmarked with asv](https://img.shields.io/badge/benchmarked%20by-asv-green.svg?style=flat)]()
+[![Available on pypi](https://img.shields.io/pypi/v/xarray.svg)]()
 [![Formatted with black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11183201.svg)](https://doi.org/10.5281/zenodo.11183201)
@@ -38,36 +38,20 @@ package that makes working with GEDI L2A-B and L4A-C data easy and fun!
 ## Documentation
 
 Learn more about xarray in its official documentation at
-<https://docs.xarray.dev/>.
+<https://gedi-toolbox.readthedocs.io/en/latest/>.
 
 Try out an [interactive Jupyter
-notebook](https://mybinder.org/v2/gh/pydata/xarray/main?urlpath=lab/tree/doc/examples/weather-data.ipynb).
+notebook]().
 
 ## Contributing
 
-You can find information about contributing to xarray at our
+You can find information about contributing to gediDB at our
 [Contributing
-page](https://docs.xarray.dev/en/stable/contributing.html).
-
-## Get in touch
-
-- Ask usage questions ("How do I?") on
-  [GitHub Discussions](https://github.com/pydata/xarray/discussions).
-- Report bugs, suggest features or view the source code [on
-  GitHub](https://github.com/pydata/xarray).
-- For less well defined questions or ideas, or to announce other
-  projects of interest to xarray users, use the [mailing
-  list](https://groups.google.com/forum/#!forum/xarray).
+page](https://docs.gediDB.dev/en/stable/contributing.html).
 
 ## History
 
-Xarray is an evolution of an internal tool developed at [The Climate
-Corporation](http://climate.com/). It was originally written by Climate
-Corp researchers Stephan Hoyer, Alex Kleeman and Eugene Brevdo and was
-released as open source in May 2014. The project was renamed from
-"xray" in January 2016. Xarray became a fiscally sponsored project of
-[NumFOCUS](https://numfocus.org) in August 2018.
-
+The development of the GEDI Toolbox began during the PhD of Amelia Holcomb, who initially created the core of this toolset to analyze and manage GEDI (Global Ecosystem Dynamics Investigation) data for her research. Recognizing the potential of her work to benefit the broader scientific community, the [Global Land Monitoring](https://www.gfz-potsdam.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring) team collaborated in March 2024 with Amelia to expand and optimize her code, transforming it into a scalable and versatile Python package named gediDB. This collaboration helped refine the toolbox to handle large-scale datasets, integrate parallel processing, and incorporate a robust querying and metadata management system. Today, gediDB is designed to empower researchers in ecological and environmental sciences by making GEDI data processing more efficient and accessible.
 
 ## Contact person
 For any questions or inquiries, please contact Amelia Holcomb (ah2174@cam.ac.uk), Felix Dombrowski (felix.dombrowski@uni-potsdam.de) and Simon Besnard (besnard@gfz-potsdam.de) 
