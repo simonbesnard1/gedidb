@@ -21,6 +21,7 @@ dependencies:
   - pre-commit
   - pyarrow
   - pyproj
+  - psycopg2-binary  # Add this to ensure binary is used
   - setuptools
   - sparse
   - sphinx-autosummary-accessors
