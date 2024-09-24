@@ -23,7 +23,7 @@ RUN mamba init bash
 
 # copy some needed stuff to /root
 COPY *.yml /root/
-RUN mamba env create -n ci_env -f /root/environment_gedidb.yml
+RUN mamba env create -n ci_env -f /root/environment.yml
 
 # Make RUN commands use the new environment:
 SHELL ["conda", "run", "-n", "ci_env", "/bin/bash", "-c"]
