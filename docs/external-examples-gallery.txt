@@ -1,0 +1,45 @@
+
+.. grid:: 1 2 2 2
+    :gutter: 2
+
+    
+    .. grid-item-card::
+       :text-align: center
+       :link: https://corteva.github.io/rioxarray/stable/examples/examples.html
+
+       .. image:: _static/logos/Xarray_Logo_RGB_Final.svg
+           :alt: Managing raster data with rioxarray
+       +++
+       Managing raster data with rioxarray
+
+
+    .. grid-item-card::
+       :text-align: center
+       :link: https://gallery.pangeo.io/
+
+       .. image:: https://avatars.githubusercontent.com/u/60833341?s=200&v=4
+           :alt: Xarray and dask on the cloud with Pangeo
+       +++
+       Xarray and dask on the cloud with Pangeo
+
+
+    .. grid-item-card::
+       :text-align: center
+       :link: https://examples.dask.org/xarray.html_
+
+       .. image:: _static/logos/Xarray_Logo_RGB_Final.svg
+           :alt: Xarray with Dask Arrays
+       +++
+       Xarray with Dask Arrays
+
+
+    .. grid-item-card::
+       :text-align: center
+       :link: https://foundations.projectpythia.org/core/xarray.html
+
+       .. image:: https://raw.githubusercontent.com/ProjectPythia/projectpythia.github.io/main/portal/_static/images/logos/pythia_logo-blue-btext-twocolor.svg
+           :alt: Project Pythia Foundations Book
+       +++
+       Project Pythia Foundations Book
+
+    
