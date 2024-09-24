@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 context_dir="./context"
-dockerfile="gedidb.docker"
+dockerfile="gedidb_ci.docker"
 #python_script='
 #version = {}
 #with open("../../../gedidb/version.py") as version_file:

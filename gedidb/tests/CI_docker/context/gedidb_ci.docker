@@ -1,5 +1,5 @@
 # ref https://github.com/tebeka/pythonwise/blob/master/docker-miniconda/Dockerfile
-FROM python:3.12-slim-buster
+FROM python:3.11-slim-buster
 
 # System packages
 RUN apt-get update -y && \
