@@ -1,0 +1,620 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta property="og:title" content="Installation" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://gedi-toolbox.readthedocs.io/en/latest/getting-started-guide/installing.html" />
+<meta property="og:site_name" content="gedidb" />
+<meta property="og:description" content="Required dependencies: Python (3.12 or later), numpy(2.0 or later), packaging(23.1 or later), pandas(2.2 or later), pyarrow(17.0 or later), geopandas(1.0 or later), SQLAlchemy(2.0 or later), GeoAlc..." />
+<meta property="og:image" content="https://gedi-toolbox.readthedocs.io/en/latest/_static/logos/gediDB_logo.png" />
+<meta property="og:image:alt" content="gedidb" />
+<meta name="description" content="Required dependencies: Python (3.12 or later), numpy(2.0 or later), packaging(23.1 or later), pandas(2.2 or later), pyarrow(17.0 or later), geopandas(1.0 or later), SQLAlchemy(2.0 or later), GeoAlc..." />
+
+    <title>Installation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=a3416100" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css?v=4c969af8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=f2473156" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=ce394494"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=fe3c738c"></script>
+    <script src="../_static/tabs.js?v=3ee01567"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'getting-started-guide/installing';</script>
+    <link rel="icon" href="../_static/gediDB_logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Quick overview" href="quick-overview.html" />
+    <link rel="prev" title="Overview: Why xarray?" href="why-xarray.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+    <meta name="docbuild:last-update" content="2024-09-24"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/gediDB_logo.svg" class="logo__image only-light" alt=" - Home"/>
+    <script>document.write(`<img src="../_static/gediDB_logo.svg" class="logo__image only-dark" alt=" - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Getting Started</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="why-xarray.html">Overview: Why xarray?</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quick-overview.html">Quick overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../user-guide/index.html">User Guide</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/terminology.html">Terminology</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials-and-videos.html">Tutorials &amp; Videos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../howdoi.html">How do I ...</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://www.gfz-potsdam.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring">Team</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../whats-new.html">What’s New</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox">GitHub repository</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/pydata/xarray" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/pydata/xarray/edit/main/doc/getting-started-guide/installing.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/pydata/xarray/issues/new?title=Issue%20on%20page%20%2Fgetting-started-guide/installing.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/getting-started-guide/installing.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Installation</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#required-dependencies">Required dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-dependencies">Optional dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#development-versions">Development versions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#testing">Testing</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="installation">
+<span id="installing"></span><h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h1>
+<section id="required-dependencies">
+<h2>Required dependencies<a class="headerlink" href="#required-dependencies" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Python (3.12 or later)</p></li>
+<li><p><a class="reference external" href="https://www.numpy.org/">numpy</a> (2.0 or later)</p></li>
+<li><p><a class="reference external" href="https://packaging.pypa.io/en/latest/#">packaging</a> (23.1 or later)</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/">pandas</a> (2.2 or later)</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/">pyarrow</a> (17.0 or later)</p></li>
+<li><p><a class="reference external" href="https://geopandas.pydata.org/">geopandas</a> (1.0 or later)</p></li>
+<li><p><a class="reference external" href="https://SQLAlchemy.pydata.org/">SQLAlchemy</a> (2.0 or later)</p></li>
+<li><p><a class="reference external" href="https://GeoAlchemy2.pydata.org/">GeoAlchemy2</a> (0.15 or later)</p></li>
+<li><p><a class="reference external" href="https://h5py.pydata.org/">h5py</a> (3.11 or later)</p></li>
+<li><p><a class="reference external" href="https://psycopg2.pydata.org/">psycopg2</a> (2.9 or later)</p></li>
+<li><p><a class="reference external" href="https://xarray.pydata.org/">xarray</a> (2024.7.0 or later)</p></li>
+<li><p><a class="reference external" href="https://retry.pydata.org/">retry</a> (0.9 or later)</p></li>
+<li><p><a class="reference external" href="https://dask.pydata.org/">dask</a> (2024.8.2 or later)</p></li>
+<li><p><a class="reference external" href="https://distributed.pydata.org/">distributed</a> (2024.8.2 or later)</p></li>
+</ul>
+</section>
+<section id="optional-dependencies">
+<span id="id1"></span><h2>Optional dependencies<a class="headerlink" href="#optional-dependencies" title="Link to this heading">#</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you are using pip to install gediDB, optional dependencies can be installed by
+specifying <em>extras</em>. <a class="reference internal" href="#installation-instructions"><span class="std std-ref">Instructions</span></a> for both pip and conda
+are given below.</p>
+</div>
+</section>
+<section id="instructions">
+<span id="installation-instructions"></span><h2>Instructions<a class="headerlink" href="#instructions" title="Link to this heading">#</a></h2>
+<p>gedidb itself is a pure Python package, but its dependencies are not. The
+easiest way to get everything installed is to use <a class="reference external" href="https://docs.conda.io">conda</a>. To install xarray
+with its recommended dependencies using the conda command line tool:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ conda install -c conda-forge gedidb
+</pre></div>
+</div>
+<p>If you require other <a class="reference internal" href="#optional-dependencies"><span class="std std-ref">Optional dependencies</span></a> add them to the line above.</p>
+<p>We recommend using the community maintained <a class="reference external" href="https://conda-forge.org">conda-forge</a> channel,
+as some of the dependencies are difficult to build. New releases may also appear in conda-forge before
+being updated in the default channel.</p>
+<p>If you don’t use conda, be sure you have the required dependencies (numpy and
+pandas) installed first. Then, install xarray with pip:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python -m pip install gedidb
+</pre></div>
+</div>
+<p>The above commands should install most of the <a class="reference internal" href="#id1">optional dependencies</a>. However,
+some packages which are either not listed on PyPI or require extra
+installation steps are excluded. To know which dependencies would be
+installed, take a look at the <code class="docutils literal notranslate"><span class="pre">[project.optional-dependencies]</span></code> section in
+<code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[project.optional-dependencies]</span>
+<span class="n">accel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;scipy&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;bottleneck&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;numbagg&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;flox&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;opt_einsum&quot;</span><span class="p">]</span>
+<span class="n">dev</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="s2">&quot;hypothesis&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;mypy&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;pre-commit&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;pytest&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;pytest-cov&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;pytest-env&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;pytest-xdist&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;pytest-timeout&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;ruff&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;xarray[complete]&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">io</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;netCDF4&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;h5netcdf&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;scipy&quot;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;pydap; python_version&lt;&quot;3.10&quot;&#39;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;zarr&lt;3&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;fsspec&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;cftime&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;pooch&quot;</span><span class="p">]</span>
+<span class="n">viz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;matplotlib&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;seaborn&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;nc-time-axis&quot;</span><span class="p">]</span>
+
+<span class="k">[project.urls]</span>
+<span class="s2">&quot;Source Code&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="development-versions">
+<h2>Development versions<a class="headerlink" href="#development-versions" title="Link to this heading">#</a></h2>
+<p>To install the most recent development version, install from github:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python -m pip install git+https://github.com/pydata/xarray.git
+</pre></div>
+</div>
+</section>
+<section id="testing">
+<h2>Testing<a class="headerlink" href="#testing" title="Link to this heading">#</a></h2>
+<p>To run the test suite after installing xarray, install (via pypi or conda) <a class="reference external" href="https://pytest.org">py.test</a> and run <code class="docutils literal notranslate"><span class="pre">pytest</span></code> in the root directory of the xarray
+repository.</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="why-xarray.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Overview: Why xarray?</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="quick-overview.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Quick overview</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#required-dependencies">Required dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-dependencies">Optional dependencies</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#instructions">Instructions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#development-versions">Development versions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#testing">Testing</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Author name not set
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2014-2024, gediDB Developers.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on 2024-09-24.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
