@@ -21,11 +21,19 @@ stages:          # List of stages for jobs, and their order of execution
   - test
   - deploy
 
-build-job:       # This job runs in the build stage, which runs first.
+build-job:
   stage: build
   script:
-    - echo "Compiling the code..."
-    - echo "Compile complete."
+    # Install conda (if not already installed on the runner)
+    - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+    - bash miniconda.sh -b -p $HOME/miniconda
+    - source "$HOME/miniconda/etc/profile.d/conda.sh"
+    - conda activate
+    - conda config --set always_yes yes
+    - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
+    - conda activate gedidb-docs  # Activate the environment
+    # Build the documentation
+    - sphinx-build -b html doc/ doc/_build/html
 
 unit-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
@@ -65,7 +73,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - cp doc/index.html public/
     - cp -r doc/_static/* public/doc/_static/
     - cp -r doc/_build/html/* public/doc/
-    
+
     # Copy over the coverage reports
     - cp -r htmlcov/* public/coverage/
 
