@@ -2,14 +2,13 @@
 
 context_dir="./context"
 dockerfile="gedidb_ci.docker"
-#python_script='
-#version = {}
-#with open("../../../gedidb/version.py") as version_file:
-#    exec(version_file.read(), version)
-#print(version["__version__"])
-#'
-#version=`python -c "$python_script"`
-version="2.0"
+python_script='
+version = {}
+with open("../../gedidb/version.py") as version_file:
+    exec(version_file.read(), version)
+print(version["__version__"])
+'
+version=`python -c "$python_script"`
 
 runner_version="v$version"
 runner_tag="gedidb_ci:$runner_version"

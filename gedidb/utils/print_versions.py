@@ -25,7 +25,7 @@ def get_sys_info():
 
     # get full commit hash
     commit = None
-    if os.path.isdir(".git") and os.path.isdir("xarray"):
+    if os.path.isdir(".git") and os.path.isdir("gedidb"):
         try:
             pipe = subprocess.Popen(
                 'git log --format="%H" -n 1'.split(" "),
@@ -54,7 +54,7 @@ def get_sys_info():
                 ("python-bits", struct.calcsize("P") * 8),
                 ("OS", f"{sysname}"),
                 ("OS-release", f"{release}"),
-                # ("Version", f"{version}"),
+                ("Version", f"{_version}"),
                 ("machine", f"{machine}"),
                 ("processor", f"{processor}"),
                 ("byteorder", f"{sys.byteorder}"),
@@ -108,25 +108,21 @@ def show_versions(file=sys.stdout):
         ("pandas", lambda mod: mod.__version__),
         ("pyarrow", lambda mod: mod.__version__),
         ("numpy", lambda mod: mod.__version__),
-        ("scipy", lambda mod: mod.__version__),
         ("h5py", lambda mod: mod.__version__),
         ("xarray", lambda mod: mod.__version__),
-        # xarray optionals
+        # gedidb optionals
         ("netCDF4", lambda mod: mod.__version__),
-        ("pydap", lambda mod: mod.__version__),
-        ("h5netcdf", lambda mod: mod.__version__),
-        ("bottleneck", lambda mod: mod.__version__),
         ("dask", lambda mod: mod.__version__),
         ("distributed", lambda mod: mod.__version__),
         ("matplotlib", lambda mod: mod.__version__),
-        # xarray setup/test
+        # gedidb setup/test
         ("setuptools", lambda mod: mod.__version__),
         ("pip", lambda mod: mod.__version__),
-        ("conda", lambda mod: mod.__version__),
         ("pytest", lambda mod: mod.__version__),
         ("mypy", lambda mod: importlib.metadata.version(mod.__name__)),
         # Misc.
         ("IPython", lambda mod: mod.__version__),
+        ("sphinx", lambda mod: mod.__version__)
     ]
 
     deps_blob = []
