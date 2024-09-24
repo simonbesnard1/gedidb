@@ -61,6 +61,11 @@ except ImportError:
 nbsphinx_allow_errors = False
 nbsphinx_requirejs_path = ""
 
+project = 'gediDB'
+copyright = '2024, Amelia Holcomb, Felix Dombrowski and Simon Besnard'
+author = 'Amelia Holcomb, Felix Dombrowski and Simon Besnard'
+release = '2024'
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
