@@ -50,8 +50,8 @@ deploy-job:      # This job runs in the deploy stage.
 
 pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
   stage: deploy
-  dependencies:
-    - test_gedidb
+  #dependencies:
+  #  - test_gedidb
   script:
     # Create the public directory
     - rm -rf public
