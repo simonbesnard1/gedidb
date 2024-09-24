@@ -1,0 +1,75 @@
+
+.. grid:: 1 2 2 2
+    :gutter: 2
+
+    
+    .. grid-item-card:: Xdev Python Tutorial Seminar Series 2022 Thinking with Xarray : High-level computation patterns
+        :text-align: center
+
+        .. raw:: html
+
+            <iframe width="100%" src="https://www.youtube.com/embed/TSw3GF_d2y8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        +++
+        Deepak Cherian
+
+
+    .. grid-item-card:: Xdev Python Tutorial Seminar Series 2021 seminar introducing xarray (2 of 2)
+        :text-align: center
+
+        .. raw:: html
+
+            <iframe width="100%" src="https://www.youtube.com/embed/2H_4drBwORY" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        +++
+        Anderson Banihirwe
+
+
+    .. grid-item-card:: Xdev Python Tutorial Seminar Series 2021 seminar introducing xarray (1 of 2)
+        :text-align: center
+
+        .. raw:: html
+
+            <iframe width="100%" src="https://www.youtube.com/embed/Ss4ryKukhi4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        +++
+        Anderson Banihirwe
+
+
+    .. grid-item-card:: Xarray's 2020 virtual tutorial
+        :text-align: center
+
+        .. raw:: html
+
+            <iframe width="100%" src="https://www.youtube.com/embed/a339Q5F48UQ" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        +++
+        Anderson Banihirwe | Deepak Cherian | Martin Durant
+
+
+    .. grid-item-card:: Xarray's Tutorial presented at the 2020 SciPy Conference
+        :text-align: center
+
+        .. raw:: html
+
+             <iframe width="100%" src="https://www.youtube.com/embed/mecN-Ph_-78" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        +++
+        Joe Hamman | Deepak Cherian | Ryan Abernathey | Stephan Hoyer
+
+
+    .. grid-item-card:: Scipy 2015 talk introducing xarray to a general audience
+        :text-align: center
+
+        .. raw:: html
+
+            <iframe width="100%" src="https://www.youtube.com/embed/X0pAhJgySxk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        +++
+        Stephan Hoyer
+
+
+    .. grid-item-card:: 2015 Unidata Users Workshop talk and tutorial with (`with answers`_) introducing xarray to users familiar with netCDF
+        :text-align: center
+
+        .. raw:: html
+
+            <iframe width="100%" src="https://www.youtube.com/embed/J9ypQOnt5l8" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        +++
+        Stephan Hoyer
+
+    

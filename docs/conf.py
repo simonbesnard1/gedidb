@@ -1,29 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# S2Downloader - The S2Downloader allows to download Sentinel-2 L2A data
 #
-# Copyright (C) 2022-2023
-# - Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences Potsdam,
-#   Germany (https://www.gfz-potsdam.de/)
-#
-# Licensed only under the EUPL, Version 1.2 or - as soon they will be approved
-# by the European Commission - subsequent versions of the EUPL (the "Licence").
-# You may not use this work except in compliance with the Licence.
-#
-# You may obtain a copy of the Licence at:
-# https://joinup.ec.europa.eu/software/page/eupl
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-#
-# s2downloader documentation build configuration file, created by
-# sphinx-quickstart on Fri Jun  9 13:47:02 2017.
+# gedidb documentation build configuration file, created by
+# sphinx-quickstart on Thu Feb  6 18:57:54 2014.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -34,321 +11,460 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-# If extensions (or modules to document with autodoc) are in another
-# directory, add these directories to sys.path here. If the directory is
-# relative to the documentation root, use os.path.abspath to make it
-# absolute, like shown here.
-#
 
+import datetime
+import inspect
 import os
+import pathlib
+import subprocess
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+from contextlib import suppress
+from textwrap import dedent, indent
+
+import sphinx_autosummary_accessors
+import yaml
+from sphinx.application import Sphinx
+from sphinx.util import logging
 
 import gedidb
 
-# -- General configuration ---------------------------------------------
+LOGGER = logging.getLogger("conf")
+
+allowed_failures = set()
+
+print("python exec:", sys.executable)
+print("sys.path:", sys.path)
+
+if "CONDA_DEFAULT_ENV" in os.environ or "conda" in sys.executable:
+    print("conda environment:")
+    subprocess.run([os.environ.get("CONDA_EXE", "conda"), "list"])
+else:
+    print("pip environment:")
+    subprocess.run([sys.executable, "-m", "pip", "list"])
+
+print(f"gedidb: {gedidb.__version__}, {gedidb.__file__}")
+
+with suppress(ImportError):
+    import matplotlib
+
+    matplotlib.use("Agg")
+
+try:
+    import cartopy  # noqa: F401
+except ImportError:
+    allowed_failures.update(
+        [
+            "gallery/plot_cartopy_facetgrid.py",
+        ]
+    )
+
+nbsphinx_allow_errors = False
+nbsphinx_requirejs_path = ""
+
+# -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
 # needs_sphinx = '1.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
+# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
+# ones.
+
 extensions = [
-    'numpydoc',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.githubpages',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.todo',
-    'sphinxarg.ext',
-    # 'sphinx_autodoc_typehints',
-    'sphinx.ext.intersphinx'
+    "sphinxcontrib.mermaid",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.napoleon",
+    "IPython.sphinxext.ipython_directive",
+    "IPython.sphinxext.ipython_console_highlighting",
+    "nbsphinx",
+    "sphinx_autosummary_accessors",
+    "sphinx.ext.linkcode",
+    "sphinxext.opengraph",
+    "sphinx_copybutton",
+    "sphinxext.rediraffe",
+    "sphinx_design",
+    "sphinx_inline_tabs",
+    "sphinx_remove_toctrees",
 ]
 
-autosummary_generate = True
-numpydoc_show_class_members = False
 
+extlinks = {
+    "issue": ("https://github.com/pydata/xarray/issues/%s", "GH%s"),
+    "pull": ("https://github.com/pydata/xarray/pull/%s", "PR%s"),
+    "discussion": ("https://github.com/pydata/xarray/discussions/%s", "D%s"),
+}
+
+# sphinx-copybutton configurations
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.{3,}: | {5,8}: "
+copybutton_prompt_is_regexp = True
+
+# nbsphinx configurations
+
+nbsphinx_timeout = 600
+nbsphinx_execute = "always"
+nbsphinx_prolog = """
+{% set docname = env.doc2path(env.docname, base=None) %}
+
+You can run this notebook in a `live session <https://mybinder.org/v2/gh/pydata/xarray/doc/examples/main?urlpath=lab/tree/doc/{{ docname }}>`_ |Binder| or view it `on Github <https://github.com/pydata/xarray/blob/main/doc/{{ docname }}>`_.
+
+.. |Binder| image:: https://mybinder.org/badge.svg
+   :target: https://mybinder.org/v2/gh/pydata/xarray/main?urlpath=lab/tree/doc/{{ docname }}
+"""
+
+autosummary_generate = True
+autodoc_typehints = "none"
+
+# Napoleon configurations
+
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_use_param = False
+napoleon_use_rtype = False
+napoleon_preprocess_types = True
+napoleon_type_aliases = {
+    # general terms
+    "sequence": ":term:`sequence`",
+    "iterable": ":term:`iterable`",
+    "callable": ":py:func:`callable`",
+    "dict_like": ":term:`dict-like <mapping>`",
+    "dict-like": ":term:`dict-like <mapping>`",
+    "path-like": ":term:`path-like <path-like object>`",
+    "mapping": ":term:`mapping`",
+    "file-like": ":term:`file-like <file-like object>`",
+    # special terms
+    # "same type as caller": "*same type as caller*",  # does not work, yet
+    # "same type as values": "*same type as values*",  # does not work, yet
+    # stdlib type aliases
+    "MutableMapping": "~collections.abc.MutableMapping",
+    "sys.stdout": ":obj:`sys.stdout`",
+    "timedelta": "~datetime.timedelta",
+    "string": ":class:`string <str>`",
+    # numpy terms
+    "array_like": ":term:`array_like`",
+    "array-like": ":term:`array-like <array_like>`",
+    "scalar": ":term:`scalar`",
+    "array": ":term:`array`",
+    "hashable": ":term:`hashable <name>`",
+    # matplotlib terms
+    "color-like": ":py:func:`color-like <matplotlib.colors.is_color_like>`",
+    "matplotlib colormap name": ":doc:`matplotlib colormap name <matplotlib:gallery/color/colormap_reference>`",
+    "matplotlib axes object": ":py:class:`matplotlib axes object <matplotlib.axes.Axes>`",
+    "colormap": ":py:class:`colormap <matplotlib.colors.Colormap>`",
+    # xarray terms
+    "dim name": ":term:`dimension name <name>`",
+    "var name": ":term:`variable name <name>`",
+    # objects without namespace: xarray
+    "DataArray": "~xarray.DataArray",
+    "Dataset": "~xarray.Dataset",
+    "Variable": "~xarray.Variable",
+    "DataTree": "~xarray.DataTree",
+    "DatasetGroupBy": "~xarray.core.groupby.DatasetGroupBy",
+    "DataArrayGroupBy": "~xarray.core.groupby.DataArrayGroupBy",
+    "Grouper": "~xarray.groupers.Grouper",
+    "Resampler": "~xarray.groupers.Resampler",
+    # objects without namespace: numpy
+    "ndarray": "~numpy.ndarray",
+    "MaskedArray": "~numpy.ma.MaskedArray",
+    "dtype": "~numpy.dtype",
+    "ComplexWarning": "~numpy.ComplexWarning",
+    # objects without namespace: pandas
+    "Index": "~pandas.Index",
+    "MultiIndex": "~pandas.MultiIndex",
+    "CategoricalIndex": "~pandas.CategoricalIndex",
+    "TimedeltaIndex": "~pandas.TimedeltaIndex",
+    "DatetimeIndex": "~pandas.DatetimeIndex",
+    "IntervalIndex": "~pandas.IntervalIndex",
+    "Series": "~pandas.Series",
+    "DataFrame": "~pandas.DataFrame",
+    "Categorical": "~pandas.Categorical",
+    "Path": "~~pathlib.Path",
+    # objects with abbreviated namespace (from pandas)
+    "pd.Index": "~pandas.Index",
+    "pd.NaT": "~pandas.NaT",
+}
+
+# mermaid config
+mermaid_version = "10.9.1"
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates", sphinx_autosummary_accessors.templates_path]
 
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+# The suffix of source filenames.
+# source_suffix = ".rst"
 
-# The encoding of source files.
-# source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
+
+remove_from_toctrees = ["generated/*"]
 
 # General information about the project.
-project = ''
-copyright = '2024, Amelia Holcomb, Felix Dombrowski and Simon Besnard'
-author = 'Amelia Holcomb, Felix Dombrowski and Simon Besnard'
-release = '2024'
+project = "gedidb"
+copyright = f"2014-{datetime.datetime.now().year}, gediDB Developers"
 
-html_baseurl = 'https://gedi-toolbox.readthedocs.io/en/latest/'
-
-
-# The version info for the project you're documenting, acts as replacement
-# for |version| and |release|, also used in various other places throughout
-# the built documents.
-#
 # The short X.Y version.
-version = gedidb.__version__
+version = gedidb.__version__.split("+")[0]
 # The full version, including alpha/beta/rc tags.
 release = gedidb.__version__
 
-# The language for content autogenerated by Sphinx. Refer to documentation
-# for a list of supported languages.
-#
-# This is also used if you do content translation via gettext catalogs.
-# Usually you set "language" from the command line for these cases.
-language = 'en'
-
-# There are two options for replacing |today|: either, you set today to
-# some non-false value, then it is used:
+# There are two options for replacing |today|: either, you set today to some
+# non-false value, then it is used:
 # today = ''
 # Else, today_fmt is used as the format for a strftime call.
-# today_fmt = '%B %d, %Y'
+today_fmt = "%Y-%m-%d"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-# This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 
-# The reST default role (used for this markup: `text`) to use for all
-# documents.
-# default_role = None
-
-# If true, '()' will be appended to :func: etc. cross-reference text.
-# add_function_parentheses = True
-
-# If true, the current module name will be prepended to all description
-# unit titles (such as .. function::).
-# add_module_names = True
-
-# If true, sectionauthor and moduleauthor directives will be shown in the
-# output. They are ignored by default.
-# show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
-
-# A list of ignored prefixes for module index sorting.
-# modindex_common_prefix = []
-
-# If true, keep warnings as "system message" paragraphs in the built
-# documents.
-# keep_warnings = False
-
-# Define how to document class docstrings
-# '__init__' documents only the __init__ methods, 'class' documents only the class methods and 'both' documents both
-autoclass_content = 'class'
-
-# If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = True
+pygments_style = "sphinx"
 
 
-# Apply custom sphinx styles (e.g., increase content width of generated docs)
-def setup(app):
-    app.add_css_file('custom.css')
-
-
-# Add mappings for intersphinx extension (allows to link to the API reference of other sphinx documentations)
-intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-}
-
-
-# -- Options for HTML output -------------------------------------------
-
+# -- Options for HTML output ----------------------------------------------
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-# html_theme = 'default'
-html_theme = 'sphinx_rtd_theme'  # The one installed via pip install sphinx_rtd_theme in the .gitlab.yml
-html_baseurl = 'https://gedi-toolbox.readthedocs.io/en/latest/'
+html_theme = "sphinx_book_theme"
+html_title = ""
 
-# Theme options are theme-specific and customize the look and feel of a
-# theme further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options = {
-    'canonical_url': '',
-    'analytics_id': '',
-    'logo_only': False,
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
-    # Toc options
-    'collapse_navigation': True,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
-    'includehidden': True,
-    'titles_only': False
-    # 'set_type_checking_flag': True  # option of sphinx_autodoc_typehints extension
+html_context = {
+    "github_user": "pydata",
+    "github_repo": "gedidb",
+    "github_version": "main",
+    "doc_path": "doc",
 }
 
-# generate autosummary even if no references
-autosummary_generate = True
-autosummary_imported_members = True
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+html_theme_options = dict(
+    # analytics_id=''  this is configured in rtfd.io
+    # canonical_url="",
+    repository_url="https://github.com/pydata/gedidb",
+    repository_branch="main",
+    navigation_with_keys=False,  # pydata/pydata-sphinx-theme#1492
+    navigation_depth=4,
+    path_to_docs="doc",
+    use_edit_page_button=True,
+    use_repository_button=True,
+    use_issues_button=True,
+    home_page_in_toc=False,
+    icon_links=[],  # workaround for pydata/pydata-sphinx-theme#1220
+    # announcement="<a href='https://forms.gle/KEq7WviCdz9xTaJX6'>Xarray's 2024 User Survey is live now. Please take ~5 minutes to fill it out and help us improve Xarray.</a>",
+)
 
-# Add any paths that contain custom themes here, relative to this directory.
-# html_theme_path = []
 
-# The name for this set of Sphinx documents.  If None, it defaults to
-# "<project> v<release> documentation".
-# html_title = None
+# The name of an image file (relative to this directory) to place at the top
+# of the sidebar.
+html_logo = "_static/logos/gediDB_logo.svg"
 
-# A shorter title for the navigation bar.  Default is the same as
-# html_title.
-# html_short_title = None
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
+# pixels large.
+html_favicon = "_static/logos/gediDB_logo.svg"
 
-# The name of an image file (relative to this directory) to place at the
-# top of the sidebar.
-# html_logo = None
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ["_static"]
+html_css_files = ["style.css"]
 
-# The name of an image file (within the static path) to use as favicon
-# of the docs.  This file should be a Windows icon file (.ico) being
-# 16x16 or 32x32 pixels large.
-# html_favicon = None
 
-# Add any paths that contain custom static files (such as style sheets)
-# here, relative to this directory. They are copied after the builtin
-# static files, so a file named "default.css" will overwrite the builtin
-# "default.css".
-html_static_path = ['_static']
+# configuration for sphinxext.opengraph
+ogp_site_url = "https://gedi-toolbox.readthedocs.io/en/latest/"
+ogp_image = "https://gedi-toolbox.readthedocs.io/en/latest/_static/logos/Xarray_Logo_RGB_Final.png"
+# Redirects for pages that were moved to new locations
 
-# If not '', a 'Last updated on:' timestamp is inserted at every page
-# bottom, using the given strftime format.
-# html_last_updated_fmt = '%b %d, %Y'
+rediraffe_redirects = {
+    "terminology.rst": "user-guide/terminology.rst",
+    "data-structures.rst": "user-guide/data-structures.rst",
+    "indexing.rst": "user-guide/indexing.rst",
+    "interpolation.rst": "user-guide/interpolation.rst",
+    "computation.rst": "user-guide/computation.rst",
+    "groupby.rst": "user-guide/groupby.rst",
+    "reshaping.rst": "user-guide/reshaping.rst",
+    "combining.rst": "user-guide/combining.rst",
+    "time-series.rst": "user-guide/time-series.rst",
+    "weather-climate.rst": "user-guide/weather-climate.rst",
+    "pandas.rst": "user-guide/pandas.rst",
+    "io.rst": "user-guide/io.rst",
+    "dask.rst": "user-guide/dask.rst",
+    "plotting.rst": "user-guide/plotting.rst",
+    "duckarrays.rst": "user-guide/duckarrays.rst",
+    "related-projects.rst": "ecosystem.rst",
+    "faq.rst": "getting-started-guide/faq.rst",
+    "why-xarray.rst": "getting-started-guide/why-xarray.rst",
+    "installing.rst": "getting-started-guide/installing.rst",
+    "quick-overview.rst": "getting-started-guide/quick-overview.rst",
+}
 
-# If true, SmartyPants will be used to convert quotes and dashes to
-# typographically correct entities.
-# html_use_smartypants = True
+# Sometimes the savefig directory doesn't exist and needs to be created
+# https://github.com/ipython/ipython/issues/8733
+# becomes obsolete when we can pin ipython>=5.2; see ci/requirements/doc.yml
+ipython_savefig_dir = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "_build", "html", "_static"
+)
+if not os.path.exists(ipython_savefig_dir):
+    os.makedirs(ipython_savefig_dir)
 
-# Custom sidebar templates, maps document names to template names.
-# html_sidebars = {}
 
-# Additional templates that should be rendered to pages, maps page names
-# to template names.
-# html_additional_pages = {}
-
-# If false, no module index is generated.
-# html_domain_indices = True
-
-# If false, no index is generated.
-# html_use_index = True
-
-# If true, the index is split into individual pages for each letter.
-# html_split_index = False
-
-# If true, links to the reST sources are added to the pages.
-# html_show_sourcelink = True
-
-# If true, "Created using Sphinx" is shown in the HTML footer.
-# Default is True.
-# html_show_sphinx = True
-
-# If true, "(C) Copyright ..." is shown in the HTML footer.
-# Default is True.
-# html_show_copyright = True
-
-# If true, an OpenSearch description file will be output, and all pages
-# will contain a <link> tag referring to it.  The value of this option
-# must be the base URL from which the finished HTML is served.
-# html_use_opensearch = ''
-
-# This is the file name suffix for HTML files (e.g. ".xhtml").
-# html_file_suffix = None
+# If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
+# using the given strftime format.
+html_last_updated_fmt = today_fmt
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'gedidbdoc'
+htmlhelp_basename = "gedidbdoc"
 
 
-# -- Options for LaTeX output ------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    # 'papersize': 'letterpaper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    # 'pointsize': '10pt',
-
-    # Additional stuff for the LaTeX preamble.
-    # 'preamble': '',
-
-    # Latex figure (float) alignment
-    # 'figure_align': 'htbp',
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {
+    "cftime": ("https://unidata.github.io/cftime", None),
+    "cubed": ("https://cubed-dev.github.io/cubed/", None),
+    "dask": ("https://docs.dask.org/en/latest", None),
+    "flox": ("https://flox.readthedocs.io/en/latest/", None),
+    "hypothesis": ("https://hypothesis.readthedocs.io/en/latest/", None),
+    "iris": ("https://scitools-iris.readthedocs.io/en/latest", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "numba": ("https://numba.readthedocs.io/en/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "python": ("https://docs.python.org/3/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy", None),
+    "sparse": ("https://sparse.pydata.org/en/latest/", None),
+    "xarray-tutorial": ("https://tutorial.xarray.dev/", None),
+    "zarr": ("https://zarr.readthedocs.io/en/latest/", None),
 }
 
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title, author, documentclass
-# [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, 'gedidb.tex',
-     'gediDB Documentation',
-     'GLM', 'manual'),
-]
 
-# The name of an image file (relative to this directory) to place at
-# the top of the title page.
-# latex_logo = None
+# based on numpy doc/source/conf.py
+def linkcode_resolve(domain, info):
+    """
+    Determine the URL corresponding to Python object
+    """
+    if domain != "py":
+        return None
 
-# For "manual" documents, if this is true, then toplevel headings
-# are parts, not chapters.
-# latex_use_parts = False
+    modname = info["module"]
+    fullname = info["fullname"]
 
-# If true, show page references after internal links.
-# latex_show_pagerefs = False
+    submod = sys.modules.get(modname)
+    if submod is None:
+        return None
 
-# If true, show URL addresses after external links.
-# latex_show_urls = False
+    obj = submod
+    for part in fullname.split("."):
+        try:
+            obj = getattr(obj, part)
+        except AttributeError:
+            return None
 
-# Documents to append as an appendix to all manuals.
-# latex_appendices = []
+    try:
+        fn = inspect.getsourcefile(inspect.unwrap(obj))
+    except TypeError:
+        fn = None
+    if not fn:
+        return None
 
-# If false, no module index is generated.
-# latex_domain_indices = True
+    try:
+        source, lineno = inspect.getsourcelines(obj)
+    except OSError:
+        lineno = None
+
+    if lineno:
+        linespec = f"#L{lineno}-L{lineno + len(source) - 1}"
+    else:
+        linespec = ""
+
+    fn = os.path.relpath(fn, start=os.path.dirname(gedidb.__file__))
+
+    if "+" in gedidb.__version__:
+        return f"https://github.com/pydata/xarray/blob/main/xarray/{fn}{linespec}"
+    else:
+        return (
+            f"https://github.com/pydata/xarray/blob/"
+            f"v{xarray.__version__}/xarray/{fn}{linespec}"
+        )
 
 
-# -- Options for manual page output ------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'gedidb',
-     'gediDB Documentation',
-     [author], 1)
-]
-
-# If true, show URL addresses after external links.
-# man_show_urls = False
+def html_page_context(app, pagename, templatename, context, doctree):
+    # Disable edit button for docstring generated pages
+    if "generated" in pagename:
+        context["theme_use_edit_page_button"] = False
 
 
-# -- Options for Texinfo output ----------------------------------------
+def update_gallery(app: Sphinx):
+    """Update the gallery page."""
 
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [
-    (master_doc, 'gedidb',
-     'gediDB Documentation',
-     author,
-     'gediDB',
-     'One line description of project.',
-     'Miscellaneous'),
-]
+    LOGGER.info("Updating gallery page...")
 
-# Documents to append as an appendix to all manuals.
-# texinfo_appendices = []
+    gallery = yaml.safe_load(pathlib.Path(app.srcdir, "gallery.yml").read_bytes())
 
-# If false, no module index is generated.
-# texinfo_domain_indices = True
+    for key in gallery:
+        items = [
+            f"""
+         .. grid-item-card::
+            :text-align: center
+            :link: {item['path']}
 
-# How to display URL addresses: 'footnote', 'no', or 'inline'.
-# texinfo_show_urls = 'footnote'
+            .. image:: {item['thumbnail']}
+                :alt: {item['title']}
+            +++
+            {item['title']}
+            """
+            for item in gallery[key]
+        ]
 
-# If true, do not generate a @detailmenu in the "Top" node's menu.
-# texinfo_no_detailmenu = False
+        items_md = indent(dedent("\n".join(items)), prefix="    ")
+        markdown = f"""
+.. grid:: 1 2 2 2
+    :gutter: 2
+
+    {items_md}
+    """
+        pathlib.Path(app.srcdir, f"{key}-gallery.txt").write_text(markdown)
+        LOGGER.info(f"{key} gallery page updated.")
+    LOGGER.info("Gallery page updated.")
+
+
+def update_videos(app: Sphinx):
+    """Update the videos page."""
+
+    LOGGER.info("Updating videos page...")
+
+    videos = yaml.safe_load(pathlib.Path(app.srcdir, "videos.yml").read_bytes())
+
+    items = []
+    for video in videos:
+        authors = " | ".join(video["authors"])
+        item = f"""
+.. grid-item-card:: {" ".join(video["title"].split())}
+    :text-align: center
+
+    .. raw:: html
+
+        {video['src']}
+    +++
+    {authors}
+        """
+        items.append(item)
+
+    items_md = indent(dedent("\n".join(items)), prefix="    ")
+    markdown = f"""
+.. grid:: 1 2 2 2
+    :gutter: 2
+
+    {items_md}
+    """
+    pathlib.Path(app.srcdir, "videos-gallery.txt").write_text(markdown)
+    LOGGER.info("Videos page updated.")
+
+
+def setup(app: Sphinx):
+    app.connect("html-page-context", html_page_context)
+    app.connect("builder-inited", update_gallery)
+    app.connect("builder-inited", update_videos)

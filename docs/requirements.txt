@@ -1,7 +1,0 @@
-sphinx>=4.0
-sphinx_rtd_theme
-sphinx-autodoc-typehints  # To show type hints in the documentation
-sphinx.ext.autodoc  # To automatically generate documentation from docstrings
-sphinx.ext.napoleon  # For parsing Google and NumPy-style docstrings
-myst-parser  # To support Markdown files in your Sphinx project
-
