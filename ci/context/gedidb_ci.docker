@@ -1,0 +1,35 @@
+# ref https://github.com/tebeka/pythonwise/blob/master/docker-miniconda/Dockerfile
+FROM python:3.11-slim-buster
+
+# System packages
+RUN apt-get update -y && \
+    echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections && \
+    apt-get install -y -q dialog apt-utils && \
+    apt-get install libudunits2-dev build-essential bash-completion automake -y && \
+    apt-get install cmake zlib1g-dev libpng-dev libjpeg-dev -y  && \
+    apt-get install wget vim zip unzip curl git git-lfs jq apt-rdepends -y && \
+    apt-get install strace bzip2 cron make gcc -y && git-lfs install
+
+# Install mambaforge
+RUN curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh
+RUN bash Mambaforge-$(uname)-$(uname -m).sh -b -p /root/mambaforge
+RUN rm Mambaforge-$(uname)-$(uname -m).sh
+ENV PATH=/root/mambaforge/bin:${PATH}
+
+# Python packages from conda
+RUN mamba install -y python=3.12
+RUN mamba install -y pip
+RUN mamba init bash
+
+# copy some needed stuff to /root
+COPY *.yml /root/
+RUN mamba env create -n ci_env -f /root/environment.yml
+
+# Make RUN commands use the new environment:
+SHELL ["conda", "run", "-n", "ci_env", "/bin/bash", "-c"]
+
+# Allow statements and log messages to immediately appear in the Knative logs
+ENV PYTHONUNBUFFERED True
+
+# NOTE: The pkgs directory (cache) is deleted because otherwise conda env create takes hours within a docker container.
+RUN /bin/bash -i -c "rm -rf /root/mambaforge/pkgs"
