@@ -1,4 +1,4 @@
-name: xarray-docs
+name: gedidb-docs
 channels:
   # Don't change to pkgs/main, as it causes random timeouts in readthedocs
   - conda-forge
