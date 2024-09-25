@@ -286,7 +286,7 @@ ogp_image = "https://gedi-toolbox.readthedocs.io/en/latest/_static/logos/gediDB_
 rediraffe_redirects = {
     "terminology.rst": "user-guide/terminology.rst",
     "faq.rst": "getting-started-guide/faq.rst",
-    "why-xarray.rst": "getting-started-guide/why-xarray.rst",
+    "why-gedidb.rst": "getting-started-guide/why-gedidb.rst",
     "installing.rst": "getting-started-guide/installing.rst",
     "quick-overview.rst": "getting-started-guide/quick-overview.rst",
 }
