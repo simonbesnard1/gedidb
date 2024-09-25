@@ -9,7 +9,7 @@ It is designed as an entry point for new users, and it provided an introduction 
    :maxdepth: 2
    :hidden:
 
-   why-xarray
+   why-gedidb
    installing
    quick-overview
    faq
