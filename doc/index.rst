@@ -1,68 +1,104 @@
-.. module:: gedidb
+.. _gedidb_docs_mainpage:
 
+####################
 gediDB documentation
-====================
+####################
 
-gediDB is an open source project and Python package that makes working 
-with GEDI L2A-B and L4A-C data easy and fun!
+.. toctree::
+   :maxdepth: 1
+   :hidden:
 
-**Useful links**:
-`Home <https://xarray.dev>`__ |
-`Code Repository <https://github.com/pydata/xarray>`__ |
-`Issues <https://github.com/pydata/xarray/issues>`__ |
-`Discussions <https://github.com/pydata/xarray/discussions>`__ |
-`Releases <https://github.com/pydata/xarray/releases>`__ |
-`Stack Overflow <https://stackoverflow.com/questions/tagged/python-xarray>`__ |
-`Mailing List <https://groups.google.com/g/xarray>`__ |
-`Blog <https://xarray.dev/blog>`__ |
-`Tutorials <https://tutorial.xarray.dev/>`__
+   User Guide <user/index>
+   Development <dev/index>
+   Database <database/index>
+
+**Version**: |version|
+   
+gediDB is an open source project and Python package that makes working with GEDI L2A-B and L4A-C data easy and fun!
 
 
 .. grid:: 1 1 2 2
-    :gutter: 2
+    :gutter: 2 3 4 4
 
-    .. grid-item-card:: Getting started
-        :img-top: _static/index_getting_started.svg
-        :link: getting-started-guide/index
-        :link-type: doc
+    .. grid-item-card::
+        :img-top: /_static/index-images/getting_started.svg
+        :text-align: center
 
-        New to *gediDB*? Check out the getting started guides. They contain an
-        introduction to *gediDB's* main concepts and links to additional tutorials.
+        Getting started
+        ^^^
 
-    .. grid-item-card::  User guide
-        :img-top: _static/index_user_guide.svg
-        :link: user-guide/index
-        :link-type: doc
+        New to NumPy? Check out the Absolute Beginner's Guide. It contains an
+        introduction to NumPy's main concepts and links to additional tutorials.
+
+        +++
+
+        .. button-ref:: user/quick-overview
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            To the absolute beginner's guide
+
+    .. grid-item-card::
+        :img-top: /_static/index-images/user_guide.svg
+        :text-align: center
+
+        User guide
+        ^^^
 
         The user guide provides in-depth information on the
-        key concepts of Xarray with useful background information and explanation.
+        key concepts of NumPy with useful background information and explanation.
 
-    .. grid-item-card::  Developer guide
-        :img-top: _static/index_contribute.svg
-        :link: contributing
-        :link-type: doc
+        +++
 
-        Saw a typo in the documentation? Want to improve existing functionalities?
-        The contributing guidelines will guide you through the process of improving
-        Xarray.
+        .. button-ref:: user
+            :expand:
+            :color: secondary
+            :click-parent:
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: For users
+            To the user guide
 
-   Getting Started <getting-started-guide/index>
-   User Guide <user-guide/index>
-   Tutorials & Videos <tutorials-and-videos>
-   How do I ... <howdoi>
-   
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: For developers/contributors
+    .. grid-item-card::
+        :img-top: /_static/index-images/api.svg
+        :text-align: center
 
-   Contributing Guide <contributing>
-   Team <https://www.gfz-potsdam.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring>
-   What’s New <whats-new>
-   GitHub repository <https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox>
+        GEDI database
+        ^^^
 
+        The reference guide contains a detailed description of the functions,
+        modules, and objects included in NumPy. The reference describes how the
+        methods work and which parameters can be used. It assumes that you have an
+        understanding of the key concepts.
+
+        +++
+
+        .. button-ref:: database
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            To the database guide
+
+    .. grid-item-card::
+        :img-top: /_static/index-images/contributor.svg
+        :text-align: center
+
+        Contributor's guide
+        ^^^
+
+        Want to add to the codebase? Can help add translation or a flowchart to the
+        documentation? The contributing guidelines will guide you through the
+        process of improving NumPy.
+
+        +++
+
+        .. button-ref:: devindex
+            :expand:
+            :color: secondary
+            :click-parent:
+
+            To the contributor's guide
+
+.. This is not really the index page, that is found in
+   _templates/indexcontent.html The toctree content here will be added to the
+   top of the template header

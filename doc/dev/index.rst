@@ -1,4 +1,4 @@
-.. _contributing:
+.. _devindex:
 
 **********************
 Contributing to xarray

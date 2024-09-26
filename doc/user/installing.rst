@@ -71,7 +71,7 @@ Development versions
 --------------------
 To install the most recent development version, install from github::
 
-     $ python -m pip install git+https://github.com/pydata/xarray.git
+     $ python -m pip install git+https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git
 
 Testing
 -------
