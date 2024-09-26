@@ -31,7 +31,8 @@ dependencies = [
     "dask==2024.8.2",
     "distributed==2024.8.2",
     "pytest",
-    "mypy"
+    "mypy",
+    "numpydoc"
 ]
 
 [project.optional-dependencies]
@@ -95,7 +96,7 @@ packages = [
     "gedidb.metadata",
     "gedidb.providers",
     "gedidb.tests",
-    "gedidb.utils"    
+    "gedidb.utils"
 ]
 
 [[tool.mypy.overrides]]
