@@ -13,7 +13,7 @@ gediDB documentation
    Database <database/index>
 
 **Version**: |version|
-   
+
 gediDB is an open source project and Python package that makes working with GEDI L2A-B and L4A-C data easy and fun!
 
 
@@ -80,7 +80,7 @@ gediDB is an open source project and Python package that makes working with GEDI
             To the database guide
 
     .. grid-item-card::
-        :img-top: /_static/index-images/contributor.svg
+        :img-top: /_static/index-images/database.svg
         :text-align: center
 
         Contributor's guide
