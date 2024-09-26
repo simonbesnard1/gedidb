@@ -54,6 +54,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - mkdir -p public/doc/_static/
     
     # Copy over the docs
+    - cp doc/index.html public/
     - cp -r doc/_build/html/* public/doc/
 
     # Check if everything is working
