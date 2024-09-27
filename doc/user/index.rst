@@ -1,8 +1,8 @@
 .. _user:
 
-################
+#################
 gediDB user guide
-################
+#################
 
 This guide is an overview and explains the important features;
 details are found in :ref:`reference`.
@@ -13,7 +13,23 @@ details are found in :ref:`reference`.
 
    why-gedidb
    installing
-   setup
    quick-overview
+   faq
+   
+.. toctree::
+   :caption: Fundamentals
+   :maxdepth: 1
+
+   basics
+   tutorials
+
+.. toctree::
+   :caption: Advanced usage
+   :maxdepth: 1
+
+   basics.database
+   basics.tuning-config
+
+
 
 

@@ -1,7 +1,16 @@
+****************
+GediDB tutorials
+****************
 
-Tutorials and Videos
-====================
 
+.. toctree::
+   :maxdepth: 1
+
+   basics.setup
+   basics.authenticate
+   basics.processor
+   basics.provider
+   basics.terminology
 
 Tutorials
 ----------

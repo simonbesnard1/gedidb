@@ -15,7 +15,7 @@ To begin, import numpy, pandas and xarray using their customary abbreviations:
     import xarray as xr
 
 Create a DataArray
-----------
+------------------
 
 You can make a DataArray from scratch by supplying data in the form of a numpy
 array or list, with optional *dimensions* and *coordinates*:
