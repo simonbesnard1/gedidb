@@ -2,8 +2,8 @@
 GediDB fundamentals
 *******************
 
-These documents describres the fundamentals in GediDB. This is a great place to understand the
-main functionalities in GediDB. 
+These documents describes the fundamentals in GediDB. This is a great place to understand the
+main functionalities in GediDB.
 
 .. toctree::
    :maxdepth: 1
@@ -13,10 +13,9 @@ main functionalities in GediDB.
    basics.processor
    basics.provider
    basics.terminology
-   
-   
 
-   
-   
-   
-   
+
+
+
+
+
