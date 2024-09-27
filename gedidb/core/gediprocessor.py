@@ -1,12 +1,3 @@
-# SPDX-License-Identifier: EUPL-1.2
-# Version: 2.0
-# Contact: ah2174@cam.ac.uk, felix.dombrowski@uni-potsdam.de and besnard@gfz-potsdam.de
-# SPDX-FileCopyrightText: 2024 Simon Besnard
-# SPDX-FileCopyrightText: 2024 Felix Dombrowski
-# SPDX-FileCopyrightText: 2024 Amelia Holcomb
-# SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-#
-
 import os
 import logging
 import yaml
@@ -14,7 +5,6 @@ import geopandas as gpd
 from datetime import datetime
 from dask.distributed import Client, LocalCluster, as_completed
 import concurrent.futures
-from functools import wraps
 import pandas as pd
 
 from gedidb.utils.constants import GediProduct
@@ -31,12 +21,8 @@ logger = logging.getLogger(__name__)
 def log_execution(start_message=None, end_message=None):
     """
     A decorator to log the execution of a method.
-    
-    :param start_message: Custom start message for logging.
-    :param end_message: Custom end message for logging.
     """
     def decorator(func):
-        @wraps(func)
         def wrapper(*args, **kwargs):
             log_message = start_message or f"Executing {func.__name__}..."
             logger.info(log_message)
@@ -47,67 +33,77 @@ def log_execution(start_message=None, end_message=None):
         return wrapper
     return decorator
 
+def download_products_for_granule(download_path, parquet_path, granule_id, product_info, data_info):
+    """
+    Downloads all products for a specific granule in parallel using multithreading.
+    """
+    downloader = H5FileDownloader(download_path)
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(
+                downloader.download, granule_id, url, GediProduct(product), parquet_path
+            )
+            for url, product in product_info
+        ]
+        results = [f.result() for f in futures]
+    
+    return results
+
+def process_granule(db_path, download_path, parquet_path, data_info, download_results):
+    """
+    Processes the granule data.
+    """
+    granule_processor = GEDIGranule(db_path, download_path, parquet_path, data_info)
+    return granule_processor.process_granule(download_results)
+
+def write_db(db_path, sql_script, tables, metadata_info, data_dir, process_results):
+    """
+    Writes the processed data to the database.
+    """
+    metadata_path = os.path.join(data_dir, 'metadata')
+    metadata_handler = GEDIMetadataManager(
+        metadata_info=metadata_info,
+        metadata_path=metadata_path,
+        data_table_name=tables['shots']
+    )
+    metadata_handler.extract_all_metadata()
+    database_writer = GEDIDatabase(
+        db_path=db_path,
+        sql_script=sql_script,
+        tables=tables,
+        metadata_handler=metadata_handler
+    )
+    database_writer._write_db(process_results)
+
 class GEDIProcessor:
     """
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata, 
     and writing data into the database.
-    
-    Attributes:
-    ----------
-    dask_client : Client
-        Dask client for parallel processing.
-    data_info : dict
-        Configuration data loaded from the YAML file.
-    sql_script : str
-        SQL script to create database tables.
-    metadata_handler : GEDIMetadataManager
-        Handler for managing metadata operations.
-    database_writer : GEDIDatabase
-        Database writer for managing database operations.
     """
-
-    def __init__(self, data_config_file: str, sql_config_file: str, dask_client: Client = None):
+    def __init__(self, data_config_file: str, sql_config_file: str, dask_client: Client = None, n_workers: int = None):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
-
-        :param data_config_file: YAML configuration file for data settings.
-        :param sql_config_file: SQL file containing table creation queries.
-        :param n_workers: Number of Dask workers. Default is None, which uses the default worker count.
-        :param dask_client: Existing Dask client, or a new one will be created if None.
         """
-        #self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers)
+        # Initialize Dask client
+        self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers)
 
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(data_config_file)
         self.sql_script = self._load_sql_file(sql_config_file).format(**self._get_table_names())
         self._setup_paths_and_dates()
 
-        # Initialize GEDI granule processor, metadata handler, and database writer
-        self.granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
-        self.metadata_handler = self._initialize_metadata_handler()
-        self.metadata_handler.extract_all_metadata()
-        self.database_writer = self._initialize_database_writer()
-
-    def _initialize_dask_client(self, n_workers: int) -> Client:
-        """Initialize and return a Dask client."""
-        return Client(n_workers=n_workers)
-
-    def _initialize_metadata_handler(self) -> GEDIMetadataManager:
-        """Initialize and return the metadata handler."""
-        return GEDIMetadataManager(
-            metadata_info=self.data_info['earth_data_info']['METADATA_INFORMATION'],
-            metadata_path=self.metadata_path,
-            data_table_name=self.data_info['database']['tables']['shots']
+    def _initialize_dask_client(self, n_workers: int = None) -> Client:
+        """Initialize and return a Dask client with a LocalCluster."""
+        cluster = LocalCluster(
+            n_workers=n_workers,
+            threads_per_worker=1,
+            processes=True,
+            dashboard_address=':8787'  # Default dashboard address
         )
-
-    def _initialize_database_writer(self) -> GEDIDatabase:
-        """Initialize and return the database writer."""
-        return GEDIDatabase(
-            db_path=self.db_path,
-            sql_script=self.sql_script,
-            tables=self.data_info['database']['tables'],
-            metadata_handler=self.metadata_handler
-        )
+        client = Client(cluster)
+        logger.info(f"Dask dashboard available at {client.dashboard_link}")
+        return client
 
     def _get_table_names(self) -> dict:
         """Return formatted table names for SQL queries."""
@@ -152,14 +148,25 @@ class GEDIProcessor:
             return file.read()
     
     @log_execution(start_message="Processing requested granules...", end_message="Granules successfully processed")
-    def compute(self, n_workers:int=1):
+    def compute(self):
         """
         Main method to download and process GEDI granules.
-        
-        :param n_workers: Number of workers.
         """
+        # Initialize database components
+        metadata_handler = GEDIMetadataManager(
+            metadata_info=self.data_info['earth_data_info']['METADATA_INFORMATION'],
+            metadata_path=self.metadata_path,
+            data_table_name=self.data_info['database']['tables']['shots']
+        )
+        metadata_handler.extract_all_metadata()
+        database_writer = GEDIDatabase(
+            db_path=self.db_path,
+            sql_script=self.sql_script,
+            tables=self.data_info['database']['tables'],
+            metadata_handler=metadata_handler
+        )
         # Create the database schema
-        self.database_writer._create_db()
+        database_writer._create_db()
 
         # Download and filter CMR data
         cmr_data = self._download_cmr_data()
@@ -168,9 +175,9 @@ class GEDIProcessor:
         if not unprocessed_cmr_data:
             logger.info("All requested granules are already processed. No further computation needed.")
             return
-        
+
         # Process the granules with Dask
-        self._process_granules(unprocessed_cmr_data, n_workers)
+        self._process_granules(unprocessed_cmr_data)
 
     def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""
@@ -180,105 +187,98 @@ class GEDIProcessor:
     def _filter_unprocessed_granules(self, cmr_data: dict) -> dict:
         """
         Filter out granules that have already been processed.
-        
-        :param cmr_data: Dictionary where keys are granule IDs and values are lists of (url, product) tuples.
-        :return: Filtered dictionary containing only unprocessed granules.
         """
         granule_ids = cmr_data.keys()
-        processed_granules = self.granule_processor.get_processed_granules(granule_ids)
+        # Initialize a temporary granule processor to get processed granules
+        granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
+        processed_granules = granule_processor.get_processed_granules(granule_ids)
         
         # Filter the cmr_data dictionary, keeping only granules that are not in processed_granules
         unprocessed_granules = {granule_id: product_info for granule_id, product_info in cmr_data.items() if granule_id not in processed_granules}
         return unprocessed_granules
 
-    def _process_granules(self, unprocessed_cmr_data: dict, n_workers: int = None):
+    def _process_granules(self, unprocessed_cmr_data: dict):
         """
         Process unprocessed granules in parallel using Dask, including writing to the database.
-    
-        :param unprocessed_cmr_data: A dictionary where the keys are granule IDs and the values are lists of (url, product) tuples.
-        :param n_workers: Number of workers. Controls the number of concurrent granule processing tasks.
         """
-        # Setup Dask LocalCluster with specified number of workers
-        cluster = LocalCluster(n_workers=n_workers, 
-                               threads_per_worker=1,  # Use processes with 1 thread per worker
-                               processes=True)  
-        client = Client(cluster)  # Connect the client to the cluster
-    
+        client = self.dask_client
         futures = []
-    
+
         for granule_id, product_info in unprocessed_cmr_data.items():
-            # Phase 1: Download all products for this granule concurrently within the function
-            download_future = client.submit(self.download_products_for_granule, granule_id, product_info)
-    
-            # Phase 2: Process the granule once all downloads are completed
-            process_future = client.submit(self.granule_processor.process_granule, download_future)
-    
-            # Phase 3: Write to the database once processing is complete
-            write_future = client.submit(self.database_writer._write_db, process_future)
-    
-            # Add the write task future to the futures list for tracking
-            futures.append(write_future)
-    
+            # Submit the task to process one granule
+            future = client.submit(
+                process_one_granule,
+                granule_id,
+                product_info,
+                self.data_info,
+                self.download_path,
+                self.parquet_path,
+                self.db_path,
+                self.sql_script
+            )
+            futures.append(future)
+
         # Use `as_completed` to process futures as they finish
         for completed_future in as_completed(futures):
             try:
                 _ = completed_future.result()  # Wait for the result
             except Exception as e:
                 logger.error(f"Error processing granule: {e}")
-        
-        # Shut down the Dask client and cluster when done
-        client.close()
-        cluster.close()
 
-    def download_products_for_granule(self, granule_id: str, product_info: list) -> list:
-        """
-        Downloads all products for a specific granule in parallel using multithreading.
-    
-        This function uses a `ThreadPoolExecutor` to download multiple products for a given granule concurrently.
-        Each product associated with the granule is downloaded in parallel to speed up the overall granule processing time.
-    
-        Args:
-            granule_id (str): The ID of the granule to be downloaded. This ID is used for naming and organizing the downloaded files.
-            product_info (list): A list of tuples containing the URL and product type (e.g., 'level2A', 'level2B') for the products 
-                                 associated with the granule. Each tuple has the format: (url, product).
-    
-        Returns:
-            list: A list of results from the download process, where each result corresponds to a product download. 
-                  The result format is typically a tuple containing the granule ID and a tuple of product name and file path.
-                  
-                  Example return value:
-                  [
-                      ('O02064_04', ('level2A', '/path/to/downloaded/file_level2A.h5')),
-                      ('O02064_04', ('level2B', '/path/to/downloaded/file_level2B.h5'))
-                  ]
-    
-        Example Usage:
-            granule_id = 'O02064_04'
-            product_info = [
-                ('https://example.com/level2A.h5', 'level2A'),
-                ('https://example.com/level2B.h5', 'level2B')
-            ]
-            download_results = self.download_products_for_granule(granule_id, product_info)
-        
-        Notes:
-            - This function runs product downloads in parallel using threads, not processes.
-            - It is ideal for I/O-bound tasks, such as downloading files, where multithreading can significantly speed up the process.
-        """
-        downloader = H5FileDownloader(self.download_path)
-        
-        # Use a ThreadPoolExecutor to download all products in parallel
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Submit download tasks for each product in the product_info list
-            futures = [executor.submit(downloader.download, granule_id, url, GediProduct(product), self.parquet_path)
-                       for url, product in product_info]
-            
-            # Gather the results from all download tasks
-            results = [f.result() for f in futures]
-        
-        return results
+    def close(self):
+        """Close the Dask client and cluster."""
+        if self.dask_client:
+            self.dask_client.close()
+            self.dask_client = None
+            logger.info("Dask client and cluster have been closed.")
 
+    def __enter__(self):
+        """Enter the runtime context related to this object."""
+        return self
 
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit the runtime context and close resources."""
+        self.close()
 
+def process_one_granule(
+    granule_id,
+    product_info,
+    data_info,
+    download_path,
+    parquet_path,
+    db_path,
+    sql_script
+):
+    """
+    Processes a single granule by downloading, processing, and writing to the database.
+    """
+    # Download products
+    downloader = H5FileDownloader(download_path)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(
+                downloader.download, granule_id, url, GediProduct(product), parquet_path
+            )
+            for url, product in product_info
+        ]
+        download_results = [f.result() for f in futures]
 
+    # Process granule
+    granule_processor = GEDIGranule(db_path, download_path, parquet_path, data_info)
+    process_results = granule_processor.process_granule(download_results)
 
-        
+    # Write to database
+    metadata_path = os.path.join(data_info['data_dir'], 'metadata')
+    metadata_handler = GEDIMetadataManager(
+        metadata_info=data_info['earth_data_info']['METADATA_INFORMATION'],
+        metadata_path=metadata_path,
+        data_table_name=data_info['database']['tables']['shots']
+    )
+    metadata_handler.extract_all_metadata()
+    database_writer = GEDIDatabase(
+        db_path=db_path,
+        sql_script=sql_script,
+        tables=data_info['database']['tables'],
+        metadata_handler=metadata_handler
+    )
+    database_writer._write_db(process_results)
