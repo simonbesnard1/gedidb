@@ -18,15 +18,12 @@ You can process GEDI data from scratch by providing paths to the ``.yml`` data c
 .. code-block:: python
 
     # Define paths to configuration files
-    path_data_config = 'your_path/to/data_config_file'
-    path_db_scheme = 'your_path/to/db_scheme_file'
-    
-    # Initialize the GEDI database processor
-    database_builder = gdb.GEDIProcessor(data_config_file=path_data_config, 
-                                         sql_config_file=path_db_scheme)
+    data_config_file = 'your_path/to/data_config_file'
+    sql_config_file = 'your_path/to/db_scheme_file'
     
     # Process GEDI data using 4 workers
-    database_builder.compute(n_workers=4)
+    with gdb.GEDIProcessor(data_config_file, sql_config_file, n_workers=4) as processor:
+        processor.compute()
 
 In this example, we download, filter for quality, and write the L2A-B and L4A-C GEDI data to the database. The ``n_workers=4`` argument ensures that four granules are processed in parallel using the :py:class:`dask.distributed.Client`. Once processed, the data becomes accessible through the :py:class:`gedidb.GEDIProvider` object.
 
