@@ -1,66 +1,63 @@
-##############
-Quick overview
-##############
+################
+Quick Overview
+################
 
-Here are some quick examples of what you can do with :py:class:`xarray.DataArray`
-objects. Everything is explained in much more detail in the rest of the
-documentation.
+This section provides quick examples of how to use the :py:class:`gedidb.GEDIProcessor` and :py:class:`gedidb.GEDIProvider` objects. More detailed explanations can be found in the full documentation.
 
-To begin, import numpy, pandas and xarray using their customary abbreviations:
+Start by importing `gedidb` with its commonly used abbreviation:
 
-.. ipython:: python
+.. code-block:: python
 
-    import numpy as np
-    import pandas as pd
-    import xarray as xr
+    import gedidb as gdb
 
-Create a DataArray
-------------------
+Processing GEDI Data
+--------------------
 
-You can make a DataArray from scratch by supplying data in the form of a numpy
-array or list, with optional *dimensions* and *coordinates*:
+You can process GEDI data from scratch by providing paths to the ``.yml`` data configuration file (**path_data_config**) and the ``.sql`` database schema file (**path_db_scheme**). This will trigger the downloading, processing, and writing of the data into the database:
 
-.. ipython:: python
+.. code-block:: python
 
-    data = xr.DataArray(np.random.randn(2, 3), dims=("x", "y"), coords={"x": [10, 20]})
-    data
+    # Define paths to configuration files
+    path_data_config = 'your_path/to/data_config_file'
+    path_db_scheme = 'your_path/to/db_scheme_file'
+    
+    # Initialize the GEDI database processor
+    database_builder = gdb.GEDIProcessor(data_config_file=path_data_config, 
+                                         sql_config_file=path_db_scheme)
+    
+    # Process GEDI data using 4 workers
+    database_builder.compute(n_workers=4)
 
-In this case, we have generated a 2D array, assigned the names *x* and *y* to the two dimensions respectively and associated two *coordinate labels* '10' and '20' with the two locations along the x dimension. If you supply a pandas :py:class:`~pandas.Series` or :py:class:`~pandas.DataFrame`, metadata is copied directly:
+In this example, we download, filter for quality, and write the L2A-B and L4A-C GEDI data to the database. The ``n_workers=4`` argument ensures that four granules are processed in parallel using the :py:class:`dask.distributed.Client`. Once processed, the data becomes accessible through the :py:class:`gedidb.GEDIProvider` object.
 
-.. ipython:: python
+Reading GEDI Data
+-----------------
 
-    xr.DataArray(pd.Series(range(3), index=list("abc"), name="foo"))
+`gedidb` supports two data types: :py:class:`~xarray.Dataset` and :py:class:`~pandas.DataFrame`.
 
-Here are the key properties for a ``DataArray``:
+Here’s an example of querying the data:
 
-.. ipython:: python
+.. code-block:: python
 
-    # like in pandas, values is a numpy array that you can modify in-place
-    data.values
-    data.dims
-    data.coords
-    # you can use this dictionary to store arbitrary metadata
-    data.attrs
+    # Define path to configuration file
+    path_data_config = 'your_path/to/data_config_file'
 
+    # Define the database table names
+    shot_table = 'name_of_shot_table'
+    metadata_table = 'name_of_metadata_table'
+    
+    # Instantiate the GEDIProvider
+    provider = gdb.GEDIProvider(config_file=path_data_config,
+                                shot_table=shot_table,
+                                metadata_table=metadata_table)
 
-Indexing
---------
+    # Define the columns to query and additional parameters
+    vars_selected = ["rh", "pavd_z", "pai"]
+    dataset = provider.get_data(variables=vars_selected, geometry=None, 
+                                start_time="2018-01-01", end_time="2023-12-31", 
+                                limit=100, force=True, order_by=["-shot_number"], 
+                                return_type='xarray')
 
-Xarray supports four kinds of indexing. Since we have assigned coordinate labels to the x dimension we can use label-based indexing along that dimension just like pandas. The four examples below all yield the same result (the value at `x=10`) but at varying levels of convenience and intuitiveness.
+Depending on the ``return_type`` (`xarray` or `pandas`), the `provider.get_data()` method returns either an :py:class:`~xarray.Dataset` or a :py:class:`~pandas.DataFrame`. 
 
-.. ipython:: python
-
-    # positional and by integer label, like numpy
-    data[0, :]
-
-    # loc or "location": positional and coordinate label, like pandas
-    data.loc[10]
-
-    # isel or "integer select":  by dimension name and integer label
-    data.isel(x=0)
-
-    # sel or "select": by dimension name and coordinate label
-    data.sel(x=10)
-
-
-Unlike positional indexing, label-based indexing frees us from having to know how our array is organized. All we need to know are the dimension name and the label we wish to index i.e. ``data.sel(x=10)`` works regardless of whether ``x`` is the first or second dimension of the array and regardless of whether ``10`` is the first or second element of ``x``. We have already told xarray that x is the first dimension when we created ``data``: xarray keeps track of this so we don't have to. For more, see :ref:`indexing`.
+The output will contain the selected variables, filtered shots within the defined `geometry` (if provided), and the specified time range (`start_time` to `end_time`).
