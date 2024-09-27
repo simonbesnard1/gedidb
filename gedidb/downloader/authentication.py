@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class EarthDataAuthenticator:
     """
-    EarthDataAuthenticator handles Earthdata authentication by managing .netrc and cookie files for 
+    EarthDataAuthenticator handles Earthdata authentication by managing .netrc and cookie files for
     automated authentication.
     """
 
@@ -60,7 +60,7 @@ class EarthDataAuthenticator:
             logger.error(f"Error ensuring directory {path}: {e}")
             raise
         return path
-    
+
     def authenticate(self):
         """Handle authentication by checking for existing cookies or fetching new ones."""
         if self.cookie_file.exists():
@@ -77,7 +77,7 @@ class EarthDataAuthenticator:
             logger.info("Credentials already present in .netrc file.")
         else:
             self._add_netrc_credentials()
-    
+
     def _netrc_contains_credentials(self) -> bool:
         """Check if the .netrc file already contains Earthdata credentials."""
         try:
