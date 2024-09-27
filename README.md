@@ -6,13 +6,9 @@
 
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
-[![CI](https://github.com/pydata/xarray/workflows/CI/badge.svg?branch=main)]()
-[![Code coverage](https://codecov.io/gh/pydata/xarray/branch/main/graph/badge.svg?flag=unittests)]()
-[![Docs](https://readthedocs.org/projects/xray/badge/?version=latest)](https://docs.xarray.dev/)
-[![Benchmarked with asv](https://img.shields.io/badge/benchmarked%20by-asv-green.svg?style=flat)]()
-[![Available on pypi](https://img.shields.io/pypi/v/xarray.svg)]()
-[![Formatted with black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
-[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
+[![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/pipelines)
+[![Code coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/coverage.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/coverage)
+[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11183201.svg)](https://doi.org/10.5281/zenodo.11183201)
 
 **gediDB** is an open source project and Python
