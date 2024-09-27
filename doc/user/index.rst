@@ -13,6 +13,7 @@ details are found in :ref:`reference`.
 
    why-gedidb
    installing
+   setup
    quick-overview
 
 
