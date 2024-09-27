@@ -1,11 +1,13 @@
 .. _database:
 
-################
-NumPy user guide
-################
+#####################
+Setting up a database
+#####################
 
-This guide is an overview and explains the important features;
-details are found in :ref:`reference`.
+This guide gives an overview on how to setup your own database. 
+It assumes that you have an understanding of the key concepts to build 
+PostGres and PostGIS databases. It also provides external links for more
+detailed informations. 
 
 .. toctree::
    :caption: Getting started
