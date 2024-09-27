@@ -52,7 +52,8 @@ class GEDIProvider:
 
             # Convert the DataFrame to a dictionary with sds_name as the key
             metadata_dict = selected_metadata_df.set_index('sds_name')[['description', 'units', 'product']].to_dict(orient='index')
-            
+            metadata_dict = dict(sorted(metadata_dict.items()))
+            metadata_dict = pd.DataFrame.from_dict(metadata_dict, orient='index')
             return metadata_dict
         except Exception as e:
             logger.error(f"Failed to retrieve metadata as dictionary: {e}")
