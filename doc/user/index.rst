@@ -27,8 +27,8 @@ details are found in :ref:`reference`.
    :caption: Advanced usage
    :maxdepth: 1
 
-   basics.database
-   basics.tuning-config
+   database
+   tuning-config
 
 
 

@@ -10,7 +10,6 @@ gediDB documentation
 
    User Guide <user/index>
    Development <dev/index>
-   Database <database/index>
 
 **Version**: |version|
 
