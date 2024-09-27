@@ -1,0 +1,364 @@
+# database parameters
+database:
+  url: 'postgresql://glmadmin:SimonGFZ@mefe27:5434/glmdb'
+  tables:
+    shots: "filtered_l2ab_l4ac_shots"
+    granules: "gedi_granules"
+    metadata: "variable_metadata"
+  schema: "public"
+
+# Spatial and temporal parameters
+region_of_interest: './gedidb/tests/data/test_geometry.geojson'
+start_date: '2019-01-01'
+end_date: '2022-01-01'
+
+# Data directory for downloading and processing
+data_dir: './data'
+
+# Configuration for accessing NASA's Earthdata Search API to query granule data.
+earth_data_info:
+ credentials:
+   username: 'your_username'
+   password: 'your_password'
+ CMR_URL: "https://cmr.earthdata.nasa.gov/search/granules.json"
+ CMR_PRODUCT_IDS: 
+   GediProduct.L2A: 'C2142771958-LPCLOUD'
+   GediProduct.L2B: 'C2142776747-LPCLOUD'
+   GediProduct.L4A: 'C2237824918-ORNL_CLOUD'
+   GediProduct.L4C: 'C3049900163-ORNL_CLOUD'
+ METADATA_INFORMATION:
+   L2A: 'https://lpdaac.usgs.gov/products/gedi02_av002/'
+   L2B: 'https://lpdaac.usgs.gov/products/gedi02_bv002/'
+   L4A: 'https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density.html'
+   L4C: 'https://daac.ornl.gov/GEDI/guides/GEDI_L4C_WSCI.html'
+
+# Variables list for each GEDI level product - SDS_Name is science dataset name the native h5 file retrieved from the NASA API
+level_2a:
+  variables:
+    shot_number: 
+      SDS_Name: "shot_number" 
+    beam_type: 
+      SDS_Name: "beam_type" 
+    beam_name: 
+      SDS_Name: "name"
+    delta_time: 
+      SDS_Name: "delta_time"
+    sensitivity_a0: 
+      SDS_Name: "sensitivity"
+    sensitivity_a1: 
+      SDS_Name: "geolocation/sensitivity_a1"
+    sensitivity_a2: 
+      SDS_Name: "geolocation/sensitivity_a2"
+    sensitivity_a3: 
+      SDS_Name: "geolocation/sensitivity_a3"
+    sensitivity_a4: 
+      SDS_Name: "geolocation/sensitivity_a4"
+    sensitivity_a5: 
+      SDS_Name: "geolocation/sensitivity_a5"
+    sensitivity_a6: 
+      SDS_Name: "geolocation/sensitivity_a6"
+    quality_flag: 
+      SDS_Name: "quality_flag"
+    degrade_flag: 
+      SDS_Name: "degrade_flag"
+    solar_elevation: 
+      SDS_Name: "solar_elevation"
+    solar_azimuth: 
+      SDS_Name: "solar_azimuth"
+    energy_total: 
+      SDS_Name: "energy_total"
+    surface_flag: 
+      SDS_Name: "surface_flag"
+    digital_elevation_model: 
+      SDS_Name: "digital_elevation_model"
+    digital_elevation_model_srtm: 
+      SDS_Name: "digital_elevation_model_srtm"
+    selected_algorithm: 
+      SDS_Name: "selected_algorithm"
+    selected_mode: 
+      SDS_Name: "selected_mode"
+    lon_lowestmode: 
+      SDS_Name: "lon_lowestmode"
+    longitude_bin0_error: 
+      SDS_Name: "longitude_bin0_error"
+    lat_lowestmode: 
+      SDS_Name: "lat_lowestmode"
+    latitude_bin0_error: 
+      SDS_Name: "latitude_bin0_error"
+    elev_lowestmode: 
+      SDS_Name: "elev_lowestmode"
+    elevation_bin0_error: 
+      SDS_Name: "elevation_bin0_error"
+    lon_highestreturn: 
+      SDS_Name: "lon_highestreturn"
+    lat_highestreturn: 
+      SDS_Name: "lat_highestreturn"
+    elev_highestreturn: 
+      SDS_Name: "elev_highestreturn"
+    rh:
+      SDS_Name: "rh"
+
+level_2b:
+  variables:
+    shot_number: 
+      SDS_Name: "shot_number"
+    beam_type: 
+      SDS_Name: "beam_type"
+    beam_name: 
+      SDS_Name: "name"
+    delta_time: 
+      SDS_Name: "geolocation/delta_time"
+    algorithmrun_flag:
+      SDS_Name: "algorithmrun_flag"
+    l2a_quality_flag: 
+      SDS_Name: "l2a_quality_flag"
+    l2b_quality_flag: 
+      SDS_Name: "l2b_quality_flag"
+    sensitivity: 
+      SDS_Name: "sensitivity"
+    degrade_flag: 
+      SDS_Name: "geolocation/degrade_flag"
+    stale_return_flag:
+      SDS_Name: "stale_return_flag"
+    surface_flag: 
+      SDS_Name: "surface_flag"
+    solar_elevation: 
+      SDS_Name: "geolocation/solar_elevation"
+    solar_azimuth: 
+      SDS_Name: "geolocation/solar_azimuth"
+    cover: 
+      SDS_Name: "cover"
+    cover_z: 
+      SDS_Name: "cover_z"
+    fhd_normal: 
+      SDS_Name: "fhd_normal"
+    num_detectedmodes: 
+      SDS_Name: "num_detectedmodes"
+    omega: 
+      SDS_Name: "omega"
+    pai: 
+      SDS_Name: "pai"
+    pai_z: 
+      SDS_Name: "pai_z"
+    pavd_z: 
+      SDS_Name: "pavd_z"
+    pgap_theta: 
+      SDS_Name: "pgap_theta"
+    pgap_theta_error: 
+      SDS_Name: "pgap_theta_error"
+    rg: 
+      SDS_Name: "rg"
+    rh100: 
+      SDS_Name: "rh100"
+    rhog: 
+      SDS_Name: "rhog"
+    rhog_error: 
+      SDS_Name: "rhog_error"
+    rhov: 
+      SDS_Name: "rhov"
+    rhov_error: 
+      SDS_Name: "rhov_error"
+    rossg: 
+      SDS_Name: "rossg"
+    rv: 
+      SDS_Name: "rv"
+    rx_range_highestreturn: 
+      SDS_Name: "rx_range_highestreturn"
+    digital_elevation_model: 
+      SDS_Name: "geolocation/digital_elevation_model"
+    leaf_off_flag: 
+      SDS_Name: "land_cover_data/leaf_off_flag"
+    leaf_on_doy: 
+      SDS_Name: "land_cover_data/leaf_on_doy"
+    leaf_on_cycle: 
+      SDS_Name: "land_cover_data/leaf_on_cycle"
+    water_persistence: 
+      SDS_Name: "land_cover_data/landsat_water_persistence"
+    urban_proportion: 
+      SDS_Name: "land_cover_data/urban_proportion"
+    modis_nonvegetated: 
+      SDS_Name: "land_cover_data/modis_nonvegetated"
+    modis_treecover: 
+      SDS_Name: "land_cover_data/modis_treecover"
+    pft_class: 
+      SDS_Name: "land_cover_data/pft_class"
+    region_class: 
+      SDS_Name: "land_cover_data/region_class"
+    selected_l2a_algorithm: 
+      SDS_Name: "selected_l2a_algorithm"
+    selected_rg_algorithm: 
+      SDS_Name: "selected_rg_algorithm"
+    dz: 
+      SDS_Name: "ancillary/dz"
+    lon_highestreturn: 
+      SDS_Name: "geolocation/lon_highestreturn"
+    lon_lowestmode: 
+      SDS_Name: "geolocation/lon_lowestmode"
+    longitude_bin0: 
+      SDS_Name: "geolocation/longitude_bin0"
+    longitude_bin0_error: 
+      SDS_Name: "geolocation/longitude_bin0_error"
+    lat_highestreturn: 
+      SDS_Name: "geolocation/lat_highestreturn"
+    lat_lowestmode: 
+      SDS_Name: "geolocation/lat_lowestmode"
+    latitude_bin0: 
+      SDS_Name: "geolocation/latitude_bin0"
+    latitude_bin0_error: 
+      SDS_Name: "geolocation/latitude_bin0_error"
+    elev_highestreturn: 
+      SDS_Name: "geolocation/elev_highestreturn"
+    elev_lowestmode: 
+      SDS_Name: "geolocation/elev_lowestmode"
+    elevation_bin0: 
+      SDS_Name: "geolocation/elevation_bin0"
+    elevation_bin0_error: 
+      SDS_Name: "geolocation/elevation_bin0_error"
+    waveform_count: 
+      SDS_Name: "rx_sample_count"
+    waveform_start: 
+      SDS_Name: "rx_sample_start_index"
+  
+level_4a:
+  variables:
+    shot_number: 
+      SDS_Name: "shot_number"
+    beam_type: 
+      SDS_Name: "beam_type"
+    beam_name: 
+      SDS_Name: "name"
+    delta_time: 
+      SDS_Name: "delta_time"
+    sensitivity_a0: 
+      SDS_Name: "sensitivity"
+    sensitivity_a1: 
+      SDS_Name: "geolocation/sensitivity_a1"
+    sensitivity_a2: 
+      SDS_Name: "geolocation/sensitivity_a2"
+    sensitivity_a3: 
+      SDS_Name: "geolocation/sensitivity_a3"
+    sensitivity_a4: 
+      SDS_Name: "geolocation/sensitivity_a4"
+    sensitivity_a5: 
+      SDS_Name: "geolocation/sensitivity_a5"
+    sensitivity_a6: 
+      SDS_Name: "geolocation/sensitivity_a6"
+    sensitivity_a10: 
+      SDS_Name: "geolocation/sensitivity_a10"
+    degrade_flag: 
+      SDS_Name: "degrade_flag"
+    algorithm_run_flag: 
+      SDS_Name: "algorithm_run_flag"
+    solar_elevation: 
+      SDS_Name: "solar_elevation"
+    solar_azimuth: 
+      SDS_Name: "solar_elevation"
+    surface_flag: 
+      SDS_Name: "surface_flag"
+    l2_quality_flag: 
+      SDS_Name: "l2_quality_flag"
+    l4_quality_flag: 
+      SDS_Name: "l4_quality_flag"
+    predictor_limit_flag: 
+      SDS_Name: "predictor_limit_flag"
+    response_limit_flag: 
+      SDS_Name: "response_limit_flag"
+    selected_algorithm:
+      SDS_Name: "selected_algorithm"
+    selected_mode: 
+      SDS_Name: "selected_mode"
+    elev_lowestmode: 
+      SDS_Name: "elev_lowestmode"
+    lat_lowestmode: 
+      SDS_Name: "lat_lowestmode"
+    lon_lowestmode: 
+      SDS_Name: "lon_lowestmode"
+    agbd: 
+      SDS_Name: "agbd"
+    agbd_pi_lower: 
+      SDS_Name: "agbd_pi_lower"
+    agbd_pi_upper: 
+      SDS_Name: "agbd_pi_upper"
+    agbd_se: 
+      SDS_Name: "agbd_se"
+    agbd_t: 
+      SDS_Name: "agbd_t"
+    agbd_t_se: 
+      SDS_Name: "agbd_t_se"
+    pft_class: 
+      SDS_Name: "land_cover_data/pft_class"
+    region_class: 
+      SDS_Name: "land_cover_data/region_class"
+    urban_proportion: 
+      SDS_Name: "land_cover_data/urban_proportion"
+    landsat_water_persistence: 
+      SDS_Name: "land_cover_data/landsat_water_persistence"
+    leaf_on_doy: 
+      SDS_Name: "land_cover_data/leaf_on_doy"
+    leaf_on_cycle: 
+      SDS_Name: "land_cover_data/leaf_on_cycle"
+  
+level_4c:
+  variables:
+    shot_number: 
+      SDS_Name: "shot_number"
+    beam_type: 
+      SDS_Name: "beam_type"
+    beam_name: 
+      SDS_Name: "name"
+    delta_time: 
+      SDS_Name: "delta_time"
+    sensitivity_a0: 
+      SDS_Name: "sensitivity"
+    sensitivity_a1: 
+      SDS_Name: "geolocation/sensitivity_a1"
+    sensitivity_a2: 
+      SDS_Name: "geolocation/sensitivity_a2"
+    sensitivity_a3: 
+      SDS_Name: "geolocation/sensitivity_a3"
+    sensitivity_a4: 
+      SDS_Name: "geolocation/sensitivity_a4"
+    sensitivity_a5: 
+      SDS_Name: "geolocation/sensitivity_a5"
+    sensitivity_a6: 
+      SDS_Name: "geolocation/sensitivity_a6"
+    sensitivity_a10: 
+      SDS_Name: "geolocation/sensitivity_a10"
+    degrade_flag: 
+      SDS_Name: "degrade_flag"
+    algorithm_run_flag: 
+      SDS_Name: "algorithm_run_flag"
+    solar_elevation: 
+      SDS_Name: "solar_elevation"
+    solar_azimuth: 
+      SDS_Name: "solar_elevation"
+    surface_flag: 
+      SDS_Name: "surface_flag"
+    l2_quality_flag: 
+      SDS_Name: "l2_quality_flag"
+    selected_algorithm:
+      SDS_Name: "selected_algorithm"
+    elev_lowestmode: 
+      SDS_Name: "elev_lowestmode"
+    lat_lowestmode: 
+      SDS_Name: "lat_lowestmode"
+    lon_lowestmode: 
+      SDS_Name: "lon_lowestmode"
+    wsci: 
+      SDS_Name: "wsci"
+    wsci_pi_lower: 
+      SDS_Name: "wsci_pi_lower"
+    wsci_pi_upper: 
+      SDS_Name: "wsci_pi_upper"
+    pft_class: 
+      SDS_Name: "land_cover_data/pft_class"
+    region_class: 
+      SDS_Name: "land_cover_data/region_class"
+    urban_proportion: 
+      SDS_Name: "land_cover_data/urban_proportion"
+    landsat_water_persistence: 
+      SDS_Name: "land_cover_data/landsat_water_persistence"
+    leaf_on_doy: 
+      SDS_Name: "land_cover_data/leaf_on_doy"
+    leaf_on_cycle: 
+      SDS_Name: "land_cover_data/leaf_on_cycle"
