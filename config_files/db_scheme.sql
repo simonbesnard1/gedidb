@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     agbd_pi_upper FLOAT,
     agbd_se FLOAT,
     agbd_t FLOAT,
+    predict_stratum VARCHAR(60),
     wsci FLOAT,
     wsci_pi_lower FLOAT,
     wsci_pi_upper FLOAT,
