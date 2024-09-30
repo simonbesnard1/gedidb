@@ -21,13 +21,11 @@ package that makes working with GEDI L2A-B and L4A-C data easy and fun! It is de
 - Granule Management: Automatically download and process GEDI granules across different product levels (e.g., L2A, L2B, L4A, L4C) in parallel, ensuring metadata consistency and data quality.
 - Flexible Data Querying: Query data from the GEDI database using labeled dimensions such as time, location, and beam name. The SQL-based querying allows for precise data extraction, filtered by various spatial and temporal constraints.
 - Parallel Processing with Dask: Seamlessly process large datasets in parallel using Dask, enabling concurrent downloading, processing, and database insertion of GEDI products. The number of concurrent processes can be easily controlled based on system resources.
-- Integration with HDF5 and Parquet Formats: The toolbox supports parsing and saving data in both HDF5 and Parquet formats, providing flexibility in managing data storage and retrieval.
-- Multi-product Handling: Process multiple products per granule simultaneously, including Level 2 and Level 4 GEDI products, ensuring that data from different sources are handled efficiently.
 - Metadata-Driven: Maintain and manage metadata for each dataset, ensuring that important contextual information such as units, descriptions, and source details are stored and accessible.
 - Geospatial Data Management: Built-in support for geospatial data types using GeoPandas, allowing seamless spatial queries and operations.
 
 ## Why gediDB?
-**gediDB** simplifies and automates the workflow of processing GEDI satellite data, reducing manual work and enabling efficient parallel processing for large-scale datasets. Whether you're conducting ecological studies, analyzing biomass data, or investigating land surface dynamics, **gediDB** support users with the tools to quickly process and analyze GEDI data.
+**gediDB** simplifies and automates the workflow of processing GEDI data, reducing manual work and enabling efficient parallel processing for large-scale datasets. Whether you're conducting ecological studies, analyzing biomass data, or investigating land surface dynamics, **gediDB** support users with the tools to quickly process and access GEDI data.
 
 ## Documentation
 

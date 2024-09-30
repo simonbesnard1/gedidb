@@ -11,8 +11,11 @@ import geopandas as gpd
 import h5py
 import numpy as np
 from typing import Union, List, Dict, Callable, Optional
+import logging
 
 from gedidb.utils.constants import WGS84
+
+logger = logging.getLogger(__name__)
 
 
 class Beam(h5py.Group):
@@ -50,8 +53,12 @@ class Beam(h5py.Group):
         if filters is not None:
             mask = np.ones(len(data['beam_name']), dtype=bool)
             for filter_name, filter_func in filters.items():
-                filter_mask = filter_func(data)
-                mask &= filter_mask
+                try:
+                    filter_mask = filter_func()
+                    mask &= filter_mask
+                except KeyError:
+                   logger.warning(f"Filter '{filter_name}' not found in granule. Skipping.")
+                   continue  # Skip filters that are missing in the granule
             return mask
         return np.ones(len(data['beam_name']), dtype=bool)
 

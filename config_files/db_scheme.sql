@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     solar_elevation FLOAT,
     solar_azimuth FLOAT,
     energy_total FLOAT,
-    elevation_difference_tdx FLOAT,
     selected_algorithm SMALLINT,
     pft_class SMALLINT,
     region_class SMALLINT,
@@ -72,9 +71,6 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     leaf_on_cycle SMALLINT,
     rh FLOAT[],
     rh100 SMALLINT,
-    rx_nummodes SMALLINT,
-    rx_modewidths SMALLINT,
-    rx_modeamps SMALLINT,
     cover FLOAT,
     cover_z FLOAT[],
     fhd_normal FLOAT,
@@ -106,12 +102,8 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     wsci_xy FLOAT,
     wsci_xy_pi_lower FLOAT, 
     wsci_xy_pi_upper FLOAT,
-    wsci_z FLOAT[],
-    wsci_z_pi_lower FLOAT[], 
-    wsci_z_pi_upper FLOAT[],
-    pgap_theta_z FLOAT[],
     master_frac FLOAT, 
-    master_int SMALLINT,
+    master_int INTEGER,
     geometry geometry(Point,4326)
 );
 
