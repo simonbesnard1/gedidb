@@ -11,14 +11,15 @@ import gedidb as gdb
 
 data_config_file = "./config_files/data_config.yml"
 sql_config_file = './config_files/db_scheme.sql'
+n_workers = 4
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
-    # Using GEDIProcessor as a context manager
-    with gdb.GEDIProcessor(data_config_file, sql_config_file, n_workers=4) as processor:
+    # Initialize the GEDIProcessor and compute
+    with gdb.GEDIProcessor(
+        data_config_file=data_config_file,
+        sql_config_file=sql_config_file,
+        n_workers=n_workers
+    ) as processor:
         processor.compute()
-        # The Dask dashboard URL will be printed in the logs
-        # You can access it at http://localhost:8787 to monitor resource usage
-    
-    # The Dask client and cluster are automatically closed when exiting the 'with' block
     
