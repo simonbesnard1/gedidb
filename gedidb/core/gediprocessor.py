@@ -33,49 +33,6 @@ def log_execution(start_message=None, end_message=None):
         return wrapper
     return decorator
 
-def download_products_for_granule(download_path, parquet_path, granule_id, product_info, data_info):
-    """
-    Downloads all products for a specific granule in parallel using multithreading.
-    """
-    downloader = H5FileDownloader(download_path)
-    
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [
-            executor.submit(
-                downloader.download, granule_id, url, GediProduct(product), parquet_path
-            )
-            for url, product in product_info
-        ]
-        results = [f.result() for f in futures]
-    
-    return results
-
-def process_granule(db_path, download_path, parquet_path, data_info, download_results):
-    """
-    Processes the granule data.
-    """
-    granule_processor = GEDIGranule(db_path, download_path, parquet_path, data_info)
-    return granule_processor.process_granule(download_results)
-
-def write_db(db_path, sql_script, tables, metadata_info, data_dir, process_results):
-    """
-    Writes the processed data to the database.
-    """
-    metadata_path = os.path.join(data_dir, 'metadata')
-    metadata_handler = GEDIMetadataManager(
-        metadata_info=metadata_info,
-        metadata_path=metadata_path,
-        data_table_name=tables['shots']
-    )
-    metadata_handler.extract_all_metadata()
-    database_writer = GEDIDatabase(
-        db_path=db_path,
-        sql_script=sql_script,
-        tables=tables,
-        metadata_handler=metadata_handler
-    )
-    database_writer._write_db(process_results)
-
 class GEDIProcessor:
     """
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata, 
@@ -279,6 +236,50 @@ def process_one_granule(
         db_path=db_path,
         sql_script=sql_script,
         tables=data_info['database']['tables'],
+        metadata_handler=metadata_handler
+    )
+    database_writer._write_db(process_results)
+
+
+def download_products_for_granule(download_path, parquet_path, granule_id, product_info, data_info):
+    """
+    Downloads all products for a specific granule in parallel using multithreading.
+    """
+    downloader = H5FileDownloader(download_path)
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(
+                downloader.download, granule_id, url, GediProduct(product), parquet_path
+            )
+            for url, product in product_info
+        ]
+        results = [f.result() for f in futures]
+    
+    return results
+
+def process_granule(db_path, download_path, parquet_path, data_info, download_results):
+    """
+    Processes the granule data.
+    """
+    granule_processor = GEDIGranule(db_path, download_path, parquet_path, data_info)
+    return granule_processor.process_granule(download_results)
+
+def write_db(db_path, sql_script, tables, metadata_info, data_dir, process_results):
+    """
+    Writes the processed data to the database.
+    """
+    metadata_path = os.path.join(data_dir, 'metadata')
+    metadata_handler = GEDIMetadataManager(
+        metadata_info=metadata_info,
+        metadata_path=metadata_path,
+        data_table_name=tables['shots']
+    )
+    metadata_handler.extract_all_metadata()
+    database_writer = GEDIDatabase(
+        db_path=db_path,
+        sql_script=sql_script,
+        tables=tables,
         metadata_handler=metadata_handler
     )
     database_writer._write_db(process_results)
