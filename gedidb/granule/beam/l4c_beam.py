@@ -7,7 +7,6 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import pandas as pd
 import geopandas as gpd
 import numpy as np
 from typing import Dict, Optional
@@ -15,10 +14,6 @@ from typing import Dict, Optional
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
 from gedidb.utils.constants import WGS84
-
-# Default quality filters for L4C beam (currently not specified)
-DEFAULT_QUALITY_FILTERS = None
-
 
 class L4CBeam(Beam):
     """
@@ -39,6 +34,7 @@ class L4CBeam(Beam):
         super().__init__(granule, beam, field_mapping)
         self._shot_geolocations: Optional[gpd.array.GeometryArray] = None  # Cache for geolocations
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
+        self.DEFAULT_QUALITY_FILTERS = None
 
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
@@ -65,13 +61,8 @@ class L4CBeam(Beam):
         Returns:
             Optional[Dict[str, np.ndarray]]: The filtered data as a dictionary or None if no data is present.
         """
-        gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
-        delta_time = self["delta_time"][()]
-
         # Initialize the data dictionary with time and geolocation fields
-        data = {
-            "absolute_time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds")
-        }
+        data = {}
 
         # Populate data dictionary with fields from the field mapping
         for key, source in self.field_mapper.items():
@@ -85,7 +76,7 @@ class L4CBeam(Beam):
                 data[key] = np.array(self[sds_name][()])
 
         # Apply filter and get the filtered indices
-        self._filtered_index = self.apply_filter(data, filters=DEFAULT_QUALITY_FILTERS)
+        self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
         
         # Filter the data using the mask
         filtered_data = {key: value[self._filtered_index] for key, value in data.items()}

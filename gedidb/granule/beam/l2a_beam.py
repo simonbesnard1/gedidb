@@ -16,16 +16,6 @@ from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
 from gedidb.utils.constants import WGS84
 
-# Default quality filters applied to the beam data
-DEFAULT_QUALITY_FILTERS = {
-    'quality_flag': lambda data: data['quality_flag'] == 1,
-    'sensitivity_a0': lambda data: (data['sensitivity_a0'] >= 0.9) & (data['sensitivity_a0'] <= 1.0),
-    'sensitivity_a2': lambda data: (data['sensitivity_a2'] > 0.95) & (data['sensitivity_a2'] <= 1.0),
-    'degrade_flag': lambda data: np.isin(data['degrade_flag'], [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]),
-    'surface_flag': lambda data: data['surface_flag'] == 1,
-    'elevation_difference_tdx': lambda data: (data['elevation_difference_tdx'] > -150) & (data['elevation_difference_tdx'] < 150),
-}
-
 class L2ABeam(Beam):
     """
     Represents a Level 2A (L2A) GEDI beam and processes the beam data.
@@ -45,6 +35,14 @@ class L2ABeam(Beam):
         super().__init__(granule, beam, field_mapping)
         self._shot_geolocations: Optional[gpd.array.GeometryArray] = None  # Cache for geolocations
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
+        self.DEFAULT_QUALITY_FILTERS = {
+            'quality_flag': lambda: self["quality_flag"][()] == 1,
+            'sensitivity_a0': lambda: (self['sensitivity'][()] >= 0.9) & (self['sensitivity'][()] <= 1.0),
+            'sensitivity_a2': lambda: (self['geolocation/sensitivity_a2'][()] > 0.95) & (self['geolocation/sensitivity_a2'][()] <= 1.0),
+            'degrade_flag': lambda: np.isin(self['degrade_flag'][()], [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]),
+            'surface_flag': lambda: self['surface_flag'][()] == 1,
+            'elevation_difference_tdx': lambda: ((self['elev_lowestmode'][()] - self['digital_elevation_model'][()]) > -150) & ((self['elev_lowestmode'][()] - self['digital_elevation_model'][()]) < 150),
+        }
 
     @property
     def shot_geolocations(self) -> gpd.array.GeometryArray:
@@ -73,13 +71,10 @@ class L2ABeam(Beam):
         """
         gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
         delta_time = self["delta_time"][()]
-        elev_lowestmode = self['elev_lowestmode'][()]
-        digital_elevation_model = self['digital_elevation_model'][()]
-
+        
         # Initialize the data dictionary with calculated fields
         data = {
-            "absolute_time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds"),
-            "elevation_difference_tdx": elev_lowestmode - digital_elevation_model
+            "absolute_time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds")
         }
 
         # Populate data dictionary with fields from field mapping
@@ -94,8 +89,8 @@ class L2ABeam(Beam):
                 data[key] = np.array(self[sds_name][()])
 
         # Apply quality filters and store filtered index
-        self._filtered_index = self.apply_filter(data, filters=DEFAULT_QUALITY_FILTERS)
-
+        self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
+        
         # Filter the data based on the quality filters
         filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
 
