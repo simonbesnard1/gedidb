@@ -111,16 +111,27 @@ class SQLQueryBuilder:
 
     def build(self) -> str:
         """Build the final SQL query with conditions, limits, and ordering."""
+        # Check if 'all' is specified for columns, meaning select all columns
+        if self.columns == 'all':
+            columns = '*'
+        else:
+            # If specific columns are provided, join them into a string
+            columns = ', '.join(self.columns)
+        
+        # Build conditions, limits, and ordering as before
         conditions = self._build_conditions()
         condition = f" WHERE {' AND '.join(conditions)}" if conditions else ""
         limits = f" LIMIT {self.limit}" if self.limit is not None else ""
         order = " ORDER BY " + ", ".join([(f"{x[1:]} DESC" if x[0] == "-" else x) for x in self.order_by]) if self.order_by else ""
-
-        sql_query = f"SELECT {', '.join(self.columns)} FROM {self.table_name}{condition}{order}{limits}"
-
+    
+        # Construct the final SQL query
+        sql_query = f"SELECT {columns} FROM {self.table_name}{condition}{order}{limits}"
+    
+        # Add safety check if no conditions, limits, or force
         if not self.force and not condition and not limits:
             raise UserWarning("Warning! This will load the entire table. To proceed set `force`=True.")
-
+    
+        # Log and return the query
         logger.debug(f"Generated SQL query: {sql_query}")
         return sql_query
 

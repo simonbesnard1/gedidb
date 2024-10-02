@@ -86,7 +86,7 @@ class GEDIProvider:
         query_builder = SQLQueryBuilder(
             table_name=self.table_name,
             metadata_table=self.metadata_table,
-            columns=variables + DEFAULT_DIMS,
+            columns = 'all' if variables == 'all' else variables + DEFAULT_DIMS,
             geometry=geometry,
             start_time=start_time,
             end_time=end_time,
