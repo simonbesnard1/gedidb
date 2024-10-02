@@ -3,6 +3,7 @@ import logging
 import yaml
 import geopandas as gpd
 from datetime import datetime
+import dask
 from dask.distributed import Client, LocalCluster, as_completed
 import concurrent.futures
 import pandas as pd
@@ -38,12 +39,12 @@ class GEDIProcessor:
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata, 
     and writing data into the database.
     """
-    def __init__(self, data_config_file: str, sql_config_file: str, dask_client: Client = None, n_workers: int = None):
+    def __init__(self, data_config_file: str, sql_config_file: str, dask_client: Client = None, n_workers: int = None, memory_limit = '8GB'):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
         """
         # Initialize Dask client
-        self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers)
+        self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers, memory_limit = memory_limit)
 
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(data_config_file)
@@ -78,17 +79,34 @@ class GEDIProcessor:
             metadata_handler=self.metadata_handler
         )
 
-    def _initialize_dask_client(self, n_workers: int = None) -> Client:
+    def _initialize_dask_client(self, n_workers: int = None, memory_limit:str = '8GB') -> Client:
         """Initialize and return a Dask client with a LocalCluster."""
+        
+        # Set Dask memory spill and memory limits via configuration
+        dask.config.set({
+            "distributed.worker.memory.target": 0.6,     # Spill to disk at 60% memory usage
+            "distributed.worker.memory.spill": 0.7,      # More aggressive spilling at 70%
+            "distributed.worker.memory.pause": 0.8,      # Pause new task scheduling at 80%
+            "distributed.worker.memory.terminate": 0.9,  # Terminate worker if memory exceeds 90%
+        })
+            
+        # Setup a LocalCluster with better memory management configurations
         cluster = LocalCluster(
-            n_workers=n_workers,
-            threads_per_worker=1,
-            processes=True,
-            dashboard_address=':8787'  # Default dashboard address
+            n_workers=n_workers,           # Number of workers (concurrent tasks)
+            threads_per_worker=1,          # Each worker uses a single thread
+            processes=True,                # Use processes instead of threads (better for CPU-bound tasks)
+            memory_limit= memory_limit,    # Set a memory limit per worker, adjust based on system
+            dashboard_address=':8787'      # Enable the Dask dashboard
         )
+        
+        # Initialize the Dask client with the cluster
         client = Client(cluster)
+        
+        # Log the Dask dashboard link for monitoring
         logger.info(f"Dask dashboard available at {client.dashboard_link}")
+        
         return client
+
 
     def _get_table_names(self) -> dict:
         """Return formatted table names for SQL queries."""
@@ -174,7 +192,6 @@ class GEDIProcessor:
         Filter out granules that have already been processed.
         """
         granule_ids = cmr_data.keys()
-        # Initialize a temporary granule processor to get processed granules
         granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
         processed_granules = granule_processor.get_processed_granules(granule_ids)
         

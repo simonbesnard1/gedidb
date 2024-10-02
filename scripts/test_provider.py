@@ -10,7 +10,7 @@
 import gedidb as gdb
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(config_file='/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml',
+provider = gdb.GEDIProvider(config_file='./config_files/data_config.yml',
                         table_name="filtered_l2ab_l4ac_shots",
                         metadata_table="variable_metadata")
 

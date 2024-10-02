@@ -11,6 +11,7 @@ import os
 import logging
 from sqlalchemy import Table, MetaData, select
 import shutil
+import pandas as pd
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
@@ -103,13 +104,14 @@ class GEDIGranule:
             return self._prepare_return_value(granule_key, outfile_path, granules)
 
         gdf_dict = self.parse_granules(granules, granule_key)
+        
         if not gdf_dict:
-            logger.warning(f"Skipping granule {granule_key} due to missing or invalid data.")
+            self._write_empty_granule_to_db(granule_key)
             return None
-
-        gdf = self._join_gdfs(gdf_dict)
+    
+        gdf = self._join_gdfs(gdf_dict, granule_key)
         if gdf is None:
-            logger.warning(f"Skipping granule {granule_key} due to join issues.")
+            self._write_empty_granule_to_db(granule_key)
             return None
 
         self.save_gdf_to_parquet(gdf, granule_key, outfile_path)
@@ -195,7 +197,7 @@ class GEDIGranule:
             
             else:
                 logger.info(f"Skipping product {product} for granule {granule_key} due to parsing failure.")
-        
+    
         try:
             shutil.rmtree(granule_dir)
         except Exception as e:
@@ -205,41 +207,85 @@ class GEDIGranule:
         return {k: v for k, v in gdf_dict.items() if not v.empty and "shot_number" in v.columns}
 
     @staticmethod
-    def _join_gdfs(gdf_dict):
+    def _join_gdfs(gdf_dict, granule_key):
         """
-        Join multiple GeoDataFrames based on the shot number.
-
+        Join multiple GeoDataFrames based on the shot number. Ensure that L2A, L2B, L4A, and L4C are available.
+    
         Parameters:
         ----------
         gdf_dict : dict
             Dictionary of GeoDataFrames for each product.
-
+        granule_key: str
+            The granule ID.
+    
         Returns:
         -------
         geopandas.GeoDataFrame or None
-            Joined GeoDataFrame or None if the join fails.
+            Joined GeoDataFrame or None if the required data is missing or if the join fails.
         """
-        try:
-            gdf = gdf_dict[GediProduct.L2A.value]
-
-            for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
-                gdf = gdf.join(
-                    gdf_dict[product.value].set_index("shot_number"),
-                    on="shot_number",
-                    how="inner",
-                    rsuffix=f'_{product.value}'
-                )
-
-            # Drop redundant columns
-            columns_to_drop = [
-                col for col in gdf.columns
-                if any(col.endswith(suffix) for suffix in [f'_{GediProduct.L2B.value}', f'_{GediProduct.L4A.value}', f'_{GediProduct.L4C.value}'])
-            ]
+        # Ensure that all required products are available in the gdf_dict
+        required_products = [GediProduct.L2A, GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]
+        
+        # Check if all required products are available and non-empty
+        for product in required_products:
+            if product.value not in gdf_dict or gdf_dict[product.value].empty:
+                logger.warning(f"Product {product.value} is missing or empty for granule {granule_key}.")
+                return None  # If any product is missing or empty, return None
+    
+        # Proceed with the join since all required products are present
+        gdf = gdf_dict[GediProduct.L2A.value]
+    
+        for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
+            product_gdf = gdf_dict[product.value]
+            gdf = gdf.join(
+                product_gdf.set_index("shot_number"),
+                on="shot_number",
+                how="inner",
+                rsuffix=f'_{product.value}'
+            )
+    
+        # Conditionally drop redundant columns after joining
+        suffixes = [f'_{GediProduct.L2B.value}', f'_{GediProduct.L4A.value}', f'_{GediProduct.L4C.value}']
+        columns_to_drop = [col for col in gdf.columns if any(col.endswith(suffix) for suffix in suffixes)]
+        if columns_to_drop:
             gdf = gdf.drop(columns=columns_to_drop)
+    
+        # Ensure that geometry is correctly set, if available
+        if "geometry" in gdf.columns:
             gdf = gdf.set_geometry("geometry")
+        
+        return gdf if not gdf.empty else None
+      
+    def _write_empty_granule_to_db(self, granule_key):
+        """
+        Write an empty granule entry to the database indicating it was processed without valid data.
+        
+        Parameters:
+        ----------
+        granule_key : str
+            Granule identifier key to be written to the database.
+        """
+        # Initialize the database connection manager
+        db_manager = DatabaseManager(db_url=self.db_path)
+        engine = db_manager.get_connection()
+        
+        if engine:
+            with engine.connect() as conn:
+                # Create a DataFrame with the granule entry
+                granule_entry = pd.DataFrame({
+                    "granule_name": [granule_key],
+                    #'status': 'empty',  # You can use a status flag or other relevant field
+                    "created_date": [pd.Timestamp.utcnow()],
+                })
+                
+                # Write the entry to the SQL table using to_sql
+                granule_entry.to_sql(
+                    name=self.data_info['database']['tables']['granules'],
+                    con=conn,
+                    index=False,
+                    if_exists="append",
+                )
+                
+                # Log the successful insertion
+                logger.info(f"Empty granule entry for {granule_key} written to the database.")
 
-            return gdf
-
-        except KeyError as e:
-            logger.error(f"Join operation failed due to missing product data: {e}")
-            return None

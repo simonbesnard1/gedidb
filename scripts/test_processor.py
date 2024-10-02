@@ -11,7 +11,7 @@ import gedidb as gdb
 
 data_config_file = "./config_files/data_config.yml"
 sql_config_file = './config_files/db_scheme.sql'
-n_workers = 4
+n_workers = 5
 
 if __name__ == "__main__":
 
