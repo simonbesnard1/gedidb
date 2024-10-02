@@ -274,7 +274,7 @@ class GEDIGranule:
                 # Create a DataFrame with the granule entry
                 granule_entry = pd.DataFrame({
                     "granule_name": [granule_key],
-                    #'status': 'empty',  # You can use a status flag or other relevant field
+                    'status': 'empty',
                     "created_date": [pd.Timestamp.utcnow()],
                 })
                 

@@ -79,6 +79,7 @@ class GEDIDatabase:
         # Load the data to write
         granule_entry = pd.DataFrame({
             "granule_name": [granule_key],
+            'status': 'processed',
             "created_date": [pd.Timestamp.utcnow()],
         })
 
