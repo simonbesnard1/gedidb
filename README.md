@@ -9,7 +9,7 @@
 [![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/pipelines)
 [![Code coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/coverage.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/coverage)
 [![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11183201.svg)](https://doi.org/10.5281/zenodo.11183201)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885229)
 
 **gediDB** is an open source project and Python
 package that makes working with GEDI L2A-B and L4A-C data easy and fun! It is designed to streamline the processing, analysis, and management of GEDI data. The toolbox provides an intuitive interface for handling large volumes of GEDI data, automating the downloading, parsing, and processing of GEDI granules. Built to work efficiently with GEDI’s products, it is tailored for scientists, researchers, and data analysts working in fields like ecology, forestry, remote sensing, and environmental science.
@@ -18,7 +18,7 @@ package that makes working with GEDI L2A-B and L4A-C data easy and fun! It is de
 
 ## Key Features of gediDB
 
-- Granule Management: Automatically download and process GEDI granules across different product levels (e.g., L2A, L2B, L4A, L4C) in parallel, ensuring metadata consistency and data quality.
+- Granule Management: Automatically download and process GEDI granules across different product levels (i.e., L2A, L2B, L4A, L4C) in parallel, ensuring metadata consistency and data quality.
 - Flexible Data Querying: Query data from the GEDI database using labeled dimensions such as time, location, and beam name. The SQL-based querying allows for precise data extraction, filtered by various spatial and temporal constraints.
 - Parallel Processing with Dask: Seamlessly process large datasets in parallel using Dask, enabling concurrent downloading, processing, and database insertion of GEDI products. The number of concurrent processes can be easily controlled based on system resources.
 - Metadata-Driven: Maintain and manage metadata for each dataset, ensuring that important contextual information such as units, descriptions, and source details are stored and accessible.
