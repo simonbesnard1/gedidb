@@ -10,15 +10,13 @@ Data processing
 Downloading, processing and storing GEDI data to the database
 -------------------------------------------------------------
 
-This pre-written code can be used and adapted.
-
-::
+This pre-written code can be used and adapted. ::
     from gedidb.database.db_builder import GEDIGranuleProcessor
 
     #%% Initiate database builder
     database_builder = GEDIGranuleProcessor(
-        data_config_file = './config_files/data_config.yml',
-        sql_config_file='./config_files/db_scheme.sql'
+    data_config_file = './config_files/data_config.yml',
+    sql_config_file='./config_files/db_scheme.sql'
     )
 
     #%% Process GEDI data
