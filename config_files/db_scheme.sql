@@ -1,10 +1,20 @@
+-- Create the granule table
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_GRANULE_TABLE} (
-
    granule_name VARCHAR(60) PRIMARY KEY,
-   status VARCHAR(10)
+   status VARCHAR(10),
    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
 );
+
+-- Create the metadata table
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_METADATA_TABLE} (
+   SDS_Name VARCHAR(255) PRIMARY KEY,
+   Description TEXT,
+   units VARCHAR(100),
+   product VARCHAR(100),
+   source_table VARCHAR(255),
+   created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     shot_number BIGINT PRIMARY KEY,
@@ -106,14 +116,76 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     master_frac FLOAT, 
     master_int INTEGER,
     geometry geometry(Point,4326)
-);
+) PARTITION BY RANGE ((ST_X(geometry), ST_Y(geometry)));  -- Partition by longitude and latitude
 
-CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_METADATA_TABLE} (
-    SDS_Name VARCHAR(255) PRIMARY KEY,
-    Description TEXT,
-    units VARCHAR(100),
-    product VARCHAR(100),
-    source_table VARCHAR(255),
-    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Western Hemisphere: Longitude -180° to 0°
+
+-- Northern Polar Region (-180° to 0° longitude, 60° to 90° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_north_polar
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (-180, 60) ) TO ( (0, 90) );
+
+-- Northern Temperate Zone (-180° to 0° longitude, 30° to 60° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_north_temperate
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (-180, 30) ) TO ( (0, 60) );
+
+-- Tropical Zone (-180° to 0° longitude, 0° to 30° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_tropical
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (-180, 0) ) TO ( (0, 30) );
+
+-- Southern Temperate Zone (-180° to 0° longitude, -30° to 0° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_south_temperate
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (-180, -30) ) TO ( (0, 0) );
+
+-- Southern Polar Region (-180° to 0° longitude, -90° to -30° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_south_polar
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (-180, -90) ) TO ( (0, -30) );
+
+
+-- Eastern Hemisphere: Longitude 0° to 180°
+
+-- Northern Polar Region (0° to 180° longitude, 60° to 90° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_north_polar
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (0, 60) ) TO ( (180, 90) );
+
+-- Northern Temperate Zone (0° to 180° longitude, 30° to 60° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_north_temperate
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (0, 30) ) TO ( (180, 60) );
+
+-- Tropical Zone (0° to 180° longitude, 0° to 30° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_tropical
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (0, 0) ) TO ( (180, 30) );
+
+-- Southern Temperate Zone (0° to 180° longitude, -30° to 0° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_south_temperate
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (0, -30) ) TO ( (180, 0) );
+
+-- Southern Polar Region (0° to 180° longitude, -90° to -30° latitude)
+CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_south_polar
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
+FOR VALUES FROM ( (0, -90) ) TO ( (180, -30) );
+
+
+-- Create spatial indexes for each partition
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_north_polar ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_north_polar USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_north_temperate ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_north_temperate USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_tropical ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_tropical USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_south_temperate ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_south_temperate USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_south_polar ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_south_polar USING GIST (geometry);
+
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_eh_north_polar ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_north_polar USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_eh_north_temperate ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_north_temperate USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_eh_tropical ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_tropical USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_eh_south_temperate ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_south_temperate USING GIST (geometry);
+CREATE INDEX IF NOT EXISTS idx_shot_geometry_eh_south_polar ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_south_polar USING GIST (geometry);
+
+
 
