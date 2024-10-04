@@ -1,9 +1,12 @@
+.. _fundamentals:
+
 *******************
-GediDB fundamentals
+GediDB Fundamentals
 *******************
 
-These documents describes the fundamentals in GediDB. This is a great place to understand the
-main functionalities in GediDB.
+This section covers the core concepts and functionalities of **GediDB**. It is an essential starting point to grasp the main features and workflows in **GediDB**. Whether you're looking to set up your environment, authenticate access to GEDI data, or use the core processors and providers, these documents provide the foundation you need.
+
+Explore the topics below to dive deeper into **GediDB**'s fundamental components:
 
 .. toctree::
    :maxdepth: 1
@@ -12,8 +15,6 @@ main functionalities in GediDB.
    basics.authenticate
    basics.processor
    basics.provider
-   basics.terminology
-
 
 
 

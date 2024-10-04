@@ -4,28 +4,19 @@
 .. _basics.provider:
 
 #############
-Data provider
+Data Provider
 #############
 
-The data provider module is crucial for retrieving and delivering this structured metadata from the PostGIS database.
-It allows the system to query the spatial and non-spatial data stored in the database,
-efficiently fetching relevant variables.
-By interfacing with the PostGIS database, the module ensures that this data is accurately retrieved,
-formatted, and made available for further processing or analysis,
-supporting spatial queries and handling complex geospatial information.
+The data provider module is essential for retrieving structured GEDI data and metadata from a PostGIS-enabled PostgreSQL database. It enables spatial and non-spatial queries on the GEDI data, efficiently fetching relevant variables and supporting advanced geospatial operations.
 
-Default data to retrieve
-------------------------
+By interfacing with the database, the GEDIProvider ensures that data is accurately retrieved, formatted, and made available for further analysis. This module supports spatial queries, complex geospatial operations, and is integral to handling the large volumes of data produced by the GEDI mission.
 
-The provided list contains the default values and their associated properties that are stored in the database.
-Each entry includes a description of the variable, its unit of measurement (where applicable),
-and the dataset level (L2A, L2B, L4A and L4C) it pertains to.
+Default Available Variables
+---------------------------
 
-These variables encompass various attributes, ranging from spatial coordinates and elevation data to vegetation
-and biomass metrics, as well as quality flags and algorithm-related information.
-Additionally, this metadata, which defines the variables and their characteristics,
-is stored in its own dedicated table within the database,
-ensuring that users have access to detailed information about the dataset structure and contents.
+gediDB stores a variety of variables, ranging from spatial coordinates and elevation data to vegetation metrics, biomass estimates, and quality flags. These variables span multiple GEDI products (L2A, L2B, L4A, and L4C), providing comprehensive information for environmental analysis.
+
+Below is a table of default variables stored in the database:
 
 .. csv-table::
    :header: "Variable Name", "Description", "Units", "Product"
@@ -107,20 +98,26 @@ ensuring that users have access to detailed information about the dataset struct
    "wsci_pi_lower", "Waveform Structural Complexity Index lower prediction interval", "FLOAT32MT", "L4C"
    "wsci_pi_upper", "Waveform Structural Complexity Index upper prediction interval", "FLOAT32MT", "L4C"
 
-Reading GEDI data from the database
+These variables include both spatial and non-spatial data, along with quality flags, enabling you to retrieve detailed GEDI measurements.
+
+Reading GEDI Data from the Database
 -----------------------------------
 
-This pre-written code can be used and adapted. ::
+To retrieve GEDI data from the PostgreSQL database, you can use the `GEDIProvider` class. This class enables you to query spatial and non-spatial variables from the database based on specified parameters.
+
+Here is an example of how to use `GEDIProvider` to query the GEDI data:
+
+.. code-block:: python
 
     from gedidb.providers.gedi_provider import GEDIProvider
 
-    #%% Instantiate the GEDIProvider
+    # Instantiate the GEDIProvider with the configuration file and table name
     provider = GEDIProvider(
         config_file='./config_files/data_config.yml',
         table_name='filtered_l2ab_l4ac_shots'
     )
 
-    #%% Define the columns to query and additional parameters
+    # Define the columns (variables) to query and additional parameters
     vars_selected = ['rh', 'pavd_z', 'pai']
     dataset = provider.get_dataset(
         variables=vars_selected, geometry=None,
@@ -129,9 +126,31 @@ This pre-written code can be used and adapted. ::
         return_type='xarray'
     )
 
+The ``get_dataset()`` method allows you to retrieve data from the database with the following parameters:
 
+- **variables**: A list of variables (columns) to retrieve from the database.
+- **geometry**: (Optional) A GeoPandas geometry to filter spatially.
+- **start_time**: Start of the temporal filter (in "YYYY-MM-DD" format).
+- **end_time**: End of the temporal filter.
+- **limit**: (Optional) Maximum number of rows to return.
+- **force**: (Optional) Force the query to run even without conditions, potentially returning large datasets.
+- **order_by**: (Optional) A list of columns to order the results by (e.g., by shot number or time).
+- **return_type**: Can be either `xarray` or `pandas`, depending on the desired output format.
 
-The method ``.get_dataset()`` can be used to retrieve GEDI data from the database.
-the ``return_type`` can either be a
-`xarray.DataArray <https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html#xarray.DataArray>`_
-or a `pandas.Dataframe <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html>`_.
+The method will return either an `xarray.Dataset` or a `pandas.DataFrame`, depending on the specified ``return_type``.
+
+Supported Output Formats
+------------------------
+
+The GEDIProvider supports two output formats for retrieved data:
+
+- **xarray.Dataset**: Best for multi-dimensional data that requires labeled dimensions (e.g., time, latitude, longitude).
+  - Ideal for advanced numerical and geospatial analysis.
+- **pandas.DataFrame**: Best for tabular data and smaller datasets that can be manipulated using standard `pandas` functions.
+  - Useful for quick inspection or export to CSV formats.
+
+This flexibility ensures that you can retrieve GEDI data in the format most appropriate for your analysis.
+
+---
+
+For more information about specific variables and usage examples, refer to the user guide and tutorials.
