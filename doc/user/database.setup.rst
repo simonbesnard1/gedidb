@@ -3,23 +3,23 @@
 
 .. _database.setup:
 
-###################
-PostgreSQL database
-###################
+#####################
+Setting up PostgreSQL
+#####################
 
-This guide will walk you through the steps required to set up a PostgreSQL database with PostGIS, which is essential for working with GEDI data in `gedidb`.
+This guide provides step-by-step instructions to help you set up a **PostgreSQL** database with **PostGIS**, which is essential for handling geospatial GEDI data using **gediDB**.
 
 Prerequisites
 -------------
 
-Before proceeding, ensure that the following tools are installed on your system:
+Before starting, make sure you have the following installed on your system:
 
-1. **PostgreSQL** (version 12 or higher)
-2. **PostGIS** (a spatial extension for PostgreSQL)
+1. **PostgreSQL** (version 12 or higher): The powerful, open-source database system.
+2. **PostGIS**: A spatial extension that adds geospatial capabilities to PostgreSQL, allowing you to store and query spatial data like GEDI shots and forest structure.
 
-If not installed, you can install these packages using your system’s package manager.
+If these tools are not installed, you can use your system's package manager to install them.
 
-For Ubuntu/Debian-based systems, run:
+For Ubuntu/Debian-based systems, run the following commands in your terminal:
 
 .. code-block:: bash
 
@@ -32,61 +32,86 @@ For RedHat/CentOS-based systems, run:
 
     sudo yum install postgresql postgis
 
-Create a PostgreSQL Database
-----------------------------
+Setting Up the Database
+-----------------------
 
-Once PostgreSQL and PostGIS are installed, you need to create a new PostgreSQL database.
+Once PostgreSQL and PostGIS are installed, follow the steps below to create your database:
 
-1. **Switch to the `postgres` user** (this user is created by default during PostgreSQL installation):
+1. **Switch to the PostgreSQL user**:
+
+   PostgreSQL creates a default administrative user called `postgres` during installation. Switch to this user by running:
 
 .. code-block:: bash
 
     sudo -i -u postgres
 
-2. **Create a new database** (replace `gedi_db` with your preferred database name):
+2. **Create a new PostgreSQL database**:
+
+   Create your database (replace `gedi_db` with your preferred database name):
 
 .. code-block:: bash
 
     createdb gedi_db
 
-3. **Create a user** (replace `gedi_user` with your desired username, and `your_password` with a secure password):
+3. **Create a new user**:
+
+   Create a dedicated user for the database (replace `gedi_user` with your desired username, and set a secure password):
 
 .. code-block:: bash
 
     createuser --interactive --pwprompt gedi_user
 
-4. **Grant privileges** to the newly created user:
+   You will be prompted to assign a password and confirm other user options.
+
+4. **Grant user privileges**:
+
+   Give your new user full control over the database:
 
 .. code-block:: bash
 
     psql -c "GRANT ALL PRIVILEGES ON DATABASE gedi_db TO gedi_user;"
 
-Enable PostGIS Extension
-------------------------
+At this point, your PostgreSQL database and user are ready. Now we need to enable **PostGIS** to handle geospatial data.
 
-Once the database is created, you need to enable PostGIS to allow spatial queries. Follow these steps:
+Enabling PostGIS
+----------------
+
+PostGIS is a vital extension for working with GEDI data, as it allows spatial queries and operations. Here’s how to enable it:
 
 1. **Connect to the database**:
+
+   Use the newly created user to connect to the database:
 
 .. code-block:: bash
 
     psql -d gedi_db -U gedi_user
 
-2. **Enable PostGIS extension**:
+2. **Enable the PostGIS extension**:
+
+   Once connected, enable the PostGIS extension by running the following SQL command:
 
 .. code-block:: sql
 
     CREATE EXTENSION postgis;
 
-You can verify that the PostGIS extension is enabled by running:
+   This command activates the spatial capabilities of the database.
+
+3. **Verify PostGIS installation**:
+
+   Confirm that PostGIS has been successfully enabled by checking the version:
 
 .. code-block:: sql
 
     SELECT PostGIS_Version();
 
-Conclusion
-----------
+   The output will display the installed PostGIS version, indicating that the extension is active and ready.
 
-You should now have a fully functional PostgreSQL database with PostGIS enabled and ready for use with `gedidb`. If you encounter any issues, ensure that PostgreSQL and PostGIS are correctly installed and that your database user has the appropriate privileges.
+What's Next?
+------------
 
+Now that your PostgreSQL database is set up with PostGIS enabled, it’s ready to be connected to **gediDB** for storing and querying GEDI data. You can proceed to the next step, which involves configuring the database schema and establishing a connection with **gediDB**.
+
+If you encounter issues during the setup, ensure that PostgreSQL and PostGIS are correctly installed, and that your user has the necessary privileges to modify the database.
+
+For further customization or troubleshooting, refer to the PostgreSQL and PostGIS official documentation.
 

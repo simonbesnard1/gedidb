@@ -1,7 +1,7 @@
 .. _gedidb_docs_mainpage:
 
 ####################
-gediDB documentation
+gediDB Documentation
 ####################
 
 .. toctree::
@@ -10,13 +10,12 @@ gediDB documentation
 
    User Guide <user/index>
    Installation <user/installing>
-   Setting-up database <user/database>
+   Setting-up Database <user/database>
    Development <dev/index>
 
 **Version**: |version|
 
-gediDB is an open source project and Python package that makes working with GEDI L2A-B and L4A-C data easy and fun!
-
+**gediDB** is an open-source project and Python package that simplifies working with GEDI L2A-B and L4A-C data, making data analysis seamless and efficient.
 
 .. grid:: 1 1 2 2
     :gutter: 2 3 4 4
@@ -25,80 +24,70 @@ gediDB is an open source project and Python package that makes working with GEDI
         :img-top: /_static/index-images/getting_started.svg
         :text-align: center
 
-        Getting started
+        **Getting Started**
         ^^^
 
-        New to GediDB? Check out the quick overview. It contains an
-        introduction to GediDB's main functionalitoes.
+        New to gediDB? Explore a quick overview that introduces gediDB’s main functionalities, with helpful examples to get you started.
 
         +++
 
         .. button-ref:: user/quick-overview
             :expand:
-            :color: secondary
+            :color: primary
             :click-parent:
 
-            To the quick overview's guide
+            Go to Quick Overview
 
     .. grid-item-card::
         :img-top: /_static/index-images/user_guide.svg
         :text-align: center
 
-        User guide
+        **User Guide**
         ^^^
 
-        The user guide provides in-depth information on the
-        key concepts of GediDB with useful background information and explanation.
+        The User Guide offers in-depth explanations of key concepts in gediDB, with extensive background information and practical use cases.
 
         +++
 
         .. button-ref:: user
             :expand:
-            :color: secondary
+            :color: primary
             :click-parent:
 
-            To the user guide
+            Go to User Guide
 
     .. grid-item-card::
         :img-top: /_static/index-images/database.svg
         :text-align: center
 
-        GEDI database
+        **GEDI Database Setup**
         ^^^
 
-        The reference guide contains a detailed description on how to setup your own database. 
-        It assumes that you have an understanding of the key concepts to build 
-        PostGres and PostGIS databases.
+        Learn how to set up your own GEDI database with PostGres and PostGIS. This guide assumes some familiarity with database concepts.
 
         +++
 
         .. button-ref:: database
             :expand:
-            :color: secondary
+            :color: primary
             :click-parent:
 
-            To the database guide
+            Go to Database Setup
 
     .. grid-item-card::
         :img-top: /_static/index-images/contributor.svg
         :text-align: center
 
-        Contributor's guide
+        **Contributor’s Guide**
         ^^^
 
-        Want to add to the codebase? Can help add translation or a flowchart to the
-        documentation? The contributing guidelines will guide you through the
-        process of improving gediDB.
+        Interested in contributing to gediDB? Whether it’s code, translations, or documentation improvements, this guide walks you through the process.
 
         +++
 
         .. button-ref:: devindex
             :expand:
-            :color: secondary
+            :color: primary
             :click-parent:
 
-            To the contributor's guide
-
-.. This is not really the index page, that is found in
-   _templates/indexcontent.html The toctree content here will be added to the
-   top of the template header
+            Go to Contributor's Guide

@@ -1,41 +1,34 @@
-.. for doctest:
-    >>> import gedidb as gdb
-
 .. _basics.setup:
 
 #############
 Configuration
 #############
 
-To effectively utilize the package, several key variables must be configured beforehand.
-First, you'll need to establish the necessary parameters that dictate the package's functionality,
-ensuring that they align with your specific requirements. All these are bundled in the ``data_config.yml`` file.
+To make the most out of **gediDB**, it's important to configure key variables before starting. The core configuration is bundled in the ``data_config.yml`` file, which specifies essential parameters for the package's functionality, ensuring that your data and processing align with your requirements.
 
-data_config.yml
----------------
+Data configuration file
+-----------------------
 
-The ``data_config.yml`` file serves as the central configuration hub for the script and database setup.
-It contains all critical variables needed for smooth execution, including database connection details
-(such as host, port, username, and password), file paths, environment settings, and other script-specific parameters.
+The data configuration file (``data_config.yml``) is the central hub for all necessary settings related to data retrieval, database connection, and file management. It contains essential variables like:
+
+- **Database connection details**: host, port, username, password, and database name.
+- **File paths**: locations where downloaded GEDI data, processed files, and metadata will be stored.
+- **Environment settings**: settings that manage parallel processing and resource allocation.
+- **Data extraction settings**: controls which variables to extract from GEDI ``.h5`` files.
+
+A default `data_config.yml` file can be downloaded here:
+
+:download:`Download data_config.yml <../_static/test_files/data_config.yml>`
 
 Extracted data from .h5 files
 -----------------------------
 
-``.h5`` files often contain large volumes of data, but not all of it is necessary for every application.
-In practice, only a subset of this data is typically useful or relevant to specific tasks.
-The ``data_config.yml`` file defines exactly which portions of the data we choose to retain and process.
+GEDI ``.h5`` files contain large amounts of data, but for most use cases, only a subset is relevant. The ``data_config.yml`` file allows you to specify exactly which variables to extract and process, ensuring efficient data handling and avoiding unnecessary storage of irrelevant data.
 
-By reviewing the configuration settings, you can see the specific data fields and attributes that are kept for
-each product, ensuring that only the essential information is used.
-More advanced users can also feel free to edit the settings on their own, if needed.
-
-This allows for more efficient data handling and analysis, while filtering out unnecessary details.
-
-Below is a section of the product ``level_2a`` data:
+Each GEDI product, such as **Level 2A**, can have its own configuration section. This enables you to customize data extraction based on your research needs. Below is an example of how to specify data variables for **Level 2A**:
 
 ::
 
-    # Variables list for each GEDI level product - SDS_Name is science dataset name the native h5 file retrieved from the NASA API
     level_2a:
       variables:
         shot_number:
@@ -46,14 +39,13 @@ Below is a section of the product ``level_2a`` data:
           SDS_Name: "name"
         delta_time:
           SDS_Name: "delta_time"
-        ...
 
+By carefully selecting only the necessary variables in the ``data_config.yml`` file, you ensure optimal storage efficiency and faster processing.
 
 Spatial and temporal parameters
 -------------------------------
 
-The user needs to define the spatial and temporal parameters used in the
-`CMR query <basics.authenticate.html#cmr-login-credentials>`_ to retrieve granules.
+Another crucial configuration involves defining **spatial** and **temporal** parameters for querying the data. These parameters determine which granules are retrieved based on the region and time period of interest.
 
 ::
 
@@ -61,10 +53,13 @@ The user needs to define the spatial and temporal parameters used in the
   start_date: '2019-01-01'
   end_date: '2022-01-01'
 
-The ``region_of_interest`` parameter expects the path to a ``.geojson`` file, which should hold a ``FeatureCollection``
-of either a polygon or a multipolygon.
+- **`region_of_interest`**: Path to a GeoJSON file that defines the spatial area of interest (e.g., a polygon or multipolygon).
+- **`start_date`** and **`end_date`**: Specify the time range over which GEDI data should be retrieved.
 
-An example of a ``.geojson`` polygon:
+Example GeoJSON Polygon
+-----------------------
+
+Here is an example of a GeoJSON polygon that could be used for the ``region_of_interest``:
 
 ::
 
@@ -78,29 +73,24 @@ An example of a ``.geojson`` polygon:
             "type": "Polygon",
             "coordinates": [
               [
-                [
-                  30.256673359035123,
-                  -15.85375449790373
-                ],
-                [
-                  30.422423359035125,
-                  -15.85375449790373
-                ],
-                [
-                  30.422423359035125,
-                  -15.62525449790373
-                ],
-                [
-                  30.256673359035123,
-                  -15.62525449790373
-                ],
-                [
-                  30.256673359035123,
-                  -15.85375449790373
-                ]
+                [30.256673359035123, -15.85375449790373],
+                [30.422423359035125, -15.85375449790373],
+                [30.422423359035125, -15.62525449790373],
+                [30.256673359035123, -15.62525449790373],
+                [30.256673359035123, -15.85375449790373]
               ]
             ]
           }
         }
       ]
     }
+
+An example `test.geojson` file can be downloaded here:
+
+:download:`Download test.geojson <../_static/test_files/test.geojson>`
+
+
+Efficient data handling
+-----------------------
+
+By properly configuring the ``data_config.yml`` file, you ensure that **gediDB** processes GEDI data with optimal performance. Whether you need to filter data based on spatial regions, temporal ranges, or specific variables, this configuration step is key to making your workflow efficient and scalable.
