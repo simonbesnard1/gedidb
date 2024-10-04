@@ -9,6 +9,8 @@ gediDB documentation
    :hidden:
 
    User Guide <user/index>
+   Installation <user/installing>
+   Setting-up database <user/database>
    Development <dev/index>
 
 **Version**: |version|

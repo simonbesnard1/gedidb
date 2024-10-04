@@ -3,15 +3,15 @@ message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Besnard"
   given-names: "Simon"
-  orcid: ""
-- family-names: "Holcomb"
-  given-names: "Amelia"
-  orcid: ""
+  orcid: "https://orcid.org/0000-0002-1137-103X"
 - family-names: "Dombrowski"
   given-names: "Felix"
+- family-names: "Holcomb"
+  given-names: "Amelia"
+  orcid: "https://orcid.org/0000-0001-5081-7201"
 title: "gediDB"
 abstract: "A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data"
 license: EUPL-1.2
-doi: -9999
+doi: "https://doi.org/10.5281/zenodo.13885229"
 repository-code: "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
 
