@@ -85,3 +85,99 @@ def check_and_format_shape(
         return gpd.GeoSeries([orient(p) for p in geom.geoms], crs=shp.crs)
     else:
         return gpd.GeoSeries(orient(geom), crs=shp.crs)
+
+def calculate_zone(row):
+    """
+    Determine the geographical zone based on longitude and latitude bins.
+
+    Parameters
+    ----------
+    row : pandas.Series or dict
+        A row from a DataFrame or GeoDataFrame containing at least the following keys:
+        - 'longitude_bin0': The longitude value (or bin), expected to be in the range [-180, 180].
+        - 'latitude_bin0' : The latitude value (or bin), expected to be in the range [-90, 90].
+
+    Returns
+    -------
+    str
+        A string representing the geographical zone, which can be one of the following:
+        - 'wh_north_polar'
+        - 'wh_north_temperate'
+        - 'wh_tropical'
+        - 'wh_south_temperate'
+        - 'wh_south_polar'
+        - 'eh_north_polar'
+        - 'eh_north_temperate'
+        - 'eh_tropical'
+        - 'eh_south_temperate'
+        - 'eh_south_polar'
+
+    Raises
+    ------
+    ValueError
+        If the longitude or latitude values are outside the expected ranges or do not correspond to a defined zone.
+
+    Notes
+    -----
+    - The Earth is divided into zones based on hemispheres and latitude bands.
+    - Longitude ranges:
+        - Western Hemisphere: -180 ≤ longitude < 0
+        - Eastern Hemisphere: 0 ≤ longitude ≤ 180
+    - Latitude bands:
+        - North Polar:       60 ≤ latitude ≤ 90
+        - North Temperate:   30 ≤ latitude < 60
+        - Tropical:           0 ≤ latitude < 30
+        - South Temperate:  -30 ≤ latitude < 0
+        - South Polar:      -90 ≤ latitude < -30
+    - The function uses inclusive lower bounds and exclusive upper bounds, except for the maximum values.
+
+    Examples
+    --------
+    >>> row = {'longitude_bin0': -75, 'latitude_bin0': 45}
+    >>> calculate_zone(row)
+    'wh_north_temperate'
+
+    >>> row = {'longitude_bin0': 120, 'latitude_bin0': -15}
+    >>> calculate_zone(row)
+    'eh_south_temperate'
+
+    >>> row = {'longitude_bin0': -45, 'latitude_bin0': 70}
+    >>> calculate_zone(row)
+    'wh_north_polar'
+    """
+    longitude_bin0 = row['longitude_bin0']
+    latitude_bin0 = row['latitude_bin0']
+    
+    # Check if longitude is in the Western Hemisphere
+    if -180 <= longitude_bin0 < 0:
+        # Western Hemisphere zones
+        if 60 <= latitude_bin0 <= 90:
+            return 'wh_north_polar'
+        elif 30 <= latitude_bin0 < 60:
+            return 'wh_north_temperate'
+        elif 0 <= latitude_bin0 < 30:
+            return 'wh_tropical'
+        elif -30 <= latitude_bin0 < 0:
+            return 'wh_south_temperate'
+        elif -90 <= latitude_bin0 < -30:
+            return 'wh_south_polar'
+        else:
+            raise ValueError(f"Invalid latitude_bin0 for Western Hemisphere: {latitude_bin0}")
+    # Check if longitude is in the Eastern Hemisphere
+    elif 0 <= longitude_bin0 <= 180:
+        # Eastern Hemisphere zones
+        if 60 <= latitude_bin0 <= 90:
+            return 'eh_north_polar'
+        elif 30 <= latitude_bin0 < 60:
+            return 'eh_north_temperate'
+        elif 0 <= latitude_bin0 < 30:
+            return 'eh_tropical'
+        elif -30 <= latitude_bin0 < 0:
+            return 'eh_south_temperate'
+        elif -90 <= latitude_bin0 < -30:
+            return 'eh_south_polar'
+        else:
+            raise ValueError(f"Invalid latitude_bin0 for Eastern Hemisphere: {latitude_bin0}")
+    else:
+        # Longitude value is outside the valid range
+        raise ValueError(f"Invalid longitude_bin0: {longitude_bin0}")
