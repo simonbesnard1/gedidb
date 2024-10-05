@@ -16,6 +16,7 @@ import pandas as pd
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
 from gedidb.database.db import DatabaseManager
+from gedidb.utils.geospatial_tools import calculate_zone
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +224,7 @@ class GEDIGranule:
         geopandas.GeoDataFrame or None
             Joined GeoDataFrame or None if the required data is missing or if the join fails.
         """
+    
         # Ensure that all required products are available in the gdf_dict
         required_products = [GediProduct.L2A, GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]
         
@@ -254,7 +256,21 @@ class GEDIGranule:
         if "geometry" in gdf.columns:
             gdf = gdf.set_geometry("geometry")
         
+        # Calculate longitude_bin0 and latitude_bin0 if not already present
+        if 'longitude_bin0' not in gdf.columns or 'latitude_bin0' not in gdf.columns:
+            # Assuming that geometry is in EPSG:4326 (latitude and longitude in degrees)
+            gdf['longitude_bin0'] = gdf.geometry.x
+            gdf['latitude_bin0'] = gdf.geometry.y
+    
+        # Calculate the zone column
+        try:
+            gdf['zone'] = gdf.apply(calculate_zone, axis=1)
+        except ValueError as e:
+            logger.error(f"Error calculating zone for granule {granule_key}: {e}")
+            return None  # Handle or log the error appropriately
+    
         return gdf if not gdf.empty else None
+
       
     def _write_empty_granule_to_db(self, granule_key):
         """

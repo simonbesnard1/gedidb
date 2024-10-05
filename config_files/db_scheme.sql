@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_METADATA_TABLE} (
 
 
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
-    shot_number BIGINT PRIMARY KEY,
+    shot_number BIGINT,
     granule VARCHAR(60),
     version VARCHAR(60),
     beam_type VARCHAR(20),
@@ -115,64 +115,114 @@ CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE} (
     wsci_xy_pi_upper FLOAT,
     master_frac FLOAT, 
     master_int INTEGER,
-    geometry geometry(Point,4326)
-) PARTITION BY RANGE ((ST_X(geometry), ST_Y(geometry)));  -- Partition by longitude and latitude
+    geometry geometry(Point,4326),  
+    zone VARCHAR(50),
+    PRIMARY KEY (zone, shot_number)
 
--- Western Hemisphere: Longitude -180° to 0°
+) PARTITION BY LIST (zone);  -- Partition by zone
 
--- Northern Polar Region (-180° to 0° longitude, 60° to 90° latitude)
+
+-- Create the trigger function to calculate the zone
+CREATE OR REPLACE FUNCTION {DEFAULT_SCHEMA}.calculate_zone()
+RETURNS trigger AS $$
+BEGIN
+    IF NEW.lon_lowestmode >= -180 AND NEW.lon_lowestmode < 0 THEN
+        -- Western Hemisphere
+        IF NEW.lat_lowestmode >= 60 AND NEW.lat_lowestmode <= 90 THEN
+            NEW.zone := 'wh_north_polar';  -- Zone name
+        ELSIF NEW.lat_lowestmode >= 30 AND NEW.lat_lowestmode < 60 THEN
+            NEW.zone := 'wh_north_temperate';
+        ELSIF NEW.lat_lowestmode >= 0 AND NEW.lat_lowestmode < 30 THEN
+            NEW.zone := 'wh_tropical';
+        ELSIF NEW.lat_lowestmode >= -30 AND NEW.lat_lowestmode < 0 THEN
+            NEW.zone := 'wh_south_temperate';
+        ELSIF NEW.lat_lowestmode >= -90 AND NEW.lat_lowestmode < -30 THEN
+            NEW.zone := 'wh_south_polar';
+        ELSE
+            RAISE EXCEPTION 'Invalid lat_lowestmode for Western Hemisphere: %', NEW.lat_lowestmode;
+        END IF;
+    ELSIF NEW.lon_lowestmode >= 0 AND NEW.lon_lowestmode <= 180 THEN
+        -- Eastern Hemisphere
+        IF NEW.lat_lowestmode >= 60 AND NEW.lat_lowestmode <= 90 THEN
+            NEW.zone := 'eh_north_polar';
+        ELSIF NEW.lat_lowestmode >= 30 AND NEW.lat_lowestmode < 60 THEN
+            NEW.zone := 'eh_north_temperate';
+        ELSIF NEW.lat_lowestmode >= 0 AND NEW.lat_lowestmode < 30 THEN
+            NEW.zone := 'eh_tropical';
+        ELSIF NEW.lat_lowestmode >= -30 AND NEW.lat_lowestmode < 0 THEN
+            NEW.zone := 'eh_south_temperate';
+        ELSIF NEW.lat_lowestmode >= -90 AND NEW.lat_lowestmode < -30 THEN
+            NEW.zone := 'eh_south_polar';
+        ELSE
+            RAISE EXCEPTION 'Invalid lat_lowestmode for Eastern Hemisphere: %', NEW.lat_lowestmode;
+        END IF;
+    ELSE
+        -- Handle edge cases, e.g., if lon_lowestmode is outside expected range
+        RAISE EXCEPTION 'Invalid lon_lowestmode: %', NEW.lon_lowestmode;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop the trigger if it exists
+DROP TRIGGER IF EXISTS calculate_zone_trigger ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE};
+
+-- Create the trigger to invoke the function
+CREATE TRIGGER calculate_zone_trigger
+BEFORE INSERT OR UPDATE ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR EACH ROW EXECUTE FUNCTION {DEFAULT_SCHEMA}.calculate_zone();
+
+-- Create partitions for each zone
+
+-- Zone: wh_north_polar
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_north_polar
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (-180, 60) ) TO ( (0, 90) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('wh_north_polar');
 
--- Northern Temperate Zone (-180° to 0° longitude, 30° to 60° latitude)
+-- Zone: wh_north_temperate
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_north_temperate
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (-180, 30) ) TO ( (0, 60) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('wh_north_temperate');
 
--- Tropical Zone (-180° to 0° longitude, 0° to 30° latitude)
+-- Zone: wh_tropical
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_tropical
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (-180, 0) ) TO ( (0, 30) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('wh_tropical');
 
--- Southern Temperate Zone (-180° to 0° longitude, -30° to 0° latitude)
+-- Zone: wh_south_temperate
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_south_temperate
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (-180, -30) ) TO ( (0, 0) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('wh_south_temperate');
 
--- Southern Polar Region (-180° to 0° longitude, -90° to -30° latitude)
+-- Zone: wh_south_polar
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_south_polar
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (-180, -90) ) TO ( (0, -30) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('wh_south_polar');
 
-
--- Eastern Hemisphere: Longitude 0° to 180°
-
--- Northern Polar Region (0° to 180° longitude, 60° to 90° latitude)
+-- Zone: eh_north_polar
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_north_polar
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (0, 60) ) TO ( (180, 90) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('eh_north_polar');
 
--- Northern Temperate Zone (0° to 180° longitude, 30° to 60° latitude)
+-- Zone: eh_north_temperate
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_north_temperate
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (0, 30) ) TO ( (180, 60) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('eh_north_temperate');
 
--- Tropical Zone (0° to 180° longitude, 0° to 30° latitude)
+-- Zone: eh_tropical
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_tropical
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (0, 0) ) TO ( (180, 30) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('eh_tropical');
 
--- Southern Temperate Zone (0° to 180° longitude, -30° to 0° latitude)
+-- Zone: eh_south_temperate
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_south_temperate
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (0, -30) ) TO ( (180, 0) );
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('eh_south_temperate');
 
--- Southern Polar Region (0° to 180° longitude, -90° to -30° latitude)
+-- Zone: eh_south_polar
 CREATE TABLE IF NOT EXISTS {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_eh_south_polar
-PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_partitioned
-FOR VALUES FROM ( (0, -90) ) TO ( (180, -30) );
-
+PARTITION OF {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}
+FOR VALUES IN ('eh_south_polar');
 
 -- Create spatial indexes for each partition
 CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_north_polar ON {DEFAULT_SCHEMA}.{DEFAULT_SHOT_TABLE}_wh_north_polar USING GIST (geometry);
