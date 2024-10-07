@@ -10,10 +10,17 @@
 import geopandas as gpd
 import pandas as pd
 from sqlalchemy import Table, MetaData
+from enum import Enum
+
 from gedidb.database.db import DatabaseManager
 
 # Constants for product types
 PRODUCT_TYPES = ['L2A', 'L2B', 'L4A', 'L4C']
+
+
+class GranuleStatus(Enum):
+    EMPTY = "empty"
+    PROCESSED = "processed"
 
 class GEDIDatabase:
     """
@@ -79,7 +86,7 @@ class GEDIDatabase:
         # Load the data to write
         granule_entry = pd.DataFrame({
             "granule_name": [granule_key],
-            'status': 'processed',
+            'status': GranuleStatus.PROCESSED.value,
             "created_date": [pd.Timestamp.utcnow()],
         })
 
