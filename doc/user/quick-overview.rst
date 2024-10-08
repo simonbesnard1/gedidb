@@ -4,7 +4,7 @@
 Quick Overview
 ################
 
-This section provides brief examples of using :py:class:`gedidb.GEDIProcessor` and :py:class:`gedidb.GEDIProvider` to process and query **GEDI** data. For detailed explanations, see the :ref:`fundamentals`.
+This section provides brief examples of using :py:class:`gedidb.GEDIProcessor` and :py:class:`gedidb.GEDIProvider` to process and query **GEDI** data. For advanced features and detailed use cases, refer to the :ref:`fundamentals`.
 
 Start by importing the **gedidb** package:
 
@@ -15,7 +15,7 @@ Start by importing the **gedidb** package:
 Processing GEDI Data
 --------------------
 
-To process GEDI data, specify paths to a YAML configuration file (`data_config_file`) and an SQL schema file (`sql_config_file`). See :ref:`basics-setup` for more information on the data configuration files.
+To process GEDI data, specify paths to a ``YAML`` configuration file (`data_config_file`) and an ``SQL`` schema file (`sql_config_file`). See :ref:`basics-setup` for more information on the data configuration files.
 
 This setup initiates the download, processing, and storage of GEDI data in your database.
 
@@ -29,20 +29,20 @@ This setup initiates the download, processing, and storage of GEDI data in your 
     with gdb.GEDIProcessor(data_config_file, sql_config_file, n_workers=4) as processor:
         processor.compute()
 
-In this example, the **GEDIProcessor** performs:
+In this example, the :py:class:`gedidb.GEDIProcessor` performs:
 
 - **Downloading** GEDI L2A-B and L4A-C products.
 - **Filtering** data by quality.
 - **Storing** the processed data in the database.
 
-The ``n_workers=4`` argument directs **Dask** to process four data granules in parallel. After processing, you can access the data using the :py:class:`gedidb.GEDIProvider`.
+The ``n_workers=4`` argument directs **Dask** to process four data granules in parallel.
 
 Querying GEDI Data
 ------------------
 
-Once the data is processed and stored, use **GEDIProvider** to query it. The results can be returned in either **Xarray** or **Pandas** format, providing flexibility for various workflows.
+Once the data is processed and stored, use :py:class:`gedidb.GEDIProvider` to query it. The results can be returned in either **Xarray** or **Pandas** format, providing flexibility for various workflows.
 
-Example query using **GEDIProvider**:
+Example query using :py:class:`gedidb.GEDIProvider`:
 
 .. code-block:: python
 
@@ -78,4 +78,3 @@ This functionality offers a flexible, scalable approach to querying GEDI data, s
 
 ---
 
-This **Quick Overview** introduces the main capabilities of **gediDB** for GEDI data processing and querying. For advanced features and detailed use cases, refer to the :ref:`fundamentals`.

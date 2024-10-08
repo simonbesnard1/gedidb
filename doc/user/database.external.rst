@@ -7,9 +7,9 @@
 External Resources
 ####################
 
-For more detailed guidance on setting up a spatial database using PostgreSQL and PostGIS, the following resources provide valuable information and tutorials. These links will help you deepen your understanding of spatial databases and ensure optimal configuration for working with **gediDB**.
+For more detailed guidance on setting up a spatial database using PostgreSQL and PostGIS, the following resources provide valuable information and tutorials. These links will help you deepen your understanding of spatial databases and ensure optimal configuration for working with gediDB.
 
-Official PostgreSQL and PostGIS Documentation
+Official PostgreSQL and PostGIS documentation
 #############################################
 
 - **PostgreSQL**: The official documentation for PostgreSQL provides comprehensive details about setting up, managing, and querying relational databases. It's a great reference for understanding database management, user roles, and query optimization.
@@ -20,7 +20,7 @@ Official PostgreSQL and PostGIS Documentation
 
   - `PostGIS Documentation <https://postgis.net/documentation/>`_
 
-PostGIS Tutorials
+PostGIS tutorials
 #################
 
 For step-by-step guidance on creating and managing spatial databases, the following workshop will help you set up a PostGIS-enabled database from scratch:
@@ -29,7 +29,7 @@ For step-by-step guidance on creating and managing spatial databases, the follow
 
   - `PostGIS Workshop: Creating a Database <https://postgis.net/workshops/postgis-intro/creating_db.html>`_
 
-Additional Resources
+Additional resources
 ####################
 
 - **Setting up PostgreSQL**: A guide for beginners on installing and configuring PostgreSQL for general use. Ideal for users new to database management systems.
@@ -40,7 +40,7 @@ Additional Resources
   
   - `DBeaver - Free Database Manager <https://dbeaver.io/>`_
 
-Community Support
+Community support
 #################
 
 - **Stack Overflow**: For troubleshooting and support, the PostgreSQL and PostGIS communities are very active on Stack Overflow. You can search for specific issues or ask questions related to database management and geospatial queries.
@@ -48,4 +48,4 @@ Community Support
   - `PostgreSQL on Stack Overflow <https://stackoverflow.com/questions/tagged/postgresql>`_
   - `PostGIS on Stack Overflow <https://stackoverflow.com/questions/tagged/postgis>`_
 
-These resources will help you navigate the setup and management of your PostgreSQL/PostGIS database, ensuring smooth integration with **gediDB** for processing and querying GEDI data.
+These resources will help you navigate the setup and management of your PostgreSQL/PostGIS database, ensuring smooth integration with gediDB for processing and querying GEDI data.

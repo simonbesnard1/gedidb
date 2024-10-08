@@ -4,7 +4,7 @@
 Configuration files
 *******************
 
-To maximize the functionality of **gediDB**, it’s essential to configure key settings using the `data_config.yml` and `db_scheme.sql` files. These files specify important parameters, ensuring efficient data handling, database connection, and alignment with your processing needs.
+To maximize the functionality of gediDB, it’s essential to configure key settings using the `data_config.yml` and `db_scheme.sql` files. These files specify important parameters, ensuring efficient data handling, database connection, and alignment with your processing needs.
 
 =======================
 Data configuration file
@@ -23,7 +23,7 @@ A default data configuration file (`data_config.yml`) can be downloaded here:
 
 **Extracted data from .h5 Files**
 
-GEDI `.h5` files contain extensive data, but **gediDB** allows you to specify only the essential variables you need. This configuration not only reduces storage requirements but also speeds up data processing.
+GEDI `.h5` files contain extensive data, but gediDB allows you to specify only the essential variables you need. This configuration not only reduces storage requirements but also speeds up data processing.
 
 For instance, each GEDI product, like **Level 2A**, can have a dedicated configuration section, allowing tailored data extraction. Below is an example specifying selected variables for **Level 2A**:
 
