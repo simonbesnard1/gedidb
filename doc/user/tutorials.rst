@@ -4,7 +4,7 @@
 gediDB Tutorials
 ****************
 
-The following tutorials provide practical, hands-on examples of how to use **gediDB**. Each notebook focuses on a core component of the package, covering workflows for downloading, processing, storing, and querying GEDI data.
+The following tutorials provide practical, hands-on examples of how to use gediDB. Each notebook focuses on a core component of the package, covering workflows for downloading, processing, storing, and querying GEDI data.
 
 .. toctree::
    :maxdepth: 1
@@ -12,11 +12,11 @@ The following tutorials provide practical, hands-on examples of how to use **ged
 Notebooks
 ---------
 
-These tutorials are structured as Jupyter notebooks, providing interactive guides to understanding and using **gediDB**. Below is an overview of each tutorial available:
+These tutorials are structured as Jupyter notebooks, providing interactive guides to understanding and using gediDB. Below is an overview of each tutorial available:
 
-1. **Using `GEDIProcessor` for Data Processing**
+1. **Using `GEDIProcessor` for data processing**
 
-   This notebook demonstrates how to use the `GEDIProcessor` class to manage the full GEDI data pipeline. By working through this tutorial, users will learn how to:
+   This notebook demonstrates how to use the :py:class:`gedidb.GEDIProcessor` class to manage the full GEDI data pipeline. By working through this tutorial, users will learn how to:
 
    - Configure essential settings in the `data_config.yml` and `db_scheme.sql` files.
    - Download and preprocess GEDI granules for multiple products (L2A, L2B, L4A, and L4C).
@@ -27,9 +27,9 @@ These tutorials are structured as Jupyter notebooks, providing interactive guide
 
    :download:`Download GEDIProcessor Tutorial Notebook <../_static/notebooks/gedi_processor_tutorial.ipynb>`
 
-2. **Querying Data with `GEDIProvider`**
+2. **Querying data with `GEDIProvider`**
 
-   The second notebook focuses on the `GEDIProvider` class, which enables users to retrieve and analyze GEDI data stored in a PostgreSQL/PostGIS database. Key objectives of this tutorial include:
+   The second notebook focuses on the :py:class:`gedidb.GEDIProvider` class, which enables users to retrieve and analyze GEDI data stored in a PostgreSQL/PostGIS database. Key objectives of this tutorial include:
 
    - Connecting to the database using `GEDIProvider` and defining key settings.
    - Querying data with spatial, temporal, and variable-specific filters.
@@ -42,4 +42,4 @@ These tutorials are structured as Jupyter notebooks, providing interactive guide
 
 ---
 
-Each tutorial provides an interactive, practical approach to mastering GEDI data processing and retrieval, helping users get the most out of **gediDB**.
+Each tutorial provides an interactive, practical approach to mastering GEDI data processing and retrieval, helping users get the most out of gediDB.

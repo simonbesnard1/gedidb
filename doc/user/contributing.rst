@@ -9,7 +9,7 @@ Contributing to gediDB
 Overview
 ========
 
-We welcome your skills and enthusiasm at the xarray project!. There are numerous opportunities to
+We welcome your skills and enthusiasm at the gediDB project!. There are numerous opportunities to
 contribute beyond just writing code.
 All contributions, including bug reports, bug fixes, documentation improvements, enhancement suggestions,
 and other ideas are welcome.
@@ -70,7 +70,7 @@ Commit Changes
 How to
 ~~~~~~
 
-1. Fork the `s2downloader` repo on GitLab.
+1. Fork the `gedidb` repo on GitLab.
 2. Clone your fork locally::
 
     $ git clone git@git.gfz-potsdam.de:global-land-monitoring/gedi-toolbox.git

@@ -10,8 +10,8 @@ gediDB Documentation
 
    User Guide <user/index>
    Installation <user/installing>
-   Database setup <user/database>
-   Development <dev/index>
+   Database Setup <user/database>
+   Development <user/contributing>
 
 **Version**: |version|
 
@@ -85,7 +85,7 @@ gediDB Documentation
 
         +++
 
-        .. button-ref:: dev/index
+        .. button-ref:: contributing
             :expand:
             :color: primary
             :click-parent:

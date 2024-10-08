@@ -3,10 +3,10 @@
 Installation
 ============
 
-Required Dependencies
+Required dependencies
 ---------------------
 
-To use **gediDB**, please ensure the following dependencies are installed:
+To use gediDB, please ensure the following dependencies are installed:
 
 - Python >= 3.12
 - `numpy <https://numpy.org/>`__ >= 2.0
@@ -23,7 +23,7 @@ To use **gediDB**, please ensure the following dependencies are installed:
 - `dask <https://dask.org/>`__ >= 2024.8.2
 - `distributed <https://distributed.dask.org/>`__ >= 2024.8.2
 
-Optional Dependencies
+Optional dependencies
 ---------------------
 
 For additional functionality, consider installing these optional dependencies:
@@ -36,18 +36,18 @@ For additional functionality, consider installing these optional dependencies:
 
    Optional dependencies can be installed via *extras* using **pip**. See the instructions below on how to install these via **pip** or **conda**.
 
-Installation Instructions
+Installation instructions
 -------------------------
 
-**gediDB** is a pure Python package, though some dependencies may have complex installations. We recommend using **conda** for the most straightforward setup.
+GediDB is a pure Python package, though some dependencies may have complex installations. We recommend using **conda** for the most straightforward setup.
 
-To install **gediDB** and all required dependencies with **conda** from the **conda-forge** channel, use:
+To install gediDB and all required dependencies with **conda** from the **conda-forge** channel, use:
 
 .. code-block:: bash
 
     $ conda install -c conda-forge gedidb
 
-For non-conda installations, first ensure **numpy** and **pandas** are installed, then use **pip** to install **gediDB**:
+For non-conda installations, first ensure **numpy** and **pandas** are installed, then use **pip** to install gediDB:
 
 .. code-block:: bash
 
@@ -61,10 +61,10 @@ To include optional dependencies, specify them using **pip** extras. For example
 
 This command installs additional dependencies listed in the `pyproject.toml` file under `[project.optional-dependencies]`.
 
-Development Versions
+Development versions
 --------------------
 
-For the latest development version of **gediDB**, install directly from the **GitLab** repository:
+For the latest development version of gediDB, install directly from the **GitLab** repository:
 
 .. code-block:: bash
 
@@ -73,13 +73,13 @@ For the latest development version of **gediDB**, install directly from the **Gi
 Testing
 -------
 
-To run tests after installing **gediDB**, first install **pytest**:
+To run tests after installing gediDB, first install **pytest**:
 
 .. code-block:: bash
 
     $ python -m pip install pytest
 
-Navigate to the root directory of the **gediDB** repository, then run:
+Navigate to the root directory of the gediDB repository, then run:
 
 .. code-block:: bash
 

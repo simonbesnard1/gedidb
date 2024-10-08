@@ -28,6 +28,7 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
 
    database
    tuning-config
+   contributing
 
 .. tip::
    Make sure to check the :ref:`faq` section if you encounter any issues while using gediDB!

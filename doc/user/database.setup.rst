@@ -3,7 +3,7 @@
 Setting up PostgreSQL and PostGIS
 =================================
 
-This guide provides comprehensive instructions for setting up a **PostgreSQL** database with **PostGIS** to handle large-scale GEDI geospatial data using **gediDB**. It covers robust security measures, multi-user connection management, and optimization techniques for handling large datasets. The instructions are intended for database administrators and developers requiring a high level of security and scalability.
+This guide provides comprehensive instructions for setting up a **PostgreSQL** database with **PostGIS** to handle large-scale GEDI geospatial data using gediDB. It covers robust security measures, multi-user connection management, and optimization techniques for handling large datasets. The instructions are intended for database administrators and developers requiring a high level of security and scalability.
 
 Prerequisites
 -------------
@@ -134,7 +134,7 @@ To ensure encrypted connections:
 
       hostssl all all 0.0.0.0/0 md5
 
-**Enhanced Authentication with SCRAM-SHA-256**:
+**Enhanced authentication with SCRAM-SHA-256**:
 
 1. **Update `pg_hba.conf` to use SCRAM-SHA-256**:
 
@@ -187,7 +187,7 @@ To ensure encrypted connections:
       max_client_conn = 1000
       default_pool_size = 100
 
-Database Schema Overview
+Database schema overview
 ------------------------
 
 The applied schema includes:
@@ -214,7 +214,7 @@ This will create tables to store GEDI shots, spatial data, and relevant metadata
 Performance optimization
 ------------------------
 
-Partitioning Data for Performance
+Partitioning data for performance
 ---------------------------------
 
 To efficiently manage large GEDI datasets, we use partitioning based on geographic zones, optimizing read and query performance. Partitioning by **zone** groups data into predefined geographic areas, enhancing data locality and retrieval speed. 
