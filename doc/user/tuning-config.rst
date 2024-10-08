@@ -3,9 +3,9 @@
 
 .. _tuning-config:
 
-#########################################
-Modifying the Data Configuration & Schema
-#########################################
+#############################
+Modifying configuration files
+#############################
 
 This section will guide you through the steps needed to modify both the **data configuration file** (`data_config.yml`) and the **database schema file** (`db_scheme.sql`). These two files control how GEDI data is processed, stored, and queried.
 
@@ -78,16 +78,6 @@ After modifying the schema, run the updated SQL file to apply the changes to you
 
     psql -d gedi_db -U gedi_user -f path_to_schema/db_scheme.sql
 
-Optimizing Table Indexes
-########################
-
-Indexes improve the speed of data retrieval. If you're often querying by a new field, such as `sensitivity`, consider adding an index on that column. Modify the schema to add an index:
-
-.. code-block:: sql
-
-    CREATE INDEX idx_sensitivity ON filtered_l2ab_l4ac_shots (sensitivity);
-
-This index will optimize the query performance when filtering or searching by `sensitivity`.
 
 Advanced Schema Customization
 #############################
@@ -96,7 +86,5 @@ In addition to adding columns, you can also modify data types, create new tables
 
 For more details, you can download the template database schema file: :download:`Download db_scheme.sql <../_static/test_files/db_scheme.sql>`
 
-Conclusion
-----------
-By modifying both the `data_config.yml` and `db_scheme.sql` files, you can fully customize the behavior of **gediDB** to suit your project's needs. This allows you to include only the relevant variables and optimize the database for performance.
+
 

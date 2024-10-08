@@ -16,6 +16,7 @@ from gedidb.core.gedigranule import GEDIGranule
 from gedidb.core.gedimetadata import GEDIMetadataManager
 from gedidb.core.gediprocessor import GEDIProcessor
 from gedidb.providers.gedi_provider import GEDIProvider
+from gedidb.downloader.authentication import EarthDataAuthenticator
 from gedidb.utils.print_versions import show_versions
 
 try:
@@ -31,6 +32,7 @@ __all__ = [
     "GEDIGranule",
     "GEDIMetadataManager",
     "GEDIProcessor",
+    "EarthDataAuthenticator",
     "show_versions",
     "__version__",
 ]
