@@ -4,9 +4,9 @@
 Quick Overview
 ################
 
-This section provides quick examples of how to use the :py:class:`gedidb.GEDIProcessor` and :py:class:`gedidb.GEDIProvider` objects to process and query **GEDI** data. For a more detailed explanation, refer to the full documentation.
+This section provides brief examples of using :py:class:`gedidb.GEDIProcessor` and :py:class:`gedidb.GEDIProvider` to process and query **GEDI** data. For detailed explanations, see the :ref:`fundamentals`.
 
-Start by importing the **gedidb** package using its commonly used abbreviation:
+Start by importing the **gedidb** package:
 
 .. code-block:: python
 
@@ -15,65 +15,67 @@ Start by importing the **gedidb** package using its commonly used abbreviation:
 Processing GEDI Data
 --------------------
 
-You can process GEDI data by supplying paths to the configuration files: a YAML file (`data_config_file`) and an SQL schema file (`sql_config_file`). This will trigger the downloading, processing, and storage of data into your database.
+To process GEDI data, specify paths to a YAML configuration file (`data_config_file`) and an SQL schema file (`sql_config_file`). See :ref:`basics-setup` for more information on the data configuration files.
+
+This setup initiates the download, processing, and storage of GEDI data in your database.
 
 .. code-block:: python
 
-    # Define paths to configuration files
-    data_config_file = 'your_path/to/data_config_file.yml'
-    sql_config_file = 'your_path/to/db_scheme_file.sql'
+    # Paths to configuration files
+    data_config_file = 'path/to/data_config_file.yml'
+    sql_config_file = 'path/to/db_schema_file.sql'
     
-    # Process GEDI data using 4 workers
+    # Process GEDI data with 4 parallel workers
     with gdb.GEDIProcessor(data_config_file, sql_config_file, n_workers=4) as processor:
         processor.compute()
 
-This example performs the following tasks:
+In this example, the **GEDIProcessor** performs:
 
-- **Downloads** GEDI L2A-B and L4A-C products.
-- **Filters** data based on quality.
-- **Writes** the processed data into the database.
+- **Downloading** GEDI L2A-B and L4A-C products.
+- **Filtering** data by quality.
+- **Storing** the processed data in the database.
 
-The argument `n_workers=4` indicates that four granules will be processed in parallel using **Dask**. Once the processing is complete, you can access the data using the :py:class:`gedidb.GEDIProvider`.
+The ``n_workers=4`` argument directs **Dask** to process four data granules in parallel. After processing, you can access the data using the :py:class:`gedidb.GEDIProvider`.
 
 Querying GEDI Data
 ------------------
 
-Once the data has been processed and stored in the database, you can easily query it using the :py:class:`gedidb.GEDIProvider`. The queried data can be returned in either **Xarray** or **Pandas** format.
+Once the data is processed and stored, use **GEDIProvider** to query it. The results can be returned in either **Xarray** or **Pandas** format, providing flexibility for various workflows.
 
-Here’s an example of querying GEDI data:
+Example query using **GEDIProvider**:
 
 .. code-block:: python
 
-    # Define path to the configuration file
-    data_config_file = 'your_path/to/data_config_file.yml'
+    # Path to the data configuration file
+    data_config_file = 'path/to/data_config_file.yml'
 
-    # Define database table names
-    shot_table = 'name_of_shot_table'
-    metadata_table = 'name_of_metadata_table'
+    # Database table names
+    shot_table = 'shot_table_name'
+    metadata_table = 'metadata_table_name'
     
-    # Instantiate the GEDIProvider
+    # Create GEDIProvider instance
     provider = gdb.GEDIProvider(config_file=data_config_file,
                                 table_name=shot_table,
                                 metadata_table=metadata_table)
 
-    # Define the columns (variables) to query
+    # Define variables to query
     variables = ["rh", "pavd_z", "pai"]
     
-    # Query the data
+    # Query data with filters
     dataset = provider.get_data(variables=variables, geometry=None, 
                                 start_time="2018-01-01", end_time="2023-12-31", 
                                 limit=100, force=True, order_by=["-shot_number"], 
                                 return_type='xarray')
 
-In this example, the `provider.get_data()` method allows you to:
+This ``provider.get_data()`` function allows you to:
 
-- **Specify the columns** (variables) you want to query (e.g., `rh`, `pavd_z`, and `pai`).
-- **Filter data** by a spatial `geometry`, a time range (`start_time` and `end_time`), and other parameters.
-- **Sort the data** by specifying the `order_by` parameter (e.g., by `shot_number`).
-- **Return the data** in either `xarray` or `pandas` format, depending on the `return_type`.
+- **Select specific columns** (e.g., `rh`, `pavd_z`, `pai`).
+- **Apply spatial and temporal filters** using `geometry`, `start_time`, and `end_time`.
+- **Sort data** with the `order_by` parameter (e.g., descending `shot_number`).
+- **Return data** in either `xarray` or `pandas` format based on `return_type`.
 
-This functionality allows you to work with GEDI data in a scalable and flexible manner, easily integrating it into your data workflows.
+This functionality offers a flexible, scalable approach to querying GEDI data, streamlining its integration into your data workflows.
 
 ---
 
-This **Quick Overview** gives you a glimpse of the key functionalities of **gediDB**, making it easy to process, query, and analyze GEDI data. For more detailed use cases and advanced features, be sure to check the :ref:`fundamentals` for more details.
+This **Quick Overview** introduces the main capabilities of **gediDB** for GEDI data processing and querying. For advanced features and detailed use cases, refer to the :ref:`fundamentals`.

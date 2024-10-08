@@ -3,61 +3,67 @@
 Overview: Why gediDB?
 =====================
 
-**gediDB** is a powerful, scalable Python package designed to simplify and accelerate working with **GEDI (Global Ecosystem Dynamics Investigation)** data. It offers an intuitive and high-level interface for querying, processing, and analyzing GEDI data stored in **PostgreSQL** databases, with seamless integration into modern data science workflows.
+**gediDB** is a scalable Python package built to simplify working with **GEDI (Global Ecosystem Dynamics Investigation)** data. It offers an intuitive modules for processing, querying, and analyzing GEDI data stored in **PostgreSQL** databases.
 
-What gediDB Enables
+The motivation behind gediDB
+----------------------------
+
+Working with GEDI data in its raw HDF5 format can be challenging due to:
+
+ - **Complex data structure**: GEDI files are organized by orbit, making it inefficient for users interested in specific regions.
+ - **High redundancy**: Users often need only a few metrics from across different products for each footprint, yet each HDF5 file contains extensive redundant information, leading to excessive disk and network load.
+ - **Filter challenges**: The GEDI research community has identified common initial filters that reduce data size by up to 30%, yet these filters are not reflected in the raw HDF5 files.
+
+**gediDB** was designed to address these issues by providing an efficient, pre-filtered database system that combines GEDI L2A+B and L4A+C products. Over the past year, this approach has been tested on the Cambridge computer cluster with a database of around 9.5 TB, covering tropical moist forests and Europe from 2019–2023. This collaboration with GFZ aims to expand and offer a public version of **gediDB** with Python tools that streamline access to the entire GEDI catalog.
+
+What gediDB enables
 -------------------
 
-Handling GEDI data is challenging due to its high dimensionality and geospatial components. **gediDB** addresses these complexities by providing a user-friendly API, empowering users to efficiently manage and process GEDI data. gediDB leverages leading Python libraries, such as **GeoPandas**, **xarray**, and **Dask**, to simplify data workflows while enabling scalability.
+By overcoming GEDI’s high dimensionality and spatial complexities, **gediDB** offers powerful capabilities that simplify data access and analysis, including:
 
-With gediDB, you can:
+ - **Efficient, region-specific querying**: Quickly filter data by regions, variables, and time intervals for targeted analysis.
+ - **Advanced geospatial querying**: Harness **PostgreSQL** and **PostGIS** for spatially enabled, SQL-based data retrieval within specified boundaries.
+ - **Distributed processing**: Leverage **Dask** to parallelize and scale data processing, ensuring large-scale GEDI datasets are handled efficiently.
+ - **Unified GEDI products**: Easily combine data from multiple GEDI levels (e.g., Levels 2A, 2B, and 4A) into a single dataset, enabling more comprehensive analysis.
 
-- **Easily query GEDI data**: Filter by variable names, geographic regions, and time intervals.
-- **Perform advanced geospatial queries**: Harness the power of **PostgreSQL** and **PostGIS** for spatially enabled data retrieval using SQL.
-- **Distribute processing tasks**: Use **Dask** to parallelize and distribute processing, ensuring that large-scale GEDI datasets are handled efficiently.
-- **Combine multiple GEDI products**: Seamlessly join GEDI products (like Level 2A, 2B, and 4A) into unified datasets for more comprehensive analyses.
+By abstracting the complexity of raw GEDI HDF5 files, **gediDB** empowers researchers to focus on their scientific objectives without data management bottlenecks.
 
-By abstracting the complexities of working with raw GEDI HDF5 files, gediDB allows researchers and data analysts to focus on their scientific goals instead of data management.
+GEDI data structure and gediDB’s solution
+-----------------------------------------
 
-The GEDI Data Model
--------------------
+GEDI’s multi-dimensional data—spanning time, space, and height—presents unique challenges in processing and interpretation. **gediDB** simplifies these complexities by aligning data dimensions and providing intuitive modules for accessing and manipulating data. Users can:
 
-GEDI data is inherently multi-dimensional, involving various sensor measurements over time, space, and height. Processing and interpreting this raw data can be difficult and error-prone. **gediDB** abstracts this complexity, aligning data dimensions and offering intuitive APIs for accessing and manipulating the data. For example, users can:
+ - **Filter GEDI data by time and space**: Retrieve data within specified geographic or temporal ranges.
+ - **Merge and unify GEDI products**: Integrate multiple GEDI products for smooth, consolidated analyses.
+ - **Perform spatial operations**: Execute custom spatial queries based on user-defined boundaries.
 
-- **Filter GEDI data over time and space**: Access data based on geospatial coordinates or temporal ranges.
-- **Merge and unify GEDI products**: Combine multiple GEDI product levels into one dataset, making the analysis process smoother and more efficient.
-- **Perform spatial operations**: Conduct geospatial queries based on custom-defined boundaries like forests, parks, or user-generated polygons.
-
-Core Components of gediDB
+Core components of gediDB
 -------------------------
 
-gediDB is built around two key components:
+**gediDB**'s two primary modules facilitate data processing and access:
 
-1. **`GEDIDProcessor`**:
+1. :py:class:`gedidb.GEDIDProcessor`: This component manages data processing tasks, ensuring efficient handling and integrity across large GEDI datasets.
 
-2. **`GEDIProvider`**: This high-level interface allows you to query GEDI data from a PostgreSQL database and retrieve it as **Pandas** DataFrames or **xarray** Datasets. You can specify variables, apply spatial filters, and define time ranges to extract the data you need.
+2. :py:class:`gedidb.GEDIProvider`: The high-level module for querying GEDI data stored in PostgreSQL. It retrieves data as **Pandas** DataFrames or **xarray** Datasets, enabling users to specify variables, apply spatial filters, and set time ranges.
 
+These modules provide structured access to GEDI data, preserving relationships and metadata between datasets for comprehensive analysis.
 
-These components make it easy for users to access and manipulate GEDI data in a structured and organized manner, without losing the relationships between various datasets and metadata.
-
-Goals and Aspirations
+Goals and aspirations
 ---------------------
 
-The primary goal of gediDB is to provide an efficient, scalable, and user-friendly platform for working with GEDI data, tailored to the needs of a wide array of fields:
+**gediDB**'s primary objective is to create an efficient, scalable platform that meets the needs of various research fields, including:
 
-- **Geosciences**: Researchers analyzing forest structure, canopy height, and biomass using GEDI data.
-- **Remote Sensing**: Scientists combining GEDI data with other remote sensing products to study ecosystems, vegetation, and terrain.
-- **Data Science & Machine Learning**: Developers integrating GEDI data into data pipelines for analysis, modeling, and prediction at scale.
+ - **Geosciences**: Facilitating research on forest structure, canopy height, and biomass.
+ - **Remote Sensing**: Enabling cross-referencing GEDI data with other remote sensing products for ecosystem studies.
+ - **Data Science & Machine Learning**: Supporting developers in integrating GEDI data into data pipelines for modeling and large-scale analyses.
 
-By offering a strong foundation for querying and processing GEDI data, gediDB aspires to be the go-to solution for researchers working with ecosystem dynamics datasets.
-
----
-
-A Collaborative Project
-####################### 
-
-**gediDB** began as a research tool during **Amelia Holcomb**’s PhD. Since then, it has evolved into a full-fledged, scalable Python package through collaboration with the **GLM team**. This transformation was driven by the need for a production-ready tool that could handle large datasets and complex queries in an efficient and scalable manner. The gediDB project remains open-source, and contributions from the research community are always welcome to help it grow and adapt to emerging needs.
+With a robust foundation for querying and processing GEDI data, **gediDB** aims to be a useful tool for conducting analyses of ecosystem dynamics as inferred from GEDI observations.
 
 ---
 
-This version has been optimized for a clearer, more engaging flow. It enhances the readability, organizes the key ideas logically, and highlights the practical advantages of using **gediDB** for GEDI data analysis.
+A Collaborative project
+=======================
+
+**gediDB** began as a research tool during **Amelia Holcomb**'s PhD at the University of Cambridge and evolved into a Python package through collaboration with **Simon Besnard** and **Felix Dombrowski** from the `Global Land Monitoring Group <https://www.gfz-potsdam.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring>`_ at the Helmholtz Center Potsdam GFZ German Research Centre for Geosciences. This transition to a production-ready tool was driven by the need to handle large datasets and complex queries effectively. The project remains open-source and welcomes contributions from the research community to support its growth and adaptability.
+
+---

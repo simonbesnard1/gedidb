@@ -1,38 +1,42 @@
-Setting Up a Secure and Scalable PostgreSQL Database with PostGIS for GEDI Data
-===============================================================================
+.. _database-setup:
 
-This guide provides advanced instructions for setting up a **PostgreSQL** database with **PostGIS** to handle large-scale geospatial GEDI data using **gediDB**. It covers robust security measures, connection management for over 100 users, and techniques to optimize performance for large datasets. This guide is intended for database administrators and developers who require a high level of security and scalability.
+Setting up PostgreSQL and PostGIS
+=================================
 
-.. contents:: Table of Contents
-   :depth: 3
+This guide provides comprehensive instructions for setting up a **PostgreSQL** database with **PostGIS** to handle large-scale GEDI geospatial data using **gediDB**. It covers robust security measures, multi-user connection management, and optimization techniques for handling large datasets. The instructions are intended for database administrators and developers requiring a high level of security and scalability.
 
 Prerequisites
 -------------
 
-Before you begin, ensure that the following tools are installed on your system:
+Ensure the following tools are installed:
 
-1. **PostgreSQL** (version 12 or higher): A powerful, open-source object-relational database system.
-2. **PostGIS**: A spatial database extender for PostgreSQL, adding support for geographic objects.
+- **PostgreSQL** (version 12 or higher): An advanced, open-source object-relational database.
+- **PostGIS**: A PostgreSQL extension that adds support for geographic objects.
 
-For Ubuntu/Debian-based systems, run the following commands in your terminal:
+**Installation**:
+
+For Ubuntu/Debian-based systems:
 
 .. code-block:: bash
 
    sudo apt update
    sudo apt install postgresql postgis
 
-For RedHat/CentOS-based systems, run:
+Or for RedHat/CentOS-based systems:
 
 .. code-block:: bash
 
    sudo yum install postgresql postgis
 
-Setting Up a Highly Secure and Scalable Database
-------------------------------------------------
+Setting up a secure and scalable database
+-----------------------------------------
 
-### 1. Create a PostgreSQL Database and Users with Appropriate Permissions
+Database and user roles
+~~~~~~~~~~~~~~~~~~~~~~~
 
-#### a. Admin User Setup
+Creating dedicated user roles ensures appropriate permissions and secure access.
+
+**Admin user setup**:
 
 1. **Switch to the PostgreSQL user**:
 
@@ -40,7 +44,7 @@ Setting Up a Highly Secure and Scalable Database
 
       sudo -i -u postgres
 
-2. **Create a new PostgreSQL database**:
+2. **Create the PostgreSQL database**:
 
    .. code-block:: bash
 
@@ -51,24 +55,22 @@ Setting Up a Highly Secure and Scalable Database
    .. code-block:: sql
 
       CREATE USER admin_user WITH PASSWORD 'your_secure_password';
-      ALTER USER admin_user WITH SUPERUSER;  -- Grant full admin privileges
+      ALTER USER admin_user WITH SUPERUSER;
 
-   *Note:* Replace `'your_secure_password'` with a strong, secure password.
+   Replace `'your_secure_password'` with a strong password.
 
-#### b. Public Read-Only User Setup
+**Read-Only public user setup**:
 
-1. **Create a public user with read-only access**:
+1. **Create a public read-only user**:
 
    .. code-block:: sql
 
       CREATE USER public_readonly WITH PASSWORD 'readonly_secure_password';
       ALTER USER public_readonly SET default_transaction_read_only = true;
 
-   *Note:* Replace `'readonly_secure_password'` with a strong, secure password.
+   Replace `'readonly_secure_password'` with a secure password.
 
 2. **Grant read-only permissions**:
-
-   Ensure that the public user can only **read** data and not modify it.
 
    .. code-block:: sql
 
@@ -78,13 +80,14 @@ Setting Up a Highly Secure and Scalable Database
 
 3. **Set default privileges for future tables**:
 
-   Automatically grant read-only access to any tables created in the future.
-
    .. code-block:: sql
 
       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO public_readonly;
 
-### 2. Enabling PostGIS for Spatial Queries
+Enabling PostGIS for spatial queries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PostGIS is essential for handling geospatial data.
 
 1. **Connect to the `gedi_db` database**:
 
@@ -92,27 +95,28 @@ Setting Up a Highly Secure and Scalable Database
 
       psql -d gedi_db -U admin_user
 
-2. **Enable the PostGIS extension** for spatial capabilities:
+2. **Enable the PostGIS extension**:
 
    .. code-block:: sql
 
       CREATE EXTENSION IF NOT EXISTS postgis;
 
-3. **Verify the PostGIS installation**:
+3. **Verify the installation**:
 
    .. code-block:: sql
 
       SELECT PostGIS_Version();
 
-### 3. Secure the Database
+Securing the database
+~~~~~~~~~~~~~~~~~~~~~
 
-#### a. Enforce SSL/TLS Encryption
+**SSL/TLS Encryption**:
 
-To ensure encrypted communication between users and the database:
+To ensure encrypted connections:
 
-1. **Enable SSL** in your `postgresql.conf` file:
+1. **Enable SSL in `postgresql.conf`**:
 
-   Locate the `postgresql.conf` file, typically found in `/etc/postgresql/<version>/main/` or `/var/lib/pgsql/data/`.
+   Locate and update the `postgresql.conf` file, typically found in `/etc/postgresql/<version>/main/` or `/var/lib/pgsql/data/`.
 
    .. code-block:: ini
 
@@ -120,54 +124,46 @@ To ensure encrypted communication between users and the database:
       ssl_cert_file = '/path/to/server.crt'
       ssl_key_file = '/path/to/server.key'
 
-   *Note:* Replace `/path/to/server.crt` and `/path/to/server.key` with the paths to your SSL certificate and key files.
+   Replace paths with your SSL certificate and key files.
 
-2. **Configure `pg_hba.conf` to require SSL connections**:
+2. **Require SSL in `pg_hba.conf`**:
 
-   Locate the `pg_hba.conf` file, usually in the same directory as `postgresql.conf`.
-
-   Add the following line to enforce SSL connections:
+   In `pg_hba.conf`, add:
 
    .. code-block:: ini
 
-      hostssl   all   all   0.0.0.0/0   md5
+      hostssl all all 0.0.0.0/0 md5
 
-   *Note:* Adjust the IP range (`0.0.0.0/0`) to match your network requirements.
+**Enhanced Authentication with SCRAM-SHA-256**:
 
-#### b. Harden Authentication with SCRAM-SHA-256
-
-Enable stronger password hashing by updating the authentication method:
-
-1. **Modify `pg_hba.conf` to use SCRAM-SHA-256**:
+1. **Update `pg_hba.conf` to use SCRAM-SHA-256**:
 
    .. code-block:: ini
 
-      host   all   all   0.0.0.0/0   scram-sha-256
+      host all all 0.0.0.0/0 scram-sha-256
 
-2. **Set the password encryption method in `postgresql.conf`**:
+2. **Set password encryption in `postgresql.conf`**:
 
    .. code-block:: ini
 
       password_encryption = scram-sha-256
 
-3. **Reload the PostgreSQL configuration**:
+3. **Reload the configuration**:
 
    .. code-block:: bash
 
       sudo systemctl reload postgresql
 
-*Note:* Existing users may need to reset their passwords to use the new encryption method.
+*Note*: Existing users may need to reset passwords.
 
-#### c. Limit Connection Attempts and Use Connection Pooling
+**Limit connections and use connection pooling**:
 
-Prevent brute-force attacks and efficiently manage multiple connections:
-
-1. **Set connection limits in `postgresql.conf`**:
+1. **Set connection limits** in `postgresql.conf`:
 
    .. code-block:: ini
 
-      max_connections = 500                # Total number of connections
-      superuser_reserved_connections = 10  # Reserved for admin users
+      max_connections = 500
+      superuser_reserved_connections = 10
 
 2. **Install and configure `pgBouncer` for connection pooling**:
 
@@ -175,7 +171,7 @@ Prevent brute-force attacks and efficiently manage multiple connections:
 
       sudo apt install pgbouncer
 
-   Configure the `pgbouncer.ini` file, typically located at `/etc/pgbouncer/pgbouncer.ini`:
+   Configure `pgbouncer.ini`:
 
    .. code-block:: ini
 
@@ -191,66 +187,126 @@ Prevent brute-force attacks and efficiently manage multiple connections:
       max_client_conn = 1000
       default_pool_size = 100
 
-   Create the `userlist.txt` file with the users:
+Database Schema Overview
+------------------------
 
-   .. code-block:: text
+The applied schema includes:
 
-      "admin_user" "md5<md5_hash_of_password>"
-      "public_readonly" "md5<md5_hash_of_password>"
+- **Granule Table**: Stores high-level metadata for GEDI data files (granules), including identifiers, status, and timestamps.
+- **Metadata Table**: Provides descriptive information about variables within GEDI data products, such as units and descriptions.
+- **Shot Table**: Core table containing detailed GEDI measurements (shots) with metadata, quality flags, and geospatial attributes (longitude, latitude, elevation, etc.).
 
-   *Note:* Replace `<md5_hash_of_password>` with the actual MD5 hash of the user's password.
+Each table uses PostGIS spatial types, allowing efficient geospatial queries, and is optimized for performance with indexing and partitioning.
 
-3. **Update client connection settings**:
+You can download the schema file, if not already present:
 
-   Clients should connect to `pgBouncer` instead of connecting directly to PostgreSQL. Update the connection parameters to use `port=6432`.
+:download:`Download db_scheme.sql <../_static/test_files/db_scheme.sql>`
 
-### 4. Partition Tables for Performance
+Then, you canapply the schema to set up the required tables and relationships:
 
-To optimize reading efficiency and speed, partition the data based on geographic regions (e.g., 10x10-degree latitude/longitude tiles):
+.. code-block:: bash
 
-1. **Create a partitioned table** based on spatially derived attributes:
+  psql -d gedi_db -U admin_user -f path_to_schema/db_scheme.sql
 
-   Since PostgreSQL does not support partitioning directly on functions like `ST_X(geometry)`, create generated columns for longitude and latitude.
+This will create tables to store GEDI shots, spatial data, and relevant metadata using PostGIS geometry types for optimized geospatial querying.
 
-   .. code-block:: sql
 
-      CREATE TABLE shots (
-         shot_number BIGINT PRIMARY KEY,
-         granule VARCHAR(60),
-         version VARCHAR(60),
-         beam_type VARCHAR(20),
-         beam_name VARCHAR(9),
-         geometry geometry(Point, 4326),
-         longitude DOUBLE PRECISION GENERATED ALWAYS AS (ST_X(geometry)) STORED,
-         latitude DOUBLE PRECISION GENERATED ALWAYS AS (ST_Y(geometry)) STORED
-      ) PARTITION BY RANGE (longitude);
+Performance optimization
+------------------------
 
-2. **Create partitions** based on longitude ranges (e.g., every 10 degrees):
+Partitioning Data for Performance
+---------------------------------
 
-   .. code-block:: sql
+To efficiently manage large GEDI datasets, we use partitioning based on geographic zones, optimizing read and query performance. Partitioning by **zone** groups data into predefined geographic areas, enhancing data locality and retrieval speed. 
 
-      CREATE TABLE shots_p1 PARTITION OF shots
-      FOR VALUES FROM (-180) TO (-170);
+**Approach: Zoning partitioning**
 
-      CREATE TABLE shots_p2 PARTITION OF shots
-      FOR VALUES FROM (-170) TO (-160);
+GEDI shot data will be divided into geographic zones based on latitude and longitude boundaries, with specific partitions for each hemisphere and climate zone. A trigger function will dynamically assign each incoming data point to the correct zone, automating the data management process.
 
-      -- Continue creating partitions covering the full longitude range
+**Define the main table and partitions**
 
-3. **Optionally, sub-partition by latitude**:
+Create the `shots` table as a parent table partitioned by the `zone` attribute. The `zone` field will be determined by latitude and longitude, and each partition will store data from a specific geographic area.
 
-   If needed, further partition each longitude partition by latitude.
+.. code-block:: sql
 
-   .. code-block:: sql
+   -- Create the main shot table partitioned by zone
+   CREATE TABLE IF NOT EXISTS [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]] (
+       shot_number BIGINT,
+       granule VARCHAR(60),
+       version VARCHAR(60),
+       beam_type VARCHAR(20),
+       beam_name VARCHAR(9),
+       geometry geometry(Point,4326),  
+       zone VARCHAR(50),
+       PRIMARY KEY (zone, shot_number)
+   ) PARTITION BY LIST (zone);  -- Partition by zone
 
-      ALTER TABLE shots_p1 PARTITION BY RANGE (latitude);
+**Define geographic zones**
 
-      CREATE TABLE shots_p1_1 PARTITION OF shots_p1
-      FOR VALUES FROM (-90) TO (-80);
+Use a function and trigger to automatically assign each shot to its respective zone based on latitude and longitude. This function categorizes data into zones, like `wh_north_polar`, `wh_tropical`, and `eh_south_temperate`, based on spatial criteria.
 
-      -- Continue for other latitude ranges
+.. code-block:: sql
 
-### 5. Monitor and Log Database Activity
+   -- Function to calculate zone based on longitude and latitude
+   CREATE OR REPLACE FUNCTION [[DEFAULT_SCHEMA]].calculate_zone()
+   RETURNS trigger AS '
+   BEGIN
+       IF NEW.lon_lowestmode >= -180 AND NEW.lon_lowestmode < 0 THEN
+           -- Western Hemisphere
+           IF NEW.lat_lowestmode >= 60 AND NEW.lat_lowestmode <= 90 THEN
+               NEW.zone := ''wh_north_polar'';
+           ELSIF NEW.lat_lowestmode >= 30 AND NEW.lat_lowestmode < 60 THEN
+               NEW.zone := ''wh_north_temperate'';
+           ELSIF NEW.lat_lowestmode >= 0 AND NEW.lat_lowestmode < 30 THEN
+               NEW.zone := ''wh_tropical'';
+           -- Additional zone assignments continue here
+           ELSE
+               RAISE EXCEPTION ''Invalid lat_lowestmode for Western Hemisphere: %'', NEW.lat_lowestmode;
+           END IF;
+       -- Additional longitude and latitude conditions continue here
+       END IF;
+       RETURN NEW;
+   END;
+   ' LANGUAGE plpgsql;
+
+   -- Trigger to invoke calculate_zone function
+   CREATE TRIGGER calculate_zone_trigger
+   BEFORE INSERT OR UPDATE ON [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]
+   FOR EACH ROW EXECUTE FUNCTION [[DEFAULT_SCHEMA]].calculate_zone();
+
+### Create partitions by zone
+
+Define partitions for each zone, which are automatically assigned by the trigger function. This setup allows the database to manage data efficiently based on geographic regions.
+
+.. code-block:: sql
+
+   -- Zone: wh_north_polar
+   CREATE TABLE IF NOT EXISTS [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]_wh_north_polar
+   PARTITION OF [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]
+   FOR VALUES IN ('wh_north_polar');
+
+   -- Additional zones
+   CREATE TABLE IF NOT EXISTS [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]_wh_north_temperate
+   PARTITION OF [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]
+   FOR VALUES IN ('wh_north_temperate');
+   
+   -- Continue creating partitions for each defined zone...
+
+### Indexing spatial partitions
+
+To enhance geospatial query performance, create spatial indexes on each partition. The `GIST` index type supports geospatial data, improving search speed within each geographic zone.
+
+.. code-block:: sql
+
+   -- Create spatial indexes for partitions
+   CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_north_polar 
+   ON [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]_wh_north_polar USING GIST (geometry);
+
+   -- Continue creating indexes for each partition...
+
+
+Monitoring and logging
+~~~~~~~~~~~~~~~~~~~~~~
 
 Enable detailed logging in `postgresql.conf` to track activity:
 
@@ -259,39 +315,36 @@ Enable detailed logging in `postgresql.conf` to track activity:
    log_connections = on
    log_disconnections = on
    log_duration = on
-   log_min_duration_statement = 1000  # Log statements longer than 1 second
+   log_min_duration_statement = 1000
    log_line_prefix = '%m [%p] %d %u %h '
 
-This configuration allows you to monitor queries, connections, and potential issues in real-time without overwhelming the logs.
+Maintenance
+~~~~~~~~~~~
 
-### 6. Regular Maintenance and Indexing
+**Vacuum and Analyze Regularly**:
 
-1. **Create Indexes on Spatial Columns**:
-
-   .. code-block:: sql
-
-      CREATE INDEX idx_shots_geometry ON shots USING GIST (geometry);
-
-2. **Vacuum and Analyze Regularly**:
-
-   Schedule regular maintenance tasks to optimize database performance.
+Schedule regular maintenance tasks to optimize performance:
 
    .. code-block:: bash
 
       vacuumdb -d gedi_db -U admin_user -z
 
-   Or set up autovacuum in `postgresql.conf`:
+Alternatively, set up autovacuum in `postgresql.conf`:
 
    .. code-block:: ini
 
       autovacuum = on
       autovacuum_max_workers = 3
 
-### Summary
+Summary
+-------
 
-- **Admin User (`admin_user`)**: Has full access to the database and can manage data.
-- **Public Read-Only User (`public_readonly`)**: Can query the database without making changes.
-- **Security Enhancements**: SSL/TLS encryption, SCRAM-SHA-256 password hashing, and connection pooling with `pgBouncer`.
-- **Performance Optimizations**: Use partitioning, indexing, and regular maintenance to handle large datasets efficiently.
-- **Monitoring**: Detailed logging to track database activity and performance.
+This setup guide provides a secure, optimized environment for handling GEDI data, including:
+
+- **User roles**: Separate access levels for secure management.
+- **Security enhancements**: SSL/TLS, SCRAM-SHA-256 authentication, and connection pooling.
+- **Performance optimization**: Partitioning and scheduled maintenance.
+- **Monitoring**: Activity tracking for improved management.
+
+--- 
 

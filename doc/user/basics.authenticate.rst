@@ -1,54 +1,53 @@
-.. _basics.authenticate:
+.. _basics-authenticate:
 
 #####################
 NASA Authentication
 #####################
 
-To interact with NASA's Common Metadata Repository (CMR) and download the required ``.h5`` files, **gediDB** uses NASA Earthdata credentials for authentication. This guide will help you set up the authentication process and ensure your credentials are properly stored and used.
+To interact with NASA's Common Metadata Repository (CMR) and download the required `.h5` files, **gediDB** requires NASA Earthdata credentials for authentication. This guide will help you set up and securely store your credentials to enable seamless access.
 
-CMR login credentials
----------------------
+Creating CMR Login Credentials
+------------------------------
 
-To access GEDI data hosted on NASA’s servers, you need an **Earthdata** account. If you don't already have an account, you can create one at the following link:
+To access GEDI data hosted on NASA’s servers, you need an **Earthdata** account. If you don't have one, create an account at the following link:
 
 `Create an Earthdata Account <https://urs.earthdata.nasa.gov/>`_
 
-Once your Earthdata account is created, add your credentials (username and password) to the **gediDB** configuration file (`data_config.yml`) to enable access. This file serves as the central hub for all configuration parameters, including authentication details.
+After creating your account, add your credentials (username and password) to **gediDB**'s main configuration file (`data_config.yml`) to enable access. This file consolidates all configuration parameters, including authentication details.
 
 Example configuration for Earthdata credentials:
 
-::
+.. code-block:: yaml
 
     earth_data_info:
         credentials:
             username: 'your_username'
             password: 'your_password'
 
-Make sure to replace `'your_username'` and `'your_password'` with your actual Earthdata credentials.
+Replace `'your_username'` and `'your_password'` with your Earthdata login details.
 
-Authenticating your credentials
--------------------------------
+Storing Credentials for Authentication
+--------------------------------------
 
-To avoid typing your credentials repeatedly, **gediDB** provides a built-in function that saves your login information securely in a ``.netrc`` file, which is then used to automatically authenticate your requests to NASA’s servers. 
+To avoid re-entering your credentials each time, **gediDB** includes a function that securely saves your login information in a `.netrc` file, enabling automatic authentication for future requests to NASA’s servers.
 
-Use the following code snippet to authenticate your credentials and store them in the ``.netrc`` file:
+Use the following code snippet to authenticate and store your credentials in the `.netrc` file:
 
 .. code-block:: python
 
-    from gedidb.downloader.authentication import EarthDataAuthenticator
+    import gedidb as gdb
 
-    authenticator = EarthDataAuthenticator('./path/to/data_config.yml')
+    authenticator = gdb.EarthDataAuthenticator('./path/to/data_config.yml')
     authenticator.authenticate()
 
 Explanation:
-- `EarthDataAuthenticator` is used to handle your credentials and automatically authenticate them.
-- The function reads your credentials from the `data_config.yml` file and ensures they are valid.
-- It then stores the credentials in the ``.netrc`` file for future use.
+- :py:class:`gedidb.EarthDataAuthenticator` reads your credentials from `data_config.yml` and verifies them.
+- Once authenticated, the credentials are saved in the `.netrc` file for future use, avoiding repeated login prompts.
 
-Successful Authentication
---------------------------
+Successful Authentication Confirmation
+--------------------------------------
 
-After successful authentication, the system will log helpful messages in the console to let you know that your credentials have been successfully stored and verified. Here’s an example of what you should expect:
+Upon successful authentication, **gediDB** logs messages to confirm that your credentials were correctly stored and verified. Here’s an example of the log output:
 
 .. code-block:: none
 
@@ -57,15 +56,15 @@ After successful authentication, the system will log helpful messages in the con
     2024-09-27 15:34:08,253 - INFO - Credentials added to .netrc file.
     2024-09-27 15:34:08,253 - INFO - Earthdata cookies successfully fetched and saved.
 
-In this example:
-- The directory for Earthdata-related data is confirmed to exist.
-- Credentials are securely saved in the ``.netrc`` file for later requests.
-- A cookie is fetched from the Earthdata server to avoid repeated logins in future sessions.
+This output confirms:
+- The directory for Earthdata data exists.
+- Credentials are securely saved in the `.netrc` file.
+- Authentication cookies are fetched from Earthdata servers, enabling easier login in subsequent sessions.
 
 Security Considerations
 -----------------------
 
-- The credentials stored in the ``.netrc`` file are sensitive. Ensure the file is properly protected by restricting file permissions on your system.
-- You should never share your ``data_config.yml`` or ``.netrc`` file with anyone, as it contains your NASA Earthdata login details.
-
-Now that your credentials are authenticated, you can begin downloading and processing GEDI data using the **gediDB** package.
+- **Protecting `.netrc` file permissions**: The `.netrc` file contains sensitive login information. Limit access by setting appropriate file permissions (e.g., `chmod 600 .netrc` on Unix systems).
+- **Avoid sharing sensitive files**: Do not share your `data_config.yml` or `.netrc` file, as they contain your Earthdata credentials.
+  
+With authentication configured, you are now ready to download and process GEDI data using **gediDB**.
