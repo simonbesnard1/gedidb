@@ -49,6 +49,7 @@ Creating dedicated user roles ensures appropriate permissions and secure access.
    .. code-block:: bash
 
       createdb gedi_db
+      psql -d gedi_db 
 
 3. **Create an admin user with full privileges**:
 
@@ -274,7 +275,7 @@ Use a function and trigger to automatically assign each shot to its respective z
    BEFORE INSERT OR UPDATE ON [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]
    FOR EACH ROW EXECUTE FUNCTION [[DEFAULT_SCHEMA]].calculate_zone();
 
-### Create partitions by zone
+**Create partitions by zone**
 
 Define partitions for each zone, which are automatically assigned by the trigger function. This setup allows the database to manage data efficiently based on geographic regions.
 
@@ -292,7 +293,7 @@ Define partitions for each zone, which are automatically assigned by the trigger
    
    -- Continue creating partitions for each defined zone...
 
-### Indexing spatial partitions
+**Indexing spatial partitions**
 
 To enhance geospatial query performance, create spatial indexes on each partition. The `GIST` index type supports geospatial data, improving search speed within each geographic zone.
 
@@ -318,23 +319,47 @@ Enable detailed logging in `postgresql.conf` to track activity:
    log_min_duration_statement = 1000
    log_line_prefix = '%m [%p] %d %u %h '
 
-Maintenance
-~~~~~~~~~~~
+Database Maintenance
+--------------------
 
-**Vacuum and Analyze Regularly**:
+**Automated maintenance tasks**:
 
-Schedule regular maintenance tasks to optimize performance:
+Set up regular database maintenance to optimize performance. Add the following `cron` jobs for tasks like reindexing and backup.
+
+1. **Reindex** database periodically to optimize storage and access:
+
+   .. code-block:: bash
+
+      crontab -e
+      # Add reindexing jobs
+      11 3 * * * psql "gedi_db" -c 'REINDEX DATABASE "gedi_db";'
+
+2. **Vacuum and Analyze**:
+
+   Schedule regular maintenance tasks to optimize performance:
 
    .. code-block:: bash
 
       vacuumdb -d gedi_db -U admin_user -z
 
-Alternatively, set up autovacuum in `postgresql.conf`:
+   Alternatively, set up autovacuum in `postgresql.conf`:
 
-   .. code-block:: ini
+      .. code-block:: ini
 
-      autovacuum = on
-      autovacuum_max_workers = 3
+         autovacuum = on
+         autovacuum_max_workers = 3
+
+3. **Backup database**:
+
+   .. code-block:: bash
+
+      pg_dumpall | gzip -c > /path/to/backup/adsc-postgres.sql.gz
+
+   To restore, use:
+
+      .. code-block:: bash
+
+         gunzip -c /path/to/backup/adsc-postgres.sql.gz | psql -U admin_user gedi_db
 
 Summary
 -------
