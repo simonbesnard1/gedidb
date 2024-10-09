@@ -19,7 +19,8 @@ from functools import wraps
 from retry import retry
 import logging
 from collections import defaultdict
-from requests.exceptions import HTTPError
+from urllib3.exceptions import NewConnectionError
+from requests.exceptions import RequestException, HTTPError, ConnectionError
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -59,7 +60,7 @@ class CMRDataDownloader(GEDIDownloader):
         self.end_date = end_date
         self.earth_data_info = earth_data_info        
 
-    @retry((ValueError, TypeError, HTTPError), tries=10, delay=5, backoff=3)
+    @retry((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError), tries=10, delay=5, backoff=3)
     def download(self) -> dict:
         """
         Download granules across all GEDI products and ensure ID consistency.
@@ -141,12 +142,12 @@ class H5FileDownloader(GEDIDownloader):
     def __init__(self, download_path: str = "."):
         self.download_path = download_path
 
-    @retry((ValueError, TypeError, HTTPError), tries=10, delay=5, backoff=3)
+    @retry((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError), tries=10, delay=5, backoff=3)
     def download(self, granule_key: str, url: str, product: GediProduct, parquet_path) -> Tuple[str, Tuple[Any, None]]:
         """
         Download an HDF5 file for a specific granule and product.
         
-        :param _id: Granule ID.
+        :param granule_key: Granule ID.
         :param url: URL to download the HDF5 file from.
         :param product: GEDI product.
         :return: Tuple containing the granule ID and a tuple of product name and file path.
@@ -154,18 +155,29 @@ class H5FileDownloader(GEDIDownloader):
         h5file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
         parquetfile_path = os.path.join(parquet_path, f"filtered_granule_{granule_key}.parquet")
 
+        # If file already exists, skip download
         if os.path.exists(parquetfile_path):
+            logger.info(f"File already exists for {granule_key}, skipping download.")
             return granule_key, (product.value, str(h5file_path)) 
         
         try:
             with requests.get(url, stream=True, timeout=30) as r:
                 r.raise_for_status()
                 os.makedirs(h5file_path.parent, exist_ok=True)
+                
+                # Write the downloaded content to the file
                 with open(h5file_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
+
                 return granule_key, (product.value, str(h5file_path))
 
-        except RequestException as e:
-            logger.error(f"Error downloading {url}: {e}")
-            return granule_key, (product.value, None)
+        except (RequestException, ConnectionError, NewConnectionError) as e:
+            # Log each error encountered during download
+            logger.error(f"Error downloading {url} on attempt: {e}")
+            raise  # Propagate the error to activate retry
+
+        # Final fallback if retries are exhausted
+        except Exception as e:
+            logger.error(f"Download failed after all retries for {url}: {e}")
+            return granule_key, (product.value, None)  # Explicitly handle max retry failure case
