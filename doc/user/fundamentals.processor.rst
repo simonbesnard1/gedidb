@@ -1,4 +1,4 @@
-.. _basics.processor:
+.. _fundamentals-processor:
 
 ###############
 Data Processing
@@ -58,7 +58,7 @@ The ``compute()`` method of :py:class:`gedidb.GEDIProcessor` initiates the follo
 
 3. **Data processing**:
 
-   - Each granule is parsed and processed by the `GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status.
+   - Each granule is parsed and processed by the `GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied. 
    - Data from different products is merged using shot numbers as the primary key, resulting in a unified dataset per granule.
    - The processed data is saved as a parquet file for efficient storage and retrieval.
 
@@ -85,7 +85,7 @@ The :py:class:`gedidb.GEDIProcessor` class is highly configurable, allowing you 
 - **`db_scheme.sql`**: Update the schema to fit your specific database structure, especially if you’re working with existing datasets or need custom tables.
 
 
-  For details on configuration files, refer to the :ref:`basics-setup` page.
+  For details on configuration files, refer to the :ref:`fundamentals-setup` page.
 
 Performance considerations
 --------------------------

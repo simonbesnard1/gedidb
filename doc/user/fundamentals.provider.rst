@@ -1,7 +1,7 @@
 .. for doctest:
     >>> import gedidb as gdb
 
-.. _basics.provider:
+.. _fundamentals-provider:
 
 #############
 Data Provider

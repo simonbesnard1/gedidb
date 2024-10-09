@@ -1,4 +1,4 @@
-.. _basics-setup:
+.. _fundamentals-setup:
 
 *******************
 Configuration files

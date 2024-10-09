@@ -1,3 +1,5 @@
+.. _database:
+
 #####################
 Setting up a Database
 #####################
@@ -15,12 +17,14 @@ To get started, follow the detailed steps provided in the following sections:
  - **External resources**: Provides external foundational knowledge on PostgreSQL and PostGIS.
 
 .. toctree::
-   :caption: Database guide
+   :caption: Step-by-step guide
    :maxdepth: 1
 
    database.setup
    database.external
 
-**Note**: Familiarity with PostgreSQL and SQL basics is recommended. If you are new to database management, see the external resources section for additional learning materials.
+.. note::
+   
+   Familiarity with PostgreSQL and SQL basics is recommended. If you are new to database management, see the external resources section for additional learning materials.
 
 ---

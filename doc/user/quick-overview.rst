@@ -15,7 +15,7 @@ Start by importing the **gedidb** package:
 Processing GEDI Data
 --------------------
 
-To process GEDI data, specify paths to a ``YAML`` configuration file (`data_config_file`) and an ``SQL`` schema file (`sql_config_file`). See :ref:`basics-setup` for more information on the data configuration files.
+To process GEDI data, specify paths to a ``YAML`` configuration file (`data_config_file`) and an ``SQL`` schema file (`sql_config_file`). See :ref:`fundamentals-setup` for more information on the data configuration files.
 
 This setup initiates the download, processing, and storage of GEDI data in your database.
 
