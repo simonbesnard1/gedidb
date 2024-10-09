@@ -1,4 +1,4 @@
-.. _basics-authenticate:
+.. _fundamentals-authenticate:
 
 #####################
 NASA authentication

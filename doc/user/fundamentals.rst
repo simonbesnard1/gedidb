@@ -11,10 +11,12 @@ Explore the topics below to dive deeper into gediDB's fundamental components:
 .. toctree::
    :maxdepth: 1
 
-   basics.setup
-   basics.authenticate
-   basics.processor
-   basics.provider
+   fundamentals.setup
+   fundamentals.authenticate
+   fundamentals.processor
+   fundamentals.provider
+   fundamentals.filters
+   
 
 
 

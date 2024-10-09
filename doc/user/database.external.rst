@@ -1,7 +1,7 @@
 .. for doctest:
     >>> import gedidb as gdb
 
-.. _database.external:
+.. _database-external:
 
 ####################
 External Resources
