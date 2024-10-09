@@ -240,7 +240,7 @@ html_theme_options = {
         "image_light": "_static/logos/gediDB_logo.svg",
         "image_dark": "_static/logos/gediDB_logo.svg",
     },
-    "github_url": "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/main/gedi-toolbox",
+    "github_url": "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/gedi-toolbox",
     "collapse_navigation": True,
     "header_links_before_dropdown": 6,
     # Add light/dark mode and documentation version switcher:
@@ -555,10 +555,10 @@ def linkcode_resolve(domain, info):
         linespec = ""
 
     if 'dev' in gedidb.__version__:
-        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/main/gedi-toolbox/%s%s" % (
+        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/gedi-toolbox/%s%s" % (
            fn, linespec)
     else:
-        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/main/gedi-toolbox/blob/v%s/numpy/%s%s" % (
+        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/gedi-toolbox/blob/v%s/numpy/%s%s" % (
            gedidb.__version__, fn, linespec)
 
 from pygments.lexers import CLexer
