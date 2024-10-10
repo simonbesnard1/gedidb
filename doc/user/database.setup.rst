@@ -125,23 +125,27 @@ To ensure encrypted connections:
       ssl_cert_file = '/path/to/server.crt'
       ssl_key_file = '/path/to/server.key'
 
-   Replace paths with your SSL certificate and key files.
+   Replace `/path/to/server.crt` and `/path/to/server.key` with the paths to your SSL certificate and key files.
 
 2. **Require SSL in `pg_hba.conf`**:
 
-   In `pg_hba.conf`, add:
+   In `pg_hba.conf`, add an entry to specify which IP addresses can connect using SSL. For security, it’s recommended to restrict connections to specific IP addresses or ranges. Use `0.0.0.0/0` only if all IP addresses should be allowed (not recommended for production environments).
 
    .. code-block:: ini
 
-      hostssl all all 0.0.0.0/0 md5
+      hostssl all all <YOUR_NETWORK_OR_IP> md5
+
+   Replace `<YOUR_NETWORK_OR_IP>` with the desired IP address or range (e.g., `192.168.1.0/24` for a network or `203.0.113.0/32` for a single IP).
 
 **Enhanced authentication with SCRAM-SHA-256**:
 
-1. **Update `pg_hba.conf` to use SCRAM-SHA-256**:
+1. **Update `pg_hba.conf` to use SCRAM-SHA-256 authentication**:
 
    .. code-block:: ini
 
-      host all all 0.0.0.0/0 scram-sha-256
+      host all all <YOUR_NETWORK_OR_IP> scram-sha-256
+
+   Replace `<YOUR_NETWORK_OR_IP>` with a specific IP address or range rather than `0.0.0.0/0` to restrict access.
 
 2. **Set password encryption in `postgresql.conf`**:
 
@@ -149,13 +153,13 @@ To ensure encrypted connections:
 
       password_encryption = scram-sha-256
 
-3. **Reload the configuration**:
+3. **Reload the configuration to apply changes**:
 
    .. code-block:: bash
 
       sudo systemctl reload postgresql
 
-*Note*: Existing users may need to reset passwords.
+*Note*: Existing users may need to reset their passwords to switch to SCRAM-SHA-256 encryption.
 
 **Limit connections and use connection pooling**:
 
