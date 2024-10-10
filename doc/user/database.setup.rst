@@ -1,9 +1,7 @@
-.. _database-setup:
-
 Setting up PostgreSQL and PostGIS
 =================================
 
-This guide provides comprehensive instructions for setting up a **PostgreSQL** database with **PostGIS** to handle large-scale GEDI geospatial data using gediDB. It covers robust security measures, multi-user connection management, and optimization techniques for handling large datasets. The instructions are intended for database administrators and developers requiring a high level of security and scalability.
+This guide provides comprehensive instructions for setting up a **PostgreSQL** database with **PostGIS** to handle large-scale GEDI geospatial data using gediDB. It covers security measures, multi-user connection management, and optimization techniques for handling large datasets, particularly with high concurrency. The instructions are for database administrators and developers requiring security, scalability, and high-performance geospatial querying.
 
 Prerequisites
 -------------
@@ -22,7 +20,7 @@ For Ubuntu/Debian-based systems:
    sudo apt update
    sudo apt install postgresql postgis
 
-Or for RedHat/CentOS-based systems:
+For RedHat/CentOS-based systems:
 
 .. code-block:: bash
 
@@ -88,8 +86,6 @@ Creating dedicated user roles ensures appropriate permissions and secure access.
 Enabling PostGIS for spatial queries
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PostGIS is essential for handling geospatial data.
-
 1. **Connect to the `gedi_db` database**:
 
    .. code-block:: bash
@@ -111,13 +107,9 @@ PostGIS is essential for handling geospatial data.
 Securing the database
 ~~~~~~~~~~~~~~~~~~~~~
 
-**SSL/TLS Encryption**:
-
-To ensure encrypted connections:
+**SSL/TLS encryption**:
 
 1. **Enable SSL in `postgresql.conf`**:
-
-   Locate and update the `postgresql.conf` file, typically found in `/etc/postgresql/<version>/main/` or `/var/lib/pgsql/data/`.
 
    .. code-block:: ini
 
@@ -129,13 +121,9 @@ To ensure encrypted connections:
 
 2. **Require SSL in `pg_hba.conf`**:
 
-   In `pg_hba.conf`, add an entry to specify which IP addresses can connect using SSL. For security, it’s recommended to restrict connections to specific IP addresses or ranges. Use `0.0.0.0/0` only if all IP addresses should be allowed (not recommended for production environments).
-
    .. code-block:: ini
 
       hostssl all all <YOUR_NETWORK_OR_IP> md5
-
-   Replace `<YOUR_NETWORK_OR_IP>` with the desired IP address or range (e.g., `192.168.1.0/24` for a network or `203.0.113.0/32` for a single IP).
 
 **Enhanced authentication with SCRAM-SHA-256**:
 
@@ -145,21 +133,17 @@ To ensure encrypted connections:
 
       host all all <YOUR_NETWORK_OR_IP> scram-sha-256
 
-   Replace `<YOUR_NETWORK_OR_IP>` with a specific IP address or range rather than `0.0.0.0/0` to restrict access.
-
 2. **Set password encryption in `postgresql.conf`**:
 
    .. code-block:: ini
 
       password_encryption = scram-sha-256
 
-3. **Reload the configuration to apply changes**:
+3. **Reload configuration**:
 
    .. code-block:: bash
 
       sudo systemctl reload postgresql
-
-*Note*: Existing users may need to reset their passwords to switch to SCRAM-SHA-256 encryption.
 
 **Limit connections and use connection pooling**:
 
@@ -188,7 +172,7 @@ To ensure encrypted connections:
       listen_port = 6432
       auth_type = md5
       auth_file = /etc/pgbouncer/userlist.txt
-      pool_mode = session
+      pool_mode = transaction
       max_client_conn = 1000
       default_pool_size = 100
 
@@ -197,40 +181,22 @@ Database schema overview
 
 The applied schema includes:
 
-- **Granule Table**: Stores high-level metadata for GEDI data files (granules), including identifiers, status, and timestamps.
-- **Metadata Table**: Provides descriptive information about variables within GEDI data products, such as units and descriptions.
-- **Shot Table**: Core table containing detailed GEDI measurements (shots) with metadata, quality flags, and geospatial attributes (longitude, latitude, elevation, etc.).
+- **Granule Table**: Stores high-level metadata for GEDI data files (granules).
+- **Metadata Table**: Provides descriptive information about variables within GEDI data products.
+- **Shot Table**: Core table containing detailed GEDI measurements (shots) with geospatial attributes (longitude, latitude, elevation, etc.).
 
-Each table uses PostGIS spatial types, allowing efficient geospatial queries, and is optimized for performance with indexing and partitioning.
-
-You can download the schema file, if not already present:
-
-:download:`Download db_scheme.sql <../_static/test_files/db_scheme.sql>`
-
-Then, you canapply the schema to set up the required tables and relationships:
-
-.. code-block:: bash
-
-  psql -d gedi_db -U admin_user -f path_to_schema/db_scheme.sql
-
-This will create tables to store GEDI shots, spatial data, and relevant metadata using PostGIS geometry types for optimized geospatial querying.
-
-
-Performance optimization
-------------------------
+Each table uses PostGIS spatial types for efficient geospatial queries and is optimized with multi-dimensional indexing.
 
 Partitioning data for performance
 ---------------------------------
 
-To efficiently manage large GEDI datasets, we use partitioning based on geographic zones, optimizing read and query performance. Partitioning by **zone** groups data into predefined geographic areas, enhancing data locality and retrieval speed. 
-
-**Approach: Zoning partitioning**
+**Approach: zoning partitioning**
 
 GEDI shot data will be divided into geographic zones based on latitude and longitude boundaries, with specific partitions for each hemisphere and climate zone. A trigger function will dynamically assign each incoming data point to the correct zone, automating the data management process.
 
-**Define the main table and partitions**
+**Define main table and partitions**
 
-Create the `shots` table as a parent table partitioned by the `zone` attribute. The `zone` field will be determined by latitude and longitude, and each partition will store data from a specific geographic area.
+Create the `shots` table partitioned by **zone** to improve performance for spatial queries.
 
 .. code-block:: sql
 
@@ -246,134 +212,75 @@ Create the `shots` table as a parent table partitioned by the `zone` attribute. 
        PRIMARY KEY (zone, shot_number)
    ) PARTITION BY LIST (zone);  -- Partition by zone
 
-**Define geographic zones**
+**Define partitions by zone**
 
-Use a function and trigger to automatically assign each shot to its respective zone based on latitude and longitude. This function categorizes data into zones, like `wh_north_polar`, `wh_tropical`, and `eh_south_temperate`, based on spatial criteria.
-
-.. code-block:: sql
-
-   -- Function to calculate zone based on longitude and latitude
-   CREATE OR REPLACE FUNCTION [[DEFAULT_SCHEMA]].calculate_zone()
-   RETURNS trigger AS '
-   BEGIN
-       IF NEW.lon_lowestmode >= -180 AND NEW.lon_lowestmode < 0 THEN
-           -- Western Hemisphere
-           IF NEW.lat_lowestmode >= 60 AND NEW.lat_lowestmode <= 90 THEN
-               NEW.zone := ''wh_north_polar'';
-           ELSIF NEW.lat_lowestmode >= 30 AND NEW.lat_lowestmode < 60 THEN
-               NEW.zone := ''wh_north_temperate'';
-           ELSIF NEW.lat_lowestmode >= 0 AND NEW.lat_lowestmode < 30 THEN
-               NEW.zone := ''wh_tropical'';
-           -- Additional zone assignments continue here
-           ELSE
-               RAISE EXCEPTION ''Invalid lat_lowestmode for Western Hemisphere: %'', NEW.lat_lowestmode;
-           END IF;
-       -- Additional longitude and latitude conditions continue here
-       END IF;
-       RETURN NEW;
-   END;
-   ' LANGUAGE plpgsql;
-
-   -- Trigger to invoke calculate_zone function
-   CREATE TRIGGER calculate_zone_trigger
-   BEFORE INSERT OR UPDATE ON [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]
-   FOR EACH ROW EXECUTE FUNCTION [[DEFAULT_SCHEMA]].calculate_zone();
-
-**Create partitions by zone**
-
-Define partitions for each zone, which are automatically assigned by the trigger function. This setup allows the database to manage data efficiently based on geographic regions.
+Define partitions for each **zone**, and dynamically assign zones with a trigger function.
 
 .. code-block:: sql
 
-   -- Zone: wh_north_polar
-   CREATE TABLE IF NOT EXISTS [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]_wh_north_polar
-   PARTITION OF [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]
-   FOR VALUES IN ('wh_north_polar');
-
-   -- Additional zones
-   CREATE TABLE IF NOT EXISTS [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]_wh_north_temperate
-   PARTITION OF [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]
-   FOR VALUES IN ('wh_north_temperate');
-   
-   -- Continue creating partitions for each defined zone...
+   -- Partition example for one zone
+   CREATE TABLE public.shots_wh_north_polar PARTITION OF public.shots 
+       FOR VALUES IN ('wh_north_polar');
 
 **Indexing spatial partitions**
 
-To enhance geospatial query performance, create spatial indexes on each partition. The `GIST` index type supports geospatial data, improving search speed within each geographic zone.
+To optimize geospatial query performance, add **GIST spatial indexes** on each partition.
 
 .. code-block:: sql
 
    -- Create spatial indexes for partitions
    CREATE INDEX IF NOT EXISTS idx_shot_geometry_wh_north_polar 
-   ON [[DEFAULT_SCHEMA]].[[DEFAULT_SHOT_TABLE]]_wh_north_polar USING GIST (geometry);
+   ON public.shots_wh_north_polar USING GIST (geometry);
 
-   -- Continue creating indexes for each partition...
+Performance optimization and maintenance
+----------------------------------------
 
+**Advanced connection pooling and query caching**
 
-Monitoring and logging
-~~~~~~~~~~~~~~~~~~~~~~
-
-Enable detailed logging in `postgresql.conf` to track activity:
-
-.. code-block:: ini
-
-   log_connections = on
-   log_disconnections = on
-   log_duration = on
-   log_min_duration_statement = 1000
-   log_line_prefix = '%m [%p] %d %u %h '
-
-Database Maintenance
---------------------
+- Use `pgBouncer` in **transaction mode** for connection pooling to optimize high-concurrency usage.
+- Consider `pgpool` for limited query caching to enhance performance for repeated queries.
 
 **Automated maintenance tasks**:
 
-Set up regular database maintenance to optimize performance. Add the following `cron` jobs for tasks like reindexing and backup.
-
-1. **Reindex** database periodically to optimize storage and access:
+1. **Reindex periodically**:
 
    .. code-block:: bash
 
-      crontab -e
-      # Add reindexing jobs
       11 3 * * * psql "gedi_db" -c 'REINDEX DATABASE "gedi_db";'
 
-2. **Vacuum and Analyze**:
-
-   Schedule regular maintenance tasks to optimize performance:
+2. **Vacuum and analyze**:
 
    .. code-block:: bash
 
       vacuumdb -d gedi_db -U admin_user -z
 
-   Alternatively, set up autovacuum in `postgresql.conf`:
+   Alternatively, enable autovacuum:
 
-      .. code-block:: ini
+   .. code-block:: ini
 
-         autovacuum = on
-         autovacuum_max_workers = 3
+      autovacuum = on
+      autovacuum_max_workers = 3
 
-3. **Backup database**:
+3. **Incremental backups**:
+
+   For faster backups, use:
 
    .. code-block:: bash
 
-      pg_dumpall | gzip -c > /path/to/backup/adsc-postgres.sql.gz
+      pg_basebackup -D /path/to/backup -Ft -z
 
-   To restore, use:
+   Restore with:
 
-      .. code-block:: bash
+   .. code-block:: bash
 
-         gunzip -c /path/to/backup/adsc-postgres.sql.gz | psql -U admin_user gedi_db
+      pg_restore -d gedi_db /path/to/backup
 
 Summary
 -------
 
 This setup guide provides a secure, optimized environment for handling GEDI data, including:
 
-- **User roles**: Separate access levels for secure management.
+- **Role-based access control**: Detailed access control for secure management.
 - **Security enhancements**: SSL/TLS, SCRAM-SHA-256 authentication, and connection pooling.
-- **Performance optimization**: Partitioning and scheduled maintenance.
-- **Monitoring**: Activity tracking for improved management.
-
---- 
-
+- **Performance optimization**: Multi-dimensional partitioning and scheduled maintenance.
+- **Monitoring**: Activity tracking with pg_stat_statements for efficient database management.
