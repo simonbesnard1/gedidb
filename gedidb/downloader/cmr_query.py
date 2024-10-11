@@ -232,9 +232,10 @@ class GranuleQuery(CMRQuery):
                 "size": float(item["granule_size"]),
                 "product": self.product.value,
             }
-            for item in granule_data if self._get_name(item) is not None
+            for item in granule_data
+            if (granule_name := self._get_name(item)) is not None
         ]
-        
+            
         return pd.DataFrame(
             granule_data_processed, columns=["id", "name", "url", "size", "product"]
         )
