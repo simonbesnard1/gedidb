@@ -19,7 +19,6 @@ provider = gdb.GEDIProvider(config_file='/home/simon/Documents/science/GFZ/proje
 region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/test_patches.geojson')
 
 #%% Loop over each polygon in the GeoDataFrame
-total_ = 0
 for index, patch_geom in region_of_interest.iterrows():
     
     patch_geom = gpd.GeoSeries(patch_geom)
