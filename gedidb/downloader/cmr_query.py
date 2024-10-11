@@ -99,20 +99,55 @@ class CMRQuery:
         metadata = granule_name.parse_granule_filename(name)
         return f"{metadata.orbit}_{metadata.sub_orbit_granule}"
 
+    # @staticmethod
+    # def _get_name(item: dict) -> str:
+    #     """
+    #     Extract the name of the granule from the CMR response item.
+
+    #     :param item: CMR response item.
+    #     :return: Granule name.
+    #     """
+    #     if "LPCLOUD" in item["data_center"]:
+    #         return item["producer_granule_id"]
+    #     if "ORNL" in item["data_center"]:
+    #         return item["title"].split(".", maxsplit=1)[1]
+    #     return None
+    
     @staticmethod
     def _get_name(item: dict) -> str:
         """
         Extract the name of the granule from the CMR response item.
-
+        Removes the '.h5' extension if present and strips whitespace.
+    
         :param item: CMR response item.
         :return: Granule name.
         """
+        granule_name = None
+    
+        # Try to get the granule name from 'producer_granule_id' (preferred)
         if "LPCLOUD" in item["data_center"]:
-            return item["producer_granule_id"]
-        if "ORNL" in item["data_center"]:
-            return item["title"].split(".", maxsplit=1)[1]
-        return None
-
+            granule_name = item["producer_granule_id"]
+        # If 'producer_granule_id' is not available, fallback to 'title'
+        elif "ORNL" in item["data_center"]:
+            title = item["title"]
+            # For 'ORNL' data center, 'title' has a prefix we need to remove
+            # Split on the first period and take the second part
+            if "." in title:
+                granule_name = title.split(".", maxsplit=1)[1]
+            else:
+                granule_name = title
+        else:
+            logger.warning(f"Unknown data center or missing granule ID in item: {item}")
+            return None
+    
+        # Remove any leading/trailing whitespace
+        granule_name = granule_name.strip()
+    
+        # Remove '.h5' extension if present
+        if granule_name.endswith('.h5'):
+            granule_name = granule_name[:-3]
+    
+        return granule_name
 
 class GranuleQuery(CMRQuery):
     """
@@ -143,27 +178,16 @@ class GranuleQuery(CMRQuery):
         self.earth_data_info = earth_data_info
         
     @handle_exceptions
-    def query_granules(
-        self, page_size: int = 2000, page_num: int = 1
-    ) -> pd.DataFrame:
+    def query_granules(self, page_size: int = 2000, page_num: int = 1) -> pd.DataFrame:
         """
         Query granules from CMR and return them as a DataFrame.
-
+    
         :param page_size: Number of results per page.
         :param page_num: Starting page number.
         :return: DataFrame containing queried granules.
         """
-        cmr_params = self._construct_query_params(
-            self.product,
-            self.geom,
-            self.start_date,
-            self.end_date,
-            self.earth_data_info,
-            page_size,
-            page_num,
-        )
         granule_data = []
-
+    
         # Configure retry strategy for the HTTP session
         adapter = HTTPAdapter(
             max_retries=Retry(
@@ -175,33 +199,43 @@ class GranuleQuery(CMRQuery):
         )
         session = requests.Session()
         session.mount("https://", adapter)
-
+    
         while True:
-            cmr_params["page_num"] = page_num
+            # Reconstruct cmr_params in each iteration with the updated page_num
+            cmr_params = self._construct_query_params(
+                self.product,
+                self.geom,
+                self.start_date,
+                self.end_date,
+                self.earth_data_info,
+                page_size,
+                page_num,
+            )
             response = session.get(self.earth_data_info["CMR_URL"], params=cmr_params)
             response.raise_for_status()
             cmr_response = response.json()["feed"]["entry"]
-
+    
             if cmr_response:
                 granule_data.extend(cmr_response)
                 page_num += 1
             else:
                 break
-
+    
         session.close()
-
+    
         # Process granule data into a structured DataFrame
         granule_data_processed = [
             {
-                "id": self._get_id(self._get_name(item)),
-                "name": self._get_name(item),
+                "id": self._get_id(granule_name),
+                "name": granule_name,
                 "url": item["links"][0]["href"],
                 "size": float(item["granule_size"]),
                 "product": self.product.value,
             }
             for item in granule_data if self._get_name(item) is not None
         ]
-
+        
         return pd.DataFrame(
             granule_data_processed, columns=["id", "name", "url", "size", "product"]
         )
+    

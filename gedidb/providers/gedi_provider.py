@@ -169,7 +169,7 @@ class GEDIProvider:
         force: bool = False, 
         order_by: Optional[List[str]] = None, 
         return_type: str = "xarray"
-    ) -> Union[pd.DataFrame, xr.Dataset]:
+    ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
         Get the dataset as either a Pandas DataFrame or Xarray Dataset.
 
@@ -181,7 +181,7 @@ class GEDIProvider:
         :param force: If True, force the query even without conditions.
         :param order_by: Columns to order by.
         :param return_type: Specify return type, either 'pandas' or 'xarray'.
-        :return: The queried data as a Pandas DataFrame or Xarray Dataset.
+        :return: The queried data as a Pandas DataFrame, Xarray Dataset, or None if no data.
         """
         
         df, metadata = self.query_data(
@@ -193,6 +193,10 @@ class GEDIProvider:
             force=force,
             order_by=order_by
         )
+        
+        # Return None if df is empty
+        if df.empty:
+            return None
     
         if return_type == "pandas":
             return df
