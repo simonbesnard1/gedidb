@@ -13,7 +13,6 @@ import requests
 from datetime import datetime
 import pandas as pd
 import geopandas as gpd
-from requests.exceptions import RequestException
 from typing import Tuple, Any
 from functools import wraps
 from retry import retry
@@ -59,7 +58,7 @@ class CMRDataDownloader(GEDIDownloader):
         self.start_date = start_date
         self.end_date = end_date
         self.earth_data_info = earth_data_info        
-
+    
     @retry((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError), tries=10, delay=5, backoff=3)
     def download(self) -> dict:
         """
@@ -68,72 +67,66 @@ class CMRDataDownloader(GEDIDownloader):
         Retry mechanism is applied if the IDs across products are inconsistent.
     
         :return: A dictionary containing granule data organized by granule ID.
-        :raises: ValueError if no granules found or ID consistency fails after retries.
+        :raises: ValueError if no granules with all required products are found.
         """
         cmr_dict = defaultdict(list)
         
+        # Iterate over each required product and collect granule information
         for product in GediProduct:
             try:
-                granule_query = GranuleQuery(product, self.geom, self.start_date, self.end_date, self.earth_data_info)
+                granule_query = GranuleQuery(
+                    product, self.geom, self.start_date, self.end_date, self.earth_data_info
+                )
                 granules = granule_query.query_granules()
-    
+                
                 if not granules.empty:
                     # Organize granules by ID and append (url, product) tuples
                     for _, row in granules.iterrows():
                         cmr_dict[row["id"]].append((row["url"], product.value))
-    
+                else:
+                    logger.warning(f"No granules found for product {product.value}.")
+
             except Exception as e:
                 logger.error(f"Failed to download granules for {product.name}: {e}")
                 continue
         
         if not cmr_dict:
             raise ValueError("No granules found after retry attempts.")
-    
-        if not self._check_all_products_present(cmr_dict):
-            logger.warning("Not all products have granules. Retrying...")
-            raise ValueError("Missing granules for some products.")
-    
-        return cmr_dict
         
-    @staticmethod
-    def _check_all_products_present(granules: dict) -> bool:
+        # Filter granules to only include those with all required products
+        filtered_cmr_dict = self._filter_granules_with_all_products(cmr_dict)
+        
+        if not filtered_cmr_dict:
+            raise ValueError("No granules with all required products found.")
+        
+        return filtered_cmr_dict
+            
+    def _filter_granules_with_all_products(self, granules: dict) -> dict:
         """
-        Ensure that each granule contains all the required products.
+        Filter the granules dictionary to only include granules that have all required products.
         
         :param granules: Dictionary where keys are granule IDs and values are lists of (url, product) tuples.
-        :return: True if all granules contain all required products, False otherwise.
+        :return: Filtered dictionary containing only granules with all required products.
         """
         required_products = {'level2A', 'level2B', 'level4A', 'level4C'}
-        all_products_present = True
+        filtered_granules = {}
     
         for granule_id, product_info in granules.items():
             # Extract the set of products for the current granule
             products_found = {product for _, product in product_info}
-            
+                        
             # Check for missing products
             missing_products = required_products - products_found
             if missing_products:
                 logger.warning(f"Granule {granule_id} is missing products: {missing_products}")
-                all_products_present = False  # Set to False if any granule is missing products
-    
-        return all_products_present
-
-    @staticmethod
-    @handle_exceptions
-    def clean_up_cmr_data(cmr_df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Clean up the CMR data by nesting the 'url' and 'size' attributes within the 'details' column.
+                # Skip this granule as it's missing required products
+                continue
+            else:
+                # Include this granule as it has all required products
+                filtered_granules[granule_id] = product_info
         
-        :param cmr_df: DataFrame containing CMR data.
-        :return: Cleaned DataFrame with nested details for each granule ID.
-        """
-        def _create_nested_dict(group):
-            return {row['product']: {'url': row['url'], 'size': row['size']} for _, row in group.iterrows()}
-
-        final_df = cmr_df.groupby('id').apply(_create_nested_dict).reset_index()
-        final_df.columns = ['id', 'details']
-        return final_df.sort_values(by='id')
-
+        return filtered_granules
+    
 class H5FileDownloader(GEDIDownloader):
     """
     Downloader for HDF5 files from URLs.
