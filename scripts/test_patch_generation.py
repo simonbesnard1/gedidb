@@ -23,11 +23,11 @@ provider = gdb.GEDIProvider(config_file='/home/simon/Documents/science/GFZ/proje
 region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/test_patches.geojson')
 
 #%% Loop over each polygon in the GeoDataFrame
-fig, axes = plt.subplots(3, 4, figsize=(20, 15), constrained_layout=True)
+fig, axes = plt.subplots(3, 3, figsize=(15, 10), constrained_layout=True)
 axes = axes.flatten()  # Flatten for easy iteration over 12 subplots
 
 for index, (ax, patch_geom) in enumerate(zip(axes, region_of_interest.iterrows())):
-    if index >= 12:
+    if index >= 9:
         break  # Only process the first 12 patches
     
     patch_geom = gpd.GeoSeries(patch_geom[1]["geometry"])
@@ -87,9 +87,9 @@ for index, (ax, patch_geom) in enumerate(zip(axes, region_of_interest.iterrows()
     ax.set_ylabel("Latitude")
     
     # Add basemap to each subplot
-    ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery, crs="EPSG:4326")
-    ax.set_xlim(minx, maxx)
-    ax.set_ylim(miny, maxy)
+    # ctx.add_basemap(ax, source=ctx.providers.Esri.WorldImagery, crs="EPSG:4326")
+    # ax.set_xlim(minx, maxx)
+    # ax.set_ylim(miny, maxy)
 
-plt.suptitle("GEDI Data for 12 Patches", fontsize=18)
+plt.suptitle("GEDI Data for 9 Patches", fontsize=18)
 plt.savefig('/home/simon/Documents/science/GFZ/presentation/3D-ABC/3d-ABC_14_10_24_SB/images/all_samples.png', dpi=300)   

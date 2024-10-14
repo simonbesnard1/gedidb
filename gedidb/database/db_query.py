@@ -51,7 +51,7 @@ class SQLQueryBuilder:
         limit: Optional[int] = None,
         force: bool = False,
         order_by: List[str] = [],
-        **filters
+        **quality_filters
     ):
         self.table_name = table_name
         self.metadata_table = metadata_table
@@ -63,16 +63,16 @@ class SQLQueryBuilder:
         self.limit = limit
         self.force = force
         self.order_by = order_by
-        self.filters = filters
+        self.quality_filters = quality_filters
 
     def _build_conditions(self) -> List[str]:
         """Build SQL conditions for spatial, temporal, and filter-based queries."""
         conditions = []
-
+    
         # Temporal conditions
         if self.start_time and self.end_time:
             conditions.append(f"(absolute_time BETWEEN '{self.start_time}' AND '{self.end_time}')")
-
+    
         # Spatial conditions
         if self.geometry is not None:
             crs = pyproj.CRS.from_user_input(self.crs)
@@ -81,25 +81,29 @@ class SQLQueryBuilder:
                     "ignore",
                     message="__len__ for multi-part geometries is deprecated and will be removed in Shapely 2.0",
                 )
-
+    
                 # Flatten the geometry to WKT strings and create spatial conditions
                 wkt_strings = self.geometry.to_wkt().values.flatten()
                 queries = [f"ST_Intersects(geometry, ST_GeomFromText('{geom}', {crs.to_epsg()}))" for geom in wkt_strings]
                 conditions.append(f"({' OR '.join(queries)})")
-
+    
         # Filter conditions
-        for column, value in self.filters.items():
-            comparator = "="
-            if isinstance(value, list):
-                comparator = "IN"
-                value = [self._escape_value(v) for v in value]
-            elif isinstance(value, QueryPredicate):
-                comparator = value.predicate
-                value = self._escape_value(value.value)
-            else:
-                value = self._escape_value(value)
-            conditions.append(f"({column} {comparator} {value})")
-
+        for column, expression in self.quality_filters.items():
+            sub_conditions = []
+            # Split on 'AND' for range or multiple conditions, without treating each part as an equality check
+            for part in expression.split(" AND "):
+                part = part.strip()
+                # Detect range operators and format the condition accordingly
+                for op in ["=", ">=", "<=", ">", "<"]:
+                    if part.startswith(op):
+                        value = part[len(op):].strip()  # Extract the numeric part
+                        sub_conditions.append(f"{column} {op} {value}")  # Build the SQL condition without quotes for numeric
+                        break
+    
+            # Combine multiple conditions with 'AND' for this column
+            if sub_conditions:
+                conditions.append(" AND ".join(sub_conditions))
+        
         return conditions
 
     @staticmethod
@@ -126,7 +130,7 @@ class SQLQueryBuilder:
     
         # Construct the final SQL query
         sql_query = f"SELECT {columns} FROM {self.table_name}{condition}{order}{limits}"
-    
+        
         # Add safety check if no conditions, limits, or force
         if not self.force and not condition and not limits:
             raise UserWarning("Warning! This will load the entire table. To proceed set `force`=True.")
