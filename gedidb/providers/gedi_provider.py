@@ -67,7 +67,8 @@ class GEDIProvider:
         end_time: Optional[str] = None, 
         limit: Optional[int] = None, 
         force: bool = False, 
-        order_by: Optional[List[str]] = None
+        order_by: Optional[List[str]] = None,
+        **quality_filters
     ) -> Union[pd.DataFrame, pd.DataFrame]:
         """
         Query GEDI data from the database using the specified variables and conditions.
@@ -92,7 +93,8 @@ class GEDIProvider:
             end_time=end_time,
             limit=limit,
             force=force,
-            order_by=order_by
+            order_by=order_by,
+            **quality_filters
         )
 
         try:
@@ -168,7 +170,8 @@ class GEDIProvider:
         limit: Optional[int] = None, 
         force: bool = False, 
         order_by: Optional[List[str]] = None, 
-        return_type: str = "xarray"
+        return_type: str = "xarray",
+        **quality_filters
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
         Get the dataset as either a Pandas DataFrame or Xarray Dataset.
@@ -183,7 +186,6 @@ class GEDIProvider:
         :param return_type: Specify return type, either 'pandas' or 'xarray'.
         :return: The queried data as a Pandas DataFrame, Xarray Dataset, or None if no data.
         """
-        
         df, metadata = self.query_data(
             variables=variables,
             geometry=geometry,
@@ -191,7 +193,8 @@ class GEDIProvider:
             end_time=end_time,
             limit=limit,
             force=force,
-            order_by=order_by
+            order_by=order_by,
+            **quality_filters  # Pass additional quality filters here
         )
         
         # Return None if df is empty
