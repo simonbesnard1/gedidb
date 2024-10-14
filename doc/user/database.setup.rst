@@ -1,3 +1,5 @@
+.. _database-setup:
+
 Setting up PostgreSQL and PostGIS
 =================================
 

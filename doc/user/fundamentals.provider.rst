@@ -109,10 +109,13 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "wsci_xy_pi_lower", "Horizontal Structural Complexity lower prediction interval", "FLOAT32MT", "L4C"
    "wsci_xy_pi_upper", "Horizontal Structural Complexity upper prediction interval", "FLOAT32MT", "L4C"
 
-Retrieving GEDI Data with the GEDI Provider
+Retrieving GEDI data with the GEDI provider
 -------------------------------------------
 
-The :py:class:`gedidb.GEDIProvider` class is your main tool for querying GEDI data from the PostgreSQL database. Below is an example that demonstrates how to configure and use the provider to retrieve data:
+The :py:class:`gedidb.GEDIProvider` class is your main tool for querying GEDI data from the PostgreSQL database. The following example demonstrates how to configure and use the provider to retrieve data with options to include additional quality filters for customized data refinement.
+
+Basic query example
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -130,11 +133,12 @@ The :py:class:`gedidb.GEDIProvider` class is your main tool for querying GEDI da
     #%% Define the columns to query and additional parameters
     vars_selected = ['rh', 'pavd_z', 'pai']
     dataset = provider.get_data(variables=vars_selected, geometry=region_of_interest, 
-                                   start_time="2018-01-01", end_time="2024-12-31", 
-                                   limit=None, force=True, order_by=["-shot_number"], 
-                                   return_type='xarray')
+                                start_time="2018-01-01", end_time="2024-12-31", 
+                                limit=None, force=True, order_by=["-shot_number"], 
+                                return_type='xarray')
 
-Parameters for ``get_dataset()``:
+Parameters for ``get_data()``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
  - **variables**: List of variables (columns) to retrieve from the database.
  - **geometry**: (Optional) GeoPandas geometry for spatial filtering.
@@ -146,6 +150,42 @@ Parameters for ``get_dataset()``:
  - **return_type**: Specifies the format of the returned data, either :py:class:`xarray.Dataset` or :py:class:`pandas.DataFrame`.
 
 The returned data is formatted according to the `return_type` parameter, making it ready for further analysis.
+
+Applying additional quality filters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can further refine the data retrieval by specifying additional quality filters. This customization allows filtering based on specific conditions for selected variables. The filters are added as keyword arguments in the form of field-value conditions.
+
+Example with additional quality filters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the following example, we define specific quality filters for the **sensitivity** and **surface_flag** fields:
+
+.. code-block:: python
+
+    import geopandas as gpd
+    import gedidb as gdb
+
+    #%% Instantiate the GEDIProvider
+    provider = gdb.GEDIProvider(config_file='./config_files/data_config.yml',
+                                table_name="filtered_l2ab_l4ac_shots",
+                                metadata_table="variable_metadata")
+
+    #%% Load region of interest
+    region_of_interest = gpd.read_file('./data/geojson/BR-Sa1.geojson')
+
+    # Define the columns to query, additional parameters, and quality filters
+    vars_selected = ['rh', 'agbd']
+    quality_filters = {
+        'sensitivity': '>= 0.95 AND <= 1.0',
+        'surface_flag': '= 1'
+    }
+    gedi_data = provider.get_data(variables=vars_selected, geometry=region_of_interest, 
+                                  start_time="2018-01-01", end_time="2024-12-31", 
+                                  limit=None, force=True, order_by=["-shot_number"], 
+                                  return_type='xarray', **quality_filters)
+
+Quality filters are passed as key-value pairs where the key is the variable name, and the value is the condition (e.g., `'sensitivity': '>= 0.95 AND <= 1.0'`). This adds flexibility to refine the query based on specific criteria, improving the relevance of the retrieved data.
 
 Supported output formats
 ------------------------
