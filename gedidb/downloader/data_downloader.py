@@ -11,7 +11,6 @@ import os
 import pathlib
 import requests
 from datetime import datetime
-import pandas as pd
 import geopandas as gpd
 from typing import Tuple, Any
 from functools import wraps
@@ -70,6 +69,8 @@ class CMRDataDownloader(GEDIDownloader):
         :raises: ValueError if no granules with all required products are found.
         """
         cmr_dict = defaultdict(list)
+        total_granules = 0
+        total_size_mb = 0.0
         
         # Iterate over each required product and collect granule information
         for product in GediProduct:
@@ -80,6 +81,9 @@ class CMRDataDownloader(GEDIDownloader):
                 granules = granule_query.query_granules()
                 
                 if not granules.empty:
+                    total_granules += len(granules)
+                    total_size_mb += granules["size"].astype(float).sum()  # Summing the size column
+                
                     # Organize granules by ID and append (url, product) tuples
                     for _, row in granules.iterrows():
                         cmr_dict[row["id"]].append((row["url"], product.value))
@@ -98,6 +102,9 @@ class CMRDataDownloader(GEDIDownloader):
         
         if not filtered_cmr_dict:
             raise ValueError("No granules with all required products found.")
+        
+        # Log the total number of granules and total size of the data
+        logger.info(f"NASA's CMR service found {total_granules} granules for a total size of {total_size_mb / 1024:.2f} GB.")
         
         return filtered_cmr_dict
             

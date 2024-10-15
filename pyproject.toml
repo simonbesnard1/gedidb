@@ -5,8 +5,8 @@ description = "A toolbox to download, process, store and visualise Global Ecosys
 readme = "README.md"
 authors = [
     { name = "Simon Besnard", email = "besnard@gfz-potsdam.de" },
-    { name = "Felix Dombrowski", email = "felix@example.com" },
-    { name = "Amelia Holcomb", email = "amelia@example.com" }
+    { name = "Felix Dombrowski", email = "felix.dombrowski@uni-potsdam.de" },
+    { name = "Amelia Holcomb", email = "amelia.holcomb@gmail.com" }
 ]
 license = { file = "EUPL-1.2" }
 keywords = ["geospatial", "GEDI", "database"]
@@ -30,6 +30,8 @@ dependencies = [
     "retry==0.9.2",
     "dask==2024.8.2",
     "distributed==2024.8.2",
+    "bokeh==3.6.0",
+    "beautifulsoup4==4.12.3",
     "pytest",
     "mypy",
     "numpydoc"
