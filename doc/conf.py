@@ -555,10 +555,10 @@ def linkcode_resolve(domain, info):
         linespec = ""
 
     if 'dev' in gedidb.__version__:
-        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/gedi-toolbox/%s%s" % (
+        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/%s%s" % (
            fn, linespec)
     else:
-        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/gedi-toolbox/blob/v%s/numpy/%s%s" % (
+        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/v%s/numpy/%s%s" % (
            gedidb.__version__, fn, linespec)
 
 from pygments.lexers import CLexer

@@ -12,6 +12,8 @@ import subprocess
 import yaml
 import logging
 from pathlib import Path
+import platform
+import stat
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -94,11 +96,17 @@ class EarthDataAuthenticator:
                 f.write(
                     f"\nmachine urs.earthdata.nasa.gov login {self.username} password {self.password}"
                 )
-                # Set file permissions before closing the file
+                # Get file descriptor for Unix-based systems
                 fileno = f.fileno()
-
-            # Ensure only the user has access to the .netrc file
-            os.fchmod(fileno, 0o600)
+    
+            # Set file permissions based on the operating system
+            if platform.system() != "Windows":
+                # Set permissions for Unix-like systems
+                os.fchmod(fileno, 0o600)
+            else:
+                # Set permissions for Windows: make file hidden and read/write only for the owner
+                os.chmod(self.netrc_file, stat.S_IWRITE | stat.S_IREAD)
+    
             logger.info("Credentials added to .netrc file.")
         except OSError as e:
             logger.error(f"Error adding credentials to .netrc file: {e}")

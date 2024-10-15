@@ -21,9 +21,10 @@ region_of_interest = gpd.read_file('./data/geojson/BR-Sa1.geojson')
 # Define the columns to query and additional parameters
 vars_selected = ['rh', 'agbd']
 quality_filters = {
-    'sensitivity': '>= 0.99 AND <= 1.0',
+    'sensitivity': '>= 0.9 AND <= 1.0',
     'surface_flag': '= 1'
 }
+
 gedi_data = provider.get_data(variables=vars_selected, geometry=region_of_interest, 
                                start_time="2018-01-01", end_time="2024-12-31", 
                                limit=None, force=True, order_by=["-shot_number"], 
