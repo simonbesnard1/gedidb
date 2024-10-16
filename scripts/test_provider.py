@@ -11,12 +11,12 @@ import geopandas as gpd
 import gedidb as gdb
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(config_file='./config_files/data_config.yml',
+provider = gdb.GEDIProvider(config_file='/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml',
                             table_name="filtered_l2ab_l4ac_shots",
                             metadata_table="variable_metadata")
 
 #%% Load region of interest
-region_of_interest = gpd.read_file('./data/geojson/BR-Sa1.geojson')
+region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/german.geojson')
 
 # Define the columns to query and additional parameters
 vars_selected = ['rh', 'agbd']
@@ -28,6 +28,6 @@ quality_filters = {
 gedi_data = provider.get_data(variables=vars_selected, geometry=region_of_interest, 
                                start_time="2018-01-01", end_time="2024-12-31", 
                                limit=None, force=True, order_by=["-shot_number"], 
-                               return_type='xarray', **quality_filters)
+                               return_type='xarray')
     
 

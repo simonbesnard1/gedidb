@@ -15,6 +15,7 @@ from typing import Optional, List, Union
 import geopandas as gpd
 
 from gedidb.database.db_query import SQLQueryBuilder, GediDataBuilder
+from gedidb.utils.geospatial_tools import check_and_format_shape
 
 # Default dimensions for the GEDI data
 DEFAULT_DIMS = ["shot_number", "beam_name", 'absolute_time', 'geometry']
@@ -186,6 +187,8 @@ class GEDIProvider:
         :param return_type: Specify return type, either 'pandas' or 'xarray'.
         :return: The queried data as a Pandas DataFrame, Xarray Dataset, or None if no data.
         """
+        geometry = check_and_format_shape(geometry, simplify=True)
+        
         df, metadata = self.query_data(
             variables=variables,
             geometry=geometry,
@@ -199,6 +202,7 @@ class GEDIProvider:
         
         # Return None if df is empty
         if df.empty:
+            logger.info("No data found for your region of interest")
             return None
     
         if return_type == "pandas":
