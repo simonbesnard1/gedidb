@@ -96,15 +96,15 @@ class CMRDataDownloader(GEDIDownloader):
         
         if not cmr_dict:
             raise ValueError("No granules found after retry attempts.")
+            
+        # Log the total number of granules and total size of the data
+        logger.info(f"NASA's CMR service found {total_granules} granules for a total size of {total_size_mb / 1024:.2f} GB.")
         
         # Filter granules to only include those with all required products
         filtered_cmr_dict = self._filter_granules_with_all_products(cmr_dict)
         
         if not filtered_cmr_dict:
             raise ValueError("No granules with all required products found.")
-        
-        # Log the total number of granules and total size of the data
-        logger.info(f"NASA's CMR service found {total_granules} granules for a total size of {total_size_mb / 1024:.2f} GB.")
         
         return filtered_cmr_dict
             
@@ -125,7 +125,6 @@ class CMRDataDownloader(GEDIDownloader):
             # Check for missing products
             missing_products = required_products - products_found
             if missing_products:
-                logger.warning(f"Granule {granule_id} is missing products: {missing_products}")
                 # Skip this granule as it's missing required products
                 continue
             else:

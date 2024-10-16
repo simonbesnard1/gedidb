@@ -52,7 +52,7 @@ class EarthDataAuthenticator:
 
     def _get_storage_directory(self) -> Path:
         """Prompt user for storage directory or use default (home directory)."""
-        default_dir = Path.home() / "earth_data"
+        default_dir = Path.home()
         user_dir = input(f"Enter directory to store authentication files (default: {default_dir}): ")
         storage_dir = Path(user_dir) if user_dir else default_dir
         return self._ensure_directory(storage_dir)
