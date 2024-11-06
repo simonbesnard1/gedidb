@@ -18,10 +18,8 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "pandas==2.2.2",
-    "pyarrow==17.0.0",
     "geopandas==1.0.1",
-    "SQLAlchemy==2.0.31",
-    "GeoAlchemy2==0.15.2",
+    "pyarrow==17.0.0",
     "h5py==3.11.0",
     "numpy==2.0.1",
     "psycopg2==2.9.9",
@@ -32,6 +30,8 @@ dependencies = [
     "distributed==2024.8.2",
     "bokeh==3.6.0",
     "beautifulsoup4==4.12.3",
+    "boto3==1.35.49",
+    "tiledb==0.32.5",
     "pytest",
     "mypy",
     "numpydoc"
@@ -90,12 +90,10 @@ check_untyped_defs = true
 packages = [
     "gedidb.core.gedidatabase",
     "gedidb.core.gedigranule",
-    "gedidb.core.gedimetadata",
     "gedidb.core.gediprocessor",
-    "gedidb.database",
+    "gedidb.core.gediprovider",
     "gedidb.downloader",
     "gedidb.granule",
-    "gedidb.metadata",
     "gedidb.providers",
     "gedidb.tests",
     "gedidb.utils"

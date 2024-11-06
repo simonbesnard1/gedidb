@@ -9,22 +9,15 @@
 
 import gedidb as gdb
 
-<<<<<<< HEAD
-data_config_file = "./config_files/data_config.yml"
-sql_config_file = './config_files/db_scheme.sql'
-n_workers = 5
-=======
 config_file = "./config_files/data_config.yml"
 n_workers = 2
->>>>>>> optimise tiledb schema with two arrays
 
 if __name__ == "__main__":
 
     # Initialize the GEDIProcessor and compute
     with gdb.GEDIProcessor(
-        data_config_file=data_config_file,
-        sql_config_file=sql_config_file,
+        config_file=config_file,
         n_workers=n_workers
     ) as processor:
-        processor.compute()
+        processor.compute(consolidate=True)
     
