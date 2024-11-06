@@ -15,7 +15,7 @@ provider = gdb.GEDIProvider(s3_bucket="s3://dog.gedidb.gedi-l2-l4-v002/",
                             endpoint_override="https://s3.gfz-potsdam.de")
 
 #%% Load region of interest
-region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/BR-Sa3.geojson')
+region_of_interest = gpd.read_file('./data/geojson/BR-Sa3.geojson')
 
 # Define the columns to query and additional parameters
 vars_selected = ['rh', 'agbd', 'sensitivity', 'energy_total']
