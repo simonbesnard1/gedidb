@@ -96,15 +96,15 @@ class CMRDataDownloader(GEDIDownloader):
         
         if not cmr_dict:
             raise ValueError("No granules found after retry attempts.")
-            
-        # Log the total number of granules and total size of the data
-        logger.info(f"NASA's CMR service found {total_granules} granules for a total size of {total_size_mb / 1024:.2f} GB.")
         
         # Filter granules to only include those with all required products
         filtered_cmr_dict = self._filter_granules_with_all_products(cmr_dict)
         
         if not filtered_cmr_dict:
             raise ValueError("No granules with all required products found.")
+        
+        # Log the total number of granules and total size of the data
+        logger.info(f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB).")
         
         return filtered_cmr_dict
             
@@ -142,9 +142,9 @@ class H5FileDownloader(GEDIDownloader):
         self.download_path = download_path
 
     @retry((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError), tries=10, delay=5, backoff=3)
-    def download(self, granule_key: str, url: str, product: GediProduct, parquet_path) -> Tuple[str, Tuple[Any, None]]:
+    def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, None]]:
         """
-        Download an HDF5 file for a specific granule and product.
+        Download an HDF5 file for a specific granule and product with resume support.
         
         :param granule_key: Granule ID.
         :param url: URL to download the HDF5 file from.
@@ -152,31 +152,48 @@ class H5FileDownloader(GEDIDownloader):
         :return: Tuple containing the granule ID and a tuple of product name and file path.
         """
         h5file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
-        parquetfile_path = os.path.join(parquet_path, f"filtered_granule_{granule_key}.parquet")
-
-        # If file already exists, skip download
-        if os.path.exists(parquetfile_path):
-            logger.info(f"File already exists for {granule_key}, skipping download.")
-            return granule_key, (product.value, str(h5file_path)) 
-        
+        os.makedirs(h5file_path.parent, exist_ok=True)
+    
+        # Check local file size if already partially downloaded
+        downloaded_size = h5file_path.stat().st_size if h5file_path.exists() else 0
+    
+        # Attempt to retrieve total file size with a small GET request
+        headers = {'Range': 'bytes=0-1'}
         try:
-            with requests.get(url, stream=True, timeout=30) as r:
+            partial_response = requests.get(url, headers=headers, stream=True, timeout=30)
+            if 'Content-Range' in partial_response.headers:
+                total_size = int(partial_response.headers['Content-Range'].split('/')[-1])
+    
+                # Check if the file is already fully downloaded
+                if downloaded_size == total_size:
+                    return granule_key, (product.value, str(h5file_path))
+    
+                # Adjust Range header to resume download from downloaded_size
+                headers['Range'] = f'bytes={downloaded_size}-'
+            else:
+                logger.warning(f"Failed to fetch file size for {url}. Proceeding with full download.")
+                headers = {}  # Remove Range if size cannot be determined
+    
+        except requests.RequestException:
+            logger.warning(f"Unable to determine file size for {url}. Proceeding without size check.")
+            headers = {}  # Proceed with a full download if size check fails
+    
+        try:
+            with requests.get(url, headers=headers, stream=True, timeout=30) as r:
+                # Handle partial content (206) or full content (200)
                 r.raise_for_status()
-                os.makedirs(h5file_path.parent, exist_ok=True)
                 
-                # Write the downloaded content to the file
-                with open(h5file_path, 'wb') as f:
+                # Open file in append mode to resume download if needed
+                with open(h5file_path, 'ab') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
-
+    
                 return granule_key, (product.value, str(h5file_path))
-
+    
         except (RequestException, ConnectionError, NewConnectionError) as e:
-            # Log each error encountered during download
             logger.error(f"Error downloading {url} on attempt: {e}")
             raise  # Propagate the error to activate retry
-
-        # Final fallback if retries are exhausted
+    
         except Exception as e:
             logger.error(f"Download failed after all retries for {url}: {e}")
-            return granule_key, (product.value, None)  # Explicitly handle max retry failure case
+            return granule_key, (product.value, None)  # Return None if all retries fail

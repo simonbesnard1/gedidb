@@ -9,91 +9,88 @@
 
 import os
 import logging
-from sqlalchemy import Table, MetaData, select
 import shutil
 import pandas as pd
+import numpy as np
+import tiledb
 from enum import Enum
 from typing import Optional, Tuple, List, Dict
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
-from gedidb.database.db import DatabaseManager
-from gedidb.utils.geospatial_tools import calculate_zone
+from gedidb.core.gedidatabase import GEDIDatabase
 
+# Configure the logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
 
 class GranuleStatus(Enum):
     EMPTY = "empty"
     PROCESSED = "processed"
-    
+        
 class GEDIGranule:
     """
     GEDIGranule handles the processing and management of GEDI granules, including parsing, joining, 
-    and saving the data to parquet files, as well as querying processed granules from a database.
+    and saving the data to S3 object storage, as well as querying processed granules from a database.
     
     Attributes:
     ----------
-    db_path : str
-        The database connection URL.
     download_path : str
         Path where granules are downloaded.
-    parquet_path : str
-        Path where processed granules are saved as parquet files.
     data_info : dict
         Dictionary containing relevant information about data, such as table names.
     """
     
-    def __init__(self, db_path: str, download_path: str, parquet_path: str, data_info: dict):
+    def __init__(self, download_path: str, data_info: dict):
         """
         Initialize the GEDIGranule class.
 
         Parameters:
         ----------
-        db_path : str
-            Database URL path.
         download_path : str
             Path where granules are downloaded.
-        parquet_path : str
-            Path where processed granules are saved as parquet files.
         data_info : dict
             Dictionary containing relevant information about data, such as table names.
         """
-        self.db_path = db_path
         self.download_path = download_path
-        self.parquet_path = parquet_path
         self.data_info = data_info
+        self.data_writer =  GEDIDatabase(data_info)
         
-        # Initialize the database connection manager
-        db_manager = DatabaseManager(db_url=self.db_path)
-        self.engine = db_manager.get_connection()
-        
-    def get_processed_granules(self, granule_ids):
+    def get_processed_granules(self, granule_ids: list) -> set:
         """
-        Query the database to check which granules have already been processed.
-
+        Check the TileDB array metadata to determine which granules have already been processed.
+    
         Parameters:
         ----------
         granule_ids : list
             List of granule IDs to check.
-
+    
         Returns:
         -------
         set
             Set of granule IDs that have already been processed.
         """
-        if self.engine:
-            with self.engine.connect() as conn:
-                granules_table = Table(self.data_info['database']['tables']['granules'], MetaData(), autoload_with=conn)
-                query = select(granules_table.c.granule_name).where(granules_table.c.granule_name.in_(granule_ids))
-                result = conn.execute(query)
-
-                return {row[0] for row in result}
+        processed_granules = set()
+    
+        try:
+            with tiledb.open(self.tile_db_storage.array_uri, mode="r") as array:
+                for granule_id in granule_ids:
+                    # Check if this granule has a processing status in the metadata
+                    status = array.meta.get(f"granule_{granule_id}_status", None)
+                    
+                    # If the granule is marked as processed, add it to the processed_granules set
+                    if status == "processed":
+                        processed_granules.add(granule_id)
+                        
+        except tiledb.TileDBError as e:
+            logger.error(f"Failed to access TileDB for processed granules check: {e}")
+    
+        return processed_granules
 
     def process_granule(self, row: Tuple) -> Optional[Tuple[str, str, List[str]]]:
         """
-        Process a granule by parsing, joining, and saving it to a parquet file.
-
+        Process a granule by parsing, joining, and saving it to TileDB.
+    
         Parameters:
         ----------
         row : tuple
@@ -102,168 +99,85 @@ class GEDIGranule:
         Returns:
         -------
         tuple or None
-            Tuple containing the granule key, output path, and list of processed files, or None if processing fails.
+            Tuple containing the granule key, output path (TileDB array URI), and list of processed files, or None if processing fails.
         """
         granule_key = row[0][0]
         granules = [item[1] for item in row]
-        outfile_path = self.get_output_path(granule_key)
-
-        if os.path.exists(outfile_path):
-            logger.info(f"Parquet file for granule {granule_key} already exists. Skipping h5 files processing.")
-            return self._prepare_return_value(granule_key, outfile_path, granules)
-
+        
         gdf_dict = self.parse_granules(granules, granule_key)
         if not gdf_dict:
-            self._write_empty_granule_to_db(granule_key, GranuleStatus.EMPTY)
+            self.data_writer.mark_granule_as_processed(granule_key)
             return None
-
-        gdf = self._join_gdfs(gdf_dict, granule_key)
+    
+        gdf = self._join_dfs(gdf_dict, granule_key)
         if gdf is None:
-            self._write_empty_granule_to_db(granule_key, GranuleStatus.EMPTY)
+            self.data_writer.mark_granule_as_processed(granule_key)
             return None
-
-        self.save_gdf_to_parquet(gdf, granule_key, outfile_path)
-        return self._prepare_return_value(granule_key, outfile_path, granules)
-
-    def get_output_path(self, granule_key: str) -> str:
+        
+        self.data_writer.write_granule(gdf)
+        self.data_writer.mark_granule_as_processed(granule_key)
+        
+        
+    def parse_granules(self, granules: List[Tuple[str, str]], granule_key: str) -> Dict[str, Dict[str, np.ndarray]]:
         """
-        Generate the output path for a processed granule.
-
-        Parameters:
-        ----------
-        granule_key : str
-            Granule identifier key.
-
-        Returns:
-        -------
-        str
-            Full path to the parquet file for the granule.
-        """
-        return os.path.join(self.parquet_path, f"filtered_granule_{granule_key}.parquet")
-
-    @staticmethod
-    def _prepare_return_value(granule_key: str, outfile_path: str, granules: List[Tuple[str, str]]) -> Tuple[str, str, List[str]]:
-        """
-        Prepare the return value after processing a granule.
-
-        Returns:
-        -------
-        tuple
-            Tuple of granule key, output path, and sorted list of files.
-        """
-        return granule_key, outfile_path, sorted([fname[0] for fname in granules])
-
-    @staticmethod
-    def save_gdf_to_parquet(gdf, granule_key: str, outfile_path: str):
-        """
-        Save the processed GeoDataFrame to a parquet file.
-
-        Parameters:
-        ----------
-        gdf : geopandas.GeoDataFrame
-            GeoDataFrame containing processed granule data.
-        """
-        gdf["granule"] = granule_key
-        gdf.to_parquet(outfile_path, allow_truncated_timestamps=True, coerce_timestamps="us")
-
-    def parse_granules(self, granules: List[Tuple[str, str]], granule_key: str) -> Dict[str, pd.DataFrame]:
-        """
-        Parse granules and return a dictionary of GeoDataFrames.
-
+        Parse granules and return a dictionary of dictionaries of NumPy arrays.
+    
         Returns:
         -------
         dict
-            Dictionary of GeoDataFrames for each product.
+            Dictionary of dictionaries, each containing NumPy arrays for each product.
         """
-        gdf_dict = {}
+        data_dict = {}
         granule_dir = os.path.join(self.download_path, granule_key)
-
+    
         for product, file in granules:
-            gdf = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
-            if gdf is not None:
-                gdf_dict[product] = gdf
+            data = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
+            if data is not None:
+                data_dict[product] = data
             else:
                 logger.warning(f"Skipping product {product} for granule {granule_key} due to parsing failure.")
-    
+        
         try:
             shutil.rmtree(granule_dir)
         except Exception as e:
             logger.error(f"Error deleting directory {granule_dir}: {e}")
-
-        return {k: v for k, v in gdf_dict.items() if not v.empty and "shot_number" in v.columns}
-
+    
+        return {k: v for k, v in data_dict.items() if "shot_number" in v}
+    
     @staticmethod
-    def _join_gdfs(gdf_dict: Dict[str, pd.DataFrame], granule_key: str) -> Optional[pd.DataFrame]:
+    def _join_dfs(df_dict: Dict[str, pd.DataFrame], granule_key: str) -> Optional[pd.DataFrame]:
         """
-        Join multiple GeoDataFrames based on shot number. Ensure required products are available.
-
+        Join multiple DataFrames based on shot number. Ensure required products are available.
+    
         Returns:
         -------
-        geopandas.GeoDataFrame or None
-            Joined GeoDataFrame or None if the required data is missing or if the join fails.
+        pd.DataFrame or None
+            Joined DataFrame or None if the required data is missing or if the join fails.
         """
         required_products = [GediProduct.L2A, GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]
+        
+        # Check if required products are available and non-empty
         for product in required_products:
-            if product.value not in gdf_dict or gdf_dict[product.value].empty:
-                logger.warning(f"Product {product.value} is missing or empty for granule {granule_key}.")
+            if product.value not in df_dict or df_dict[product.value].empty:
                 return None
-
-        gdf = gdf_dict[GediProduct.L2A.value]
+    
+        # Start with the L2A product DataFrame
+        df = df_dict[GediProduct.L2A.value]
+    
+        # Perform the join for each required product based on the 'shot_number' column
         for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
-            product_gdf = gdf_dict[product.value]
-            gdf = gdf.join(
-                product_gdf.set_index("shot_number"),
+            product_df = df_dict[product.value]
+            df = df.join(
+                product_df.set_index("shot_number"),
                 on="shot_number",
                 how="inner",
                 rsuffix=f'_{product.value}'
             )
-
+    
+        # Drop duplicate columns (those with suffixes from the join)
         suffixes = [f'_{GediProduct.L2B.value}', f'_{GediProduct.L4A.value}', f'_{GediProduct.L4C.value}']
-        columns_to_drop = [col for col in gdf.columns if col.endswith(tuple(suffixes))]
+        columns_to_drop = [col for col in df.columns if col.endswith(tuple(suffixes))]
         if columns_to_drop:
-            gdf = gdf.drop(columns=columns_to_drop)
-
-        if "geometry" in gdf.columns:
-            gdf = gdf.set_geometry("geometry")
-
-        if 'longitude_bin0' not in gdf.columns or 'latitude_bin0' not in gdf.columns:
-            gdf['longitude_bin0'] = gdf.geometry.x
-            gdf['latitude_bin0'] = gdf.geometry.y
-
-        try:
-            gdf['zone'] = gdf.apply(calculate_zone, axis=1)
-        except ValueError as e:
-            logger.error(f"Error calculating zone for granule {granule_key}: {e}")
-            return None
-
-        return gdf if not gdf.empty else None
-      
-    def _write_empty_granule_to_db(self, granule_key, status: GranuleStatus):
-        """
-        Write an empty granule entry to the database indicating it was processed without valid data.
-        
-        Parameters:
-        ----------
-        granule_key : str
-            Granule identifier key to be written to the database.
-        """
-        if self.engine:
-            with self.engine.connect() as conn:
-                # Create a DataFrame with the granule entry
-                granule_entry = pd.DataFrame({
-                    "granule_name": [granule_key],
-                    'status': status.value,
-                    "created_date": [pd.Timestamp.utcnow()],
-                })
-                
-                # Write the entry to the SQL table using to_sql
-                granule_entry.to_sql(
-                    name=self.data_info['database']['tables']['granules'],
-                    con=conn,
-                    index=False,
-                    if_exists="append",
-                )
-                
-                # Log the successful insertion
-                logger.info(f"Empty granule entry for {granule_key} written to the database.")
-
+            df = df.drop(columns=columns_to_drop)
+    
+        return df if not df.empty else None

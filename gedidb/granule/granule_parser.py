@@ -7,12 +7,11 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import geopandas as gpd
 import pandas as pd
 from typing import Optional, Dict
 from pathlib import Path
 
-from gedidb.utils.constants import WGS84, GediProduct
+from gedidb.utils.constants import GediProduct
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.granule.l2a_granule import L2AGranule
 from gedidb.granule.granule.l2b_granule import L2BGranule
@@ -40,7 +39,7 @@ class GranuleParser:
         self.data_info = data_info if data_info else {}
     
     @staticmethod
-    def parse_granule(granule: Granule) -> gpd.GeoDataFrame:
+    def parse_granule(granule: Granule) -> pd.DataFrame:
         """
         Parse a single granule and return a GeoDataFrame.
 
@@ -59,13 +58,13 @@ class GranuleParser:
         if granule_data:
             try:
                 df = pd.concat(granule_data, ignore_index=True)
-                return gpd.GeoDataFrame(df, crs=WGS84)
+                return df
             except Exception as e:
                 raise ValueError(f"Error parsing granule data: {e}")
         
-        return gpd.GeoDataFrame()  # Return empty GeoDataFrame if no data found
+        return pd.DataFrame()  # Return empty GeoDataFrame if no data found
 
-    def parse(self) -> gpd.GeoDataFrame:
+    def parse(self) -> pd.DataFrame:
         """
         Abstract method to be implemented by child classes for parsing specific granules.
 
@@ -77,7 +76,7 @@ class GranuleParser:
 class L2AGranuleParser(GranuleParser):
     """Parser for L2A granules."""
     
-    def parse(self) -> gpd.GeoDataFrame:
+    def parse(self) -> pd.DataFrame:
         granule = L2AGranule(self.file, self.data_info.get('level_2a', {}).get('variables', []))
         return self.parse_granule(granule)
 
@@ -85,7 +84,7 @@ class L2AGranuleParser(GranuleParser):
 class L2BGranuleParser(GranuleParser):
     """Parser for L2B granules."""
     
-    def parse(self) -> gpd.GeoDataFrame:
+    def parse(self) -> pd.DataFrame:
         granule = L2BGranule(self.file, self.data_info.get('level_2b', {}).get('variables', []))
         return self.parse_granule(granule)
 
@@ -93,7 +92,7 @@ class L2BGranuleParser(GranuleParser):
 class L4AGranuleParser(GranuleParser):
     """Parser for L4A granules."""
     
-    def parse(self) -> gpd.GeoDataFrame:
+    def parse(self) -> pd.DataFrame:
         granule = L4AGranule(self.file, self.data_info.get('level_4a', {}).get('variables', []))
         return self.parse_granule(granule)
 
@@ -101,12 +100,12 @@ class L4AGranuleParser(GranuleParser):
 class L4CGranuleParser(GranuleParser):
     """Parser for L4C granules."""
     
-    def parse(self) -> gpd.GeoDataFrame:
+    def parse(self) -> pd.DataFrame:
         granule = L4CGranule(self.file, self.data_info.get('level_4c', {}).get('variables', []))
         return self.parse_granule(granule)
 
 
-def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = None) -> gpd.GeoDataFrame:
+def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = None) ->pd.DataFrame:
     """
     Parse an HDF5 file based on the product type and return a GeoDataFrame.
 

@@ -13,7 +13,7 @@ import yaml
 import geopandas as gpd
 from datetime import datetime
 import dask
-from dask.distributed import Client, LocalCluster, as_completed
+from dask.distributed import Client, LocalCluster
 import concurrent.futures
 import pandas as pd
 
@@ -22,7 +22,6 @@ from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloade
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.geospatial_tools import check_and_format_shape
 from gedidb.core.gedigranule import GEDIGranule
-from gedidb.core.gedimetadata import GEDIMetadataManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,7 +47,7 @@ class GEDIProcessor:
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata, 
     and writing data into the database.
     """
-    def __init__(self, data_config_file: str, sql_config_file: str, dask_client: Client = None, n_workers: int = None, memory_limit = '8GB'):
+    def __init__(self, config_file: str, dask_client: Client = None, n_workers: int = None, memory_limit = '8GB'):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
         """
@@ -56,36 +55,21 @@ class GEDIProcessor:
         self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers, memory_limit = memory_limit)
 
         # Load configurations and setup paths and components
-        self.data_info = self._load_yaml_file(data_config_file)
-        self.sql_script = self._load_sql_file(sql_config_file).format(**self._get_table_names())
+        self.data_info = self._load_yaml_file(config_file)
         self._setup_paths_and_dates()
-        
-        # Initialize metadata handler and database writer
-        self.metadata_handler = self._initialize_metadata_handler()
+                
+        # Initialize database writer
         self.database_writer = self._initialize_database_writer()
 
-    def _initialize_metadata_handler(self):
-        """
-        Initialize and return the GEDIMetadataManager instance.
-        """
-        metadata_path = os.path.join(self.data_info['data_dir'], 'metadata')
-        metadata_handler = GEDIMetadataManager(
-            metadata_info=self.data_info['earth_data_info']['METADATA_INFORMATION'],
-            metadata_path=metadata_path,
-            data_table_name=self.data_info['database']['tables']['shots']
-        )
-        metadata_handler.extract_all_metadata()
-        return metadata_handler
-
+        # Create the database schema
+        self.database_writer._create_arrays()
+                
     def _initialize_database_writer(self):
         """
         Initialize and return the GEDIDatabase instance.
         """
         return GEDIDatabase(
-            db_path=self.db_path,
-            sql_script=self.sql_script,
-            tables=self.data_info['database']['tables'],
-            metadata_handler=self.metadata_handler
+            config=self.data_info
         )
 
     def _initialize_dask_client(self, n_workers: int = None, memory_limit:str = '8GB') -> Client:
@@ -116,22 +100,9 @@ class GEDIProcessor:
         
         return client
 
-
-    def _get_table_names(self) -> dict:
-        """Return formatted table names for SQL queries."""
-        return {
-            "DEFAULT_GRANULE_TABLE": self.data_info["database"]["tables"]["granules"],
-            "DEFAULT_SHOT_TABLE": self.data_info["database"]["tables"]["shots"],
-            "DEFAULT_METADATA_TABLE": self.data_info["database"]["tables"]["metadata"],
-            "DEFAULT_SCHEMA": self.data_info["database"]["schema"]
-        }
-
     def _setup_paths_and_dates(self):
         """Set up paths and date information from the configuration."""
         self.download_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
-        self.parquet_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'parquet'))
-        self.metadata_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'metadata'))
-        self.db_path = self.data_info['database']['url']
         
         # Load and format region of interest geometry
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
@@ -153,43 +124,28 @@ class GEDIProcessor:
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
         
-    @staticmethod
-    def _load_sql_file(file_path: str) -> str:
-        """Load an SQL file containing table creation scripts."""
-        with open(file_path, 'r') as file:
-            return file.read()
-    
     @log_execution(start_message="Processing requested granules...", end_message="Granules successfully processed")
-    def compute(self):
+    def compute(self, consolidate:bool=True):     
         """
-        Main method to download and process GEDI granules.
-        """
-        # Initialize database components
-        metadata_handler = GEDIMetadataManager(
-            metadata_info=self.data_info['earth_data_info']['METADATA_INFORMATION'],
-            metadata_path=self.metadata_path,
-            data_table_name=self.data_info['database']['tables']['shots']
-        )
-        metadata_handler.extract_all_metadata()
-        database_writer = GEDIDatabase(
-            db_path=self.db_path,
-            sql_script=self.sql_script,
-            tables=self.data_info['database']['tables'],
-            metadata_handler=metadata_handler
-        )
-        # Create the database schema
-        database_writer._create_db()
-
-        # Download and filter CMR data
+       Main method to download and process GEDI granules.
+    
+       Parameters:
+       ----------
+       consolidate : bool, default=True
+           If True, consolidates fragments in the TileDB arrays after processing all granules.
+       """
+       # Download and filter CMR data
         cmr_data = self._download_cmr_data()
         unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
 
         if not unprocessed_cmr_data:
-            logger.info("All requested granules are already processed. No further computation needed.")
-            return
-
-        # Process the granules with Dask
+           logger.info("All requested granules are already processed. No further computation needed.")
+           return
+       
         self._process_granules(unprocessed_cmr_data)
+        
+        if consolidate:
+            self.database_writer.consolidate_fragments()
 
     def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""
@@ -199,13 +155,27 @@ class GEDIProcessor:
     def _filter_unprocessed_granules(self, cmr_data: dict) -> dict:
         """
         Filter out granules that have already been processed.
+    
+        Parameters:
+        ----------
+        cmr_data : dict
+            Dictionary of granule metadata from CMR API, with granule IDs as keys.
+    
+        Returns:
+        --------
+        dict
+            A dictionary of unprocessed granules from the input `cmr_data`.
         """
-        granule_ids = cmr_data.keys()
-        granule_processor = GEDIGranule(self.db_path, self.download_path, self.parquet_path, self.data_info)
-        processed_granules = granule_processor.get_processed_granules(granule_ids)
+        granule_ids = list(cmr_data.keys())
+        processed_granules = self.database_writer.check_granules_status(granule_ids)
+
+        # Filter to include only granules that have not been processed
+        unprocessed_granules = {
+            granule_id: product_info 
+            for granule_id, product_info in cmr_data.items() 
+            if not processed_granules.get(granule_id, False)  # Keep if not processed
+        }
         
-        # Filter the cmr_data dictionary, keeping only granules that are not in processed_granules
-        unprocessed_granules = {granule_id: product_info for granule_id, product_info in cmr_data.items() if granule_id not in processed_granules}
         return unprocessed_granules
 
     def _process_granules(self, unprocessed_cmr_data: dict):
@@ -219,53 +189,41 @@ class GEDIProcessor:
             # Submit the task to process one granule
             future = client.submit(
                 self.process_granule,
-                self.database_writer,
                 granule_id,
                 product_info,
                 self.data_info,
-                self.download_path,
-                self.parquet_path,
-                self.db_path
+                self.download_path
             )
             futures.append(future)
-
-        # Use `as_completed` to process futures as they finish
-        for completed_future in as_completed(futures):
-            try:
-                _ = completed_future.result()  # Wait for the result
-            except Exception as e:
-                logger.error(f"Error processing granule: {e}")
+        
+        client.gather(futures)
+                
                 
     @staticmethod
     def process_granule(
-        database_writer,
         granule_id,
         product_info,
         data_info,
-        download_path,
-        parquet_path,
-        db_path
+        download_path
     ):
         """
         Processes a single granule by downloading, processing, and writing to the database.
         """
+    
         # Download products
         downloader = H5FileDownloader(download_path)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = [
                 executor.submit(
-                    downloader.download, granule_id, url, GediProduct(product), parquet_path
+                    downloader.download, granule_id, url, GediProduct(product)
                 )
                 for url, product in product_info
             ]
             download_results = [f.result() for f in futures]
 
         # Process granule
-        granule_processor = GEDIGranule(db_path, download_path, parquet_path, data_info)
-        process_results = granule_processor.process_granule(download_results)
-
-        # Write to database
-        database_writer._write_db(process_results)
+        granule_processor = GEDIGranule(download_path, data_info)
+        granule_processor.process_granule(download_results)
 
     def close(self):
         """Close the Dask client and cluster."""

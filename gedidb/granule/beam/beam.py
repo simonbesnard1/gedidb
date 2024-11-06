@@ -7,13 +7,12 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import geopandas as gpd
+import pandas as pd
 import h5py
 import numpy as np
-from typing import Union, List, Dict, Callable, Optional
+from typing import Dict, Callable, Optional
 import logging
 
-from gedidb.utils.constants import WGS84
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ class Beam(h5py.Group):
         super().__init__(granule[beam].id)
         self.parent_granule = granule
         self.field_mapping = field_mapping
-        self._cached_data: Optional[gpd.GeoDataFrame] = None  # Cache for the beam's main data
+        self._cached_data: Optional[pd.DataFrame] = None  # Cache for the beam's main data
 
     @staticmethod
     def apply_filter(data: Dict[str, np.ndarray], filters: Optional[Dict[str, Callable]] = None) -> np.ndarray:
@@ -51,7 +50,7 @@ class Beam(h5py.Group):
             np.ndarray: A boolean mask indicating which rows pass the filters.
         """
         if filters is not None:
-            mask = np.ones(len(data['beam_name']), dtype=bool)
+            mask = np.ones(len(data['shot_number']), dtype=bool)
             for filter_name, filter_func in filters.items():
                 try:
                     filter_mask = filter_func()
@@ -60,7 +59,7 @@ class Beam(h5py.Group):
                    logger.warning(f"Filter '{filter_name}' not found in granule. Skipping.")
                    continue  # Skip filters that are missing in the granule
             return mask
-        return np.ones(len(data['beam_name']), dtype=bool)
+        return np.ones(len(data['shot_number']), dtype=bool)
 
     @property
     def n_shots(self) -> int:
@@ -93,77 +92,22 @@ class Beam(h5py.Group):
         return self.field_mapping
 
     @property
-    def main_data(self) -> gpd.GeoDataFrame:
+    def main_data(self) -> pd.DataFrame:
         """
         Get the main data for the beam as a GeoDataFrame, cached for efficiency.
 
         Returns:
-            gpd.GeoDataFrame: The main beam data in GeoDataFrame format.
+            pd.DataFrame: The main beam data in Pandas Dataframe format.
         """
         if self._cached_data is None:
             data = self._get_main_data()  # Fetch main data
+            
+            # Convert multi-dimensional arrays to lists for DataFrame compatibility
+            for key, value in data.items():
+                if isinstance(value, np.ndarray) and value.ndim > 1:
+                    data[key] = value.tolist()
 
-            if data is not None:
-                geometry = self.shot_geolocations  # Get shot geolocations
-
-                # Apply any filters that have been set
-                if hasattr(self, '_filtered_index'):
-                    geometry = geometry[self._filtered_index]
-
-                # Convert multi-dimensional arrays to lists for GeoDataFrame compatibility
-                for key, value in data.items():
-                    if isinstance(value, np.ndarray) and value.ndim > 1:
-                        data[key] = value.tolist()
-
-                # Create the GeoDataFrame and cache it
-                self._cached_data = gpd.GeoDataFrame(data, geometry=geometry, crs=WGS84)
-
-                # Apply SQL formatting to array-type fields
-                self.sql_format_arrays()
+            # Create the GeoDataFrame and cache it
+            self._cached_data = pd.DataFrame(data)
 
         return self._cached_data
-
-    def sql_format_arrays(self):
-        """
-        Convert array-type columns to SQL-compatible string representations for insertion into databases.
-        """
-        array_cols = [c for c in self._cached_data.columns if c.endswith("_z") or c == "rh"]
-
-        for col in array_cols:
-            self._cached_data[col] = self._cached_data[col].map(self._arr_to_str)
-
-    @staticmethod
-    def _arr_to_str(arr: Union[List[float], np.ndarray, float]) -> str:
-        """
-        Convert a list or array to a string representation suitable for SQL storage.
-
-        Args:
-            arr (Union[List[float], np.ndarray, float]): The array or list to convert.
-
-        Returns:
-            str: The string representation of the array.
-        """
-        if isinstance(arr, (list, np.ndarray)):
-            return "{" + ", ".join(map(str, arr)) + "}"
-        return str(arr)
-
-    def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
-        """
-        Retrieve the main data for the beam. 
-        This method should be implemented in a subclass or elsewhere in the code.
-
-        Returns:
-            Optional[Dict[str, np.ndarray]]: The main beam data, or None if not available.
-        """
-        raise NotImplementedError("The '_get_main_data' method needs to be implemented.")
-    
-    @property
-    def shot_geolocations(self) -> gpd.GeoSeries:
-        """
-        Get the geolocations of the shots in the beam.
-        This property should return the GeoSeries containing shot geolocations.
-
-        Returns:
-            gpd.GeoSeries: A GeoSeries of shot geolocations.
-        """
-        raise NotImplementedError("The 'shot_geolocations' property needs to be implemented.")

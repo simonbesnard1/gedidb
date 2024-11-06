@@ -1,67 +1,67 @@
+# SPDX-License-Identifier: EUPL-1.2
+# Version: 2.0
+# Contact: ah2174@cam.ac.uk, felix.dombrowski@uni-potsdam.de and besnard@gfz-potsdam.de
+# SPDX-FileCopyrightText: 2024 Simon Besnard
+# SPDX-FileCopyrightText: 2024 Felix Dombrowski
+# SPDX-FileCopyrightText: 2024 Amelia Holcomb
+# SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 import tiledb
-import geopandas as gpd
-from shapely.geometry import box
-from rtree import index
+import numpy as np
+import pandas as pd
 
-# Initialize the R-tree index
-spatial_index = index.Index("gedi_rtree_index")  # Saves to a file named `gedi_rtree_index`
+# Define synthetic domain and schema with float64 dimensions
+lat_min, lat_max = -90.0, 90.0
+lon_min, lon_max = -180.0, 180.0
+time_min, time_max = 1514764800000000, 1924991999000000  # Microseconds since epoch
 
-# Example list of granules; in practice, load or iterate over your data chunks
-granules = [
-    {"id": "granule_001", "data_path": "path/to/granule_001.parquet"},
-    {"id": "granule_002", "data_path": "path/to/granule_002.parquet"},
-    {"id": "granule_003", "data_path": "path/to/granule_003.parquet"},
-    {"id": "granule_004", "data_path": "path/to/granule_004.parquet"},
-]
+domain = tiledb.Domain(
+    tiledb.Dim(name="latitude", domain=(lat_min, lat_max), tile=0.1, dtype="float64"),
+    tiledb.Dim(name="longitude", domain=(lon_min, lon_max), tile=0.1, dtype="float64"),
+    tiledb.Dim(name="time", domain=(time_min, time_max), tile=1000000, dtype="int64")
+)
 
-for idx, granule in enumerate(granules):
-    # Load each granule's data into a GeoDataFrame
-    gdf = gpd.read_parquet(granule["data_path"])
-    
-    # Extract latitude and longitude if not already separate columns
-    gdf['latitude'] = gdf.geometry.y
-    gdf['longitude'] = gdf.geometry.x
+attr = tiledb.Attr(name="intensity", dtype="float32")
+schema = tiledb.ArraySchema(domain=domain, attrs=[attr], sparse=True)
 
-    # Convert `absolute_time` to UNIX timestamps (microseconds)
-    gdf['absolute_time'] = gdf['absolute_time'].astype('int64')
+array_uri = "test_array_float"
+if tiledb.array_exists(array_uri):
+    tiledb.remove(array_uri)
+tiledb.Array.create(array_uri, schema)
 
-    # Define the TileDB URI for this granule
-    array_uri = f"s3://your-bucket/tiledb_data/{granule['id']}/gedi_array"
+# Write data
+with tiledb.open(array_uri, mode="w") as array:
+    np.random.seed(0)
+    lat_data = np.random.uniform(lat_min, lat_max, size=100)
+    lon_data = np.random.uniform(lon_min, lon_max, size=100)
+    time_data = np.random.randint(time_min, time_max, size=100)
+    intensity_data = np.random.rand(100).astype("float32")
 
-    # Define the TileDB schema based on latitude, longitude, and time
-    domain = tiledb.Domain(
-        tiledb.Dim(name="absolute_time", domain=(gdf['absolute_time'].min(), gdf['absolute_time'].max()), tile=100, dtype="int64"),
-        tiledb.Dim(name="latitude", domain=(-90.0, 90.0), tile=0.1, dtype="float64"),
-        tiledb.Dim(name="longitude", domain=(-180.0, 180.0), tile=0.1, dtype="float64")
-    )
+    print("Data Latitude Bounds:", lat_data.min(), lat_data.max())
+    print("Data Longitude Bounds:", lon_data.min(), lon_data.max())
 
-    # Define attributes for other columns
-    attributes = []
-    for column in gdf.columns:
-        if column not in ["absolute_time", "latitude", "longitude", "geometry"]:
-            dtype = gdf[column].dtype
-            attributes.append(tiledb.Attr(name=column, dtype=dtype))
+    array[lat_data, lon_data, time_data] = {"intensity": intensity_data}
 
-    # Create TileDB schema and array
-    schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True)
-    tiledb.Array.create(array_uri, schema)
+# Query data
+with tiledb.open(array_uri, mode="r") as array:
+    lat_slice_min, lat_slice_max = -30.0, 30.0
+    lon_slice_min, lon_slice_max = -150.0, 150.0
+    time_slice_min, time_slice_max = 1514764800000000, 1924991999000000  # Adjust as needed
 
-    # Write data to the TileDB array
-    with tiledb.open(array_uri, mode="w") as array:
-        array[gdf['absolute_time'].values, gdf['latitude'].values, gdf['longitude'].values] = {
-            col: gdf[col].values for col in gdf.columns if col not in ["absolute_time", "latitude", "longitude", "geometry"]
-        }
+    # Ensure bounds are sorted
+    lat_slice_min, lat_slice_max = sorted([lat_slice_min, lat_slice_max])
+    lon_slice_min, lon_slice_max = sorted([lon_slice_min, lon_slice_max])
 
-    # Build R-tree entry for this granule
-    bbox = box(
-        gdf['longitude'].min(), gdf['latitude'].min(),
-        gdf['longitude'].max(), gdf['latitude'].max()
-    )
-    time_range = (gdf['absolute_time'].min(), gdf['absolute_time'].max())
+    # Print slicing bounds
+    print("Latitude Bounds:", lat_slice_min, lat_slice_max)
+    print("Longitude Bounds:", lon_slice_min, lon_slice_max)
 
-    # Insert bounding box with time range into the R-tree index, linking to the TileDB URI
-    spatial_index.insert(idx, bbox.bounds, obj={
-        "uri": array_uri,
-        "time_range": time_range,
-        "granule_id": granule["id"]
-    })
+    # Perform the query using multi_index
+    query = array.query(attrs=["intensity"])
+    data = query.multi_index[
+        lat_slice_min:lat_slice_max,
+        lon_slice_min:lon_slice_max,
+        time_slice_min:time_slice_max
+    ]
+
+    print("Queried data:")
+    print(data)

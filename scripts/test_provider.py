@@ -11,23 +11,23 @@ import geopandas as gpd
 import gedidb as gdb
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(config_file='/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml',
-                            table_name="filtered_l2ab_l4ac_shots",
-                            metadata_table="variable_metadata")
+provider = gdb.GEDIProvider(s3_bucket="s3://dog.gedidb.gedi-l2-l4-v002/",
+                            endpoint_override="https://s3.gfz-potsdam.de")
 
 #%% Load region of interest
 region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/BR-Sa3.geojson')
 
 # Define the columns to query and additional parameters
-vars_selected = ['rh', 'agbd']
+vars_selected = ['rh', 'agbd', 'sensitivity', 'energy_total']
 quality_filters = {
-    'sensitivity': '>= 0.9 AND <= 1.0',
-    'surface_flag': '= 1'
+    'sensitivity': '>= 0.9 and <= 1.0',
+    'beam_type': '= full'
+    
 }
 
-gedi_data = provider.get_data(variables=vars_selected, geometry=None, 
-                               start_time="2018-01-01", end_time="2024-12-31", 
-                               limit=None, force=True, order_by=["-shot_number"], 
-                               return_type='pandas')
-    
+gedi_data = provider.get_data(variables=vars_selected, 
+                              query_type = "nearest", 
+                              point=[ -55.0714, -2.918], num_shots=20,
+                              start_time="2019-07-21", end_time="2024-07-25", 
+                              return_type='xarray')
 

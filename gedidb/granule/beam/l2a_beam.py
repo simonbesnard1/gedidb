@@ -9,12 +9,10 @@
 
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 from typing import Dict, Optional
 
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
-from gedidb.utils.constants import WGS84
 
 class L2ABeam(Beam):
     """
@@ -33,33 +31,16 @@ class L2ABeam(Beam):
             field_mapping (Dict[str, str]): A dictionary mapping fields to SDS names.
         """
         super().__init__(granule, beam, field_mapping)
-        self._shot_geolocations: Optional[gpd.array.GeometryArray] = None  # Cache for geolocations
+        
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
             'quality_flag': lambda: self["quality_flag"][()] == 1,
-            'sensitivity_a0': lambda: (self['sensitivity'][()] >= 0.9) & (self['sensitivity'][()] <= 1.0),
-            'sensitivity_a2': lambda: (self['geolocation/sensitivity_a2'][()] > 0.95) & (self['geolocation/sensitivity_a2'][()] <= 1.0),
+            'sensitivity_a0': lambda: (self['sensitivity'][()] >= 0.5) & (self['sensitivity'][()] <= 1.0),
+            'sensitivity_a2': lambda: (self['geolocation/sensitivity_a2'][()] > 0.7) & (self['geolocation/sensitivity_a2'][()] <= 1.0),
             'degrade_flag': lambda: np.isin(self['degrade_flag'][()], [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]),
             'surface_flag': lambda: self['surface_flag'][()] == 1,
             'elevation_difference_tdx': lambda: ((self['elev_lowestmode'][()] - self['digital_elevation_model'][()]) > -150) & ((self['elev_lowestmode'][()] - self['digital_elevation_model'][()]) < 150),
         }
-
-    @property
-    def shot_geolocations(self) -> gpd.array.GeometryArray:
-        """
-        Get the geolocations (latitude/longitude) of shots in the beam.
-        This property lazily loads and caches the geolocations.
-
-        Returns:
-            gpd.array.GeometryArray: The geolocations of the shots in the beam.
-        """
-        if self._shot_geolocations is None:
-            self._shot_geolocations = gpd.points_from_xy(
-                x=self['lon_lowestmode'],
-                y=self['lat_lowestmode'],
-                crs=WGS84,
-            )
-        return self._shot_geolocations
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
         """
@@ -74,7 +55,9 @@ class L2ABeam(Beam):
         
         # Initialize the data dictionary with calculated fields
         data = {
-            "absolute_time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds")
+            "time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds"),
+            'longitude': self["lon_lowestmode"][()],
+            'latitude': self["lat_lowestmode"][()],            
         }
 
         # Populate data dictionary with fields from field mapping
@@ -93,5 +76,5 @@ class L2ABeam(Beam):
         
         # Filter the data based on the quality filters
         filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
-
+        
         return filtered_data if filtered_data else None

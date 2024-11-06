@@ -7,79 +7,98 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import geopandas as gpd
+import tiledb
 import pandas as pd
-from sqlalchemy import Table, MetaData
-from enum import Enum
+import logging
+from typing import Dict, Any, List
+import dateutil.parser
+import boto3
+import numpy as np
+import os
 
-from gedidb.database.db import DatabaseManager
-
-# Constants for product types
-PRODUCT_TYPES = ['L2A', 'L2B', 'L4A', 'L4C']
-
-
-class GranuleStatus(Enum):
-    EMPTY = "empty"
-    PROCESSED = "processed"
+# Configure the logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 class GEDIDatabase:
     """
-    GEDIDatabase handles the creation, management, and data writing operations 
-    for a GEDI (Global Ecosystem Dynamics Investigation) database.
-
-    Attributes:
-    ----------
-    db_path : str
-        The database connection URL.
-    sql_script : str, optional
-        SQL script to create tables in the database.
-    tables : dict
-        Dictionary containing table names for granules, shots, and metadata.
-    metadata_handler : GEDIMetadataManager
-        Handler responsible for managing and writing metadata.
+    A class to manage the creation and operation of global TileDB arrays for GEDI data storage.
+    This class is configured via an external configuration, allowing flexible schema definitions and metadata handling.
     """
 
-    def __init__(self, db_path: str, sql_script: str = None, tables=None, metadata_handler=None):
+    def __init__(self, config: Dict[str, Any]):
         """
-        Initialize the GEDIDatabase class.
+        Initialize GEDIDatabase with configuration, supporting both S3 and local storage.
 
         Parameters:
         ----------
-<<<<<<< HEAD
-        db_path : str
-            The database connection URL.
-        sql_script : str, optional
-            SQL script to create tables in the database.
-        tables : dict
-            Dictionary containing table names for granules, shots, and metadata.
-        metadata_handler : GEDIMetadataManager
-            Handler for managing and writing metadata to the database.
-        """
-        self.db_path = db_path
-        self.sql_script = sql_script
-        self.tables = tables
-        self.metadata_handler = metadata_handler
-        
-    def _create_db(self):
-=======
         config : dict
             Configuration dictionary.
         """
         self.config = config
-        self.scalar_array_uri = os.path.join(config['tiledb']['s3_bucket'], 'scalar_array_uri')
-        self.profile_array_uri = os.path.join(config['tiledb']['s3_bucket'], 'profile_array_uri')
-        self.overwrite = config['tiledb']['overwrite']
+        storage_type = config['tiledb'].get('storage_type', 'local').lower()
+        
+        # Set array URIs based on storage type
+        if storage_type == 's3':
+            bucket = config['tiledb']['s3_bucket']
+            self.scalar_array_uri = os.path.join(f"s3://{bucket}", 'scalar_array_uri')
+            self.profile_array_uri = os.path.join(f"s3://{bucket}", 'profile_array_uri')
+        else:  # Local storage
+            base_path = config['tiledb'].get('local_path', './')
+            self.scalar_array_uri = os.path.join(base_path, 'scalar_array_uri')
+            self.profile_array_uri = os.path.join(base_path, 'profile_array_uri')
+        
+        self.overwrite = config['tiledb'].get('overwrite', False)
         self.variables_config = self._load_variables_config(config)
         
-        # Initialize boto3 session and TileDB context for S3
-        session = boto3.Session()
-        creds = session.get_credentials()
-        self.ctx = tiledb.Ctx({
-            "vfs.s3.aws_access_key_id": creds.access_key,
-            "vfs.s3.aws_secret_access_key": creds.secret_key,
-            "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
-            "vfs.s3.region": "eu-central-1"
-        })
+        # Set up TileDB context based on storage type
+        if storage_type == 's3':
+            # Initialize boto3 session for S3 credentials
+            session = boto3.Session()
+            creds = session.get_credentials()
+            # S3 TileDB context with consolidation settings
+            tiledb_config = tiledb.Config({
+                "vfs.s3.aws_access_key_id": creds.access_key,
+                "vfs.s3.aws_secret_access_key": creds.secret_key,
+                "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
+                "vfs.s3.region": config['tiledb'].get('region', 'eu-central-1'),
+                "sm.consolidation.steps": 2,
+                "sm.consolidation.step_min_frags": 2,
+                "sm.consolidation.buffer_size": 100_000_000,
+            })
+        else:
+            # Local TileDB context with consolidation settings
+            tiledb_config = tiledb.Config({
+                "sm.consolidation.steps": 2,
+                "sm.consolidation.step_min_frags": 2,
+                "sm.consolidation.buffer_size": 100_000_000,
+            })
+        
+        self.ctx = tiledb.Ctx(tiledb_config)
+        
+    def consolidate_fragments(self) -> None:
+        """
+        Consolidate fragments for both scalar and profile arrays to optimize storage and access.
+
+        Parameters:
+        ----------
+        consolidate : bool, default=True
+            If True, perform fragment consolidation on both arrays.
+        """
+        for array_uri in [self.scalar_array_uri, self.profile_array_uri]:
+            try:
+                logger.info(f"Consolidating fragments for array: {array_uri}")
+                
+                # Consolidate fragments using the existing context
+                tiledb.consolidate(array_uri, ctx=self.ctx)
+                
+                # Run vacuum to remove the old fragment metadata
+                tiledb.vacuum(array_uri, ctx=self.ctx)
+                
+                logger.info(f"Fragment consolidation complete for array: {array_uri}")
+            except tiledb.TileDBError as e:
+                logger.error(f"Error during consolidation of {array_uri}: {e}")
 
     def _create_arrays(self) -> None:
         """Define and create scalar and profile TileDB arrays based on configuration."""
@@ -103,7 +122,25 @@ class GEDIDatabase:
         tiledb.Array.create(uri, schema, ctx=self.ctx)
         
     def _create_domain(self, scalar: bool) -> tiledb.Domain:
-        """Creates TileDB domain based on spatial, temporal, and profile dimensions from config."""
+        """
+        Creates a TileDB domain based on spatial, temporal, and profile dimensions specified in the configuration.
+        
+        Parameters:
+        ----------
+        scalar : bool
+            If True, creates a domain for scalar data (3D: latitude, longitude, time).
+            If False, includes an additional `profile_point` dimension for profile data (4D).
+        
+        Returns:
+        --------
+        tiledb.Domain
+            A TileDB Domain object configured according to the spatial, temporal, and profile settings.
+    
+        Raises:
+        -------
+        ValueError:
+            If spatial or temporal ranges are not fully specified in the configuration.
+        """
         spatial_range = self.config.get("tiledb", {}).get("spatial_range", {})
         lat_min, lat_max = spatial_range.get("lat_min"), spatial_range.get("lat_max")
         lon_min, lon_max = spatial_range.get("lon_min"), spatial_range.get("lon_max")
@@ -115,48 +152,64 @@ class GEDIDatabase:
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
             raise ValueError("Spatial and temporal ranges must be fully specified in the configuration.")
         
+        # Define the main dimensions: latitude, longitude, and time
         dimensions = [
-            tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=1, dtype="float64"),
-            tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=1, dtype="float64"),
-            tiledb.Dim("time", domain=(time_min, time_max), tile=int(1e6), dtype="int64")
+            tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=0.5, dtype="float64"),
+            tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=0.5, dtype="float64"),
+            tiledb.Dim("time", domain=(time_min, time_max), tile=int(3.16e10), dtype="int64")  # 1-year tile for time
         ]
     
+        # Add profile_point dimension if not scalar
         if not scalar:
             max_profile_length = self.config['tiledb'].get('max_profile_length', 100)
             dimensions.append(tiledb.Dim("profile_point", domain=(0, max_profile_length), tile=None, dtype="int32"))
-        
+    
         return tiledb.Domain(*dimensions)
-
-
+    
+    
     def _create_attributes(self, scalar: bool) -> List[tiledb.Attr]:
-        """Creates attributes based on scalar or profile configuration."""
+        """
+        Creates TileDB attributes for scalar or profile data, applying LZ4 compression.
+        
+        Parameters:
+        ----------
+        scalar : bool
+            If True, creates attributes for scalar data (per-shot-level).
+            If False, creates attributes for profile data (profile-level).
+        
+        Returns:
+        --------
+        List[tiledb.Attr]
+            A list of TileDB attributes configured with appropriate data types and LZ4 compression.
+        
+        Notes:
+        ------
+        - The `shot_number` attribute is added to the profile array only if `scalar` is False.
+        """
         attributes = []
+        compression_filter = tiledb.FilterList([tiledb.LZ4Filter(level=5)])  # LZ4 with moderate compression level
+        
         for var_name, var_info in self.variables_config.items():
             dtype = var_info.get("dtype", "float64")
             is_profile = var_info.get("is_profile", False)
             
+            # Define attributes based on whether they belong to scalar or profile data
             if scalar and not is_profile:
-                attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
+                attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=compression_filter))
             elif not scalar and is_profile:
-                attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
+                attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=compression_filter))
     
-        # Add shot_number to the profile attributes if it's not already included
+        # Add `shot_number` attribute if not scalar
         if not scalar:
-            attributes.append(tiledb.Attr(name="shot_number", dtype="int64"))  # Adjust dtype if necessary
+            attributes.append(tiledb.Attr(name="shot_number", dtype="int64", filters=compression_filter))
     
         return attributes
 
     def _add_variable_metadata(self) -> None:
->>>>>>> optimise tiledb schema with two arrays
         """
-        Create the database schema using the provided SQL script.
+        Add metadata to the global TileDB arrays for each variable, including units and long_name.
+        This information is pulled from the configuration.
         """
-<<<<<<< HEAD
-        db_manager = DatabaseManager(db_url=self.db_path)
-        db_manager.create_tables(sql_script=self.sql_script)
-
-    def _write_db(self, input):
-=======
         # Add metadata to scalar array
         with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
             array.meta["array_type"] = "scalar"
@@ -228,31 +281,67 @@ class GEDIDatabase:
         ----------
         granule_data : pd.DataFrame
             DataFrame containing the granule data.
->>>>>>> optimise tiledb schema with two arrays
         """
-        Write data to the database.
-
-        This function is intended to be used as a Dask task. It initializes a 
-        new database connection inside the task.
-
+        # Prepare coordinates (dimensions)
+        coords = {
+            dim_name: (
+                (pd.to_datetime(granule_data[dim_name]).astype('int64') // 1000).values
+                if dim_name == 'time' else granule_data[dim_name].values
+            )
+            for dim_name in self.config["tiledb"]['dimensions']
+        }
+        
+        # Extract scalar data attributes
+        data = {
+            var_name: granule_data[var_name].values
+            for var_name, var_info in self.variables_config.items()
+            if not var_info.get('is_profile', False)
+        }
+    
+        # Write to the scalar array
+        with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
+            dim_names = [dim.name for dim in array.schema.domain]
+            dims = tuple(coords[dim_name] for dim_name in dim_names)
+            array[dims] = data
+    
+    def write_profile_granule(self, granule_data: pd.DataFrame, profile_vars: list) -> None:
+        """
+        Write profile data to the profile TileDB array.
+    
         Parameters:
         ----------
-        input : tuple
-            Tuple containing the granule key, output file path, and included files.
+        granule_data : pd.DataFrame
+            DataFrame containing the granule data.
+        profile_vars : list
+            List of profile variable names.
         """
-<<<<<<< HEAD
-        if input is None:
-            return
-
-        granule_key, outfile_path, included_files = input
-
-        # Load the data to write
-        granule_entry = pd.DataFrame({
-            "granule_name": [granule_key],
-            'status': GranuleStatus.PROCESSED.value,
-            "created_date": [pd.Timestamp.utcnow()],
-        })
-=======
+        # Process profile data and coordinates
+        coords, data = self._process_profile_variables(granule_data, profile_vars)
+        
+        # Write profile data to the array
+        with tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
+            dim_names = [dim.name for dim in array.schema.domain]
+            dims = tuple(coords[dim_name] for dim_name in dim_names)
+            array[dims] = data
+    
+    def _process_profile_variables(self, granule_data: pd.DataFrame, profile_vars: list):
+        """
+        Process profile variables and add 'shot_number' as a variable instead of a dimension.
+    
+        Parameters:
+        -----------
+        granule_data : pd.DataFrame
+            DataFrame containing the profile variables as lists or arrays.
+        profile_vars : list
+            List of profile variable names.
+    
+        Returns:
+        --------
+        coords : dict
+            Coordinate arrays for 'latitude', 'longitude', 'time', 'profile_point'.
+        data : dict
+            Data dictionary containing the profile variables and 'shot_number'.
+        """
         
         # Convert 'time' to integer timestamps in microseconds
         time_array = (pd.to_datetime(granule_data['time']).astype('int64') // 1000).values
@@ -270,7 +359,7 @@ class GEDIDatabase:
         # Fill each profile variable with padded data
         for var_name in profile_vars:
             for i, var_data in enumerate(granule_data[var_name]):
-                data_arrays[var_name][i, :len(var_data)] = var_data  # Pad as needed
+                data_arrays[var_name][i, :len(var_data)] = var_data
         
         # Flatten data arrays for TileDB input
         for var_name in data_arrays:
@@ -294,100 +383,87 @@ class GEDIDatabase:
         }
         
         return coords, data_arrays
->>>>>>> optimise tiledb schema with two arrays
 
-        # Load the GEDI data from a parquet file
-        gedi_data = gpd.read_parquet(outfile_path)
-        gedi_data = gedi_data.astype({"shot_number": "int64"})
 
-        # Initialize the connection inside the task
-        db_manager = DatabaseManager(db_url=self.db_path)
-        engine = db_manager.get_connection()
-
-        # Write data to the database
-        with engine.begin() as conn:
-            self._write_granule_entry(conn, granule_entry)
-            self._write_gedi_data(conn, gedi_data)
-            self.write_all_metadata(conn)
-
-    def _write_granule_entry(self, conn, granule_entry):
+    def check_granules_status(self, granule_ids: list) -> dict:
         """
-        Write the granule entry into the database.
+        Check the status of multiple granules by accessing all metadata at once.
+    
+        Parameters:
+        ----------
+        granule_ids : list
+            A list of unique granule identifiers to check.
+    
+        Returns:
+        --------
+        dict
+            A dictionary where the keys are granule IDs and the values are booleans.
+            True if the granule has been processed, False otherwise.
+        """
+        granule_statuses = {}
+        try:
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
+                # Fetch all relevant metadata keys that indicate processed granules
+                all_metadata = {key: array.meta[key] for key in array.meta.keys() if "_status" in key}
+                for granule_id in granule_ids:
+                    granule_key = f"granule_{granule_id}_status"
+                    granule_statuses[granule_id] = all_metadata.get(granule_key, "") == "processed"
+        
+        except tiledb.TileDBError as e:
+            logger.error(f"Failed to access TileDB metadata: {e}")
+        return granule_statuses
+    
+    
+    def mark_granule_as_processed(self, granule_key: str) -> None:
+        """
+        Mark a granule as processed by storing its status and processing date in TileDB metadata.
+    
+        Parameters:
+        ----------
+        granule_key : str
+            The unique identifier for the granule.
+        """
+        try:
+            with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
+                array.meta[f"granule_{granule_key}_status"] = "processed"
+                array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+        except tiledb.TileDBError as e:
+            logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
+            
+    @staticmethod
+    def _datetime_to_timestamp(dt_str: str) -> int:
+        """
+        Convert an ISO8601 datetime string to a timestamp in microseconds since epoch.
 
         Parameters:
         ----------
-        conn : Connection
-            The database connection object.
-        granule_entry : pandas.DataFrame
-            DataFrame containing the granule data to be written.
+        dt_str : str
+            The datetime string to convert.
+
+        Returns:
+        --------
+        int
+            The timestamp in microseconds since epoch.
         """
-        granule_entry.to_sql(
-            name=self.tables['granules'],
-            con=conn,
-            index=False,
-            if_exists="append",
-        )
-
-    def _write_gedi_data(self, conn, gedi_data):
+        dt = dateutil.parser.isoparse(dt_str)
+        timestamp = int(dt.timestamp() * 1e6)
+        return timestamp
+        
+    @staticmethod
+    def _load_variables_config(config):
         """
-        Write the GEDI data into the database.
+        Load and parse the configuration file and consolidate variables from all product levels.
 
-        Parameters:
-        ----------
-        conn : Connection
-            The database connection object.
-        gedi_data : geopandas.GeoDataFrame
-            GeoDataFrame containing the GEDI data.
+        Returns:
+        --------
+        dict:
+            The dictionary representation of all variables configuration across products.
         """
-        gedi_data.to_postgis(
-            name=self.tables['shots'],
-            con=conn,
-            index=False,
-            if_exists="append",
-        )
+        # Consolidate all variables from different levels
+        variables_config = {}
+        for level in ['level_2a', 'level_2b', 'level_4a', 'level_4c']:
+            level_vars = config.get(level, {}).get('variables', {})
+            for var_name, var_info in level_vars.items():
+                variables_config[var_name] = var_info
 
-    def write_all_metadata(self, conn):
-        """
-        Write metadata for all product types into the metadata table.
-
-        Parameters:
-        ----------
-        conn : Connection
-            The database connection object.
-        """
-        for product_type in PRODUCT_TYPES:
-            self.write_metadata(conn, product_type)
-
-    def write_metadata(self, conn, product_type):
-        """
-        Write metadata for a specific product type into the metadata table.
-
-        Parameters:
-        ----------
-        conn : Connection
-            The database connection object.
-        product_type : str
-            The product type (e.g., 'L2A', 'L2B', 'L4A', 'L4C').
-        """
-        # Load the metadata for the specific product type
-        metadata = self.metadata_handler.load_metadata_file(self.metadata_handler.metadata_path, product_type)
-        if not metadata:
-            return
-
-        # Fetch the metadata table from the database
-        metadata_table = Table(self.tables['metadata'], MetaData(), autoload_with=conn)
-        data_columns = self.metadata_handler.get_columns_in_data(conn, self.tables['shots'])
-
-        # Write the metadata for each column in the data
-        for variable_name in data_columns:
-            var_meta = next(
-                (item for item in metadata.get('Layers_Variables', []) if item.get('SDS_Name') == variable_name), None
-            )
-            if var_meta is None:
-                continue
-            # Avoid duplicate entries
-            if self.metadata_handler.variable_exists_in_metadata(conn, metadata_table, variable_name):
-                continue
-
-            # Insert metadata into the table
-            self.metadata_handler.insert_metadata(conn, metadata_table, variable_name, var_meta, self.tables['shots'])
+        return variables_config

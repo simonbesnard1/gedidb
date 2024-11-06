@@ -8,12 +8,10 @@
 #
 
 import numpy as np
-import geopandas as gpd
 from typing import Optional, Dict
 
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
-from gedidb.utils.constants import WGS84
 
 class L2BBeam(Beam):
     """
@@ -32,33 +30,16 @@ class L2BBeam(Beam):
             field_mapping (Dict[str, Dict[str, str]]): A dictionary mapping fields to SDS names.
         """
         super().__init__(granule, beam, field_mapping)
-        self._shot_geolocations: Optional[gpd.array.GeometryArray] = None  # Cache for geolocations
+        
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
-            'l2a_quality_flag': lambda: self["l2a_quality_flag"][()] == 1,
-            'l2b_quality_flag': lambda: self["l2b_quality_flag"][()] == 1,
-            'sensitivity': lambda: (self['sensitivity'][()] >= 0.9) & (self['sensitivity'][()] <= 1.0),
-            'rh100': lambda: (self['rh100'][()] >= 0) & (self['rh100'][()] <= 1200),
+            # 'l2a_quality_flag': lambda: self["l2a_quality_flag"][()] == 1,
+            # 'l2b_quality_flag': lambda: self["l2b_quality_flag"][()] == 1,
+            # 'sensitivity': lambda: (self['sensitivity'][()] >= 0.9) & (self['sensitivity'][()] <= 1.0),
+            # 'rh100': lambda: (self['rh100'][()] >= 0) & (self['rh100'][()] <= 1200),
             'water_persistence': lambda: self["land_cover_data/landsat_water_persistence"][()] <10,
             'urban_proportion': lambda: self['land_cover_data/urban_proportion'][()] <50,
         }
-
-    @property
-    def shot_geolocations(self) -> gpd.array.GeometryArray:
-        """
-        Get the geolocations (latitude/longitude) of shots in the beam.
-        This property lazily loads and caches the geolocations.
-
-        Returns:
-            gpd.array.GeometryArray: The geolocations of the shots in the beam.
-        """
-        if self._shot_geolocations is None:
-            self._shot_geolocations = gpd.points_from_xy(
-                x=self['geolocation/lon_lowestmode'],
-                y=self['geolocation/lat_lowestmode'],
-                crs=WGS84,
-            )
-        return self._shot_geolocations
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
         """
@@ -74,12 +55,7 @@ class L2BBeam(Beam):
         # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
             sds_name = source['SDS_Name']
-            if key == "beam_type":
-                beam_type = getattr(self, sds_name)
-                data[key] = np.array([beam_type] * self.n_shots)
-            elif key == "beam_name":
-                data[key] = np.array([self.name] * self.n_shots)
-            elif key == "dz":
+            if key == "dz":
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
             elif key == "waveform_start":
                 data[key] = np.array(self[sds_name][()] - 1)  # Adjusting waveform start
