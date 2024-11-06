@@ -13,6 +13,7 @@ import numpy as np
 import logging
 from typing import Optional, List, Union
 import geopandas as gpd
+from shapely.geometry import box
 
 from gedidb.database.db_query import SQLQueryBuilder, GediDataBuilder
 from gedidb.utils.geospatial_tools import check_and_format_shape
@@ -187,7 +188,14 @@ class GEDIProvider:
         :param return_type: Specify return type, either 'pandas' or 'xarray'.
         :return: The queried data as a Pandas DataFrame, Xarray Dataset, or None if no data.
         """
-        geometry = check_and_format_shape(geometry, simplify=True)
+        if geometry is None:
+            # Define the bounding box for the entire globe
+            geometry = box(-180, -90, 180, 90)
+            # Create a GeoDataFrame with this global bounding box
+            geometry = gpd.GeoDataFrame(geometry=[geometry], crs="EPSG:4326")
+        else:
+            geometry = check_and_format_shape(geometry, simplify=True)
+
         
         df, metadata = self.query_data(
             variables=variables,
