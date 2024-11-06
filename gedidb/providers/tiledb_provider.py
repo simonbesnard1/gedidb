@@ -22,98 +22,99 @@ DEFAULT_DIMS = ["shot_number"]
 
 class TileDBProvider:
     """
-    A provider class for managing low-level interactions with TileDB arrays for GEDI (Global Ecosystem Dynamics Investigation) data.
-    This class is responsible for initializing and handling connections to scalar and profile data arrays stored in TileDB,
-    performing queries, and retrieving metadata. The GEDI data consists of scalar and profile data arrays stored in TileDB
-    on an S3-compatible object store. Scalar data arrays contain data fields without a profile dimension, while profile
-    data arrays include an additional `profile_point` dimension.
-
-    This class does not format data into high-level structures like Pandas DataFrames or Xarray Datasets.
-    Higher-level data processing and formatting are intended to be managed by the `GEDIDataBuilder` class.
+    A base provider class for managing low-level interactions with TileDB arrays for GEDI data.
+    This class supports both S3 and local storage configurations, allowing flexible access to scalar 
+    and profile arrays stored in TileDB.
 
     Attributes
     ----------
     scalar_array_uri : str
-        URI for accessing the scalar data array in the S3 bucket.
+        URI for accessing the scalar data array.
     profile_array_uri : str
-        URI for accessing the profile data array in the S3 bucket.
+        URI for accessing the profile data array.
     ctx : tiledb.Ctx
-        TileDB context configured with S3 access settings, such as credentials and endpoint configurations.
+        TileDB context configured for either S3 or local access.
 
     Methods
     -------
     get_available_variables() -> pd.DataFrame
-        Retrieve a DataFrame containing metadata about available variables in both scalar and profile arrays.
+        Retrieve metadata about available variables in both scalar and profile arrays.
     get_variable_types() -> Dict[str, List[str]]
-        Retrieve lists of variable names available in the scalar and profile arrays.
-    query_array(array_uri: str, variables: List[str], lat_min: float, lat_max: float, lon_min: float, lon_max: float,
-                start_time: Optional[np.datetime64], end_time: Optional[np.datetime64], **filters) -> Dict[str, np.ndarray]
-        Execute a query on a specified TileDB array with spatial, temporal, and additional attribute-based filters.
-    _initialize_context(endpoint_override: str) -> tiledb.Ctx
-        Set up and return a TileDB context with S3-specific configuration, including credentials and endpoint.
+        Retrieve lists of variable names available in scalar and profile arrays.
+    query_array(...)
+        Execute a query on a specified TileDB array with spatial, temporal, and quality filters.
     """
 
-    def __init__(self, s3_bucket: str, endpoint_override: str):
+    def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './', 
+                 endpoint_override: Optional[str] = None, region: str = 'eu-central-1'):
         """
-        Initialize the TileDBProvider with URIs for the scalar and profile data arrays and configure the TileDB context.
+        Initialize the TileDBProvider with URIs for scalar and profile data arrays, configured based on storage type.
 
         Parameters
         ----------
-        s3_bucket : str
-            The URI or path to the S3 bucket containing the GEDI data arrays.
-        endpoint_override : str
-            The custom endpoint URL for connecting to the S3-compatible object store (e.g., MinIO or AWS).
+        storage_type : str, optional
+            Storage type, either 's3' or 'local'. Defaults to 'local'.
+        s3_bucket : str, optional
+            The S3 bucket name for GEDI data storage. Required if `storage_type` is 's3'.
+        local_path : str, optional
+            The local path for storing GEDI data arrays. Used if `storage_type` is 'local'.
+        endpoint_override : str, optional
+            Custom endpoint URL for S3-compatible object stores (e.g., MinIO).
+        region : str, optional
+            AWS region for S3 access. Defaults to 'eu-central-1'.
         
         Notes
         -----
-        - This initialization sets up the URIs for the scalar and profile data arrays and configures 
-          the TileDB context with S3 access settings, such as AWS credentials and endpoint configurations.
-        - Higher-level data retrieval and formatting tasks are handled by the GEDIDataBuilder class, which inherits this class.
+        - Configures TileDB contexts and array URIs based on storage type, either S3 or local.
         """
-        self.scalar_array_uri = os.path.join(s3_bucket, 'scalar_array_uri')
-        self.profile_array_uri = os.path.join(s3_bucket, 'profile_array_uri')
-        self.ctx = self._initialize_context(endpoint_override)
+        if storage_type.lower() == 's3':
+            if not s3_bucket:
+                raise ValueError("s3_bucket must be provided when storage_type is 's3'")
+            self.scalar_array_uri = f"s3://{s3_bucket}/scalar_array_uri"
+            self.profile_array_uri = f"s3://{s3_bucket}/profile_array_uri"
+            self.ctx = self._initialize_s3_context(endpoint_override, region)
+        else:
+            # Local storage
+            self.scalar_array_uri = os.path.join(local_path, 'scalar_array_uri')
+            self.profile_array_uri = os.path.join(local_path, 'profile_array_uri')
+            self.ctx = self._initialize_local_context()
 
-    def _initialize_context(self, endpoint_override: str) -> tiledb.Ctx:
+    def _initialize_s3_context(self, endpoint_override: str, region: str) -> tiledb.Ctx:
         """
-        Set up and return a TileDB context configured for accessing data stored in an S3-compatible object store.
+        Set up and return a TileDB context configured for S3 storage with credentials from boto3.
         
-        This method retrieves AWS credentials from the local environment (or AWS CLI configuration) and 
-        applies them to the TileDB context for secure S3 access. The context is configured with the 
-        endpoint URL, region, and reader thread settings.
-    
         Parameters
         ----------
         endpoint_override : str
-            The endpoint URL for the S3-compatible object store. This can be a custom URL (e.g., for MinIO) 
-            or the default AWS S3 endpoint.
-    
+            The custom endpoint URL for S3-compatible storage (e.g., MinIO).
+        region : str
+            AWS region for S3 access.
+
         Returns
         -------
         tiledb.Ctx
-            A TileDB context configured with the necessary S3 access credentials and settings.
-        
-        Notes
-        -----
-        The context includes S3-specific configurations such as access keys, endpoint override, and 
-        region, as well as the number of reader threads for parallel access. It assumes that valid 
-        AWS credentials are available through boto3’s default session mechanism.
-        
-        Raises
-        ------
-        TileDBError
-            If there is an issue with initializing the TileDB context or fetching credentials.
+            Configured TileDB context for S3 storage.
         """
-        # Retrieve AWS session and credentials
         session = boto3.Session()
         creds = session.get_credentials()
-        
-        # Set up TileDB context with S3 configuration
         return tiledb.Ctx({
             "vfs.s3.aws_access_key_id": creds.access_key,
             "vfs.s3.aws_secret_access_key": creds.secret_key,
             "vfs.s3.endpoint_override": endpoint_override,
-            "vfs.s3.region": "eu-central-1",
+            "vfs.s3.region": region,
+            "sm.num_reader_threads": 8
+        })
+
+    def _initialize_local_context(self) -> tiledb.Ctx:
+        """
+        Set up and return a TileDB context configured for local file storage.
+
+        Returns
+        -------
+        tiledb.Ctx
+            Configured TileDB context for local storage.
+        """
+        return tiledb.Ctx({
             "sm.num_reader_threads": 8
         })
 

@@ -26,23 +26,17 @@ DEFAULT_DIMS = ["shot_number"]
 
 class GEDIProvider(TileDBProvider):
     """
-    A provider class for interfacing with GEDI (Global Ecosystem Dynamics Investigation) data stored in TileDB. 
-    This class enables querying GEDI data by spatial bounds or nearest points and supports returning data 
-    in Pandas DataFrame or Xarray Dataset formats.
-
-    The GEDI data consists of scalar and profile data arrays stored in TileDB on an S3-compatible object store. 
-    Scalar data arrays contain data fields without a profile dimension, while profile data arrays have an 
-    additional `profile_point` dimension.
+    GEDIProvider class to interface with GEDI data stored in TileDB, with support for flexible storage types.
 
     Attributes
     ----------
     scalar_array_uri : str
-        URI for accessing the scalar data array in the S3 bucket.
+        URI for accessing the scalar data array.
     profile_array_uri : str
-        URI for accessing the profile data array in the S3 bucket.
+        URI for accessing the profile data array.
     ctx : tiledb.Ctx
-        TileDB context configured with S3 access settings.
-
+        TileDB context for the configured storage type (S3 or local).
+    
     Methods
     -------
     get_available_variables() -> pd.DataFrame
@@ -57,25 +51,29 @@ class GEDIProvider(TileDBProvider):
         Retrieve queried data in either Pandas DataFrame or Xarray Dataset format.
     """
 
-    def __init__(self, s3_bucket: str, endpoint_override: str):
+    def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './', 
+                 endpoint_override: Optional[str] = None, region: str = 'eu-central-1'):
         """
-        Initialize the GEDIProvider with the URIs for the scalar and profile data arrays in an S3-compatible 
-        object store and configure the TileDB context.
+        Initialize GEDIProvider with URIs for scalar and profile data arrays, configured based on storage type.
 
         Parameters
         ----------
-        s3_bucket : str
-            The URI or path to the S3 bucket containing the GEDI data arrays.
-        endpoint_override : str
-            The custom endpoint URL for connecting to the S3-compatible object store (e.g., MinIO or AWS).
+        storage_type : str, optional
+            Storage type, either 's3' or 'local'. Defaults to 'local'.
+        s3_bucket : str, optional
+            The S3 bucket name for GEDI data storage. Required if `storage_type` is 's3'.
+        local_path : str, optional
+            The local path for storing GEDI data arrays. Used if `storage_type` is 'local'.
+        endpoint_override : str, optional
+            Custom endpoint URL for S3-compatible object stores (e.g., MinIO).
+        region : str, optional
+            AWS region for S3 access. Defaults to 'eu-central-1'.
         
         Notes
         -----
-        This initialization sets up the URIs for the scalar and profile data arrays and configures 
-        the TileDB context with S3 access settings, such as AWS credentials and endpoint configurations.
+        Supports both S3 and local storage configurations based on `storage_type`.
         """
-        
-        super().__init__(s3_bucket, endpoint_override)
+        super().__init__(storage_type, s3_bucket, local_path, endpoint_override, region)
 
     def query_nearest_shots(
         self, 

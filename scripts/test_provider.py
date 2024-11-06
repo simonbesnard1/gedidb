@@ -11,7 +11,7 @@ import geopandas as gpd
 import gedidb as gdb
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(s3_bucket="s3://dog.gedidb.gedi-l2-l4-v002/",
+provider = gdb.GEDIProvider(storage_type= 's3', s3_bucket="dog.gedidb.gedi-l2-l4-v002",
                             endpoint_override="https://s3.gfz-potsdam.de")
 
 #%% Load region of interest
