@@ -29,7 +29,6 @@ dependencies = [
     "dask==2024.8.2",
     "distributed==2024.8.2",
     "bokeh==3.6.0",
-    "beautifulsoup4==4.12.3",
     "boto3==1.35.49",
     "tiledb==0.32.5",
     "pytest",
