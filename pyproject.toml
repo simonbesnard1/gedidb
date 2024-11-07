@@ -35,7 +35,7 @@ dependencies = [
     "pytest",
     "mypy",
     "numpydoc",
-    "pyyaml"
+    "yaml"
 ]
 
 [project.optional-dependencies]
