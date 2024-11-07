@@ -24,10 +24,11 @@
 unit-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
   before_script:
-    - pip install PyYAML
+    - pip install . # might there be a better solution to this? increases the needed time for unittests a looot
   script:
     - echo "Running unit tests... This will take about 60 seconds."
     - python -m unittest gedidb.tests.test_granule_name
+    - python -m unittest gedidb.tests.test_nasa_cmr_api
 
 #lint-test-job:   # This job also runs in the test stage.
 #  stage: test    # It can run at the same time as unit-test-job (in parallel).
