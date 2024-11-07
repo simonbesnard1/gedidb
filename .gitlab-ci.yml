@@ -1,70 +1,69 @@
-stages:          # List of stages for jobs, and their order of execution
-  - build
-  - test
-  - deploy
-
-build-job:
-  stage: build
-  script:
-    # Install conda (if not already installed on the runner)
-    - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-    - bash miniconda.sh -b -p $HOME/miniconda
-    - source "$HOME/miniconda/etc/profile.d/conda.sh"
-    - conda activate
-    - conda config --set always_yes yes
-    - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
-    - conda activate gedidb-docs  # Activate the environment
-    # Build the documentation
-    - sphinx-build -b html doc/ doc/_build/html
-  artifacts:
-    paths:
-      - doc/_build/html  # Store the build results as artifacts
-    expire_in: 1 day     # Optional: Define how long to keep artifacts
+#stages:          # List of stages for jobs, and their order of execution
+#  - build
+#  - test
+#  - deploy
+#
+#build-job:
+#  stage: build
+#  script:
+#    # Install conda (if not already installed on the runner)
+#    - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+#    - bash miniconda.sh -b -p $HOME/miniconda
+#    - source "$HOME/miniconda/etc/profile.d/conda.sh"
+#    - conda activate
+#    - conda config --set always_yes yes
+#    - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
+#    - conda activate gedidb-docs  # Activate the environment
+#    # Build the documentation
+#    - sphinx-build -b html doc/ doc/_build/html
+#  artifacts:
+#    paths:
+#      - doc/_build/html  # Store the build results as artifacts
+#    expire_in: 1 day     # Optional: Define how long to keep artifacts
 
 unit-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
   script:
     - echo "Running unit tests... This will take about 60 seconds."
-    - sleep 60
-    - echo "Code coverage is 90%"
+    - python -m unittest gedidb.tests.test_granule_name
 
-lint-test-job:   # This job also runs in the test stage.
-  stage: test    # It can run at the same time as unit-test-job (in parallel).
-  script:
-    - echo "Linting code... This will take about 10 seconds."
-    - sleep 10
-    - echo "No lint issues found."
-
-deploy-job:      # This job runs in the deploy stage.
-  stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
-  environment: production
-  script:
-    - echo "Deploying application..."
-    - echo "Application successfully deployed."
-
-pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
-  stage: deploy
-  dependencies:
-    - build-job  # Ensure that the pages job depends on the build-job
-  script:
-    # Create the public directory
-    - rm -rf public
-    - mkdir public
-    - mkdir -p public/doc
-    - mkdir -p public/doc/_static/
-    
-    # Copy over the docs
-    - cp doc/index.html public/
-    - cp -r doc/_build/html/* public/doc/
-
-    # Check if everything is working
-    - ls -al public
-    - ls -al public/doc
-  artifacts:
-    paths:
-      - public
-    expire_in: 30 days
-  only:
-    - documentation
-    - main
-    - staging
+#lint-test-job:   # This job also runs in the test stage.
+#  stage: test    # It can run at the same time as unit-test-job (in parallel).
+#  script:
+#    - echo "Linting code... This will take about 10 seconds."
+#    - sleep 10
+#    - echo "No lint issues found."
+#
+#deploy-job:      # This job runs in the deploy stage.
+#  stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
+#  environment: production
+#  script:
+#    - echo "Deploying application..."
+#    - echo "Application successfully deployed."
+#
+#pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
+#  stage: deploy
+#  dependencies:
+#    - build-job  # Ensure that the pages job depends on the build-job
+#  script:
+#    # Create the public directory
+#    - rm -rf public
+#    - mkdir public
+#    - mkdir -p public/doc
+#    - mkdir -p public/doc/_static/
+#
+#    # Copy over the docs
+#    - cp doc/index.html public/
+#    - cp -r doc/_build/html/* public/doc/
+#
+#    # Check if everything is working
+#    - ls -al public
+#    - ls -al public/doc
+#  artifacts:
+#    paths:
+#      - public
+#    expire_in: 30 days
+#  only:
+#    - documentation
+#    - main
+#    - staging
