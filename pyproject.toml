@@ -34,7 +34,8 @@ dependencies = [
     "scipy==1.14.1",
     "pytest",
     "mypy",
-    "numpydoc"
+    "numpydoc",
+    "pyyaml"
 ]
 
 [project.optional-dependencies]
