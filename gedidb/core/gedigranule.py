@@ -15,6 +15,7 @@ import numpy as np
 import tiledb
 from enum import Enum
 from typing import Optional, Tuple, List, Dict
+import glob
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
@@ -120,7 +121,7 @@ class GEDIGranule:
         granule_dir = os.path.join(self.download_path, granule_key)
         
         try:
-            shutil.rmtree(granule_dir)
+            self.clear_directory(granule_dir)
         except Exception as e:
             logger.error(f"Error deleting directory {granule_dir}: {e}")
 
@@ -182,3 +183,22 @@ class GEDIGranule:
             df = df.drop(columns=columns_to_drop)
     
         return df if not df.empty else None
+    
+    @staticmethod
+    def clear_directory(granule_dir):
+        """
+        Static method to delete all .h5 files in a directory and then remove the directory itself.
+
+        Parameters:
+        ----------
+        granule_dir : str
+            Path of the directory to clear and remove.
+        """
+        # Get all .h5 files in the directory
+        h5_files = glob.glob(os.path.join(granule_dir, "*.h5"))
+        
+        # Delete each .h5 file individually
+        for h5_file in h5_files:
+            os.remove(h5_file)
+        shutil.rmtree(granule_dir)
+        
