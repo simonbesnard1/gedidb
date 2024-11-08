@@ -117,7 +117,14 @@ class GEDIGranule:
         self.data_writer.write_granule(gdf)
         self.data_writer.mark_granule_as_processed(granule_key)
         
+        granule_dir = os.path.join(self.download_path, granule_key)
         
+        try:
+            shutil.rmtree(granule_dir)
+        except Exception as e:
+            logger.error(f"Error deleting directory {granule_dir}: {e}")
+
+
     def parse_granules(self, granules: List[Tuple[str, str]], granule_key: str) -> Dict[str, Dict[str, np.ndarray]]:
         """
         Parse granules and return a dictionary of dictionaries of NumPy arrays.
@@ -128,7 +135,6 @@ class GEDIGranule:
             Dictionary of dictionaries, each containing NumPy arrays for each product.
         """
         data_dict = {}
-        granule_dir = os.path.join(self.download_path, granule_key)
     
         for product, file in granules:
             data = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
@@ -137,11 +143,6 @@ class GEDIGranule:
             else:
                 logger.warning(f"Skipping product {product} for granule {granule_key} due to parsing failure.")
         
-        try:
-            shutil.rmtree(granule_dir)
-        except Exception as e:
-            logger.error(f"Error deleting directory {granule_dir}: {e}")
-    
         return {k: v for k, v in data_dict.items() if "shot_number" in v}
     
     @staticmethod
