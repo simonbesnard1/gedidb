@@ -25,6 +25,7 @@ unit-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
   before_script:
     - pip install . # might there be a better solution to this? increases the needed time for unittests a looot
+    - pip install geodatasets # needed for test_nasa_cmr_api.py
   script:
     - echo "Running unit tests... This will take about 60 seconds."
     - python -m unittest gedidb.tests.test_granule_name
