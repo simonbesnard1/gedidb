@@ -401,16 +401,28 @@ class GEDIDatabase:
             True if the granule has been processed, False otherwise.
         """
         granule_statuses = {}
+
         try:
-            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
-                # Fetch all relevant metadata keys that indicate processed granules
-                all_metadata = {key: array.meta[key] for key in array.meta.keys() if "_status" in key}
-                for granule_id in granule_ids:
-                    granule_key = f"granule_{granule_id}_status"
-                    granule_statuses[granule_id] = all_metadata.get(granule_key, "") == "processed"
+            # Open scalar array and check metadata for granule statuses
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array:
+                scalar_metadata = {key: scalar_array.meta[key] for key in scalar_array.meta.keys() if "_status" in key}
+        
+            # Open profile array and check metadata for granule statuses
+            with tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+                profile_metadata = {key: profile_array.meta[key] for key in profile_array.meta.keys() if "_status" in key}
+        
+            # Combine metadata from both arrays and check each granule
+            for granule_id in granule_ids:
+                granule_key = f"granule_{granule_id}_status"
+                scalar_processed = scalar_metadata.get(granule_key, "") == "processed"
+                profile_processed = profile_metadata.get(granule_key, "") == "processed"
+                
+                # Set status as True only if both arrays mark the granule as processed
+                granule_statuses[granule_id] = scalar_processed and profile_processed
         
         except tiledb.TileDBError as e:
             logger.error(f"Failed to access TileDB metadata: {e}")
+        
         return granule_statuses
     
     
@@ -424,9 +436,15 @@ class GEDIDatabase:
             The unique identifier for the granule.
         """
         try:
-            with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
-                array.meta[f"granule_{granule_key}_status"] = "processed"
-                array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
+                 tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+                
+                scalar_array.meta[f"granule_{granule_key}_status"] = "processed"
+                scalar_array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+                
+                profile_array.meta[f"granule_{granule_key}_status"] = "processed"
+                profile_array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+                
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
             
