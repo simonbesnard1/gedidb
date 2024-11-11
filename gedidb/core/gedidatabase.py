@@ -441,8 +441,8 @@ class GEDIDatabase:
             The unique identifier for the granule.
         """
         try:
-            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
-                 tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+            with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as scalar_array, \
+                 tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as profile_array:
                 
                 scalar_array.meta[f"granule_{granule_key}_status"] = "processed"
                 scalar_array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
