@@ -24,7 +24,7 @@
 test-gedi-granules:
   stage: test
   before_script:
-    - pip install . # might there be a better solution to this? increases the needed time for unittests a looot
+    - pip install -e # might there be a better solution to this? increases the needed time for unittests a looot
   script:
     - echo "Running test_gedi_granules.py..."
     - python -m unittest gedidb.tests.test_gedi_granules
@@ -32,7 +32,7 @@ test-gedi-granules:
 test-granule-name:
   stage: test
   before_script:
-    - pip install . # might there be a better solution to this? increases the needed time for unittests a looot
+    - pip install -e # might there be a better solution to this? increases the needed time for unittests a looot
   script:
     - echo "Running test_granule_name.py..."
     - python -m unittest gedidb.tests.test_granule_name
@@ -40,20 +40,20 @@ test-granule-name:
 test-nasa-cmr-api:
   stage: test
   before_script:
-    - pip install . # might there be a better solution to this? increases the needed time for unittests a looot
+    - pip install -e # might there be a better solution to this? increases the needed time for unittests a looot
     - pip install geodatasets # needed for test_nasa_cmr_api.py
   script:
     - echo "Running test_nasa_cmr_api.py..."
-    -  python -m unittest gedidb.tests.test_nasa_cmr_api
+    - python -m unittest gedidb.tests.test_nasa_cmr_api
 
 test-geospatial-tools:
   stage: test
   before_script:
-    - pip install . # might there be a better solution to this? increases the needed time for unittests a looot
-    - - pip install geodatasets # needed for test_geospatial_tools.py
+    - pip install -e # might there be a better solution to this? increases the needed time for unittests a looot
+    - pip install geodatasets # needed for test_geospatial_tools.py
   script:
     - echo "Running test_geospatial_tools.py..."
-    -  python -m unittest gedidb.tests.test_geospatial_tools
+    - python -m unittest gedidb.tests.test_geospatial_tools
 
 #lint-test-job:   # This job also runs in the test stage.
 #  stage: test    # It can run at the same time as unit-test-job (in parallel).
