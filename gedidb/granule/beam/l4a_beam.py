@@ -37,7 +37,7 @@ class L4ABeam(Beam):
         #     'sensitivity_a0': lambda: (self['sensitivity'][()] >= 0.9) & (self['sensitivity'][()] <= 1.0),
         #     'sensitivity_a2': lambda: (self['geolocation/sensitivity_a2'][()] >= 0.9) & (self['geolocation/sensitivity_a2'][()] <= 1.0),
         #     'pft_sensitivity_filter': lambda: (
-        #         (self['land_cover_data/pft_class'][()] == 2) & (self['geolocation/sensitivity_a2'][()] > 0.98)) | 
+        #         (self['land_cover_data/pft_class'][()] == 2) & (self['geolocation/sensitivity_a2'][()] > 0.98)) |
         #         ((self['land_cover_data/pft_class'][()] != 2) & (self['geolocation/sensitivity_a2'][()] > 0.95))
         # }
 
@@ -57,11 +57,15 @@ class L4ABeam(Beam):
         # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
             sds_name = source['SDS_Name']
-            data[key] = np.array(self[sds_name][()])
+            # this is needed for tests, see test_gedi_granules.py
+            if key == "beam_name":
+                data[key] = np.array([self.name] * self.n_shots)
+            else:
+                data[key] = np.array(self[sds_name][()])
 
         # Apply quality filters and store the filtered index
         self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
-        
+
         # Filter the data using the mask
         filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
 

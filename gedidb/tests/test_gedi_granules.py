@@ -6,36 +6,26 @@
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
-
+import os
 import unittest
-from gedidb.processor import granule_parser
+from gedidb.granule.granule_parser import parse_h5_file
 from gedidb.utils.constants import GediProduct
 import pathlib
 import warnings
 import h5py
 
-
-THIS_DIR = pathlib.Path(__file__).parent
-L4A_NAME = (
-    THIS_DIR
-    / "data"
-    / "GEDI04_A_2019117051430_O02102_01_T04603_02_002_02_V002.h5"
-).as_posix()
-L2B_NAME = (
-    THIS_DIR
-    / "data"
-    / "GEDI02_B_2019117051430_O02102_01_T04603_02_003_01_V002.h5"
-).as_posix()
-L2A_NAME = (
-    THIS_DIR
-    / "data"
-    / "GEDI02_A_2019162222610_O02812_04_T01244_02_003_01_V002.h5"
-).as_posix()
+# THIS_DIR = pathlib.Path(__name__).parent
+THIS_DIR = pathlib.Path.cwd().parent
+L4A_NAME = "./data/GEDI04_A_2019117051430_O02102_01_T04603_02_002_02_V002.h5"
+L2B_NAME = "./data/GEDI02_B_2019117051430_O02102_01_T04603_02_003_01_V002.h5"
+L2A_NAME = "./data/GEDI02_A_2019162222610_O02812_04_T01244_02_003_01_V002.h5"
 
 
 class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         warnings.simplefilter("ignore", DeprecationWarning)
+        os.chdir(os.path.dirname(__file__))
+        print(os.getcwd())
 
     _data_info = {
         "level_2a": {
@@ -109,13 +99,21 @@ class TestCase(unittest.TestCase):
             self.assertNotEqual(beam_data.loc[beam, "shot_number"], 0)
 
         # The exported shots are equal to the number of shots in the h5 file
-        data_orig = h5py.File(file, "r")
-        for beam in beam_data.index:
-            hdf_beam_len = len(data_orig[beam]["shot_number"])
-            self.assertEqual(beam_data.loc[beam, "shot_number"], hdf_beam_len)
+
+        # TODO: this doesn't work because of quality filtering, that may remove shots
+
+        # data_orig = h5py.File(file, "r")
+        # for beam in beam_data.index:
+        #    hdf_beam_len = len(data_orig[beam]["shot_number"])
+        #    this test will always return different results, as long as the quality filter gets applied
+        #    self.assertEqual(beam_data.loc[beam, "shot_number"], hdf_beam_len)
+
+        #    right now we check if the quality filter gets applied, i.e. we get less entries with the parsed data
+        #    than with the original data
+        #    self.assertNotEqual(beam_data.loc[beam, "shot_number"], hdf_beam_len)
 
     def test_parse_granule_l4a(self):
-        data = granule_parser.parse_h5_file(
+        data = parse_h5_file(
             L4A_NAME,
             GediProduct.L4A.value,
             data_info=self._data_info,
@@ -124,6 +122,7 @@ class TestCase(unittest.TestCase):
         self._generic_test_parse_granule(L4A_NAME, data)
         # Some of the data is correct
         data_orig = h5py.File(L4A_NAME, "r")
+        # TODO: idx needs to correspond to a shot_number which won't be initially quality filtered
         idx = 1
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
@@ -136,12 +135,13 @@ class TestCase(unittest.TestCase):
         self.assertEqual(row["agbd"].values[0], agbd)
 
     def test_parse_granule_l2b(self):
-        data = granule_parser.parse_h5_file(
+        data = parse_h5_file(
             L2B_NAME,
             GediProduct.L2B.value,
             data_info=self._data_info,
         )
         data_orig = h5py.File(L2B_NAME, "r")
+        # TODO: idx needs to correspond to a shot_number which won't be initially quality filtered
         idx = 1646
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["geolocation"]["lat_lowestmode"][idx]
@@ -154,7 +154,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(row["pai_z"].values[0][0], pai_z0)
 
     def test_parse_granule_l2a(self):
-        data = granule_parser.parse_h5_file(
+        data = parse_h5_file(
             L2A_NAME,
             GediProduct.L2A.value,
             data_info=self._data_info,
@@ -162,7 +162,8 @@ class TestCase(unittest.TestCase):
         self._generic_test_parse_granule(L2A_NAME, data)
         # Some of the data is correct
         data_orig = h5py.File(L2A_NAME, "r")
-        idx = 1
+        # TODO: idx needs to correspond to a shot_number which won't be initially quality filtered
+        idx = 10000
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]
@@ -174,6 +175,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(row["rh"].values[0][98], rh_98)
 
     # TODO basic tests of quality filtering
+    # TODO tests for L4C
 
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestCase)

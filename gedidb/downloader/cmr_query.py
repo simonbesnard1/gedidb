@@ -112,18 +112,18 @@ class CMRQuery:
     #     if "ORNL" in item["data_center"]:
     #         return item["title"].split(".", maxsplit=1)[1]
     #     return None
-    
+
     @staticmethod
     def _get_name(item: dict) -> str:
         """
         Extract the name of the granule from the CMR response item.
         Removes the '.h5' extension if present and strips whitespace.
-    
+
         :param item: CMR response item.
         :return: Granule name.
         """
         granule_name = None
-    
+
         # Try to get the granule name from 'producer_granule_id' (preferred)
         if "LPCLOUD" in item["data_center"]:
             granule_name = item["producer_granule_id"]
@@ -139,14 +139,14 @@ class CMRQuery:
         else:
             logger.warning(f"Unknown data center or missing granule ID in item: {item}")
             return None
-    
+
         # Remove any leading/trailing whitespace
         granule_name = granule_name.strip()
-    
+
         # Remove '.h5' extension if present
         if granule_name.endswith('.h5'):
             granule_name = granule_name[:-3]
-    
+
         return granule_name
 
 class GranuleQuery(CMRQuery):
@@ -176,18 +176,18 @@ class GranuleQuery(CMRQuery):
         self.start_date = start_date
         self.end_date = end_date
         self.earth_data_info = earth_data_info
-        
+
     @handle_exceptions
     def query_granules(self, page_size: int = 2000, page_num: int = 1) -> pd.DataFrame:
         """
         Query granules from CMR and return them as a DataFrame.
-    
+
         :param page_size: Number of results per page.
         :param page_num: Starting page number.
         :return: DataFrame containing queried granules.
         """
         granule_data = []
-    
+
         # Configure retry strategy for the HTTP session
         adapter = HTTPAdapter(
             max_retries=Retry(
@@ -199,7 +199,7 @@ class GranuleQuery(CMRQuery):
         )
         session = requests.Session()
         session.mount("https://", adapter)
-    
+
         while True:
             # Reconstruct cmr_params in each iteration with the updated page_num
             cmr_params = self._construct_query_params(
@@ -214,15 +214,15 @@ class GranuleQuery(CMRQuery):
             response = session.get(self.earth_data_info["CMR_URL"], params=cmr_params)
             response.raise_for_status()
             cmr_response = response.json()["feed"]["entry"]
-    
+
             if cmr_response:
                 granule_data.extend(cmr_response)
                 page_num += 1
             else:
                 break
-    
+
         session.close()
-    
+
         # Process granule data into a structured DataFrame
         granule_data_processed = [
             {
@@ -235,8 +235,8 @@ class GranuleQuery(CMRQuery):
             for item in granule_data
             if (granule_name := self._get_name(item)) is not None
         ]
-            
+
         return pd.DataFrame(
             granule_data_processed, columns=["id", "name", "url", "size", "product"]
         )
-    
+

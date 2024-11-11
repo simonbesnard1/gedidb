@@ -19,7 +19,7 @@ class L2BBeam(Beam):
     This class extracts geolocation, time, and elevation data, applies quality filters,
     and returns the filtered beam data as a dictionary.
     """
-    
+
     def __init__(self, granule: Granule, beam: str, field_mapping: Dict[str, Dict[str, str]]):
         """
         Initialize the L2BBeam class.
@@ -30,7 +30,7 @@ class L2BBeam(Beam):
             field_mapping (Dict[str, Dict[str, str]]): A dictionary mapping fields to SDS names.
         """
         super().__init__(granule, beam, field_mapping)
-        
+
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
             # 'l2a_quality_flag': lambda: self["l2a_quality_flag"][()] == 1,
@@ -59,12 +59,15 @@ class L2BBeam(Beam):
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
             elif key == "waveform_start":
                 data[key] = np.array(self[sds_name][()] - 1)  # Adjusting waveform start
+            # this is needed for tests, see test_gedi_granules.py
+            elif key == "beam_name":
+                data[key] = np.array([self.name] * self.n_shots)
             else:
                 data[key] = np.array(self[sds_name][()])
 
         # Apply quality filters and store the filtered index
         self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
-            
+
         # Filter the data using the mask
         filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
 
