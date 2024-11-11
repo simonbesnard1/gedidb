@@ -147,6 +147,7 @@ class GEDIGranule:
         return {k: v for k, v in data_dict.items() if "shot_number" in v}
     
     @staticmethod
+    @staticmethod
     def _join_dfs(df_dict: Dict[str, pd.DataFrame], granule_key: str) -> Optional[pd.DataFrame]:
         """
         Join multiple DataFrames based on shot number. Ensure required products are available.
@@ -163,18 +164,17 @@ class GEDIGranule:
             if product.value not in df_dict or df_dict[product.value].empty:
                 return None
     
-        # Start with the L2A product DataFrame
-        df = df_dict[GediProduct.L2A.value]
-    
+        # Start with the L2A product DataFrame and reset the index
+        df = df_dict[GediProduct.L2A.value].reset_index(drop=True)
+        
         # Perform the join for each required product based on the 'shot_number' column
         for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
-            product_df = df_dict[product.value]
-            df = df.join(
-                product_df.set_index("shot_number"),
-                on="shot_number",
+            product_df = df_dict[product.value].set_index("shot_number")
+            df = df.set_index("shot_number").join(
+                product_df,
                 how="inner",
                 rsuffix=f'_{product.value}'
-            ).reset_index()
+            ).reset_index(drop=False)
     
         # Drop duplicate columns (those with suffixes from the join)
         suffixes = [f'_{GediProduct.L2B.value}', f'_{GediProduct.L4A.value}', f'_{GediProduct.L4C.value}']
