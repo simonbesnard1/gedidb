@@ -63,16 +63,21 @@ class GEDIDatabase:
                 "vfs.s3.aws_secret_access_key": creds.secret_key,
                 "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
                 "vfs.s3.region": config['tiledb'].get('region', 'eu-central-1'),
-                "sm.consolidation.steps": 2,
+                "sm.consolidation.steps": 5,
                 "sm.consolidation.step_min_frags": 2,
                 "sm.consolidation.buffer_size": 100_000_000,
+                "sm.consolidation.mode": "fragments",
+                "sm.vacuum.mode":"fragments"             
+    
             })
         else:
             # Local TileDB context with consolidation settings
             tiledb_config = tiledb.Config({
-                "sm.consolidation.steps": 2,
+                "sm.consolidation.steps": 5,
                 "sm.consolidation.step_min_frags": 2,
                 "sm.consolidation.buffer_size": 100_000_000,
+                "sm.consolidation.mode": "fragments",
+                "sm.vacuum.mode":"fragments"
             })
         
         self.ctx = tiledb.Ctx(tiledb_config)
