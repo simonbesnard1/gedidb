@@ -11,10 +11,11 @@ import tiledb
 import pandas as pd
 import logging
 from typing import Dict, Any, List
-import dateutil.parser
 import boto3
 import numpy as np
 import os
+
+from gedidb.utils.geospatial_tools import  _datetime_to_timestamp
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -150,8 +151,8 @@ class GEDIDatabase:
         lat_min, lat_max = spatial_range.get("lat_min"), spatial_range.get("lat_max")
         lon_min, lon_max = spatial_range.get("lon_min"), spatial_range.get("lon_max")
         time_range = self.config.get("tiledb", {}).get("time_range", {})
-        time_min = self._datetime_to_timestamp(time_range.get("start_time"))
-        time_max = self._datetime_to_timestamp(time_range.get("end_time"))
+        time_min = _datetime_to_timestamp(time_range.get("start_time"))
+        time_max = _datetime_to_timestamp(time_range.get("end_time"))
         
         # Validate ranges to prevent undefined domain errors
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
@@ -453,25 +454,6 @@ class GEDIDatabase:
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
             
-    @staticmethod
-    def _datetime_to_timestamp(dt_str: str) -> int:
-        """
-        Convert an ISO8601 datetime string to a timestamp in microseconds since epoch.
-
-        Parameters:
-        ----------
-        dt_str : str
-            The datetime string to convert.
-
-        Returns:
-        --------
-        int
-            The timestamp in microseconds since epoch.
-        """
-        dt = dateutil.parser.isoparse(dt_str)
-        timestamp = int(dt.timestamp() * 1e6)
-        return timestamp
-        
     @staticmethod
     def _load_variables_config(config):
         """
