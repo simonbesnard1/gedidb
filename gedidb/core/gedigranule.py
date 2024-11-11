@@ -147,7 +147,6 @@ class GEDIGranule:
         return {k: v for k, v in data_dict.items() if "shot_number" in v}
     
     @staticmethod
-    @staticmethod
     def _join_dfs(df_dict: Dict[str, pd.DataFrame], granule_key: str) -> Optional[pd.DataFrame]:
         """
         Join multiple DataFrames based on shot number. Ensure required products are available.

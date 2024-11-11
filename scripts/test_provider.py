@@ -26,8 +26,8 @@ quality_filters = {
 }
 
 gedi_data = provider.get_data(variables=vars_selected, 
-                              query_type = "nearest", 
-                              point=[ -55.0714, -2.918], num_shots=20,
+                              query_type = "boundind_box", 
+                              geometry=region_of_interest,
                               start_time="2019-07-21", end_time="2024-07-25", 
                               return_type='xarray')
 
