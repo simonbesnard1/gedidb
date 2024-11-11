@@ -121,7 +121,7 @@ class GEDIGranule:
         granule_dir = os.path.join(self.download_path, granule_key)
         
         try:
-            self.clear_directory(granule_dir)
+            shutil.rmtree(granule_dir)
         except Exception as e:
             logger.error(f"Error deleting directory {granule_dir}: {e}")
 
