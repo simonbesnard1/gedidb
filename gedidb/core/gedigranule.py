@@ -174,7 +174,7 @@ class GEDIGranule:
                 on="shot_number",
                 how="inner",
                 rsuffix=f'_{product.value}'
-            )
+            ).reset_index()
     
         # Drop duplicate columns (those with suffixes from the join)
         suffixes = [f'_{GediProduct.L2B.value}', f'_{GediProduct.L4A.value}', f'_{GediProduct.L4C.value}']
