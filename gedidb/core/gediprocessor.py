@@ -89,7 +89,7 @@ class GEDIProcessor:
             threads_per_worker=1,          # Each worker uses a single thread
             processes=True,                # Use processes instead of threads (better for CPU-bound tasks)
             memory_limit= memory_limit,    # Set a memory limit per worker, adjust based on system
-            dashboard_address=':8787'      # Enable the Dask dashboard
+            dashboard_address= None      # Enable the Dask dashboard
         )
         
         # Initialize the Dask client with the cluster
