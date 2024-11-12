@@ -18,7 +18,7 @@ from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
-from requests.exceptions import RequestException, HTTPError, ConnectionError
+from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -141,7 +141,7 @@ class H5FileDownloader(GEDIDownloader):
     def __init__(self, download_path: str = "."):
         self.download_path = download_path
 
-    @retry((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError), tries=10, delay=5, backoff=3)
+    @retry((ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError), tries=10, delay=5, backoff=3)
     def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, None]]:
         """
         Download an HDF5 file for a specific granule and product with resume support.
@@ -186,13 +186,14 @@ class H5FileDownloader(GEDIDownloader):
                 # Open file in append mode to resume download if needed
                 with open(h5file_path, 'ab') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
-                        f.write(chunk)
+                        if chunk:
+                            f.write(chunk)
     
-                return granule_key, (product.value, str(h5file_path))
+            return granule_key, (product.value, str(h5file_path))
     
-        except (RequestException, ConnectionError, NewConnectionError) as e:
+        except (HTTPError, ConnectionError, ChunkedEncodingError) as e:
             logger.error(f"Error downloading {url} on attempt: {e}")
-            raise  # Propagate the error to activate retry
+            raise  # Let the retry decorator handle retries
     
         except Exception as e:
             logger.error(f"Download failed after all retries for {url}: {e}")
