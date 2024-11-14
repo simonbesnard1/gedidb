@@ -171,11 +171,9 @@ class H5FileDownloader(GEDIDownloader):
                 # Adjust Range header to resume download from downloaded_size
                 headers['Range'] = f'bytes={downloaded_size}-'
             else:
-                logger.warning(f"Failed to fetch file size for {url}. Proceeding with full download.")
                 headers = {}  # Remove Range if size cannot be determined
     
         except requests.RequestException:
-            logger.warning(f"Unable to determine file size for {url}. Proceeding without size check.")
             headers = {}  # Proceed with a full download if size check fails
     
         try:
@@ -191,8 +189,7 @@ class H5FileDownloader(GEDIDownloader):
     
             return granule_key, (product.value, str(h5file_path))
     
-        except (HTTPError, ConnectionError, ChunkedEncodingError) as e:
-            logger.error(f"Error downloading {url} on attempt: {e}")
+        except (HTTPError, ConnectionError, ChunkedEncodingError):
             raise  # Let the retry decorator handle retries
     
         except Exception as e:

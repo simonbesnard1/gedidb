@@ -12,10 +12,7 @@ import logging
 import shutil
 import pandas as pd
 import numpy as np
-import tiledb
-from enum import Enum
 from typing import Optional, Tuple, List, Dict
-import glob
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
@@ -24,10 +21,6 @@ from gedidb.core.gedidatabase import GEDIDatabase
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-class GranuleStatus(Enum):
-    EMPTY = "empty"
-    PROCESSED = "processed"
         
 class GEDIGranule:
     """
@@ -57,37 +50,6 @@ class GEDIGranule:
         self.data_info = data_info
         self.data_writer =  GEDIDatabase(data_info)
         
-    def get_processed_granules(self, granule_ids: list) -> set:
-        """
-        Check the TileDB array metadata to determine which granules have already been processed.
-    
-        Parameters:
-        ----------
-        granule_ids : list
-            List of granule IDs to check.
-    
-        Returns:
-        -------
-        set
-            Set of granule IDs that have already been processed.
-        """
-        processed_granules = set()
-    
-        try:
-            with tiledb.open(self.tile_db_storage.array_uri, mode="r") as array:
-                for granule_id in granule_ids:
-                    # Check if this granule has a processing status in the metadata
-                    status = array.meta.get(f"granule_{granule_id}_status", None)
-                    
-                    # If the granule is marked as processed, add it to the processed_granules set
-                    if status == "processed":
-                        processed_granules.add(granule_id)
-                        
-        except tiledb.TileDBError as e:
-            logger.error(f"Failed to access TileDB for processed granules check: {e}")
-    
-        return processed_granules
-
     def process_granule(self, row: Tuple) -> Optional[Tuple[str, str, List[str]]]:
         """
         Process a granule by parsing, joining, and saving it to TileDB.
@@ -118,7 +80,6 @@ class GEDIGranule:
         self.data_writer.write_granule(gdf)
         self.data_writer.mark_granule_as_processed(granule_key)
         
-
     def parse_granules(self, granules: List[Tuple[str, str]], granule_key: str) -> Dict[str, Dict[str, np.ndarray]]:
         """
         Parse granules and return a dictionary of dictionaries of NumPy arrays.
@@ -178,22 +139,4 @@ class GEDIGranule:
             df = df.drop(columns=columns_to_drop)
     
         return df if not df.empty else None
-    
-    @staticmethod
-    def clear_directory(granule_dir):
-        """
-        Static method to delete all .h5 files in a directory and then remove the directory itself.
-
-        Parameters:
-        ----------
-        granule_dir : str
-            Path of the directory to clear and remove.
-        """
-        # Get all .h5 files in the directory
-        h5_files = glob.glob(os.path.join(granule_dir, "*.h5"))
-        
-        # Delete each .h5 file individually
-        for h5_file in h5_files:
-            os.remove(h5_file)
-        shutil.rmtree(granule_dir)
         
