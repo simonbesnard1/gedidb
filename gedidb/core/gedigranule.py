@@ -93,7 +93,11 @@ class GEDIGranule:
         granule_dir = os.path.join(self.download_path, granule_key)
         
         for product, file in granules:
+            if file is None:
+                continue  
+            
             data = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
+            
             if data is not None:
                 data_dict[product] = data
             else:
