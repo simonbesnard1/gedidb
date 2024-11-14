@@ -172,7 +172,6 @@ class GEDIDatabase:
     
         return tiledb.Domain(*dimensions)
     
-    
     def _create_attributes(self, scalar: bool) -> List[tiledb.Attr]:
         """
         Creates TileDB attributes for scalar or profile data, applying LZ4 compression.
@@ -252,7 +251,6 @@ class GEDIDatabase:
                     except KeyError as e:
                         logger.warning(f"Missing metadata key for {var_name}: {e}")
 
-                
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays.
@@ -390,7 +388,6 @@ class GEDIDatabase:
         
         return coords, data_arrays
 
-
     def check_granules_status(self, granule_ids: list) -> dict:
         """
         Check the status of multiple granules by accessing all metadata at once.
@@ -430,8 +427,7 @@ class GEDIDatabase:
             logger.error(f"Failed to access TileDB metadata: {e}")
         
         return granule_statuses
-    
-    
+      
     def mark_granule_as_processed(self, granule_key: str) -> None:
         """
         Mark a granule as processed by storing its status and processing date in TileDB metadata.
