@@ -5,9 +5,9 @@
       "Effect": "Allow",
       "Principal": {
         "AWS": [
-          "arn:aws:iam:::user/besnard",
-          "arn:aws:iam:::user/magnus",
-          "arn:aws:iam:::user/felixd"
+          "arn:aws:iam:::user/dog-oidc-besnard",
+          "arn:aws:iam:::user/dog-oidc-magnus",
+          "arn:aws:iam:::user/dog-oidc-felixd"
         ]
       },
       "Action": [
