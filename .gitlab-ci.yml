@@ -55,6 +55,14 @@ test-geospatial-tools:
     - echo "Running test_geospatial_tools.py..."
     - python -m unittest gedidb.tests.test_geospatial_tools
 
+test-data-downloader:
+  stage: test
+  before_script:
+    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
+  script:
+    - echo "Running test_data_downloader.py..."
+    - python -m unittest gedidb.tests.test_data_downloader
+
 #lint-test-job:   # This job also runs in the test stage.
 #  stage: test    # It can run at the same time as unit-test-job (in parallel).
 #  script:
