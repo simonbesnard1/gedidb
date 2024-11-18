@@ -262,7 +262,6 @@ class GEDIProvider(TileDBProvider):
             expanded_mask = np.broadcast_to(mask[:, np.newaxis], (len(mask), num_profile_points)).ravel()
             profile_data = {var: data[expanded_mask] for var, data in profile_data.items()}
 
-
         # Remove quality variables from scalar_data if they were not requested
         for q_var in quality_vars:
             if q_var not in variables:
@@ -403,11 +402,11 @@ class GEDIProvider(TileDBProvider):
             scalar_data, profile_data = self.query_data(
                 variables, geometry, start_time, end_time, **quality_filters
             )
-    
-        if not scalar_data and not profile_data:
+        
+        if scalar_data["shot_number"].size == 0 and profile_data["shot_number"].size == 0:
             logger.info("No data found for specified criteria.")
             return None
-    
+
         metadata = self.get_available_variables()
         return (
             self.to_xarray(scalar_data, profile_data, metadata)
