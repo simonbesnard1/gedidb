@@ -59,52 +59,86 @@ class GEDIDatabase:
             session = boto3.Session()
             creds = session.get_credentials()
             # S3 TileDB context with consolidation settings
-            tiledb_config = tiledb.Config({
-                "vfs.s3.aws_access_key_id": creds.access_key,
-                "vfs.s3.aws_secret_access_key": creds.secret_key,
-                "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
-                "vfs.s3.region": config['tiledb'].get('region', 'eu-central-1'),
-                "sm.consolidation.steps": 5,
-                "sm.consolidation.step_min_frags": 2,
-                "sm.consolidation.buffer_size": 100_000_000,
-                "sm.consolidation.mode": "fragments",
-                "sm.vacuum.mode":"fragments"             
-    
-            })
+            self.tiledb_config =tiledb.Config({
+                                                # Consolidation settings
+                                                "sm.consolidation.steps": 10,
+                                                "sm.consolidation.step_max_frags": 200,  # Adjust based on fragment count
+                                                "sm.consolidation.step_min_frags": 10,
+                                                "sm.consolidation.buffer_size": 5_000_000_000,  # 5GB buffer size per attribute/dimension
+                                            
+                                                # Memory budget settings
+                                                "sm.memory_budget": "150000000000",  # 150GB total memory budget
+                                                "sm.memory_budget_var": "50000000000",  # 50GB for variable-sized attributes
+                                            
+                                                # S3-specific configurations (if using S3)
+                                                "vfs.s3.aws_access_key_id": creds.access_key,
+                                                "vfs.s3.aws_secret_access_key": creds.secret_key,
+                                                "vfs.s3.endpoint_override": "https://s3.gfz-potsdam.de",
+                                                "vfs.s3.region": 'eu-central-1',
+                                            })
         else:
             # Local TileDB context with consolidation settings
-            tiledb_config = tiledb.Config({
-                "sm.consolidation.steps": 5,
-                "sm.consolidation.step_min_frags": 2,
-                "sm.consolidation.buffer_size": 100_000_000,
-                "sm.consolidation.mode": "fragments",
-                "sm.vacuum.mode":"fragments"
-            })
+            self.tiledb_config = tiledb.Config({
+                                                # Consolidation settings
+                                                "sm.consolidation.steps": 10,
+                                                "sm.consolidation.step_max_frags": 200,  # Adjust based on fragment count
+                                                "sm.consolidation.step_min_frags": 10,
+                                                "sm.consolidation.buffer_size": 5_000_000_000,  # 5GB buffer size per attribute/dimension
+                                            
+                                                # Memory budget settings
+                                                "sm.memory_budget": "150000000000",  # 150GB total memory budget
+                                                "sm.memory_budget_var": "50000000000",  # 50GB for variable-sized attributes
+                                            })
         
-        self.ctx = tiledb.Ctx(tiledb_config)
+        self.ctx = tiledb.Ctx(self.tiledb_config)
         
-    def consolidate_fragments(self) -> None:
-        """
-        Consolidate fragments for both scalar and profile arrays to optimize storage and access.
-
-        Parameters:
-        ----------
-        consolidate : bool, default=True
-            If True, perform fragment consolidation on both arrays.
-        """
-        for array_uri in [self.scalar_array_uri, self.profile_array_uri]:
-            try:
-                logger.info(f"Consolidating fragments for array: {array_uri}")
+        def consolidate_fragments(self) -> None:
+            """
+            Consolidate fragments, metadata, and commit logs for both scalar and profile arrays 
+            to optimize storage and access.
+        
+            Parameters:
+            ----------
+            consolidate : bool, default=True
+                If True, perform fragment consolidation on both arrays.
+            """
+            for array_uri in [self.scalar_array_uri, self.profile_array_uri]:
+                try:
+                    logger.info(f"Consolidating fragments for array: {array_uri}")
+                    
+                    # Update configuration for fragment consolidation
+                    self.tiledb_config["sm.consolidation.mode"] = "fragments"
+                    self.tiledb_config["sm.vacuum.mode"] = "fragments"
+                    
+                    # Consolidate fragments
+                    tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                    
+                    # Vacuum after fragment consolidation
+                    tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                    logger.info(f"Fragment consolidation complete for array: {array_uri}")
+                    
+                    # Update configuration for metadata consolidation
+                    logger.info(f"Consolidating metadata (__meta) for array: {array_uri}")
+                    self.tiledb_config["sm.consolidation.mode"] = "array_meta"
+                    self.tiledb_config["sm.vacuum.mode"] = "array_meta"
+                    
+                    # Consolidate metadata
+                    tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                    tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                    logger.info(f"Metadata consolidation complete for array: {array_uri}")
+                    
+                    # Update configuration for commit log consolidation
+                    logger.info(f"Consolidating commit logs (__commits) for array: {array_uri}")
+                    self.tiledb_config["sm.consolidation.mode"] = "fragment_meta"
+                    self.tiledb_config["sm.vacuum.mode"] = "fragment_meta"
+                    
+                    # Consolidate commit logs
+                    tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                    tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                    logger.info(f"Commit log consolidation complete for array: {array_uri}")
                 
-                # Consolidate fragments using the existing context
-                tiledb.consolidate(array_uri, ctx=self.ctx)
-                
-                # Run vacuum to remove the old fragment metadata
-                tiledb.vacuum(array_uri, ctx=self.ctx)
-                
-                logger.info(f"Fragment consolidation complete for array: {array_uri}")
-            except tiledb.TileDBError as e:
-                logger.error(f"Error during consolidation of {array_uri}: {e}")
+                except tiledb.TileDBError as e:
+                    logger.error(f"Error during consolidation of {array_uri}: {e}")
 
     def _create_arrays(self) -> None:
         """Define and create scalar and profile TileDB arrays based on configuration."""
@@ -124,7 +158,7 @@ class GEDIDatabase:
         
         domain = self._create_domain(scalar)
         attributes = self._create_attributes(scalar)
-        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True)
+        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True, capacity=1000000)
         tiledb.Array.create(uri, schema, ctx=self.ctx)
         
     def _create_domain(self, scalar: bool) -> tiledb.Domain:
@@ -160,9 +194,9 @@ class GEDIDatabase:
         
         # Define the main dimensions: latitude, longitude, and time
         dimensions = [
-            tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=0.5, dtype="float64"),
-            tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=0.5, dtype="float64"),
-            tiledb.Dim("time", domain=(time_min, time_max), tile=int(3.16e10), dtype="int64")  # 1-year tile for time
+            tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=1, dtype="float64"),
+            tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=1, dtype="float64"),
+            tiledb.Dim("time", domain=(time_min, time_max), tile=int(1e11), dtype="int64")  # 1-year tile for time
         ]
     
         # Add profile_point dimension if not scalar
