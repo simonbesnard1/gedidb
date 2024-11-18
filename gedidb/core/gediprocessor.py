@@ -72,8 +72,8 @@ class GEDIProcessor:
             config=self.data_info
         )
 
-    def _initialize_dask_client(self, n_workers: int = None, memory_limit:str = '8GB') -> Client:
-        """Initialize and return a Dask client with a LocalCluster."""
+    def _initialize_dask_client(self, n_workers: int = None, memory_limit: str = '8GB') -> Client:
+        """Initialize and return a Dask client with a LocalCluster and adaptive scaling."""
         
         # Set Dask memory spill and memory limits via configuration
         dask.config.set({
@@ -82,20 +82,18 @@ class GEDIProcessor:
             "distributed.worker.memory.pause": 0.8,      # Pause new task scheduling at 80%
             "distributed.worker.memory.terminate": 0.9,  # Terminate worker if memory exceeds 90%
         })
-            
+        
         # Setup a LocalCluster with better memory management configurations
         cluster = LocalCluster(
-            n_workers=n_workers,           # Number of workers (concurrent tasks)
-            threads_per_worker=1,          # Each worker uses a single thread
-            processes=True,                # Use processes instead of threads (better for CPU-bound tasks)
-            memory_limit= memory_limit,    # Set a memory limit per worker, adjust based on system
-            dashboard_address=':8787'      # Enable the Dask dashboard
+            n_workers=n_workers,
+            threads_per_worker=1,
+            processes=True,
+            memory_limit=memory_limit,
+            dashboard_address=None
         )
         
         # Initialize the Dask client with the cluster
         client = Client(cluster)
-        
-        # Log the Dask dashboard link for monitoring
         logger.info(f"Dask dashboard available at {client.dashboard_link}")
         
         return client

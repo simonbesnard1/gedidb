@@ -18,7 +18,7 @@ from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
-from requests.exceptions import RequestException, HTTPError, ConnectionError
+from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -141,7 +141,7 @@ class H5FileDownloader(GEDIDownloader):
     def __init__(self, download_path: str = "."):
         self.download_path = download_path
 
-    @retry((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError), tries=10, delay=5, backoff=3)
+    @retry((ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError), tries=10, delay=5, backoff=3)
     def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, None]]:
         """
         Download an HDF5 file for a specific granule and product with resume support.
@@ -171,11 +171,9 @@ class H5FileDownloader(GEDIDownloader):
                 # Adjust Range header to resume download from downloaded_size
                 headers['Range'] = f'bytes={downloaded_size}-'
             else:
-                logger.warning(f"Failed to fetch file size for {url}. Proceeding with full download.")
                 headers = {}  # Remove Range if size cannot be determined
     
         except requests.RequestException:
-            logger.warning(f"Unable to determine file size for {url}. Proceeding without size check.")
             headers = {}  # Proceed with a full download if size check fails
     
         try:
@@ -186,13 +184,13 @@ class H5FileDownloader(GEDIDownloader):
                 # Open file in append mode to resume download if needed
                 with open(h5file_path, 'ab') as f:
                     for chunk in r.iter_content(chunk_size=1024 * 1024):
-                        f.write(chunk)
+                        if chunk:
+                            f.write(chunk)
     
-                return granule_key, (product.value, str(h5file_path))
+            return granule_key, (product.value, str(h5file_path))
     
-        except (RequestException, ConnectionError, NewConnectionError) as e:
-            logger.error(f"Error downloading {url} on attempt: {e}")
-            raise  # Propagate the error to activate retry
+        except (HTTPError, ConnectionError, ChunkedEncodingError):
+            raise  # Let the retry decorator handle retries
     
         except Exception as e:
             logger.error(f"Download failed after all retries for {url}: {e}")

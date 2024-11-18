@@ -11,10 +11,11 @@ import tiledb
 import pandas as pd
 import logging
 from typing import Dict, Any, List
-import dateutil.parser
 import boto3
 import numpy as np
 import os
+
+from gedidb.utils.geospatial_tools import  _datetime_to_timestamp
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -63,16 +64,21 @@ class GEDIDatabase:
                 "vfs.s3.aws_secret_access_key": creds.secret_key,
                 "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
                 "vfs.s3.region": config['tiledb'].get('region', 'eu-central-1'),
-                "sm.consolidation.steps": 2,
+                "sm.consolidation.steps": 5,
                 "sm.consolidation.step_min_frags": 2,
                 "sm.consolidation.buffer_size": 100_000_000,
+                "sm.consolidation.mode": "fragments",
+                "sm.vacuum.mode":"fragments"             
+    
             })
         else:
             # Local TileDB context with consolidation settings
             tiledb_config = tiledb.Config({
-                "sm.consolidation.steps": 2,
+                "sm.consolidation.steps": 5,
                 "sm.consolidation.step_min_frags": 2,
                 "sm.consolidation.buffer_size": 100_000_000,
+                "sm.consolidation.mode": "fragments",
+                "sm.vacuum.mode":"fragments"
             })
         
         self.ctx = tiledb.Ctx(tiledb_config)
@@ -145,8 +151,8 @@ class GEDIDatabase:
         lat_min, lat_max = spatial_range.get("lat_min"), spatial_range.get("lat_max")
         lon_min, lon_max = spatial_range.get("lon_min"), spatial_range.get("lon_max")
         time_range = self.config.get("tiledb", {}).get("time_range", {})
-        time_min = self._datetime_to_timestamp(time_range.get("start_time"))
-        time_max = self._datetime_to_timestamp(time_range.get("end_time"))
+        time_min = _datetime_to_timestamp(time_range.get("start_time"))
+        time_max = _datetime_to_timestamp(time_range.get("end_time"))
         
         # Validate ranges to prevent undefined domain errors
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
@@ -165,7 +171,6 @@ class GEDIDatabase:
             dimensions.append(tiledb.Dim("profile_point", domain=(0, max_profile_length), tile=None, dtype="int32"))
     
         return tiledb.Domain(*dimensions)
-    
     
     def _create_attributes(self, scalar: bool) -> List[tiledb.Attr]:
         """
@@ -246,7 +251,6 @@ class GEDIDatabase:
                     except KeyError as e:
                         logger.warning(f"Missing metadata key for {var_name}: {e}")
 
-                
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays.
@@ -384,7 +388,6 @@ class GEDIDatabase:
         
         return coords, data_arrays
 
-
     def check_granules_status(self, granule_ids: list) -> dict:
         """
         Check the status of multiple granules by accessing all metadata at once.
@@ -401,19 +404,30 @@ class GEDIDatabase:
             True if the granule has been processed, False otherwise.
         """
         granule_statuses = {}
+
         try:
-            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
-                # Fetch all relevant metadata keys that indicate processed granules
-                all_metadata = {key: array.meta[key] for key in array.meta.keys() if "_status" in key}
-                for granule_id in granule_ids:
-                    granule_key = f"granule_{granule_id}_status"
-                    granule_statuses[granule_id] = all_metadata.get(granule_key, "") == "processed"
+            # Open scalar array and check metadata for granule statuses
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array:
+                scalar_metadata = {key: scalar_array.meta[key] for key in scalar_array.meta.keys() if "_status" in key}
+        
+            # Open profile array and check metadata for granule statuses
+            with tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+                profile_metadata = {key: profile_array.meta[key] for key in profile_array.meta.keys() if "_status" in key}
+        
+            # Combine metadata from both arrays and check each granule
+            for granule_id in granule_ids:
+                granule_key = f"granule_{granule_id}_status"
+                scalar_processed = scalar_metadata.get(granule_key, "") == "processed"
+                profile_processed = profile_metadata.get(granule_key, "") == "processed"
+                
+                # Set status as True only if both arrays mark the granule as processed
+                granule_statuses[granule_id] = scalar_processed and profile_processed
         
         except tiledb.TileDBError as e:
             logger.error(f"Failed to access TileDB metadata: {e}")
+        
         return granule_statuses
-    
-    
+      
     def mark_granule_as_processed(self, granule_key: str) -> None:
         """
         Mark a granule as processed by storing its status and processing date in TileDB metadata.
@@ -424,31 +438,18 @@ class GEDIDatabase:
             The unique identifier for the granule.
         """
         try:
-            with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
-                array.meta[f"granule_{granule_key}_status"] = "processed"
-                array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+            with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as scalar_array, \
+                 tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as profile_array:
+                
+                scalar_array.meta[f"granule_{granule_key}_status"] = "processed"
+                scalar_array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+                
+                profile_array.meta[f"granule_{granule_key}_status"] = "processed"
+                profile_array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+                
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
             
-    @staticmethod
-    def _datetime_to_timestamp(dt_str: str) -> int:
-        """
-        Convert an ISO8601 datetime string to a timestamp in microseconds since epoch.
-
-        Parameters:
-        ----------
-        dt_str : str
-            The datetime string to convert.
-
-        Returns:
-        --------
-        int
-            The timestamp in microseconds since epoch.
-        """
-        dt = dateutil.parser.isoparse(dt_str)
-        timestamp = int(dt.timestamp() * 1e6)
-        return timestamp
-        
     @staticmethod
     def _load_variables_config(config):
         """

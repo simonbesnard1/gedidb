@@ -12,8 +12,6 @@ import logging
 import shutil
 import pandas as pd
 import numpy as np
-import tiledb
-from enum import Enum
 from typing import Optional, Tuple, List, Dict
 
 from gedidb.utils.constants import GediProduct
@@ -23,10 +21,6 @@ from gedidb.core.gedidatabase import GEDIDatabase
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-class GranuleStatus(Enum):
-    EMPTY = "empty"
-    PROCESSED = "processed"
         
 class GEDIGranule:
     """
@@ -56,37 +50,6 @@ class GEDIGranule:
         self.data_info = data_info
         self.data_writer =  GEDIDatabase(data_info)
         
-    def get_processed_granules(self, granule_ids: list) -> set:
-        """
-        Check the TileDB array metadata to determine which granules have already been processed.
-    
-        Parameters:
-        ----------
-        granule_ids : list
-            List of granule IDs to check.
-    
-        Returns:
-        -------
-        set
-            Set of granule IDs that have already been processed.
-        """
-        processed_granules = set()
-    
-        try:
-            with tiledb.open(self.tile_db_storage.array_uri, mode="r") as array:
-                for granule_id in granule_ids:
-                    # Check if this granule has a processing status in the metadata
-                    status = array.meta.get(f"granule_{granule_id}_status", None)
-                    
-                    # If the granule is marked as processed, add it to the processed_granules set
-                    if status == "processed":
-                        processed_granules.add(granule_id)
-                        
-        except tiledb.TileDBError as e:
-            logger.error(f"Failed to access TileDB for processed granules check: {e}")
-    
-        return processed_granules
-
     def process_granule(self, row: Tuple) -> Optional[Tuple[str, str, List[str]]]:
         """
         Process a granule by parsing, joining, and saving it to TileDB.
@@ -117,7 +80,6 @@ class GEDIGranule:
         self.data_writer.write_granule(gdf)
         self.data_writer.mark_granule_as_processed(granule_key)
         
-        
     def parse_granules(self, granules: List[Tuple[str, str]], granule_key: str) -> Dict[str, Dict[str, np.ndarray]]:
         """
         Parse granules and return a dictionary of dictionaries of NumPy arrays.
@@ -129,19 +91,20 @@ class GEDIGranule:
         """
         data_dict = {}
         granule_dir = os.path.join(self.download_path, granule_key)
-    
+        
         for product, file in granules:
+            if file is None:
+                continue  
+            
             data = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
+            
             if data is not None:
                 data_dict[product] = data
             else:
                 logger.warning(f"Skipping product {product} for granule {granule_key} due to parsing failure.")
         
-        try:
-            shutil.rmtree(granule_dir)
-        except Exception as e:
-            logger.error(f"Error deleting directory {granule_dir}: {e}")
-    
+        shutil.rmtree(granule_dir)
+                    
         return {k: v for k, v in data_dict.items() if "shot_number" in v}
     
     @staticmethod
@@ -161,18 +124,17 @@ class GEDIGranule:
             if product.value not in df_dict or df_dict[product.value].empty:
                 return None
     
-        # Start with the L2A product DataFrame
-        df = df_dict[GediProduct.L2A.value]
-    
+        # Start with the L2A product DataFrame and reset the index
+        df = df_dict[GediProduct.L2A.value].reset_index(drop=True)
+        
         # Perform the join for each required product based on the 'shot_number' column
         for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
-            product_df = df_dict[product.value]
-            df = df.join(
-                product_df.set_index("shot_number"),
-                on="shot_number",
+            product_df = df_dict[product.value].set_index("shot_number")
+            df = df.set_index("shot_number").join(
+                product_df,
                 how="inner",
                 rsuffix=f'_{product.value}'
-            )
+            ).reset_index(drop=False)
     
         # Drop duplicate columns (those with suffixes from the join)
         suffixes = [f'_{GediProduct.L2B.value}', f'_{GediProduct.L4A.value}', f'_{GediProduct.L4C.value}']
@@ -181,3 +143,4 @@ class GEDIGranule:
             df = df.drop(columns=columns_to_drop)
     
         return df if not df.empty else None
+        
