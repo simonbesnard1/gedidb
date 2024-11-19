@@ -62,10 +62,12 @@ class GEDIDatabase:
             self.tiledb_config =tiledb.Config({
                                                 # Consolidation settings
                                                 "sm.consolidation.steps": 10,
-                                                "sm.consolidation.step_max_frags": 200,  # Adjust based on fragment count
+                                                "sm.consolidation.step_max_frags": 100,  # Adjust based on fragment count
                                                 "sm.consolidation.step_min_frags": 10,
                                                 "sm.consolidation.buffer_size": 5_000_000_000,  # 5GB buffer size per attribute/dimension
-                                            
+                                                "sm.consolidation.step_size_ratio":1.5, #  allow fragments that differ by up to 50% in size to be consolidated.
+                                                "sm.consolidation.amplification": 1.2, #  Allow for 20% amplification
+                                                
                                                 # Memory budget settings
                                                 "sm.memory_budget": "150000000000",  # 150GB total memory budget
                                                 "sm.memory_budget_var": "50000000000",  # 50GB for variable-sized attributes
@@ -81,10 +83,12 @@ class GEDIDatabase:
             self.tiledb_config = tiledb.Config({
                                                 # Consolidation settings
                                                 "sm.consolidation.steps": 10,
-                                                "sm.consolidation.step_max_frags": 200,  # Adjust based on fragment count
+                                                "sm.consolidation.step_max_frags": 100,  # Adjust based on fragment count
                                                 "sm.consolidation.step_min_frags": 10,
                                                 "sm.consolidation.buffer_size": 5_000_000_000,  # 5GB buffer size per attribute/dimension
-                                            
+                                                "sm.consolidation.step_size_ratio":1.5, #  allow fragments that differ by up to 50% in size to be consolidated.
+                                                "sm.consolidation.amplification": 1.2, #  Allow for 20% amplification
+
                                                 # Memory budget settings
                                                 "sm.memory_budget": "150000000000",  # 150GB total memory budget
                                                 "sm.memory_budget_var": "50000000000",  # 50GB for variable-sized attributes
