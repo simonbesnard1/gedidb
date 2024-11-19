@@ -212,7 +212,7 @@ class GEDIDatabase:
     
     def _create_attributes(self, scalar: bool) -> List[tiledb.Attr]:
         """
-        Creates TileDB attributes for scalar or profile data, applying LZ4 compression.
+        Creates TileDB attributes for scalar or profile data.
         
         Parameters:
         ----------
@@ -223,24 +223,23 @@ class GEDIDatabase:
         Returns:
         --------
         List[tiledb.Attr]
-            A list of TileDB attributes configured with appropriate data types and LZ4 compression.
+            A list of TileDB attributes configured with appropriate data types.
         
         Notes:
         ------
         - The `shot_number` attribute is added to the profile array only if `scalar` is False.
         """
         attributes = []
-        compression_filter = tiledb.FilterList([tiledb.LZ4Filter(level=5)])  # LZ4 with moderate compression level
         
         for var_name, var_info in self.variables_config.items():
             dtype = var_info.get("dtype", "float64")
-            attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=compression_filter))
+            attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
             
         # Add `shot_number` attribute if not scalar and time `timestamp_ns` if scalar
         if not scalar:
-            attributes.append(tiledb.Attr(name="shot_number", dtype="int64", filters=compression_filter))
+            attributes.append(tiledb.Attr(name="shot_number", dtype="int64"))
         elif scalar:
-            attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64", filters=compression_filter))
+            attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
    
         return attributes
 
