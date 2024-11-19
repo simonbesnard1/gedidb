@@ -11,7 +11,7 @@ import geopandas as gpd
 import gedidb as gdb
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(storage_type= 's3', s3_bucket="dog.gedidb.gedi-l2-l4-v002",
+provider = gdb.GEDIProvider(storage_type= 's3', s3_bucket="dog.gedidb.gedi-l2-l4-v002/v2",
                             endpoint_override="https://s3.gfz-potsdam.de")
 
 #%% Load region of interest
@@ -29,5 +29,5 @@ gedi_data = provider.get_data(variables=vars_selected,
                               query_type = "boundind_box", 
                               geometry=region_of_interest,
                               start_time="2019-07-21", end_time="2024-07-25", 
-                              return_type='xarray')
+                              return_type='xarray', **quality_filters)
 

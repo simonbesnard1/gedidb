@@ -73,7 +73,7 @@ class GEDIDatabase:
                                                 # S3-specific configurations (if using S3)
                                                 "vfs.s3.aws_access_key_id": creds.access_key,
                                                 "vfs.s3.aws_secret_access_key": creds.secret_key,
-                                                "vfs.s3.endpoint_override": "https://s3.gfz-potsdam.de",
+                                                "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
                                                 "vfs.s3.region": 'eu-central-1',
                                             })
         else:
@@ -158,7 +158,7 @@ class GEDIDatabase:
         
         domain = self._create_domain(scalar)
         attributes = self._create_attributes(scalar)
-        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True, capacity=1000000)
+        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True)
         tiledb.Array.create(uri, schema, ctx=self.ctx)
         
     def _create_domain(self, scalar: bool) -> tiledb.Domain:
@@ -202,7 +202,7 @@ class GEDIDatabase:
         # Add profile_point dimension if not scalar
         if not scalar:
             max_profile_length = self.config['tiledb'].get('max_profile_length', 100)
-            dimensions.append(tiledb.Dim("profile_point", domain=(0, max_profile_length), tile=None, dtype="int32"))
+            dimensions.append(tiledb.Dim("profile_point", domain=(0, max_profile_length), tile=max_profile_length, dtype="int32"))
     
         return tiledb.Domain(*dimensions)
     
