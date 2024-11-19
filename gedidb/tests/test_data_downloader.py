@@ -19,19 +19,25 @@ from gedidb.utils.constants import GediProduct
 # structured by [size, url, product]
 L2A = [217.657,
        'GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002.h5',
-       'https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/GEDI02_A.002/GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002/GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002.h5',
+       'https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/GEDI02_A.002'
+       '/GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002'
+       '/GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002.h5',
        'level2A']
 L2B = [41.368,
        'GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002.h5',
-       'https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/GEDI02_B.002/GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002/GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002.h5',
+       'https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/GEDI02_B.002'
+       '/GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002'
+       '/GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002.h5',
        'level2B']
 L4A = [28.135,
        'GEDI04_A_2019110062417_O01994_04_T02062_02_002_02_V002.h5',
-       'https://data.ornldaac.earthdata.nasa.gov/protected/gedi/GEDI_L4A_AGB_Density_V2_1/data/GEDI04_A_2019110062417_O01994_04_T02062_02_002_02_V002.h5',
+       'https://data.ornldaac.earthdata.nasa.gov/protected/gedi/GEDI_L4A_AGB_Density_V2_1/data'
+       '/GEDI04_A_2019110062417_O01994_04_T02062_02_002_02_V002.h5',
        'level4A']
 L4C = [73.182,
        'GEDI04_C_2019110062417_O01994_04_T02062_02_001_01_V002.h5',
-       'https://data.ornldaac.earthdata.nasa.gov/protected/gedi/GEDI_L4C_WSCI/data/GEDI04_C_2019110062417_O01994_04_T02062_02_001_01_V002.h5',
+       'https://data.ornldaac.earthdata.nasa.gov/protected/gedi/GEDI_L4C_WSCI/data'
+       '/GEDI04_C_2019110062417_O01994_04_T02062_02_001_01_V002.h5',
        'level4C']
 
 

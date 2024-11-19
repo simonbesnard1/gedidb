@@ -23,7 +23,7 @@ DEFAULT_DIMS = ["shot_number"]
 class TileDBProvider:
     """
     A base provider class for managing low-level interactions with TileDB arrays for GEDI data.
-    This class supports both S3 and local storage configurations, allowing flexible access to scalar 
+    This class supports both S3 and local storage configurations, allowing flexible access to scalar
     and profile arrays stored in TileDB.
 
     Attributes
@@ -45,7 +45,7 @@ class TileDBProvider:
         Execute a query on a specified TileDB array with spatial, temporal, and quality filters.
     """
 
-    def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './', 
+    def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './',
                  endpoint_override: Optional[str] = None, region: str = 'eu-central-1'):
         """
         Initialize the TileDBProvider with URIs for scalar and profile data arrays, configured based on storage type.
@@ -62,7 +62,7 @@ class TileDBProvider:
             Custom endpoint URL for S3-compatible object stores (e.g., MinIO).
         region : str, optional
             AWS region for S3 access. Defaults to 'eu-central-1'.
-        
+
         Notes
         -----
         - Configures TileDB contexts and array URIs based on storage type, either S3 or local.
@@ -82,7 +82,7 @@ class TileDBProvider:
     def _initialize_s3_context(self, endpoint_override: str, region: str) -> tiledb.Ctx:
         """
         Set up and return a TileDB context configured for S3 storage with credentials from boto3.
-        
+
         Parameters
         ----------
         endpoint_override : str
@@ -121,58 +121,58 @@ class TileDBProvider:
 
     def get_available_variables(self) -> pd.DataFrame:
         """
-        Retrieve metadata for available variables in both scalar and profile TileDB arrays, 
+        Retrieve metadata for available variables in both scalar and profile TileDB arrays,
         excluding specific fields such as 'array_type' and granule-specific metadata.
-    
-        This function consolidates metadata from both the scalar and profile arrays, organizing 
-        them into a structured DataFrame with variable names as the index and associated attributes 
+
+        This function consolidates metadata from both the scalar and profile arrays, organizing
+        them into a structured DataFrame with variable names as the index and associated attributes
         (e.g., description, units) as columns.
-    
+
         Returns
         -------
         pd.DataFrame
-            A DataFrame containing variable names as the index and associated metadata attributes 
-            (like description and units) as columns. Each row represents metadata for a specific 
+            A DataFrame containing variable names as the index and associated metadata attributes
+            (like description and units) as columns. Each row represents metadata for a specific
             variable, providing details such as its units, description, and product level.
-        
+
         Raises
         ------
         Exception
-            If there is an error opening the TileDB arrays or retrieving metadata, the exception 
+            If there is an error opening the TileDB arrays or retrieving metadata, the exception
             is logged and re-raised.
-        
+
         Notes
         -----
-        - Metadata keys starting with "granule_" or containing "array_type" are ignored to exclude 
+        - Metadata keys starting with "granule_" or containing "array_type" are ignored to exclude
           granule-specific and array type information.
-        - Metadata from both scalar and profile arrays is combined, allowing unified access to 
+        - Metadata from both scalar and profile arrays is combined, allowing unified access to
           all variables in the dataset.
-    
+
         """
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
-                 tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
-                
+                tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+
                 # Collect metadata for scalar and profile arrays, excluding unwanted keys
-                scalar_metadata = {k: scalar_array.meta[k] for k in scalar_array.meta 
+                scalar_metadata = {k: scalar_array.meta[k] for k in scalar_array.meta
                                    if not k.startswith("granule_") and "array_type" not in k}
-                profile_metadata = {k: profile_array.meta[k] for k in profile_array.meta 
+                profile_metadata = {k: profile_array.meta[k] for k in profile_array.meta
                                     if not k.startswith("granule_") and "array_type" not in k}
-                
+
                 # Combine metadata from scalar and profile arrays
                 combined_metadata = {**scalar_metadata, **profile_metadata}
                 organized_metadata = {}
-                
+
                 # Organize metadata into nested dictionary structure for DataFrame conversion
                 for key, value in combined_metadata.items():
                     var_name, attr_type = key.split(".", 1)
                     if var_name not in organized_metadata:
                         organized_metadata[var_name] = {}
                     organized_metadata[var_name][attr_type] = value
-                
+
                 # Convert organized metadata into a DataFrame
                 return pd.DataFrame.from_dict(organized_metadata, orient="index")
-        
+
         except Exception as e:
             logger.error(f"Failed to retrieve available variables from TileDB: {e}")
             raise
@@ -181,55 +181,55 @@ class TileDBProvider:
     def get_variable_types(self) -> Dict[str, List[str]]:
         """
         Retrieve variable names from the TileDB metadata, categorized into scalar and profile types.
-    
-        This function scans the metadata of both scalar and profile arrays and extracts unique 
-        variable names based on keys containing a period (".") separator, which distinguishes 
+
+        This function scans the metadata of both scalar and profile arrays and extracts unique
+        variable names based on keys containing a period (".") separator, which distinguishes
         attribute names from variable names in the metadata structure.
-    
+
         Returns
         -------
         Dict[str, List[str]]
             A dictionary with two keys:
             - "scalar": A list of variable names available in the scalar array.
             - "profile": A list of variable names available in the profile array.
-        
+
         Notes
         -----
-        - Variable names are extracted from metadata keys by taking the substring before the first 
-          period (".") in each key. This assumes that metadata keys follow the format 
+        - Variable names are extracted from metadata keys by taking the substring before the first
+          period (".") in each key. This assumes that metadata keys follow the format
           "variable_name.attribute_name".
         - Only keys containing a period are included, filtering out any non-variable-related metadata.
-    
+
         """
         with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
-             tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
-            
+            tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+
             # Extract unique variable names from metadata keys for scalar and profile arrays
             scalar_vars = list({k.split(".")[0] for k in scalar_array.meta if "." in k})
             profile_vars = list({k.split(".")[0] for k in profile_array.meta if "." in k})
-    
+
         return {"scalar": scalar_vars, "profile": profile_vars}
-    
-    
+
+
     def _query_array(
-        self, 
-        array_uri: str, 
-        variables: List[str], 
-        lat_min: float, 
-        lat_max: float, 
-        lon_min: float, 
-        lon_max: float, 
-        start_time: Optional[np.datetime64], 
-        end_time: Optional[np.datetime64], 
+        self,
+        array_uri: str,
+        variables: List[str],
+        lat_min: float,
+        lat_max: float,
+        lon_min: float,
+        lon_max: float,
+        start_time: Optional[np.datetime64],
+        end_time: Optional[np.datetime64],
         **filters
     ) -> Dict[str, np.ndarray]:
         """
         Execute a query on a TileDB array using spatial, temporal, and additional quality filters.
-    
-        This function retrieves data from a TileDB array based on specified spatial bounds, time range, 
-        and additional quality criteria. It constructs a query to filter the data by latitude, longitude, 
+
+        This function retrieves data from a TileDB array based on specified spatial bounds, time range,
+        and additional quality criteria. It constructs a query to filter the data by latitude, longitude,
         and optional temporal constraints, and returns the filtered data as a dictionary.
-    
+
         Parameters
         ----------
         array_uri : str
@@ -249,22 +249,22 @@ class TileDBProvider:
         end_time : np.datetime64, optional
             The end time for temporal filtering; retrieves data up to this timestamp.
         **filters : dict
-            Additional keyword arguments for filtering by data quality or other attributes. These 
+            Additional keyword arguments for filtering by data quality or other attributes. These
             filters are applied as attribute constraints in the query.
-    
+
         Returns
         -------
         Dict[str, np.ndarray]
-            A dictionary containing the queried data, with variable names as keys and numpy arrays 
+            A dictionary containing the queried data, with variable names as keys and numpy arrays
             as values for each attribute specified in `variables`.
-    
+
         Notes
         -----
         - The `query.multi_index` method applies the specified bounding box and temporal filters.
         - Additional quality filters are passed as keyword arguments and applied to attributes.
         - Ensure the TileDB context (`self.ctx`) is configured correctly to access the array.
         """
-        
+
         with tiledb.open(array_uri, mode="r", ctx=self.ctx) as array:
             query = array.query(attrs=variables)
             data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]
