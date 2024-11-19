@@ -15,7 +15,7 @@ from scipy.spatial import cKDTree
 from typing import Optional, List, Union, Dict, Tuple
 import re
 
-from gedidb.utils.geospatial_tools import check_and_format_shape, _datetime_to_timestamp, _timestamp_to_datetime
+from gedidb.utils.geospatial_tools import check_and_format_shape, _datetime_to_timestamp_days, _timestamp_to_datetime
 from gedidb.providers.tiledb_provider import TileDBProvider
 
 # Configure the logger
@@ -133,8 +133,8 @@ class GEDIProvider(TileDBProvider):
         profile_vars = [v for v in variables if v in variable_types["profile"]] + DEFAULT_DIMS
         
         # Convert start and end times to timestamps
-        start_timestamp = _datetime_to_timestamp(np.datetime64(start_time) if start_time else None)
-        end_timestamp = _datetime_to_timestamp(np.datetime64(end_time) if end_time else None)
+        start_timestamp = _datetime_to_timestamp_days(np.datetime64(start_time) if start_time else None)
+        end_timestamp = _datetime_to_timestamp_days(np.datetime64(end_time) if end_time else None)
         
         # Define bounding box limits based on the radius
         lon_min, lat_min = point[0] - radius, point[1] - radius
@@ -232,8 +232,8 @@ class GEDIProvider(TileDBProvider):
         # Convert start and end times to numpy datetime64
         start_time = np.datetime64(start_time) if start_time else None
         end_time = np.datetime64(end_time) if end_time else None
-        start_timestamp = _datetime_to_timestamp(start_time)
-        end_timestamp = _datetime_to_timestamp(end_time)
+        start_timestamp = _datetime_to_timestamp_days(start_time)
+        end_timestamp = _datetime_to_timestamp_days(end_time)
     
         # Determine scalar and profile variables, including quality filter variables
         variable_types = self.get_variable_types()
@@ -497,7 +497,7 @@ class GEDIProvider(TileDBProvider):
         """
         scalar_vars = [k for k in scalar_data if k not in ["latitude", "longitude", "time", "shot_number"]]
         profile_vars = [k for k in profile_data if k not in ["latitude", "longitude", "time", "profile_point", "shot_number"]]
-        times = np.array(_timestamp_to_datetime(scalar_data["time"]))
+        times = _timestamp_to_datetime(scalar_data["time"])
         unique_shot_numbers = np.unique(profile_data["shot_number"])
         unique_profile_points = np.unique(profile_data["profile_point"])
     

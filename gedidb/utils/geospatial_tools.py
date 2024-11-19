@@ -116,23 +116,22 @@ def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
         timestamp = int(dt.timestamp() // (86400))  # Convert to days (86400 seconds/day)
     return timestamp
 
-def _timestamp_to_datetime(microseconds: np.ndarray) -> np.ndarray:
+def _timestamp_to_datetime(days: np.ndarray) -> np.ndarray:
     """
-    Convert an array of timestamps in microseconds since epoch to np.datetime64 with nanosecond precision.
+    Convert an array of timestamps in days since epoch to np.datetime64 with daily precision.
 
     Parameters:
     ----------
-    microseconds : np.ndarray
-        Array of timestamps in microseconds since the epoch.
+    days : np.ndarray
+        Array of timestamps in days since the epoch.
 
     Returns:
     --------
     np.ndarray
-        Array of datetime64[ns] values in UTC.
+        Array of datetime64[D] values in UTC.
     """
-    # Convert using pandas and cast to datetime64[ns]
-    return pd.to_datetime(microseconds, unit='us', utc=True).values.astype("datetime64[ns]")
-
+    # Convert days since epoch to datetime64 with daily precision
+    return (np.datetime64('1970-01-01', 'D') + days).astype('datetime64[D]')
 
 def convert_to_days_since_epoch(timestamps: Union[pd.DatetimeIndex, pd.Series, list]) -> pd.Series:
     """
