@@ -55,21 +55,22 @@ test-geospatial-tools:
     - echo "Running test_geospatial_tools.py..."
     - python -m unittest gedidb.tests.test_geospatial_tools
 
-test-data-downloader:
-  stage: test
-  before_script:
-    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
-  script:
-    - echo "Running test_data_downloader.py..."
-    - python -m unittest gedidb.tests.test_data_downloader
-
-#lint-test-job:   # This job also runs in the test stage.
-#  stage: test    # It can run at the same time as unit-test-job (in parallel).
+#test-data-downloader:
+#  stage: test
+#  before_script:
+#    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
 #  script:
-#    - echo "Linting code... This will take about 10 seconds."
-#    - sleep 10
-#    - echo "No lint issues found."
-#
+#    - echo "Running test_data_downloader.py..."
+#    - python -m unittest gedidb.tests.test_data_downloader
+
+lint-test-job:   # This job also runs in the test stage.
+  stage: test    # It can run at the same time as unit-test-job (in parallel).
+  before_script:
+    - pip install flake8
+  script:
+    - echo "Linting code..."
+    - python -m flake8
+
 #deploy-job:      # This job runs in the deploy stage.
 #  stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
 #  environment: production
