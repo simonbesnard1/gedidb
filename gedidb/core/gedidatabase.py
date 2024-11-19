@@ -233,13 +233,17 @@ class GEDIDatabase:
         
         for var_name, var_info in self.variables_config.items():
             dtype = var_info.get("dtype", "float64")
-            attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
+            is_profile = var_info.get("is_profile", False)
             
-        # Add `shot_number` attribute if not scalar and time `timestamp_ns` if scalar
+            # Define attributes based on whether they belong to scalar or profile data
+            if scalar and not is_profile:
+                attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
+            elif not scalar and is_profile:
+                attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
+    
+        # Add `shot_number` attribute if not scalar
         if not scalar:
             attributes.append(tiledb.Attr(name="shot_number", dtype="int64"))
-        elif scalar:
-            attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
    
         return attributes
 
