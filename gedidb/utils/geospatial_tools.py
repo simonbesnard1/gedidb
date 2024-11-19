@@ -92,10 +92,10 @@ def check_and_format_shape(
         return gpd.GeoSeries(orient(geom), crs=shp.crs)
     
     
-def _datetime_to_timestamp(dt: Union[str, np.datetime64]) -> int:
+def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
     """
     Convert an ISO8601 datetime string (e.g., "2018-01-01T00:00:00Z") or numpy.datetime64 
-    to a timestamp in microseconds since epoch (UTC).
+    to a timestamp in days since epoch (UTC).
 
     Parameters:
     ----------
@@ -105,15 +105,15 @@ def _datetime_to_timestamp(dt: Union[str, np.datetime64]) -> int:
     Returns:
     --------
     int
-        The timestamp in microseconds since epoch.
+        The timestamp in days since epoch.
     """
     if isinstance(dt, np.datetime64):
-        # Treat datetime64 as UTC and convert to microseconds since epoch without 'Z' in the reference
-        timestamp = int((dt - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 'us'))
+        # Convert datetime64 to days since epoch
+        timestamp = int((dt - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 'D'))
     else:
-        # Parse ISO string and convert to microseconds since epoch
+        # Parse ISO string and convert to days since epoch
         dt = dateutil.parser.isoparse(dt).replace(tzinfo=dateutil.tz.UTC)  # Ensure UTC
-        timestamp = int(dt.timestamp() * 1e6)  # Convert to microseconds
+        timestamp = int(dt.timestamp() // (86400))  # Convert to days (86400 seconds/day)
     return timestamp
 
 def _timestamp_to_datetime(microseconds: np.ndarray) -> np.ndarray:
@@ -133,3 +133,28 @@ def _timestamp_to_datetime(microseconds: np.ndarray) -> np.ndarray:
     # Convert using pandas and cast to datetime64[ns]
     return pd.to_datetime(microseconds, unit='us', utc=True).values.astype("datetime64[ns]")
 
+
+def convert_to_days_since_epoch(timestamps: Union[pd.DatetimeIndex, pd.Series, list]) -> pd.Series:
+    """
+    Convert nanosecond-precision timestamps to daily timestamps in days since the Unix epoch (1970-01-01).
+
+    Parameters:
+    ----------
+    timestamps : Union[pd.DatetimeIndex, pd.Series, list]
+        A sequence of timestamps (e.g., DatetimeIndex, pandas Series, or list of ISO8601 strings).
+
+    Returns:
+    --------
+    pd.Series
+        A pandas Series representing the number of days since the Unix epoch.
+    """
+    # Ensure timestamps are converted to pandas DatetimeIndex
+    timestamps = pd.to_datetime(timestamps, utc=True)
+    
+    # Define the Unix epoch
+    epoch = pd.Timestamp('1970-01-01', tz='UTC')
+    
+    # Truncate timestamps to daily resolution and calculate days since epoch
+    days_since_epoch = (timestamps.floor('D') - epoch).days
+    
+    return days_since_epoch

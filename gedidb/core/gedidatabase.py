@@ -15,7 +15,7 @@ import boto3
 import numpy as np
 import os
 
-from gedidb.utils.geospatial_tools import  _datetime_to_timestamp
+from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -189,8 +189,8 @@ class GEDIDatabase:
         lat_min, lat_max = spatial_range.get("lat_min"), spatial_range.get("lat_max")
         lon_min, lon_max = spatial_range.get("lon_min"), spatial_range.get("lon_max")
         time_range = self.config.get("tiledb", {}).get("time_range", {})
-        time_min = _datetime_to_timestamp(time_range.get("start_time"))
-        time_max = _datetime_to_timestamp(time_range.get("end_time"))
+        time_min = _datetime_to_timestamp_days(time_range.get("start_time"))
+        time_max = _datetime_to_timestamp_days(time_range.get("end_time"))
         
         # Validate ranges to prevent undefined domain errors
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
@@ -234,18 +234,14 @@ class GEDIDatabase:
         
         for var_name, var_info in self.variables_config.items():
             dtype = var_info.get("dtype", "float64")
-            is_profile = var_info.get("is_profile", False)
+            attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=compression_filter))
             
-            # Define attributes based on whether they belong to scalar or profile data
-            if scalar and not is_profile:
-                attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=compression_filter))
-            elif not scalar and is_profile:
-                attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=compression_filter))
-    
-        # Add `shot_number` attribute if not scalar
+        # Add `shot_number` attribute if not scalar and time `timestamp_ns` if scalar
         if not scalar:
             attributes.append(tiledb.Attr(name="shot_number", dtype="int64", filters=compression_filter))
-    
+        elif scalar:
+            attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64", filters=compression_filter))
+   
         return attributes
 
     def _add_variable_metadata(self) -> None:
@@ -327,7 +323,7 @@ class GEDIDatabase:
         # Prepare coordinates (dimensions)
         coords = {
             dim_name: (
-                (pd.to_datetime(granule_data[dim_name]).astype('int64') // 1000).values
+                convert_to_days_since_epoch(granule_data[dim_name]).values
                 if dim_name == 'time' else granule_data[dim_name].values
             )
             for dim_name in self.config["tiledb"]['dimensions']
@@ -339,6 +335,8 @@ class GEDIDatabase:
             for var_name, var_info in self.variables_config.items()
             if not var_info.get('is_profile', False)
         }
+        
+        data['timestamp_ns'] =(pd.to_datetime(granule_data['time']).astype('int64') // 1000).values
     
         # Write to the scalar array
         with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
@@ -386,7 +384,7 @@ class GEDIDatabase:
         """
         
         # Convert 'time' to integer timestamps in microseconds
-        time_array = (pd.to_datetime(granule_data['time']).astype('int64') // 1000).values
+        time_array = convert_to_days_since_epoch(granule_data['time']).values
         lat_array = granule_data['latitude'].values
         lon_array = granule_data['longitude'].values
         shot_numbers = granule_data['shot_number'].values
