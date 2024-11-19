@@ -137,8 +137,10 @@ class GEDIProcessor:
         unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
 
         if not unprocessed_cmr_data:
-           logger.info("All requested granules are already processed. No further computation needed.")
-           return
+            if consolidate:
+                self.database_writer.consolidate_fragments()
+            logger.info("All requested granules are already processed. No further computation needed.")
+            return
        
         self._process_granules(unprocessed_cmr_data)
         
