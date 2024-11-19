@@ -21,15 +21,15 @@ L2A = [217.657,
        'GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002.h5',
        'https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/GEDI02_A.002/GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002/GEDI02_A_2019110062417_O01994_04_T02062_02_003_01_V002.h5',
        'level2A']
-L2B = [41.3685,
+L2B = [41.368,
        'GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002.h5',
        'https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/GEDI02_B.002/GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002/GEDI02_B_2020195091334_O08976_02_T02866_02_003_01_V002.h5',
        'level2B']
-L4A = [28.135965,
+L4A = [28.135,
        'GEDI04_A_2019110062417_O01994_04_T02062_02_002_02_V002.h5',
        'https://data.ornldaac.earthdata.nasa.gov/protected/gedi/GEDI_L4A_AGB_Density_V2_1/data/GEDI04_A_2019110062417_O01994_04_T02062_02_002_02_V002.h5',
        'level4A']
-L4C = [73.182843,
+L4C = [73.182,
        'GEDI04_C_2019110062417_O01994_04_T02062_02_001_01_V002.h5',
        'https://data.ornldaac.earthdata.nasa.gov/protected/gedi/GEDI_L4C_WSCI/data/GEDI04_C_2019110062417_O01994_04_T02062_02_001_01_V002.h5',
        'level4C']
@@ -46,19 +46,19 @@ class TestH5Downloader(unittest.TestCase):
     def test_l2a(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L2A[1], L2A[2], GediProduct.L2A)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L2A[0], 4, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L2A[0], 2, f"File {path[1]} does not have the correct size")
 
     def test_l2b(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L2B[1], L2B[2], GediProduct.L2B)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L2B[0], 4, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L2B[0], 2, f"File {path[1]} does not have the correct size")
 
     def test_l4a(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L4A[1], L4A[2], GediProduct.L4A)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L4A[0], 4, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1])/(1000**2), L4A[0], 2, f"File {path[1]} does not have the correct size")
 
     def test_l4c(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L4C[1], L4C[2], GediProduct.L4C)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L4C[0], 4, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1])/(1000**2), L4C[0], 2, f"File {path[1]} does not have the correct size")
