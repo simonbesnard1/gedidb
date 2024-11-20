@@ -196,7 +196,7 @@ class GEDIDatabase:
         dimensions = [
             tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=1, dtype="float64"),
             tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=1, dtype="float64"),
-            tiledb.Dim("time", domain=(time_min, time_max), tile=365, dtype="int64")  # 1-year tile for time
+            tiledb.Dim("time", domain=(time_min, time_max), tile=1825, dtype="int64")  # ~5-year tile for time
         ]
     
         # Add profile_point dimension if not scalar
