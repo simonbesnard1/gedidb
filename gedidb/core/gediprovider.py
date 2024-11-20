@@ -249,19 +249,20 @@ class GEDIProvider(TileDBProvider):
         profile_data = self._query_array(
             self.profile_array_uri, profile_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
         )
-    
+                 
         # Apply quality filters to both scalar and profile data
         if quality_filters:
             mask = self._apply_quality_filters(scalar_data, quality_filters)
+            
+            filtered_shot_numbers = scalar_data["shot_number"][mask].astype(int)
+            
             scalar_data = {var: data[mask] for var, data in scalar_data.items()}
-            
-            # Determine the number of profile points
-            num_profile_points = len(np.unique(profile_data["profile_point"]))
-            
-            # Broadcast the mask for profile data along the profile points dimension
-            expanded_mask = np.broadcast_to(mask[:, np.newaxis], (len(mask), num_profile_points)).ravel()
-            profile_data = {var: data[expanded_mask] for var, data in profile_data.items()}
 
+            profile_mask = np.isin(profile_data["shot_number"].astype(int), filtered_shot_numbers)
+                        
+            # Apply the expanded mask to profile data
+            profile_data = {var: data[profile_mask] for var, data in profile_data.items()}
+            
         # Remove quality variables from scalar_data if they were not requested
         for q_var in quality_vars:
             if q_var not in variables:
