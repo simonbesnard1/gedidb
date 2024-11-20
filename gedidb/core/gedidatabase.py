@@ -61,16 +61,16 @@ class GEDIDatabase:
             # S3 TileDB context with consolidation settings
             self.tiledb_config =tiledb.Config({
                                                 # Consolidation settings
-                                                "sm.consolidation.steps": 10,
-                                                "sm.consolidation.step_max_frags": 100,  # Adjust based on fragment count
-                                                "sm.consolidation.step_min_frags": 10,
-                                                "sm.consolidation.buffer_size": 5_000_000_000,  # 5GB buffer size per attribute/dimension
-                                                "sm.consolidation.step_size_ratio":1.5, #  allow fragments that differ by up to 50% in size to be consolidated.
-                                                "sm.consolidation.amplification": 1.2, #  Allow for 20% amplification
+                                                "sm.consolidation.steps": config['tiledb']['consolidation_settings'].get('steps', 2),
+                                                "sm.consolidation.step_max_frags": config['tiledb']['consolidation_settings'].get('step_max_frags', 10),                                                  
+                                                "sm.consolidation.step_min_frags": config['tiledb']['consolidation_settings'].get('step_min_frags', 2),
+                                                "sm.consolidation.buffer_size": config['tiledb']['consolidation_settings'].get('buffer_size', 100_000_000),
+                                                "sm.consolidation.step_size_ratio": config['tiledb']['consolidation_settings'].get('step_size_ratio', 1),
+                                                "sm.consolidation.amplification": config['tiledb']['consolidation_settings'].get('amplification', 1),
                                                 
                                                 # Memory budget settings
-                                                "sm.memory_budget": "150000000000",  # 150GB total memory budget
-                                                "sm.memory_budget_var": "50000000000",  # 50GB for variable-sized attributes
+                                                "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
+                                                "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
                                             
                                                 # S3-specific configurations (if using S3)
                                                 "vfs.s3.aws_access_key_id": creds.access_key,
@@ -82,67 +82,67 @@ class GEDIDatabase:
             # Local TileDB context with consolidation settings
             self.tiledb_config = tiledb.Config({
                                                 # Consolidation settings
-                                                "sm.consolidation.steps": 10,
-                                                "sm.consolidation.step_max_frags": 100,  # Adjust based on fragment count
-                                                "sm.consolidation.step_min_frags": 10,
-                                                "sm.consolidation.buffer_size": 5_000_000_000,  # 5GB buffer size per attribute/dimension
-                                                "sm.consolidation.step_size_ratio":1.5, #  allow fragments that differ by up to 50% in size to be consolidated.
-                                                "sm.consolidation.amplification": 1.2, #  Allow for 20% amplification
-
+                                                "sm.consolidation.steps": config['tiledb']['consolidation_settings'].get('steps', 2),
+                                                "sm.consolidation.step_max_frags": config['tiledb']['consolidation_settings'].get('step_max_frags', 10),                                                  
+                                                "sm.consolidation.step_min_frags": config['tiledb']['consolidation_settings'].get('step_min_frags', 2),
+                                                "sm.consolidation.buffer_size": config['tiledb']['consolidation_settings'].get('buffer_size', 100_000_000),
+                                                "sm.consolidation.step_size_ratio": config['tiledb']['consolidation_settings'].get('step_size_ratio', 1),
+                                                "sm.consolidation.amplification": config['tiledb']['consolidation_settings'].get('amplification', 1),
+                                                
                                                 # Memory budget settings
-                                                "sm.memory_budget": "150000000000",  # 150GB total memory budget
-                                                "sm.memory_budget_var": "50000000000",  # 50GB for variable-sized attributes
+                                                "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
+                                                "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),                                            
                                             })
         
         self.ctx = tiledb.Ctx(self.tiledb_config)
         
-        def consolidate_fragments(self) -> None:
-            """
-            Consolidate fragments, metadata, and commit logs for both scalar and profile arrays 
-            to optimize storage and access.
-        
-            Parameters:
-            ----------
-            consolidate : bool, default=True
-                If True, perform fragment consolidation on both arrays.
-            """
-            for array_uri in [self.scalar_array_uri, self.profile_array_uri]:
-                try:
-                    logger.info(f"Consolidating fragments for array: {array_uri}")
-                    
-                    # Update configuration for fragment consolidation
-                    self.tiledb_config["sm.consolidation.mode"] = "fragments"
-                    self.tiledb_config["sm.vacuum.mode"] = "fragments"
-                    
-                    # Consolidate fragments
-                    tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                    
-                    # Vacuum after fragment consolidation
-                    tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                    logger.info(f"Fragment consolidation complete for array: {array_uri}")
-                    
-                    # Update configuration for metadata consolidation
-                    logger.info(f"Consolidating metadata (__meta) for array: {array_uri}")
-                    self.tiledb_config["sm.consolidation.mode"] = "array_meta"
-                    self.tiledb_config["sm.vacuum.mode"] = "array_meta"
-                    
-                    # Consolidate metadata
-                    tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                    tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                    logger.info(f"Metadata consolidation complete for array: {array_uri}")
-                    
-                    # Update configuration for commit log consolidation
-                    logger.info(f"Consolidating commit logs (__commits) for array: {array_uri}")
-                    self.tiledb_config["sm.consolidation.mode"] = "fragment_meta"
-                    self.tiledb_config["sm.vacuum.mode"] = "fragment_meta"
-                    
-                    # Consolidate commit logs
-                    tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                    tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                    logger.info(f"Commit log consolidation complete for array: {array_uri}")
+    def consolidate_fragments(self) -> None:
+        """
+        Consolidate fragments, metadata, and commit logs for both scalar and profile arrays 
+        to optimize storage and access.
+    
+        Parameters:
+        ----------
+        consolidate : bool, default=True
+            If True, perform fragment consolidation on both arrays.
+        """
+        for array_uri in [self.scalar_array_uri, self.profile_array_uri]:
+            try:
+                logger.info(f"Consolidating fragments for array: {array_uri}")
                 
-                except tiledb.TileDBError as e:
-                    logger.error(f"Error during consolidation of {array_uri}: {e}")
+                # Update configuration for fragment consolidation
+                self.tiledb_config["sm.consolidation.mode"] = "fragments"
+                self.tiledb_config["sm.vacuum.mode"] = "fragments"
+                
+                # Consolidate fragments
+                tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                
+                # Vacuum after fragment consolidation
+                tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                logger.info(f"Fragment consolidation complete for array: {array_uri}")
+                
+                # Update configuration for metadata consolidation
+                logger.info(f"Consolidating metadata (__meta) for array: {array_uri}")
+                self.tiledb_config["sm.consolidation.mode"] = "array_meta"
+                self.tiledb_config["sm.vacuum.mode"] = "array_meta"
+                
+                # Consolidate metadata
+                tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                logger.info(f"Metadata consolidation complete for array: {array_uri}")
+                
+                # Update configuration for commit log consolidation
+                logger.info(f"Consolidating commit logs (__commits) for array: {array_uri}")
+                self.tiledb_config["sm.consolidation.mode"] = "fragment_meta"
+                self.tiledb_config["sm.vacuum.mode"] = "fragment_meta"
+                
+                # Consolidate commit logs
+                tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                logger.info(f"Commit log consolidation complete for array: {array_uri}")
+            
+            except tiledb.TileDBError as e:
+                logger.error(f"Error during consolidation of {array_uri}: {e}")
 
     def _create_arrays(self) -> None:
         """Define and create scalar and profile TileDB arrays based on configuration."""
