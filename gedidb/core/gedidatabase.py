@@ -244,6 +244,8 @@ class GEDIDatabase:
         # Add `shot_number` attribute if not scalar
         if not scalar:
             attributes.append(tiledb.Attr(name="shot_number", dtype="int64"))
+        if scalar:
+            attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
    
         return attributes
 
