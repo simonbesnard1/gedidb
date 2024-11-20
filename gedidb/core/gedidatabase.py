@@ -108,7 +108,7 @@ class GEDIDatabase:
         """
         for array_uri in [self.scalar_array_uri, self.profile_array_uri]:
             try:
-                logger.info(f"Consolidating fragments for array: {array_uri}")
+                logger.info(f"Consolidating process for array: {array_uri}")
                 
                 # Update configuration for fragment consolidation
                 self.tiledb_config["sm.consolidation.mode"] = "fragments"
@@ -119,27 +119,23 @@ class GEDIDatabase:
                 
                 # Vacuum after fragment consolidation
                 tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                logger.info(f"Fragment consolidation complete for array: {array_uri}")
                 
                 # Update configuration for metadata consolidation
-                logger.info(f"Consolidating metadata (__meta) for array: {array_uri}")
                 self.tiledb_config["sm.consolidation.mode"] = "array_meta"
                 self.tiledb_config["sm.vacuum.mode"] = "array_meta"
                 
                 # Consolidate metadata
                 tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
                 tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                logger.info(f"Metadata consolidation complete for array: {array_uri}")
                 
                 # Update configuration for commit log consolidation
-                logger.info(f"Consolidating commit logs (__commits) for array: {array_uri}")
                 self.tiledb_config["sm.consolidation.mode"] = "fragment_meta"
                 self.tiledb_config["sm.vacuum.mode"] = "fragment_meta"
                 
                 # Consolidate commit logs
                 tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
                 tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
-                logger.info(f"Commit log consolidation complete for array: {array_uri}")
+                logger.info(f"Consolidation complete for array: {array_uri}")
             
             except tiledb.TileDBError as e:
                 logger.error(f"Error during consolidation of {array_uri}: {e}")
@@ -243,7 +239,7 @@ class GEDIDatabase:
     
         # Add `shot_number` attribute if not scalar
         if not scalar:
-            attributes.append(tiledb.Attr(name="shot_number", dtype="int64"))
+            attributes.append(tiledb.Attr(name="shot_number", dtype="uint64"))
         if scalar:
             attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
    

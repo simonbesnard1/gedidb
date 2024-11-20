@@ -131,7 +131,7 @@ def _timestamp_to_datetime(days: np.ndarray) -> np.ndarray:
         Array of datetime64[D] values in UTC.
     """
     # Convert days since epoch to datetime64 with daily precision
-    return (np.datetime64('1970-01-01', 'D') + days).astype('datetime64[D]')
+    return (np.datetime64('1970-01-01', 'D') + days).astype('datetime64[ns]')
 
 def convert_to_days_since_epoch(timestamps: Union[pd.DatetimeIndex, pd.Series, list]) -> pd.Series:
     """
