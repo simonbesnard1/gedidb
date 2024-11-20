@@ -389,7 +389,7 @@ class GEDIDatabase:
         """
         
         # Convert 'time' to integer timestamps in microseconds
-        time_array = convert_to_days_since_epoch(granule_data['time']).values
+        time_array = convert_to_days_since_epoch(granule_data['time'].values)
         lat_array = granule_data['latitude'].values
         lon_array = granule_data['longitude'].values
         shot_numbers = granule_data['shot_number'].values
