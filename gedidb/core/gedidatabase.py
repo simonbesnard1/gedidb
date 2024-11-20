@@ -326,7 +326,7 @@ class GEDIDatabase:
         # Prepare coordinates (dimensions)
         coords = {
             dim_name: (
-                convert_to_days_since_epoch(granule_data[dim_name]).values
+                convert_to_days_since_epoch(granule_data[dim_name].values)
                 if dim_name == 'time' else granule_data[dim_name].values
             )
             for dim_name in self.config["tiledb"]['dimensions']
