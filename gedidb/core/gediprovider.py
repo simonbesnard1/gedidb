@@ -226,7 +226,7 @@ class GEDIProvider(TileDBProvider):
             geometry = check_and_format_shape(geometry, simplify=True)
             lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
         else:
-            lat_min, lat_max = -90.0, 90.0
+            lat_min, lat_max = -56.0, 56.0
             lon_min, lon_max = -180.0, 180.0
     
         # Convert start and end times to numpy datetime64
