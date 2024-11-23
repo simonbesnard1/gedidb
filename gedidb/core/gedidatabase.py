@@ -312,7 +312,7 @@ class GEDIDatabase:
         if profile_vars:
             self.write_profile_granule(granule_data, profile_vars)
         
-    def write_scalar_granule(self, granule_data: pd.DataFrame, spatial_tile_size: float = 5.0) -> None:
+    def write_scalar_granule(self, granule_data: pd.DataFrame, spatial_tile_size: float = 10.0) -> None:
         """
         Write scalar data to the scalar TileDB array with spatial tiling.
         
@@ -356,7 +356,7 @@ class GEDIDatabase:
                 array[dims] = data
                 
     
-    def write_profile_granule(self, granule_data: pd.DataFrame, profile_vars: list, spatial_tile_size: float = 5.0) -> None:
+    def write_profile_granule(self, granule_data: pd.DataFrame, profile_vars: list, spatial_tile_size: float = 10.0) -> None:
         """
         Write profile data to the profile TileDB array with spatial tiling.
         
