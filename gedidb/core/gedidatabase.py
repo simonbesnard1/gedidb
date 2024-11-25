@@ -14,6 +14,7 @@ from typing import Dict, Any, List
 import boto3
 import numpy as np
 import os
+from retry import retry
 
 from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 
@@ -311,7 +312,8 @@ class GEDIDatabase:
         profile_vars = [var_name for var_name, var_info in self.variables_config.items() if var_info.get('is_profile', False)]
         if profile_vars:
             self.write_profile_granule(granule_data, profile_vars)
-        
+     
+    @retry((tiledb.TileDBError), tries=5, delay=2, backoff=2)
     def write_scalar_granule(self, granule_data: pd.DataFrame, spatial_tile_size: float = 10.0) -> None:
         """
         Write scalar data to the scalar TileDB array with spatial tiling.
@@ -355,7 +357,7 @@ class GEDIDatabase:
                 dims = tuple(coords[dim_name] for dim_name in dim_names)
                 array[dims] = data
                 
-    
+    @retry((tiledb.TileDBError), tries=5, delay=2, backoff=2)
     def write_profile_granule(self, granule_data: pd.DataFrame, profile_vars: list, spatial_tile_size: float = 10.0) -> None:
         """
         Write profile data to the profile TileDB array with spatial tiling.
