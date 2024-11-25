@@ -9,13 +9,15 @@
 
 import geopandas as gpd
 import gedidb as gdb
+import time
+start_time = time.time()
 
 #%% Instantiate the GEDIProvider
 provider = gdb.GEDIProvider(storage_type= 's3', s3_bucket="dog.gedidb.gedi-l2-l4-v002",
                             endpoint_override="https://s3.gfz-potsdam.de")
 
 #%% Load region of interest
-region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/BR-Sa3.geojson')
+region_of_interest = gpd.read_file('./data/geojson/BR-Sa3.geojson')
 
 # Define the columns to query and additional parameters
 vars_selected = ["rh", 'agbd', 'sensitivity', 'energy_total']
@@ -30,3 +32,4 @@ gedi_data = provider.get_data(variables=vars_selected,
                               geometry=region_of_interest,
                               start_time="2019-07-21", end_time="2024-07-25", 
                               return_type='xarray')
+print("--- %s seconds ---" % (time.time() - start_time))
