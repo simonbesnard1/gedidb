@@ -314,7 +314,7 @@ class GEDIDatabase:
             self.write_profile_granule(granule_data, profile_vars)
      
     @retry((tiledb.TileDBError), tries=5, delay=2, backoff=2)
-    def write_scalar_granule(self, granule_data: pd.DataFrame, spatial_tile_size: float = 10.0) -> None:
+    def write_scalar_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write scalar data to the scalar TileDB array with spatial tiling.
         
@@ -325,40 +325,66 @@ class GEDIDatabase:
         spatial_tile_size : float, default=1.0
             Size of spatial tiles in degrees (e.g., 1° x 1° tiles).
         """
-        # Add spatial tile indices to the data
-        granule_data['lat_tile'] = (granule_data['latitude'] // spatial_tile_size).astype(int)
-        granule_data['lon_tile'] = (granule_data['longitude'] // spatial_tile_size).astype(int)
+            
+        # Prepare coordinates (dimensions)
+        coords = {
+            dim_name: (
+                convert_to_days_since_epoch(granule_data[dim_name].values)
+                if dim_name == 'time' else granule_data[dim_name].values
+            )
+            for dim_name in self.config["tiledb"]['dimensions']
+        }
+        
+        # Extract scalar data attributes
+        data = {
+            var_name: granule_data[var_name].values
+            for var_name, var_info in self.variables_config.items()
+            if not var_info.get('is_profile', False)
+        }
+        
+        # Add the timestamp (nanoseconds since epoch)
+        data['timestamp_ns'] = (pd.to_datetime(granule_data['time']).astype('int64') // 1000).values
+            
+        # Write the spatial tile to the scalar array
+        with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
+            dim_names = [dim.name for dim in array.schema.domain]
+            dims = tuple(coords[dim_name] for dim_name in dim_names)
+            array[dims] = data
     
-        # Group data by spatial tiles
-        for (lat_tile, lon_tile), tile_data in granule_data.groupby(['lat_tile', 'lon_tile']):
+        # # Add spatial tile indices to the data
+        # granule_data['lat_tile'] = (granule_data['latitude'] // spatial_tile_size).astype(int)
+        # granule_data['lon_tile'] = (granule_data['longitude'] // spatial_tile_size).astype(int)
+    
+        # # Group data by spatial tiles
+        # for (lat_tile, lon_tile), tile_data in granule_data.groupby(['lat_tile', 'lon_tile']):
             
-            # Prepare coordinates (dimensions)
-            coords = {
-                dim_name: (
-                    convert_to_days_since_epoch(tile_data[dim_name].values)
-                    if dim_name == 'time' else tile_data[dim_name].values
-                )
-                for dim_name in self.config["tiledb"]['dimensions']
-            }
+        #     # Prepare coordinates (dimensions)
+        #     coords = {
+        #         dim_name: (
+        #             convert_to_days_since_epoch(tile_data[dim_name].values)
+        #             if dim_name == 'time' else tile_data[dim_name].values
+        #         )
+        #         for dim_name in self.config["tiledb"]['dimensions']
+        #     }
             
-            # Extract scalar data attributes
-            data = {
-                var_name: tile_data[var_name].values
-                for var_name, var_info in self.variables_config.items()
-                if not var_info.get('is_profile', False)
-            }
+        #     # Extract scalar data attributes
+        #     data = {
+        #         var_name: tile_data[var_name].values
+        #         for var_name, var_info in self.variables_config.items()
+        #         if not var_info.get('is_profile', False)
+        #     }
             
-            # Add the timestamp (nanoseconds since epoch)
-            data['timestamp_ns'] = (pd.to_datetime(tile_data['time']).astype('int64') // 1000).values
+        #     # Add the timestamp (nanoseconds since epoch)
+        #     data['timestamp_ns'] = (pd.to_datetime(tile_data['time']).astype('int64') // 1000).values
             
-            # Write the spatial tile to the scalar array
-            with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
-                dim_names = [dim.name for dim in array.schema.domain]
-                dims = tuple(coords[dim_name] for dim_name in dim_names)
-                array[dims] = data
+        #     # Write the spatial tile to the scalar array
+        #     with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
+        #         dim_names = [dim.name for dim in array.schema.domain]
+        #         dims = tuple(coords[dim_name] for dim_name in dim_names)
+        #         array[dims] = data
                 
     @retry((tiledb.TileDBError), tries=5, delay=2, backoff=2)
-    def write_profile_granule(self, granule_data: pd.DataFrame, profile_vars: list, spatial_tile_size: float = 10.0) -> None:
+    def write_profile_granule(self, granule_data: pd.DataFrame, profile_vars: list) -> None:
         """
         Write profile data to the profile TileDB array with spatial tiling.
         
@@ -371,20 +397,29 @@ class GEDIDatabase:
         spatial_tile_size : float, default=1.0
             Size of spatial tiles in degrees (e.g., 1° x 1° tiles).
         """
-        # Add spatial tile indices to the data
-        granule_data['lat_tile'] = (granule_data['latitude'] // spatial_tile_size).astype(int)
-        granule_data['lon_tile'] = (granule_data['longitude'] // spatial_tile_size).astype(int)
+        # Process profile data and coordinates for this tile
+        coords, data = self._process_profile_variables(granule_data, profile_vars)
     
-        # Group data by spatial tiles
-        for (lat_tile, lon_tile), tile_data in granule_data.groupby(['lat_tile', 'lon_tile']):
-            # Process profile data and coordinates for this tile
-            coords, data = self._process_profile_variables(tile_data, profile_vars)
+        # Write the tile's profile data to the TileDB array
+        with tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
+            dim_names = [dim.name for dim in array.schema.domain]
+            dims = tuple(coords[dim_name] for dim_name in dim_names)
+            array[dims] = data
+        
+        # # Add spatial tile indices to the data
+        # granule_data['lat_tile'] = (granule_data['latitude'] // spatial_tile_size).astype(int)
+        # granule_data['lon_tile'] = (granule_data['longitude'] // spatial_tile_size).astype(int)
     
-            # Write the tile's profile data to the TileDB array
-            with tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
-                dim_names = [dim.name for dim in array.schema.domain]
-                dims = tuple(coords[dim_name] for dim_name in dim_names)
-                array[dims] = data
+        # # Group data by spatial tiles
+        # for (lat_tile, lon_tile), tile_data in granule_data.groupby(['lat_tile', 'lon_tile']):
+        #     # Process profile data and coordinates for this tile
+        #     coords, data = self._process_profile_variables(tile_data, profile_vars)
+    
+        #     # Write the tile's profile data to the TileDB array
+        #     with tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
+        #         dim_names = [dim.name for dim in array.schema.domain]
+        #         dims = tuple(coords[dim_name] for dim_name in dim_names)
+        #         array[dims] = data
         
     def _process_profile_variables(self, granule_data: pd.DataFrame, profile_vars: list):
         """
