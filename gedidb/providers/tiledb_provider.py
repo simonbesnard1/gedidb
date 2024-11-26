@@ -102,7 +102,7 @@ class TileDBProvider:
             "vfs.s3.aws_secret_access_key": creds.secret_key,
             "vfs.s3.endpoint_override": endpoint_override,
             "vfs.s3.region": region,
-            "sm.num_reader_threads": 8
+            "sm.num_reader_threads": 50
         })
 
     def _initialize_local_context(self) -> tiledb.Ctx:
