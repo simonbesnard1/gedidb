@@ -241,15 +241,16 @@ class GEDIProvider(TileDBProvider):
         profile_vars = [v for v in variables if v in variable_types["profile"]] + DEFAULT_DIMS
         quality_vars = [q for q in quality_filters if q not in scalar_vars]
         scalar_vars += quality_vars  # Ensure quality variables are included in the scalar query
-    
+        
         # Query both scalar and profile arrays within the specified bounds and time range
         scalar_data = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
         )
+
         profile_data = self._query_array(
             self.profile_array_uri, profile_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
         )
-                 
+                             
         # Apply quality filters to both scalar and profile data
         if quality_filters:
             mask = self._apply_quality_filters(scalar_data, quality_filters)
@@ -414,7 +415,6 @@ class GEDIProvider(TileDBProvider):
             if return_type == "xarray"
             else self.to_dataframe(scalar_data, profile_data)
         )
-
 
     def to_dataframe(self, scalar_data: Dict[str, np.ndarray], profile_data: Dict[str, np.ndarray]) -> pd.DataFrame:
         """
