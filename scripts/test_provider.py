@@ -9,8 +9,9 @@
 
 import geopandas as gpd
 import gedidb as gdb
-import cProfile
-import pstats
+
+import time
+start_time_ = time.time()
 
 #%% Instantiate the GEDIProvider
 provider = gdb.GEDIProvider(storage_type='s3', s3_bucket="dog.gedidb.gedi-l2-l4-v002",
@@ -20,31 +21,21 @@ provider = gdb.GEDIProvider(storage_type='s3', s3_bucket="dog.gedidb.gedi-l2-l4-
 region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/BR-Sa3.geojson')
 
 # Define the columns to query and additional parameters
-vars_selected = ['agbd', 'sensitivity', 'energy_total']
+vars_selected = ['rh', 'agbd', 'sensitivity', 'energy_total', "rh98"]
 quality_filters = {
     'sensitivity': '>= 0.9 and <= 1.0',
     'beam_type': '= full'
 }
 
 # Profile the provider's `get_data` function
-def profile_get_data():
-    gedi_data = provider.get_data(
-        variables=vars_selected,
-        query_type="boundind_box",
-        geometry=region_of_interest,
-        start_time="2019-07-21",
-        end_time="2024-07-25",
-        return_type='xarray'
-    )
+gedi_data = provider.get_data(
+    variables=vars_selected,
+    query_type="boundind_box",
+    geometry=region_of_interest,
+    start_time="2019-07-21",
+    end_time="2024-07-25",
+    return_type='xarray'
+)
+print("--- %s seconds ---" % (time.time() - start_time_))
 
-# Run profiling
-profiler = cProfile.Profile()
-profiler.enable()
-profile_get_data()
-profiler.disable()
 
-# Analyze the slowest functions
-stats = pstats.Stats(profiler)
-stats.strip_dirs()
-stats.sort_stats('time')  # Sort by cumulative time
-stats.print_stats(5)  # Print the 5 slowest functions

@@ -101,8 +101,7 @@ class TileDBProvider:
             "vfs.s3.aws_access_key_id": creds.access_key,
             "vfs.s3.aws_secret_access_key": creds.secret_key,
             "vfs.s3.endpoint_override": endpoint_override,
-            "vfs.s3.region": region,
-            "sm.num_reader_threads": 50
+            "vfs.s3.region": region
         })
 
     def _initialize_local_context(self) -> tiledb.Ctx:
@@ -264,7 +263,6 @@ class TileDBProvider:
         - Additional quality filters are passed as keyword arguments and applied to attributes.
         - Ensure the TileDB context (`self.ctx`) is configured correctly to access the array.
         """
-        
         with tiledb.open(array_uri, mode="r", ctx=self.ctx) as array:
             query = array.query(attrs=variables)
             data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]
