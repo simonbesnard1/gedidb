@@ -246,10 +246,11 @@ class GEDIProvider(TileDBProvider):
         scalar_data = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
         )
+        
         profile_data = self._query_array(
             self.profile_array_uri, profile_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
         )        
-        
+    
         # Apply quality filters to both scalar and profile data
         if quality_filters:
             mask = self._apply_quality_filters(scalar_data, quality_filters)
@@ -407,7 +408,7 @@ class GEDIProvider(TileDBProvider):
         if scalar_data["shot_number"].size == 0 and profile_data["shot_number"].size == 0:
             logger.info("No data found for specified criteria.")
             return None
-
+        
         metadata = self.get_available_variables()
         
         return (
