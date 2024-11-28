@@ -30,7 +30,7 @@ tiledb_config =tiledb.Config({
 
 ctx = tiledb.Ctx(tiledb_config)
 
-bucket = 'dog.gedidb.gedi-l2-l4-v002'
+bucket = 'dog.gedidb.gedi-l2-l4-v002/test'
 scalar_array_uri = os.path.join(f"s3://{bucket}", 'profile_array_uri')
 
 

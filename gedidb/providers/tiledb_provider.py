@@ -149,8 +149,8 @@ class TileDBProvider:
     
         """
         try:
-            with tiledb.SparseArray(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
-                 tiledb.SparseArray(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
+                 tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
                 
                 # Collect metadata for scalar and profile arrays, excluding unwanted keys
                 scalar_metadata = {k: scalar_array.meta[k] for k in scalar_array.meta 
@@ -200,8 +200,8 @@ class TileDBProvider:
         - Only keys containing a period are included, filtering out any non-variable-related metadata.
     
         """
-        with tiledb.SparseArray(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
-             tiledb.SparseArray(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+        with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array, \
+             tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
             
             # Extract unique variable names from metadata keys for scalar and profile arrays
             scalar_vars = list({k.split(".")[0] for k in scalar_array.meta if "." in k})
@@ -263,7 +263,7 @@ class TileDBProvider:
         - Additional quality filters are passed as keyword arguments and applied to attributes.
         - Ensure the TileDB context (`self.ctx`) is configured correctly to access the array.
         """
-        with tiledb.SparseArray(array_uri, mode="r", ctx=self.ctx) as array:
+        with tiledb.open(array_uri, mode="r", ctx=self.ctx) as array:
             query = array.query(attrs=variables)
             data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]
             return data

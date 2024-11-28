@@ -203,7 +203,7 @@ class GEDIDatabase:
         # Add profile_point dimension if not scalar
         if not scalar:
             max_profile_length = self.config['tiledb'].get('max_profile_length', 100)
-            dimensions.append(tiledb.Dim("profile_point", domain=(0, max_profile_length), tile=max_profile_length, dtype="int32"))
+            dimensions.append(tiledb.Dim("profile_point", domain=(0, max_profile_length), tile=None, dtype="int32"))
     
         return tiledb.Domain(*dimensions)
     
@@ -252,7 +252,7 @@ class GEDIDatabase:
         This information is pulled from the configuration.
         """
         # Add metadata to scalar array
-        with tiledb.SparseArray(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
+        with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
             array.meta["array_type"] = "scalar"
             for var_name, var_info in self.variables_config.items():
                 if not var_info.get('is_profile', False):
@@ -270,7 +270,7 @@ class GEDIDatabase:
                         logger.warning(f"Missing metadata key for {var_name}: {e}")
     
         # Add metadata to profile array
-        with tiledb.SparseArray(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
+        with tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
             array.meta["array_type"] = "profile"
             for var_name, var_info in self.variables_config.items():
                 if var_info.get('is_profile', False):
@@ -345,7 +345,7 @@ class GEDIDatabase:
         data['timestamp_ns'] = (pd.to_datetime(granule_data['time']).astype('int64') // 1000).values
 
         # Write to the scalar array
-        with tiledb.SparseArray(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
+        with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as array:
             dim_names = [dim.name for dim in array.schema.domain]
             dims = tuple(coords[dim_name] for dim_name in dim_names)
             array[dims] = data
@@ -368,7 +368,7 @@ class GEDIDatabase:
         coords, data = self._process_profile_variables(granule_data, profile_vars)
             
         # Write the tile's profile data to the TileDB array
-        with tiledb.SparseArray(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
+        with tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as array:
             dim_names = [dim.name for dim in array.schema.domain]
             dims = tuple(coords[dim_name] for dim_name in dim_names)
             array[dims] = data
@@ -452,11 +452,11 @@ class GEDIDatabase:
 
         try:
             # Open scalar array and check metadata for granule statuses
-            with tiledb.SparseArray(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array:
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array:
                 scalar_metadata = {key: scalar_array.meta[key] for key in scalar_array.meta.keys() if "_status" in key}
         
             # Open profile array and check metadata for granule statuses
-            with tiledb.SparseArray(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
+            with tiledb.open(self.profile_array_uri, mode="r", ctx=self.ctx) as profile_array:
                 profile_metadata = {key: profile_array.meta[key] for key in profile_array.meta.keys() if "_status" in key}
         
             # Combine metadata from both arrays and check each granule
@@ -483,8 +483,8 @@ class GEDIDatabase:
             The unique identifier for the granule.
         """
         try:
-            with tiledb.SparseArray(self.scalar_array_uri, mode="w", ctx=self.ctx) as scalar_array, \
-                 tiledb.SparseArray(self.profile_array_uri, mode="w", ctx=self.ctx) as profile_array:
+            with tiledb.open(self.scalar_array_uri, mode="w", ctx=self.ctx) as scalar_array, \
+                 tiledb.open(self.profile_array_uri, mode="w", ctx=self.ctx) as profile_array:
                 
                 scalar_array.meta[f"granule_{granule_key}_status"] = "processed"
                 scalar_array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
