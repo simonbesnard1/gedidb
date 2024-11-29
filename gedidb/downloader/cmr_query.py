@@ -99,19 +99,44 @@ class CMRQuery:
         metadata = granule_name.parse_granule_filename(name)
         return f"{metadata.orbit}_{metadata.sub_orbit_granule}"
 
-    # @staticmethod
-    # def _get_name(item: dict) -> str:
-    #     """
-    #     Extract the name of the granule from the CMR response item.
+    @staticmethod
+    def _compute_bounding_box(polygon_):
+        """
+        Computes the bounding box for a given polygon.
 
-    #     :param item: CMR response item.
-    #     :return: Granule name.
-    #     """
-    #     if "LPCLOUD" in item["data_center"]:
-    #         return item["producer_granule_id"]
-    #     if "ORNL" in item["data_center"]:
-    #         return item["title"].split(".", maxsplit=1)[1]
-    #     return None
+        Parameters:
+            polygon_ (list): A list of polygons, each containing a single string 
+                             with space-separated longitude and latitude pairs.
+
+        Returns:
+            dict: A dictionary containing the bounding box as GeoJSON format.
+        """
+        # Extract coordinates
+        polygon_coords = []
+        for coords in polygon_:
+            coord_pairs = coords[0].split()  # Split the string of coordinates
+            polygon_coords += [
+                [float(coord_pairs[i]), float(coord_pairs[i + 1])]
+                for i in range(0, len(coord_pairs), 2)
+            ]
+
+        # Find bounding box
+        min_lon = min(coord[0] for coord in polygon_coords)
+        max_lon = max(coord[0] for coord in polygon_coords)
+        min_lat = min(coord[1] for coord in polygon_coords)
+        max_lat = max(coord[1] for coord in polygon_coords)
+
+        # Define the bounding box as a polygon (counter-clockwise order)
+        bounding_box_coords = [
+            [min_lon, min_lat],  # Bottom-left
+            [max_lon, min_lat],  # Bottom-right
+            [max_lon, max_lat],  # Top-right
+            [min_lon, max_lat],  # Top-left
+            [min_lon, min_lat],  # Closing the polygon
+        ]
+        
+        return bounding_box_coords
+
     
     @staticmethod
     def _get_name(item: dict) -> str:
@@ -222,12 +247,13 @@ class GranuleQuery(CMRQuery):
                 break
     
         session.close()
-    
+        
         # Process granule data into a structured DataFrame
         granule_data_processed = [
             {
                 "id": self._get_id(granule_name),
                 "name": granule_name,
+                'bounding_box': self._compute_bounding_box(item['polygons']),
                 "url": item["links"][0]["href"],
                 "size": float(item["granule_size"]),
                 "product": self.product.value,
@@ -237,6 +263,6 @@ class GranuleQuery(CMRQuery):
         ]
             
         return pd.DataFrame(
-            granule_data_processed, columns=["id", "name", "url", "size", "product"]
+            granule_data_processed, columns=["id", "name", 'bounding_box', "url", "size", "product"]
         )
     

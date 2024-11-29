@@ -14,7 +14,7 @@ import time
 start_time_ = time.time()
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(storage_type='s3', s3_bucket="dog.gedidb.gedi-l2-l4-v002/test",
+provider = gdb.GEDIProvider(storage_type='s3', s3_bucket="dog.gedidb.gedi-l2-l4-v002/",
                             endpoint_override="https://s3.gfz-potsdam.de")
 
 #%% Load region of interest
