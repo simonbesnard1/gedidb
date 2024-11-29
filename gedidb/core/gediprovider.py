@@ -249,8 +249,8 @@ class GEDIProvider(TileDBProvider):
         
         profile_data = self._query_array(
             self.profile_array_uri, profile_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
-        )        
-    
+        )     
+        
         # Apply quality filters to both scalar and profile data
         if quality_filters:
             mask = self._apply_quality_filters(scalar_data, quality_filters)

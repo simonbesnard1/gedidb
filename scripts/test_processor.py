@@ -9,7 +9,7 @@
 
 import gedidb as gdb
 
-config_file = "./config_files/data_config.yml"
+config_file = "/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml"
 n_workers = 2
 
 if __name__ == "__main__":
@@ -19,5 +19,7 @@ if __name__ == "__main__":
         config_file=config_file,
         n_workers=n_workers
     ) as processor:
-        processor.compute(consolidate=True)
+        processor.compute(consolidate=False)
     
+
+

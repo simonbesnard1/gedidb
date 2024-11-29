@@ -61,14 +61,6 @@ class GEDIDatabase:
             creds = session.get_credentials()
             # S3 TileDB context with consolidation settings
             self.tiledb_config =tiledb.Config({
-                                                # Consolidation settings
-                                                "sm.consolidation.steps": config['tiledb']['consolidation_settings'].get('steps', 2),
-                                                "sm.consolidation.step_max_frags": config['tiledb']['consolidation_settings'].get('step_max_frags', 10),                                                  
-                                                "sm.consolidation.step_min_frags": config['tiledb']['consolidation_settings'].get('step_min_frags', 2),
-                                                "sm.consolidation.buffer_size": config['tiledb']['consolidation_settings'].get('buffer_size', 100_000_000),
-                                                "sm.consolidation.step_size_ratio": config['tiledb']['consolidation_settings'].get('step_size_ratio', 1),
-                                                "sm.consolidation.amplification": config['tiledb']['consolidation_settings'].get('amplification', 1),
-                                                
                                                 # Memory budget settings
                                                 "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
                                                 "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
@@ -82,14 +74,6 @@ class GEDIDatabase:
         else:
             # Local TileDB context with consolidation settings
             self.tiledb_config = tiledb.Config({
-                                                # Consolidation settings
-                                                "sm.consolidation.steps": config['tiledb']['consolidation_settings'].get('steps', 2),
-                                                "sm.consolidation.step_max_frags": config['tiledb']['consolidation_settings'].get('step_max_frags', 10),                                                  
-                                                "sm.consolidation.step_min_frags": config['tiledb']['consolidation_settings'].get('step_min_frags', 2),
-                                                "sm.consolidation.buffer_size": config['tiledb']['consolidation_settings'].get('buffer_size', 100_000_000),
-                                                "sm.consolidation.step_size_ratio": config['tiledb']['consolidation_settings'].get('step_size_ratio', 1),
-                                                "sm.consolidation.amplification": config['tiledb']['consolidation_settings'].get('amplification', 1),
-                                                
                                                 # Memory budget settings
                                                 "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
                                                 "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),                                            
@@ -115,9 +99,14 @@ class GEDIDatabase:
                 self.tiledb_config["sm.consolidation.mode"] = "fragments"
                 self.tiledb_config["sm.vacuum.mode"] = "fragments"
                 
-                # Consolidate fragments
-                tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config)
+                with tiledb.open(array_uri, 'r', ctx=self.ctx) as array_:
+                    
+                    # Generate the consolidation plan
+                    cons_plan = tiledb.ConsolidationPlan(self.ctx, array_, self.config['tiledb']['consolidation_settings'].get('fragment_size', 100_000_000))
                 
+                # Consolidate fragments
+                tiledb.consolidate(array_uri, ctx=self.ctx, config=self.tiledb_config, fragment_uris=cons_plan[0]['fragment_uris'])
+
                 # Vacuum after fragment consolidation
                 tiledb.vacuum(array_uri, ctx=self.ctx, config=self.tiledb_config)
                 
