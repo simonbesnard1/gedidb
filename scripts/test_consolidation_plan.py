@@ -23,10 +23,10 @@ scalar_array_uri = os.path.join(f"s3://{bucket}", 'scalar_array_uri')
 # Open the array in read mode
 with tiledb.open(scalar_array_uri, 'r', ctx=ctx) as array_uri:
     # Define the desirable fragment size in bytes
-    fragment_size = 100_000_000_000  # 10MB
+    fragment_size = 200_000_000_000  # 200GB
     
     # Generate the consolidation plan
-    cons_plan = tiledb.ConsolidationPlan(array_uri, fragment_size)
+    cons_plan = tiledb.ConsolidationPlan(ctx, array_uri, fragment_size)
 
     # Output details about the plan
     print("Consolidation Plan Details:")

@@ -30,14 +30,14 @@ tiledb_config =tiledb.Config({
 
 ctx = tiledb.Ctx(tiledb_config)
 
-bucket = 'dog.gedidb.gedi-l2-l4-v002/test'
-scalar_array_uri = os.path.join(f"s3://{bucket}", 'profile_array_uri')
+bucket = 'dog.gedidb.gedi-l2-l4-v002'
+scalar_array_uri = os.path.join(f"s3://{bucket}", 'scalar_array_uri')
 
 
 fragment_info = tiledb.FragmentInfoList(scalar_array_uri, ctx=ctx)
 
 i =0
-for fragment in fragment_info:
+for fragment in fragment_info[0:100]:
 
     # Extract the nonempty domain
     nonempty_domain = fragment.nonempty_domain
@@ -71,3 +71,24 @@ for fragment in fragment_info:
         json.dump(geojson, file, indent=4)
     i +=1
 
+
+#%% Check specific fragments
+
+# Open the array and fetch the FragmentInfoList
+fragment_info_list = tiledb.FragmentInfoList(scalar_array_uri, ctx=ctx)
+
+# Target schema name to search for
+target_schema_name = '__1732993286113_1732993286113_2c7197316c65044e49b90c199f06305f_22'
+
+# Loop over the fragment info to find the matching schema name
+matching_fragments = []
+for fragment in fragment_info_list:
+    if os.path.basename(fragment.uri) == target_schema_name:
+        matching_fragments.append(fragment)
+
+# Print results
+if matching_fragments:
+    for fragment in matching_fragments:
+        print(f"Found matching fragment:\nURI: {fragment.uri}\nNon-empty domain: {fragment.nonempty_domain}\n")
+else:
+    print(f"No fragment found with array_schema_name: {target_schema_name}")
