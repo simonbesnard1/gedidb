@@ -37,7 +37,7 @@ scalar_array_uri = os.path.join(f"s3://{bucket}", 'scalar_array_uri')
 fragment_info = tiledb.FragmentInfoList(scalar_array_uri, ctx=ctx)
 
 i =0
-for fragment in fragment_info[0:100]:
+for fragment in fragment_info:
 
     # Extract the nonempty domain
     nonempty_domain = fragment.nonempty_domain
