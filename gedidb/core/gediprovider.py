@@ -32,8 +32,6 @@ class GEDIProvider(TileDBProvider):
     ----------
     scalar_array_uri : str
         URI for accessing the scalar data array.
-    profile_array_uri : str
-        URI for accessing the profile data array.
     ctx : tiledb.Ctx
         TileDB context for the configured storage type (S3 or local).
     
@@ -130,7 +128,6 @@ class GEDIProvider(TileDBProvider):
         scalar_vars = [v for v in variables if v in variable_types["scalar"]] + DEFAULT_DIMS
         quality_vars = [q for q in quality_filters if q not in scalar_vars]
         scalar_vars += quality_vars  # Ensure quality variables are included in the scalar query
-        profile_vars = [v for v in variables if v in variable_types["profile"]] + DEFAULT_DIMS
         
         # Convert start and end times to timestamps
         start_timestamp = _datetime_to_timestamp_days(np.datetime64(start_time) if start_time else None)
@@ -144,28 +141,18 @@ class GEDIProvider(TileDBProvider):
         scalar_data_subset = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp, **quality_filters
         )
-        profile_data_subset = self._query_array(
-            self.profile_array_uri, profile_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp, **quality_filters
-        )
         
         # Apply quality filters to both scalar and profile data
         if quality_filters:
             mask = self._apply_quality_filters(scalar_data_subset, quality_filters)
             scalar_data_subset = {var: data[mask] for var, data in scalar_data_subset.items()}
-            
-            # Determine the number of profile points
-            num_profile_points = len(np.unique(profile_data_subset["profile_point"]))
-            
-            # Broadcast the mask for profile data along the profile points dimension
-            expanded_mask = np.broadcast_to(mask[:, np.newaxis], (len(mask), num_profile_points)).ravel()
-            profile_data_subset = {var: data[expanded_mask] for var, data in profile_data_subset.items()}
-
+                
         # Remove quality variables from scalar_data if they were not requested
         for q_var in quality_vars:
             if q_var not in variables:
                 scalar_data_subset.pop(q_var, None)
     
-        if not scalar_data_subset or not profile_data_subset:
+        if not scalar_data_subset:
             logger.info("No points found in the bounding box.")
             return {}, {}
     
@@ -178,9 +165,8 @@ class GEDIProvider(TileDBProvider):
     
         # Filter data based on nearest shot numbers
         scalar_data = {k: np.array(v)[np.isin(shot_numbers, nearest_shots)] for k, v in scalar_data_subset.items()}
-        profile_data = {k: np.array(v)[np.isin(profile_data_subset["shot_number"], nearest_shots)] for k, v in profile_data_subset.items()}
-    
-        return scalar_data, profile_data
+        
+        return scalar_data
     
     
     def query_data(
@@ -238,7 +224,6 @@ class GEDIProvider(TileDBProvider):
         # Determine scalar and profile variables, including quality filter variables
         variable_types = self.get_variable_types()        
         scalar_vars = [v for v in variables if v in variable_types["scalar"]] + DEFAULT_DIMS
-        profile_vars = [v for v in variables if v in variable_types["profile"]] + DEFAULT_DIMS
         quality_vars = [q for q in quality_filters if q not in scalar_vars]
         scalar_vars += quality_vars  # Ensure quality variables are included in the scalar query
         
@@ -246,30 +231,19 @@ class GEDIProvider(TileDBProvider):
         scalar_data = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
         )
-        
-        profile_data = self._query_array(
-            self.profile_array_uri, profile_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp
-        )     
-        
+                
         # Apply quality filters to both scalar and profile data
         if quality_filters:
             mask = self._apply_quality_filters(scalar_data, quality_filters)
-            
-            filtered_shot_numbers = scalar_data["shot_number"][mask].astype(int)
-            
+             
             scalar_data = {var: data[mask] for var, data in scalar_data.items()}
-
-            profile_mask = np.isin(profile_data["shot_number"].astype(int), filtered_shot_numbers)
-                        
-            # Apply the expanded mask to profile data
-            profile_data = {var: data[profile_mask] for var, data in profile_data.items()}
-            
+ 
         # Remove quality variables from scalar_data if they were not requested
         for q_var in quality_vars:
             if q_var not in variables:
                 scalar_data.pop(q_var, None)
     
-        return scalar_data, profile_data
+        return scalar_data
     
     def _apply_quality_filters(self, data: Dict[str, np.ndarray], quality_filters: Dict[str, str]) -> np.ndarray:
         """
@@ -397,27 +371,27 @@ class GEDIProvider(TileDBProvider):
         """
         
         if query_type == "nearest" and point:
-            scalar_data, profile_data = self.query_nearest_shots(
+            scalar_data = self.query_nearest_shots(
                 variables, point, num_shots, radius, start_time, end_time, **quality_filters
             )
         else:
-            scalar_data, profile_data = self.query_data(
+            scalar_data = self.query_data(
                 variables, geometry, start_time, end_time, **quality_filters
             )
         
-        if scalar_data["shot_number"].size == 0 and profile_data["shot_number"].size == 0:
+        if scalar_data["shot_number"].size == 0:
             logger.info("No data found for specified criteria.")
             return None
         
         metadata = self.get_available_variables()
         
         return (
-            self.to_xarray(scalar_data, profile_data, metadata)
+            self.to_xarray(scalar_data, metadata)
             if return_type == "xarray"
-            else self.to_dataframe(scalar_data, profile_data)
+            else self.to_dataframe(scalar_data)
         )
 
-    def to_dataframe(self, scalar_data: Dict[str, np.ndarray], profile_data: Dict[str, np.ndarray]) -> pd.DataFrame:
+    def to_dataframe(self, scalar_data: Dict[str, np.ndarray]) -> pd.DataFrame:
         """
         Convert scalar and profile data dictionaries into a unified pandas DataFrame.
     
@@ -453,18 +427,11 @@ class GEDIProvider(TileDBProvider):
         # Convert scalar data to DataFrame
         scalar_df = pd.DataFrame.from_dict(scalar_data)
         
-        # Convert profile data to DataFrame, aggregate by shot_number
-        profile_df = pd.DataFrame.from_dict(profile_data)
-        profile_df = profile_df.drop(columns=["latitude", "longitude", "time", "profile_point"]) \
-                               .groupby("shot_number") \
-                               .agg(list) \
-                               .reset_index()
-        
         # Merge scalar and profile data on shot_number
-        return pd.merge(scalar_df, profile_df, on="shot_number", how="inner")
+        return scalar_df
 
 
-    def to_xarray(self, scalar_data: Dict[str, np.ndarray], profile_data: Dict[str, np.ndarray], metadata: pd.DataFrame) -> xr.Dataset:
+    def to_xarray(self, scalar_data: Dict[str, np.ndarray], metadata: pd.DataFrame) -> xr.Dataset:
         """
         Convert scalar and profile data to an Xarray Dataset, with metadata attached.
     
@@ -498,28 +465,15 @@ class GEDIProvider(TileDBProvider):
     
         """
         scalar_vars = [k for k in scalar_data if k not in ["latitude", "longitude", "time", "shot_number"]]
-        profile_vars = [k for k in profile_data if k not in ["latitude", "longitude", "time", "profile_point", "shot_number"]]
         times = _timestamp_to_datetime(scalar_data["time"])
-        unique_shot_numbers = np.unique(profile_data["shot_number"])
-        unique_profile_points = np.unique(profile_data["profile_point"])
-    
+        
         # Create Dataset for scalar data
-        scalar_ds = xr.Dataset({
+        dataset = xr.Dataset({
             var: xr.DataArray(scalar_data[var], coords={"shot_number": scalar_data["shot_number"]}, dims=["shot_number"]) 
             for var in scalar_vars
         })
-        
-        # Create Dataset for profile data with reshaping
-        profile_ds = xr.Dataset({
-            var: xr.DataArray(
-                profile_data[var].reshape(len(unique_shot_numbers), len(unique_profile_points)),
-                coords={"shot_number": unique_shot_numbers, "profile_points": unique_profile_points},
-                dims=["shot_number", "profile_points"]
-            ) for var in profile_vars
-        })
-        
+                
         # Merge scalar and profile Datasets
-        dataset = xr.merge([scalar_ds, profile_ds])
         dataset = dataset.assign_coords({
             "latitude": ("shot_number", scalar_data["latitude"]),
             "longitude": ("shot_number", scalar_data["longitude"]),

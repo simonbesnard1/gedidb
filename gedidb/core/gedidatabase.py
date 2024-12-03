@@ -44,7 +44,7 @@ class GEDIDatabase:
         if storage_type == 's3':
             bucket = config['tiledb']['s3_bucket']
             self.array_uri = os.path.join(f"s3://{bucket}", 'gedi_array_uri')
-        else:  # Local storage
+        elif storage_type == 'local':
             base_path = config['tiledb'].get('local_path', './')
             self.array_uri = os.path.join(base_path, 'gedi_array_uri')
             
@@ -68,7 +68,7 @@ class GEDIDatabase:
                                                 "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
                                                 "vfs.s3.region": 'eu-central-1',
                                             })
-        else:
+        elif storage_type == 'local':
             # Local TileDB context with consolidation settings
             self.tiledb_config = tiledb.Config({
                                                 # Memory budget settings
@@ -196,18 +196,21 @@ class GEDIDatabase:
         """
         attributes = []
         
+        # Add scalar variables
         for var_name, var_info in self.variables_config.items():
-            dtype = var_info.get("dtype", "float64")
-            is_profile = var_info.get("is_profile", False)
-            
-            # Define attributes based on whether they belong to scalar or profile data
-            if is_profile:
-                attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
-            else:
-                attributes.append(tiledb.Attr(name=var_name, dtype=dtype))
-
+            if not var_info.get('is_profile', False):
+                attributes.append(tiledb.Attr(name=var_name, dtype=var_info["dtype"]))
+    
+        # Add flattened profile variables dynamically
+        for var_name, var_info in self.variables_config.items():
+            if var_info.get('is_profile', False):
+                profile_length = var_info.get('profile_length', 1)
+                for i in range(profile_length):
+                    attr_name = f"{var_name}_{i + 1}"
+                    attributes.append(tiledb.Attr(name=attr_name, dtype=var_info["dtype"]))
+        
         attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
-   
+        
         return attributes
 
     def _add_variable_metadata(self) -> None:
@@ -231,7 +234,6 @@ class GEDIDatabase:
                 except KeyError as e:
                     logger.warning(f"Missing metadata key for {var_name}: {e}")
 
-
     @retry((tiledb.TileDBError), tries=5, delay=2, backoff=2)
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
@@ -250,8 +252,8 @@ class GEDIDatabase:
         missing_dims = [dim for dim in self.config["tiledb"]['dimensions'] if dim not in granule_data]
         if missing_dims:
             raise ValueError(f"Granule data is missing required dimension data: {missing_dims}")
-
-        # Prepare coordinates
+    
+        # Prepare coordinates (dimensions)
         coords = {
             dim_name: (
                 convert_to_days_since_epoch(granule_data[dim_name].values)
@@ -259,17 +261,25 @@ class GEDIDatabase:
             )
             for dim_name in self.config["tiledb"]['dimensions']
         }
-        
-        # Extract data attributes
-        data = {
-            var_name: granule_data[var_name].values
-            for var_name, var_info in self.variables_config.items()
-            if not var_info.get('is_profile', False)
-        }
-        
+    
+        # Extract scalar and profile data attributes
+        data = {}
+        for var_name, var_info in self.variables_config.items():
+            if var_info.get('is_profile', False):
+                # Process profile variables (e.g., rh_1, rh_2, etc.)
+                profile_length = var_info.get('profile_length', 1)
+                for i in range(profile_length):
+                    expanded_var_name = f"{var_name}_{i + 1}"
+                    if expanded_var_name in granule_data:
+                        data[expanded_var_name] = granule_data[expanded_var_name].values
+            else:
+                # Process scalar variables
+                if var_name in granule_data:
+                    data[var_name] = granule_data[var_name].values
+
         data['timestamp_ns'] = (pd.to_datetime(granule_data['time']).astype('int64') // 1000).values
 
-        # Write to the array
+        # Write to the scalar array
         with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
             dim_names = [dim.name for dim in array.schema.domain]
             dims = tuple(coords[dim_name] for dim_name in dim_names)

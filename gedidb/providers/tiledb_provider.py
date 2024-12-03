@@ -98,6 +98,7 @@ class TileDBProvider:
         session = boto3.Session()
         creds = session.get_credentials()
         return tiledb.Ctx({
+            "sm.num_reader_threads": 8,
             "vfs.s3.aws_access_key_id": creds.access_key,
             "vfs.s3.aws_secret_access_key": creds.secret_key,
             "vfs.s3.endpoint_override": endpoint_override,
@@ -220,6 +221,7 @@ class TileDBProvider:
         lon_max: float, 
         start_time: Optional[np.datetime64], 
         end_time: Optional[np.datetime64], 
+        profile:bool = False,
         **filters
     ) -> Dict[str, np.ndarray]:
         """
@@ -265,5 +267,8 @@ class TileDBProvider:
         """
         with tiledb.open(array_uri, mode="r", ctx=self.ctx) as array:
             query = array.query(attrs=variables)
-            data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]
+            if profile:            
+                data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time, :]
+            else:
+                data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]                
             return data
