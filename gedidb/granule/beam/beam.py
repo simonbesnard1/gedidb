@@ -94,20 +94,26 @@ class Beam(h5py.Group):
     @property
     def main_data(self) -> pd.DataFrame:
         """
-        Get the main data for the beam as a GeoDataFrame, cached for efficiency.
-
+        Get the main data for the beam as a DataFrame, cached for efficiency.
+    
         Returns:
-            pd.DataFrame: The main beam data in Pandas Dataframe format.
+            pd.DataFrame: The main beam data in Pandas DataFrame format.
         """
         if self._cached_data is None:
             data = self._get_main_data()  # Fetch main data
-            
-            # Convert multi-dimensional arrays to lists for DataFrame compatibility
+    
+            # Flatten multi-dimensional profile data
+            flattened_data = {}
             for key, value in data.items():
                 if isinstance(value, np.ndarray) and value.ndim > 1:
-                    data[key] = value.tolist()
-
-            # Create the GeoDataFrame and cache it
-            self._cached_data = pd.DataFrame(data)
-
+                    # Handle profile data (multi-dimensional arrays)
+                    for i in range(value.shape[1]):  # Iterate over profile dimensions
+                        flattened_data[f"{key}_{i + 1}"] = value[:, i]
+                else:
+                    # Handle scalar data (1D arrays)
+                    flattened_data[key] = value
+    
+            # Create the DataFrame and cache it
+            self._cached_data = pd.DataFrame(flattened_data)
+    
         return self._cached_data

@@ -10,7 +10,7 @@
 import gedidb as gdb
 
 config_file = "/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml"
-n_workers = 2
+n_workers = 1
 
 if __name__ == "__main__":
 
