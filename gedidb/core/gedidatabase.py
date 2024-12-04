@@ -230,7 +230,10 @@ class GEDIDatabase:
                     array.meta[f"{var_name}.units"] = units
                     array.meta[f"{var_name}.description"] = description
                     array.meta[f"{var_name}.dtype"] = dtype
-                    array.meta[f"{var_name}.product_level"] = product_level 
+                    array.meta[f"{var_name}.product_level"] = product_level
+                    if var_info.get('is_profile', False):
+                        array.meta[f"{var_name}.profile_length"] = var_info.get("profile_length", 0)
+                       
                 except KeyError as e:
                     logger.warning(f"Missing metadata key for {var_name}: {e}")
 
