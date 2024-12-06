@@ -266,5 +266,10 @@ class GranuleQuery(CMRQuery):
         ]
 
         return pd.DataFrame(
-            granule_data_processed, columns=["id", "name", 'bounding_box', "url", "size", "product", "start_time"]
+            granule_data_processed, columns=["id", "name", 'bounding_box', "url", "size", "product"]
         )
+        
+        # return pd.DataFrame(
+        #     granule_data_processed, columns=["id", "name", 'bounding_box', "url", "size", "product", "start_time"]
+        # )
+
