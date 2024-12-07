@@ -56,9 +56,10 @@ class GEDIDatabase:
             session = boto3.Session()
             creds = session.get_credentials()
             # S3 TileDB context with consolidation settings
-            self.tiledb_config =tiledb.Config({# Memory budget settings
-                                                "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
-                                                "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
+            self.tiledb_config =tiledb.Config({# Timeout settings
+                                                "sm.vfs.s3.connect_timeout_ms": config['tiledb']['s3_timeout_settings'].get('connect_timeout_ms', "10800"),
+                                                "sm.vfs.s3.request_timeout_ms": config['tiledb']['s3_timeout_settings'].get('request_timeout_ms', "3000"),
+                                                "sm.vfs.s3.connect_max_tries": config['tiledb']['s3_timeout_settings'].get('connect_max_tries', "5"),
                     
                                                 # Memory budget settings
                                                 "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
