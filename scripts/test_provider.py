@@ -15,7 +15,8 @@ start_time_ = time.time()
 
 #%% Instantiate the GEDIProvider
 provider = gdb.GEDIProvider(storage_type='s3', 
-                            local_path="/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data")
+                            s3_bucket= "dog.gedidb.gedi-l2-l4-v002",
+                            endpoint_override= "https://s3.gfz-potsdam.de")
 
 #%% Load region of interest
 region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data/geojson/BR-Sa3.geojson')
