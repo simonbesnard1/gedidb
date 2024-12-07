@@ -13,7 +13,6 @@ import logging
 from typing import Dict, Any, List
 import boto3
 import os
-from retry import retry
 
 from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 
@@ -57,7 +56,10 @@ class GEDIDatabase:
             session = boto3.Session()
             creds = session.get_credentials()
             # S3 TileDB context with consolidation settings
-            self.tiledb_config =tiledb.Config({
+            self.tiledb_config =tiledb.Config({# Memory budget settings
+                                                "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
+                                                "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
+                    
                                                 # Memory budget settings
                                                 "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
                                                 "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
@@ -237,7 +239,6 @@ class GEDIDatabase:
                 except KeyError as e:
                     logger.warning(f"Missing metadata key for {var_name}: {e}")
 
-    @retry((tiledb.TileDBError), tries=5, delay=2, backoff=2)
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays.

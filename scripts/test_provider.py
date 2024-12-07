@@ -14,7 +14,7 @@ import time
 start_time_ = time.time()
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(storage_type='local', 
+provider = gdb.GEDIProvider(storage_type='s3', 
                             local_path="/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data")
 
 #%% Load region of interest
@@ -34,7 +34,7 @@ gedi_data = provider.get_data(
     geometry=region_of_interest,
     start_time="2019-07-21",
     end_time="2024-07-25",
-    return_type='pandas',
+    return_type='xarray',
     **quality_filters
 )
 print("--- %s seconds ---" % (time.time() - start_time_))
