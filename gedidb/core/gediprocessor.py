@@ -9,9 +9,11 @@
 
 import os
 import logging
+from collections import defaultdict
+
 import yaml
 import geopandas as gpd
-from datetime import datetime
+from datetime import datetime, timedelta
 import dask
 from dask.distributed import Client, LocalCluster
 import concurrent.futures
@@ -44,7 +46,7 @@ def log_execution(start_message=None, end_message=None):
 
 class GEDIProcessor:
     """
-    GEDIProcessor class is responsible for processing GEDI granules, handling metadata, 
+    GEDIProcessor class is responsible for processing GEDI granules, handling metadata,
     and writing data into the database.
     """
     def __init__(self, config_file: str, dask_client: Client = None, n_workers: int = None, memory_limit = '8GB'):
@@ -57,13 +59,13 @@ class GEDIProcessor:
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
         self._setup_paths_and_dates()
-                
+
         # Initialize database writer
         self.database_writer = self._initialize_database_writer()
 
         # Create the database schema
         self.database_writer._create_arrays()
-                
+
     def _initialize_database_writer(self):
         """
         Initialize and return the GEDIDatabase instance.
@@ -74,7 +76,7 @@ class GEDIProcessor:
 
     def _initialize_dask_client(self, n_workers: int = None, memory_limit: str = '8GB') -> Client:
         """Initialize and return a Dask client with a LocalCluster and adaptive scaling."""
-        
+
         # Set Dask memory spill and memory limits via configuration
         dask.config.set({
             "distributed.worker.memory.target": 0.6,     # Spill to disk at 60% memory usage
@@ -82,7 +84,7 @@ class GEDIProcessor:
             "distributed.worker.memory.pause": 0.8,      # Pause new task scheduling at 80%
             "distributed.worker.memory.terminate": 0.9,  # Terminate worker if memory exceeds 90%
         })
-        
+
         # Setup a LocalCluster with better memory management configurations
         cluster = LocalCluster(
             n_workers=n_workers,
@@ -91,21 +93,21 @@ class GEDIProcessor:
             memory_limit=memory_limit,
             dashboard_address=None
         )
-        
+
         # Initialize the Dask client with the cluster
         client = Client(cluster)
         logger.info(f"Dask dashboard available at {client.dashboard_link}")
-        
+
         return client
 
     def _setup_paths_and_dates(self):
         """Set up paths and date information from the configuration."""
         self.download_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
-        
+
         # Load and format region of interest geometry
         initial_geom = gpd.read_file(self.data_info['region_of_interest'])
         self.geom = check_and_format_shape(initial_geom, simplify=True)
-        
+
         # Parse dates
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
@@ -121,12 +123,12 @@ class GEDIProcessor:
         """Load a YAML configuration file."""
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
-        
+
     @log_execution(start_message="Processing requested granules...", end_message="Granules successfully processed")
-    def compute(self, consolidate:bool=True):     
+    def compute(self, consolidate:bool=True):
         """
        Main method to download and process GEDI granules.
-    
+
        Parameters:
        ----------
        consolidate : bool, default=True
@@ -141,9 +143,9 @@ class GEDIProcessor:
                 self.database_writer.consolidate_fragments()
             logger.info("All requested granules are already processed. No further computation needed.")
             return
-       
+
         self._process_granules(unprocessed_cmr_data)
-        
+
         if consolidate:
             self.database_writer.consolidate_fragments()
 
@@ -151,16 +153,16 @@ class GEDIProcessor:
         """Download the CMR metadata for the specified date range and region."""
         downloader = CMRDataDownloader(self.geom, self.start_date, self.end_date, self.data_info['earth_data_info'])
         return downloader.download()
-    
+
     def _filter_unprocessed_granules(self, cmr_data: dict) -> dict:
         """
         Filter out granules that have already been processed.
-    
+
         Parameters:
         ----------
         cmr_data : dict
             Dictionary of granule metadata from CMR API, with granule IDs as keys.
-    
+
         Returns:
         --------
         dict
@@ -171,11 +173,11 @@ class GEDIProcessor:
 
         # Filter to include only granules that have not been processed
         unprocessed_granules = {
-            granule_id: product_info 
-            for granule_id, product_info in cmr_data.items() 
+            granule_id: product_info
+            for granule_id, product_info in cmr_data.items()
             if not processed_granules.get(granule_id, False)  # Keep if not processed
         }
-        
+
         return unprocessed_granules
 
     def _process_granules(self, unprocessed_cmr_data: dict):
@@ -183,8 +185,39 @@ class GEDIProcessor:
         Process unprocessed granules in parallel using Dask, including writing to the database.
         """
         client = self.dask_client
-        futures = []
 
+        # add temporal tiling for unprocessed granules
+        unprocessed_temporal_cmr_data = self._temporal_tiling(unprocessed_cmr_data)
+
+        for week, granules in unprocessed_temporal_cmr_data.items():
+            futures = []
+
+            for granule_id, product_info in granules.items():
+                # Submit the task to process one granule
+                future = client.submit(
+                    self.process_granule,
+                    granule_id,
+                    product_info,
+                    self.data_info,
+                    self.download_path
+                )
+                futures.append(future)
+            weekly_data = client.gather(futures)
+
+            granule_ids = [item[0] for item in weekly_data]
+            concatenated_df = pd.concat([item[1] for item in weekly_data], ignore_index=True)
+
+            quadrants = self.database_writer.sort_dataframe_by_spatial_parameter(concatenated_df)
+
+            for _, value in quadrants.items():
+                self.database_writer.write_granule(value)
+
+            for granule_id in granule_ids:
+                self.database_writer.mark_granule_as_processed(granule_id)
+
+
+
+        """
         for granule_id, product_info in unprocessed_cmr_data.items():
             # Submit the task to process one granule
             future = client.submit(
@@ -195,10 +228,10 @@ class GEDIProcessor:
                 self.download_path
             )
             futures.append(future)
-        
+
         client.gather(futures)
-                
-                
+        """
+
     @staticmethod
     def process_granule(
         granule_id,
@@ -209,7 +242,7 @@ class GEDIProcessor:
         """
         Processes a single granule by downloading, processing, and writing to the database.
         """
-    
+
         # Download products
         downloader = H5FileDownloader(download_path)
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -217,13 +250,13 @@ class GEDIProcessor:
                 executor.submit(
                     downloader.download, granule_id, url, GediProduct(product)
                 )
-                for url, product in product_info
+                for url, product, _ in product_info
             ]
             download_results = [f.result() for f in futures]
 
         # Process granule
         granule_processor = GEDIGranule(download_path, data_info)
-        granule_processor.process_granule(download_results)
+        return granule_processor.process_granule(download_results)
 
     def close(self):
         """Close the Dask client and cluster."""
@@ -239,3 +272,36 @@ class GEDIProcessor:
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the runtime context and close resources."""
         self.close()
+
+    def _temporal_tiling(self, unprocessed_cmr_data):
+        """
+        Separate the granules into temporal tiles by weeks
+
+        Parameters:
+        ----------
+        unprocessed_cmr_data : dict
+            Dictionary of unprocessed granules from the CMR API.
+        """
+
+        grouped_data = defaultdict(lambda: defaultdict(list))
+
+        # Define the base start of the week
+        def get_week_start(_start_date):
+            return _start_date - timedelta(days=_start_date.weekday())  # Start of the current week (Monday)
+
+        for granule_id, entries in unprocessed_cmr_data.items():
+            for entry in entries:
+                url, product, bounding_box, date_str = entry
+                start_date = datetime.fromisoformat(date_str.replace("Z", ""))
+                week_start = get_week_start(start_date)
+                year_week = f"{week_start.year}-W{week_start.strftime('%U')}"
+
+                grouped_data[year_week][granule_id].append((
+                    url,
+                    product,
+                    date_str,
+                    # "bounding_box": bounding_box,
+                ))
+
+        return grouped_data
+
