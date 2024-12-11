@@ -6,7 +6,7 @@
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
-
+import json
 import os
 import logging
 from collections import defaultdict
@@ -187,9 +187,9 @@ class GEDIProcessor:
         client = self.dask_client
 
         # add temporal tiling for unprocessed granules
-        unprocessed_temporal_cmr_data = self._temporal_tiling(unprocessed_cmr_data)
+        unprocessed_temporal_cmr_data = self._temporal_tiling(unprocessed_cmr_data, "daily")
 
-        for week, granules in unprocessed_temporal_cmr_data.items():
+        for timeframe, granules in unprocessed_temporal_cmr_data.items():
             futures = []
 
             for granule_id, product_info in granules.items():
@@ -202,10 +202,10 @@ class GEDIProcessor:
                     self.download_path
                 )
                 futures.append(future)
-            weekly_data = client.gather(futures)
+            granule_data = client.gather(futures)
 
-            granule_ids = [item[0] for item in weekly_data]
-            concatenated_df = pd.concat([item[1] for item in weekly_data], ignore_index=True)
+            granule_ids = [item[0] for item in granule_data]
+            concatenated_df = pd.concat([item[1] for item in granule_data], ignore_index=True)
 
             quadrants = self.database_writer.sort_dataframe_by_spatial_parameter(concatenated_df)
 
@@ -273,35 +273,44 @@ class GEDIProcessor:
         """Exit the runtime context and close resources."""
         self.close()
 
-    def _temporal_tiling(self, unprocessed_cmr_data):
+    def _temporal_tiling(self, unprocessed_cmr_data, time_granularity='weekly'):
         """
-        Separate the granules into temporal tiles by weeks
+        Separate the granules into temporal tiles by either daily or weekly.
 
         Parameters:
         ----------
         unprocessed_cmr_data : dict
             Dictionary of unprocessed granules from the CMR API.
+        time_granularity : str
+            A string that defines the granularity of temporal tiling. Can be 'daily' or 'weekly'.
+            Default is 'weekly'.
         """
 
         grouped_data = defaultdict(lambda: defaultdict(list))
 
-        # Define the base start of the week
+        # Helper function to get the start of the week (Monday)
         def get_week_start(_start_date):
             return _start_date - timedelta(days=_start_date.weekday())  # Start of the current week (Monday)
+
+        # Helper function to get the exact date (for daily granularity)
+        def get_day_start(_start_date):
+            return _start_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
         for granule_id, entries in unprocessed_cmr_data.items():
             for entry in entries:
                 url, product, bounding_box, date_str = entry
                 start_date = datetime.fromisoformat(date_str.replace("Z", ""))
-                week_start = get_week_start(start_date)
-                year_week = f"{week_start.year}-W{week_start.strftime('%U')}"
 
-                grouped_data[year_week][granule_id].append((
-                    url,
-                    product,
-                    date_str,
-                    # "bounding_box": bounding_box,
-                ))
+                if time_granularity == 'weekly':
+                    # Get start of the week (Monday) for weekly granularity
+                    week_start = get_week_start(start_date)
+                    year_week = f"{week_start.year}-W{week_start.strftime('%U')}"
+                    grouped_data[year_week][granule_id].append((url, product, date_str))
+
+                elif time_granularity == 'daily':
+                    # Get the exact day (midnight) for daily granularity
+                    day_start = get_day_start(start_date)
+                    day_key = day_start.date().isoformat()  # Use the date in YYYY-MM-DD format
+                    grouped_data[day_key][granule_id].append((url, product, date_str))
 
         return grouped_data
-
