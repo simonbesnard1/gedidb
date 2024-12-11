@@ -8,6 +8,15 @@
 #
 
 import gedidb as gdb
+import boto3
+
+#%% Get credentials
+session = boto3.Session()
+creds = session.get_credentials()
+credentials = {
+                "AccessKeyId": creds.access_key,
+                "SecretAccessKey": creds.secret_key
+                }
 
 config_file = "/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml"
 n_workers = 5

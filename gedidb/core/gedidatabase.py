@@ -10,8 +10,7 @@
 import tiledb
 import pandas as pd
 import logging
-from typing import Dict, Any, List
-import boto3
+from typing import Dict, Any, List, Optional
 import os
 
 from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
@@ -27,7 +26,7 @@ class GEDIDatabase:
     This class is configured via an external configuration, allowing flexible schema definitions and metadata handling.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], credentials:Optional[dict]=None):
         """
         Initialize GEDIDatabase with configuration, supporting both S3 and local storage.
 
@@ -52,9 +51,6 @@ class GEDIDatabase:
         
         # Set up TileDB context based on storage type
         if storage_type == 's3':
-            # Initialize boto3 session for S3 credentials
-            session = boto3.Session()
-            creds = session.get_credentials()
             # S3 TileDB context with consolidation settings
             self.tiledb_config =tiledb.Config({# Timeout settings
                                                 "sm.vfs.s3.connect_timeout_ms": config['tiledb']['s3_timeout_settings'].get('connect_timeout_ms', "10800"),
@@ -66,9 +62,9 @@ class GEDIDatabase:
                                                 "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
                                             
                                                 # S3-specific configurations (if using S3)
-                                                "vfs.s3.aws_access_key_id": creds.access_key,
-                                                "vfs.s3.aws_secret_access_key": creds.secret_key,
-                                                "vfs.s3.endpoint_override": config['tiledb']['endpoint_override'],
+                                                "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
+                                                "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],                                                
+                                                "vfs.s3.endpoint_override": config['tiledb']['url'],
                                                 "vfs.s3.region": 'eu-central-1',
                                             })
         elif storage_type == 'local':
