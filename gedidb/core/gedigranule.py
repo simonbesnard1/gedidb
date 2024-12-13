@@ -16,7 +16,6 @@ from typing import Optional, Tuple, List, Dict
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
-from gedidb.core.gedidatabase import GEDIDatabase
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,7 +47,6 @@ class GEDIGranule:
         """
         self.download_path = download_path
         self.data_info = data_info
-        self.data_writer =  GEDIDatabase(data_info)
 
     def process_granule(self, row: Tuple):
         """
@@ -69,13 +67,11 @@ class GEDIGranule:
 
         gdf_dict = self.parse_granules(granules, granule_key)
         if not gdf_dict:
-            self.data_writer.mark_granule_as_processed(granule_key)
-            return None
+            return granule_key, None
 
         gdf = self._join_dfs(gdf_dict, granule_key)
         if gdf is None:
-            self.data_writer.mark_granule_as_processed(granule_key)
-            return None
+            return granule_key, None
 
         return granule_key, gdf
 

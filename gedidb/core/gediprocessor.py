@@ -190,40 +190,35 @@ class GEDIProcessor:
         unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, self.data_info['tiledb']["temporal_tiling"])
     
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
-            
-            futures = []
-    
-            for granule_id, product_info in granules.items():
-                # Submit the task to process one granule
-                future = client.submit(
+            futures = [
+                client.submit(
                     self.process_granule,
-                    granule_id,
-                    product_info,
-                    self.data_info,
-                    self.download_path
+                    (granule_id, product_info),
                 )
-                futures.append(future)
+                for granule_id, product_info in granules.items()
+            ]
     
             # Gather processed granule data
             granule_data = client.gather(futures)
-            granule_data = [item for item in granule_data if item is not None]
-            
-            # Proceed only if granule_data is not empty
-            if granule_data:
-                granule_ids = [item[0] for item in granule_data]
-                
-                concatenated_df = pd.concat([item[1] for item in granule_data], ignore_index=True)
-        
+    
+            valid_dataframes = []
+            for granule_id, gdf in granule_data:
+                if gdf is not None:
+                    valid_dataframes.append(gdf)
+                    self.database_writer.mark_granule_as_processed(granule_id)
+                else:
+                    self.database_writer.mark_granule_as_processed(granule_id)
+    
+            # Proceed only if there is valid data
+            if valid_dataframes:
+                concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
+    
                 # Sort data into quadrants for spatial processing
                 quadrants = self.database_writer.spatial_chunking(concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"])
-        
+    
                 for _, value in quadrants.items():
                     self.database_writer.write_granule(value)
-                    
-                # Mark granules as processed
-                for granule_id in granule_ids:
-                    self.database_writer.mark_granule_as_processed(granule_id)
-     
+ 
     @staticmethod
     def process_granule(
         granule_id,
