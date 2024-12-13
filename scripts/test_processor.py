@@ -26,6 +26,7 @@ if __name__ == "__main__":
     # Initialize the GEDIProcessor and compute
     with gdb.GEDIProcessor(
         config_file=config_file,
+        credentials = credentials,
         n_workers=n_workers
     ) as processor:
         processor.compute(consolidate=True)

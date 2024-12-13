@@ -190,13 +190,17 @@ class GEDIProcessor:
         unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, self.data_info['tiledb']["temporal_tiling"])
     
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
-            futures = [
-                client.submit(
-                    self.process_granule,
-                    (granule_id, product_info),
-                )
-                for granule_id, product_info in granules.items()
-            ]
+            futures = []
+            for granule_id, product_info in granules.items():
+
+                future = client.submit(
+                        self.process_granule,
+                        granule_id,
+                        product_info,
+                        self.data_info,
+                        self.download_path
+                    )
+                futures.append(future)
     
             # Gather processed granule data
             granule_data = client.gather(futures)
