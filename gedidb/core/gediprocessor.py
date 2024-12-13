@@ -58,6 +58,7 @@ class GEDIProcessor:
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
         self._setup_paths_and_dates()
+        self.credentials = credentials
 
         # Initialize database writer
         self.database_writer = self._initialize_database_writer(credentials)
@@ -189,6 +190,7 @@ class GEDIProcessor:
         unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, self.data_info['tiledb']["temporal_tiling"])
     
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
+            
             futures = []
     
             for granule_id, product_info in granules.items():
@@ -204,26 +206,24 @@ class GEDIProcessor:
     
             # Gather processed granule data
             granule_data = client.gather(futures)
-    
-            granule_ids = [item[0] for item in granule_data]
-            concatenated_df = pd.concat([item[1] for item in granule_data], ignore_index=True)
-    
-            # Sort data into quadrants for spatial processing
-            quadrants = self.database_writer.spatial_chunking(concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"])
-    
-            # Submit write tasks in parallel
-            write_futures = [
-                client.submit(self.database_writer.write_granule, value)
-                for _, value in quadrants.items()
-            ]
-    
-            # Wait for all write tasks to complete
-            client.gather(write_futures)
-    
-            # Mark granules as processed
-            for granule_id in granule_ids:
-                self.database_writer.mark_granule_as_processed(granule_id)
-
+            granule_data = [item for item in granule_data if item is not None]
+            
+            # Proceed only if granule_data is not empty
+            if granule_data:
+                granule_ids = [item[0] for item in granule_data]
+                
+                concatenated_df = pd.concat([item[1] for item in granule_data], ignore_index=True)
+        
+                # Sort data into quadrants for spatial processing
+                quadrants = self.database_writer.spatial_chunking(concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"])
+        
+                for _, value in quadrants.items():
+                    self.database_writer.write_granule(value)
+                    
+                # Mark granules as processed
+                for granule_id in granule_ids:
+                    self.database_writer.mark_granule_as_processed(granule_id)
+     
     @staticmethod
     def process_granule(
         granule_id,
@@ -249,6 +249,23 @@ class GEDIProcessor:
         # Process granule
         granule_processor = GEDIGranule(download_path, data_info)
         return granule_processor.process_granule(download_results)
+    
+
+        
+    def close(self):
+       """Close the Dask client and cluster."""
+       if self.dask_client:
+           self.dask_client.close()
+           self.dask_client = None
+           logger.info("Dask client and cluster have been closed.")
+
+    def __enter__(self):
+        """Enter the runtime context related to this object."""
+        return self
+ 
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit the runtime context and close resources."""
+        self.close()
 
     
     

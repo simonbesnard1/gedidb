@@ -79,9 +79,6 @@ class GEDIGranule:
 
         return granule_key, gdf
 
-        # .data_writer.write_granule(gdf)
-        # self.data_writer.mark_granule_as_processed(granule_key)
-
     def parse_granules(self, granules: List[Tuple[str, str]], granule_key: str) -> Dict[str, Dict[str, np.ndarray]]:
         """
         Parse granules and return a dictionary of dictionaries of NumPy arrays.
