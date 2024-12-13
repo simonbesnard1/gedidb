@@ -256,20 +256,16 @@ class GranuleQuery(CMRQuery):
             {
                 "id": self._get_id(granule_name),
                 "name": granule_name,
-                #'bounding_box': self._compute_bounding_box(item['polygons']),
                 "url": item["links"][0]["href"],
                 "size": float(item["granule_size"]),
                 "product": self.product.value,
+                "start_time": item["time_start"],
             }
             for item in granule_data
             if (granule_name := self._get_name(item)) is not None
         ]
 
         return pd.DataFrame(
-            granule_data_processed, columns=["id", "name", "url", "size", "product"]
+            granule_data_processed, columns=["id", "name", "url", "size", "product", "start_time"]
         )
-        
-        # return pd.DataFrame(
-        #     granule_data_processed, columns=["id", "name", 'bounding_box', "url", "size", "product", "start_time"]
-        # )
 
