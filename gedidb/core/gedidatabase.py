@@ -82,43 +82,33 @@ class GEDIDatabase:
         self.ctx = tiledb.Ctx(self.tiledb_config)
 
 
-    def sort_dataframe_by_spatial_parameter(self, dataset, spatial_parameter=10):
-
+    def spatial_chunking(self, dataset, chunk_size=10):
         """
-            Splits a dataset into quadrants based on latitude and longitude.
-
-            Parameters:
-                dataset (pd.DataFrame): A DataFrame with 'latitude' and 'longitude' columns.
-                spatial_parameter (int): The size of each quadrant in degrees (e.g., 10 for 10x10 degree quadrants).
-
-            Returns:
-                dict: A dictionary where keys are quadrant identifiers (tuple of lat/lon ranges)
-                      and values are DataFrames with data in those quadrants.
-            """
-        if 'latitude' not in dataset.columns or 'longitude' not in dataset.columns:
+        Splits a dataset into spatial chunks (quadrants) based on latitude and longitude.
+    
+        Parameters:
+            dataset (pd.DataFrame): A DataFrame with 'latitude' and 'longitude' columns.
+            chunk_size (int, optional): The size of each spatial chunk in degrees. Default is 10.
+    
+        Returns:
+            dict: A dictionary where keys are tuples representing quadrant boundaries 
+                  (lat_min, lat_max, lon_min, lon_max), and values are DataFrames containing 
+                  the data in those quadrants.
+        """
+        # Validate input columns
+        if not {'latitude', 'longitude'}.issubset(dataset.columns):
             raise ValueError("Dataset must contain 'latitude' and 'longitude' columns.")
-
-        # Initialize dictionary to store quadrants
-        quadrants = {}
-
-        # Calculate quadrant indices for each row
-        dataset['lat_quadrant'] = (dataset['latitude'] // spatial_parameter).astype(int)
-        dataset['lon_quadrant'] = (dataset['longitude'] // spatial_parameter).astype(int)
-
-        # Group by quadrant indices
-        grouped = dataset.groupby(['lat_quadrant', 'lon_quadrant'])
-
-        for (lat_quad, lon_quad), group in grouped:
-            # Define the bounds of the quadrant
-            lat_min = lat_quad * spatial_parameter
-            lat_max = (lat_quad + 1) * spatial_parameter
-            lon_min = lon_quad * spatial_parameter
-            lon_max = (lon_quad + 1) * spatial_parameter
-
-            # Use the bounds as the key for the quadrant
-            quadrant_key = (lat_min, lat_max, lon_min, lon_max)
-            quadrants[quadrant_key] = group.drop(columns=['lat_quadrant', 'lon_quadrant'])  # Clean temp columns
-
+    
+        # Compute quadrant indices for grouping
+        lat_quadrants = (dataset['latitude'] // chunk_size).astype(int)
+        lon_quadrants = (dataset['longitude'] // chunk_size).astype(int)
+    
+        # Group and create chunks
+        quadrants = {
+            (lat * chunk_size, (lat + 1) * chunk_size, lon * chunk_size, (lon + 1) * chunk_size): group
+            for (lat, lon), group in dataset.groupby([lat_quadrants, lon_quadrants])
+        }
+    
         return quadrants
 
 
