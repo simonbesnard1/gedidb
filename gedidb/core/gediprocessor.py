@@ -6,14 +6,12 @@
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
-import json
 import os
 import logging
-from collections import defaultdict
 
 import yaml
 import geopandas as gpd
-from datetime import datetime, timedelta
+from datetime import datetime
 import dask
 from dask.distributed import Client, LocalCluster
 import concurrent.futures
@@ -22,7 +20,7 @@ import pandas as pd
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
-from gedidb.utils.geospatial_tools import check_and_format_shape
+from gedidb.utils.geospatial_tools import check_and_format_shape, _temporal_tiling
 from gedidb.core.gedigranule import GEDIGranule
 
 # Configure logging
@@ -185,13 +183,13 @@ class GEDIProcessor:
         Process unprocessed granules in parallel using Dask, including writing to the database.
         """
         client = self.dask_client
-
-        # add temporal tiling for unprocessed granules
-        unprocessed_temporal_cmr_data = self._temporal_tiling(unprocessed_cmr_data, "daily")
-
+    
+        # Add temporal tiling for unprocessed granules
+        unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, self.data_info['tiledb']["temporal_tiling"])
+    
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
             futures = []
-
+    
             for granule_id, product_info in granules.items():
                 # Submit the task to process one granule
                 future = client.submit(
@@ -202,35 +200,28 @@ class GEDIProcessor:
                     self.download_path
                 )
                 futures.append(future)
+    
+            # Gather processed granule data
             granule_data = client.gather(futures)
-
+    
             granule_ids = [item[0] for item in granule_data]
             concatenated_df = pd.concat([item[1] for item in granule_data], ignore_index=True)
-
-            quadrants = self.database_writer.sort_dataframe_by_spatial_parameter(concatenated_df)
-
-            for _, value in quadrants.items():
-                self.database_writer.write_granule(value)
-
+    
+            # Sort data into quadrants for spatial processing
+            quadrants = self.database_writer.spatial_chunking(concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"])
+    
+            # Submit write tasks in parallel
+            write_futures = [
+                client.submit(self.database_writer.write_granule, value)
+                for _, value in quadrants.items()
+            ]
+    
+            # Wait for all write tasks to complete
+            client.gather(write_futures)
+    
+            # Mark granules as processed
             for granule_id in granule_ids:
                 self.database_writer.mark_granule_as_processed(granule_id)
-
-
-
-        """
-        for granule_id, product_info in unprocessed_cmr_data.items():
-            # Submit the task to process one granule
-            future = client.submit(
-                self.process_granule,
-                granule_id,
-                product_info,
-                self.data_info,
-                self.download_path
-            )
-            futures.append(future)
-
-        client.gather(futures)
-        """
 
     @staticmethod
     def process_granule(
@@ -258,59 +249,5 @@ class GEDIProcessor:
         granule_processor = GEDIGranule(download_path, data_info)
         return granule_processor.process_granule(download_results)
 
-    def close(self):
-        """Close the Dask client and cluster."""
-        if self.dask_client:
-            self.dask_client.close()
-            self.dask_client = None
-            logger.info("Dask client and cluster have been closed.")
-
-    def __enter__(self):
-        """Enter the runtime context related to this object."""
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Exit the runtime context and close resources."""
-        self.close()
-
-    def _temporal_tiling(self, unprocessed_cmr_data, time_granularity='weekly'):
-        """
-        Separate the granules into temporal tiles by either daily or weekly.
-
-        Parameters:
-        ----------
-        unprocessed_cmr_data : dict
-            Dictionary of unprocessed granules from the CMR API.
-        time_granularity : str
-            A string that defines the granularity of temporal tiling. Can be 'daily' or 'weekly'.
-            Default is 'weekly'.
-        """
-
-        grouped_data = defaultdict(lambda: defaultdict(list))
-
-        # Helper function to get the start of the week (Monday)
-        def get_week_start(_start_date):
-            return _start_date - timedelta(days=_start_date.weekday())  # Start of the current week (Monday)
-
-        # Helper function to get the exact date (for daily granularity)
-        def get_day_start(_start_date):
-            return _start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        for granule_id, entries in unprocessed_cmr_data.items():
-            for entry in entries:
-                url, product, bounding_box, date_str = entry
-                start_date = datetime.fromisoformat(date_str.replace("Z", ""))
-
-                if time_granularity == 'weekly':
-                    # Get start of the week (Monday) for weekly granularity
-                    week_start = get_week_start(start_date)
-                    year_week = f"{week_start.year}-W{week_start.strftime('%U')}"
-                    grouped_data[year_week][granule_id].append((url, product, date_str))
-
-                elif time_granularity == 'daily':
-                    # Get the exact day (midnight) for daily granularity
-                    day_start = get_day_start(start_date)
-                    day_key = day_start.date().isoformat()  # Use the date in YYYY-MM-DD format
-                    grouped_data[day_key][granule_id].append((url, product, date_str))
-
-        return grouped_data
+    
+    
