@@ -18,7 +18,7 @@ credentials = {
                 "SecretAccessKey": creds.secret_key
                 }
 
-config_file = "/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml"
+config_file = "../config_files/data_config.yml"
 n_workers = 5
 
 if __name__ == "__main__":
@@ -29,6 +29,6 @@ if __name__ == "__main__":
         n_workers=n_workers
     ) as processor:
         processor.compute(consolidate=True)
-    
+
 
 

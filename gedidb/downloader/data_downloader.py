@@ -91,8 +91,7 @@ class CMRDataDownloader(GEDIDownloader):
                             (
                                 row["url"],
                                 product.value,
-                                #row["start_time"],
-                                #row["bounding_box"]
+                                row["start_time"],
                             )
                         )
                 else:
