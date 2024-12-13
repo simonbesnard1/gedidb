@@ -12,7 +12,6 @@ import tiledb
 import numpy as np
 import pandas as pd
 from typing import Optional, List, Dict
-import boto3
 
 # Configure the logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -46,7 +45,7 @@ class TileDBProvider:
     """
 
     def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './', 
-                 endpoint_override: Optional[str] = None, region: str = 'eu-central-1'):
+                 url: Optional[str] = None, region: str = 'eu-central-1', credentials:Optional[dict]= None):
         """
         Initialize the TileDBProvider with URIs for scalar and profile data arrays, configured based on storage type.
 
@@ -58,7 +57,7 @@ class TileDBProvider:
             The S3 bucket name for GEDI data storage. Required if `storage_type` is 's3'.
         local_path : str, optional
             The local path for storing GEDI data arrays. Used if `storage_type` is 'local'.
-        endpoint_override : str, optional
+        url : str, optional
             Custom endpoint URL for S3-compatible object stores (e.g., MinIO).
         region : str, optional
             AWS region for S3 access. Defaults to 'eu-central-1'.
@@ -71,13 +70,13 @@ class TileDBProvider:
             if not s3_bucket:
                 raise ValueError("s3_bucket must be provided when storage_type is 's3'")
             self.scalar_array_uri = f"s3://{s3_bucket}/gedi_array_uri"
-            self.ctx = self._initialize_s3_context(endpoint_override, region)
+            self.ctx = self._initialize_s3_context(credentials, url, region)
         else:
             # Local storage
             self.scalar_array_uri = os.path.join(local_path, 'gedi_array_uri')
             self.ctx = self._initialize_local_context()
 
-    def _initialize_s3_context(self, endpoint_override: str, region: str) -> tiledb.Ctx:
+    def _initialize_s3_context(self, credentials:dict, url: str, region: str) -> tiledb.Ctx:
         """
         Set up and return a TileDB context configured for S3 storage with credentials from boto3.
         
@@ -93,13 +92,11 @@ class TileDBProvider:
         tiledb.Ctx
             Configured TileDB context for S3 storage.
         """
-        session = boto3.Session()
-        creds = session.get_credentials()
         return tiledb.Ctx({
             "sm.num_reader_threads": 8,
-            "vfs.s3.aws_access_key_id": creds.access_key,
-            "vfs.s3.aws_secret_access_key": creds.secret_key,
-            "vfs.s3.endpoint_override": endpoint_override,
+            "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
+            "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],
+            "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region
         })
 

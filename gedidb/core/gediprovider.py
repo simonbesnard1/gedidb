@@ -47,8 +47,8 @@ class GEDIProvider(TileDBProvider):
         Retrieve queried data in either Pandas DataFrame or Xarray Dataset format.
     """
 
-    def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './', 
-                 endpoint_override: Optional[str] = None, region: str = 'eu-central-1'):
+    def __init__(self, storage_type: Optional[str] = None, s3_bucket: Optional[str] = None, local_path: Optional[str] = None, 
+                 url: Optional[str] = None, region: Optional[str] = 'eu-central-1', credentials:Optional[dict]=None):
         """
         Initialize GEDIProvider with URIs for scalar and profile data arrays, configured based on storage type.
 
@@ -60,7 +60,7 @@ class GEDIProvider(TileDBProvider):
             The S3 bucket name for GEDI data storage. Required if `storage_type` is 's3'.
         local_path : str, optional
             The local path for storing GEDI data arrays. Used if `storage_type` is 'local'.
-        endpoint_override : str, optional
+        url : str, optional
             Custom endpoint URL for S3-compatible object stores (e.g., MinIO).
         region : str, optional
             AWS region for S3 access. Defaults to 'eu-central-1'.
@@ -69,7 +69,7 @@ class GEDIProvider(TileDBProvider):
         -----
         Supports both S3 and local storage configurations based on `storage_type`.
         """
-        super().__init__(storage_type, s3_bucket, local_path, endpoint_override, region)
+        super().__init__(storage_type, s3_bucket, local_path, url, region, credentials)
 
     def query_nearest_shots(
         self, 

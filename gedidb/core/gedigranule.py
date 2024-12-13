@@ -44,7 +44,7 @@ class GEDIGranule:
         download_path : str
             Path where granules are downloaded.
         data_info : dict
-            Dictionary containing relevant information about data, such as table names.
+            Dictionary containing relevant information about data.
         """
         self.download_path = download_path
         self.data_info = data_info
