@@ -190,7 +190,7 @@ def _temporal_tiling(unprocessed_cmr_data: dict, time_granularity: str = 'weekly
 
     for granule_id, entries in unprocessed_cmr_data.items():
         for entry in entries:
-            url, product, bounding_box, date_str = entry
+            url, product, date_str = entry
             start_date = datetime.fromisoformat(date_str.replace("Z", ""))
 
             if time_granularity == 'weekly':
