@@ -16,6 +16,7 @@ import dask
 from dask.distributed import Client, LocalCluster
 import concurrent.futures
 import pandas as pd
+from typing import Optional
 
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
@@ -47,7 +48,7 @@ class GEDIProcessor:
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata,
     and writing data into the database.
     """
-    def __init__(self, config_file: str, dask_client: Client = None, n_workers: int = None, memory_limit = '8GB'):
+    def __init__(self, config_file: str, credentials:Optional[dict]= None, dask_client: Client = None, n_workers: int = None, memory_limit = '8GB'):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
         """
@@ -59,17 +60,17 @@ class GEDIProcessor:
         self._setup_paths_and_dates()
 
         # Initialize database writer
-        self.database_writer = self._initialize_database_writer()
+        self.database_writer = self._initialize_database_writer(credentials)
 
         # Create the database schema
         self.database_writer._create_arrays()
-
-    def _initialize_database_writer(self):
+                
+    def _initialize_database_writer(self, credentials:Optional[dict]):
         """
         Initialize and return the GEDIDatabase instance.
         """
         return GEDIDatabase(
-            config=self.data_info
+            config=self.data_info, credentials=credentials
         )
 
     def _initialize_dask_client(self, n_workers: int = None, memory_limit: str = '8GB') -> Client:
