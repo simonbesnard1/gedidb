@@ -9,6 +9,7 @@
 
 import tiledb
 import pandas as pd
+import numpy as np
 import logging
 from typing import Dict, Any, List, Optional
 import os
@@ -96,8 +97,8 @@ class GEDIDatabase:
             raise ValueError("Dataset must contain 'latitude' and 'longitude' columns.")
     
         # Compute quadrant indices for grouping
-        lat_quadrants = (dataset['latitude'] // chunk_size).astype(int)
-        lon_quadrants = (dataset['longitude'] // chunk_size).astype(int)
+        lat_quadrants = np.floor_divide(dataset['latitude'], chunk_size).astype(int)
+        lon_quadrants = np.floor_divide(dataset['longitude'], chunk_size).astype(int)
     
         # Group and create chunks
         quadrants = {
