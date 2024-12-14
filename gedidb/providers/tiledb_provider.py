@@ -253,5 +253,8 @@ class TileDBProvider:
             # Query the data
             query = array.query(attrs=attr_list, cond=cond_string)
             data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]
+            
+            if len(data['shot_number']) == 0:
+                return None, profile_vars
                         
             return data, profile_vars

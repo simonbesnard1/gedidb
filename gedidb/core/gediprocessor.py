@@ -181,63 +181,63 @@ class GEDIProcessor:
         return unprocessed_granules
 
     def _process_granules(self, unprocessed_cmr_data: dict):
-    """
-    Process unprocessed granules in parallel using Dask, including writing to the database.
-    """
-    client = self.dask_client
-
-    # Add temporal tiling for unprocessed granules
-    unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, self.data_info['tiledb']["temporal_tiling"])
-
-    for timeframe, granules in unprocessed_temporal_cmr_data.items():
-        futures = []
-        granule_ids = []
-
-        for granule_id, product_info in granules.items():
-            # Submit granule processing task
-            future = client.submit(
-                self.process_granule,
-                granule_id,
-                product_info,
-                self.data_info,
-                self.download_path
-            )
-            futures.append(future)
-            granule_ids.append(granule_id)  # Track granule IDs for marking later
-
-        # Gather processed granule data
-        granule_data = client.gather(futures)
-
-        # Collect valid data for writing
-        valid_dataframes = [gdf for _, gdf in granule_data if gdf is not None]
-
-        # Proceed only if there is valid data
-        if valid_dataframes:
-            concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-
-            # Sort data into quadrants for spatial processing
-            quadrants = self.database_writer.spatial_chunking(
-                concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"]
-            )
-
-            for key, value in quadrants.items():
-                try:
-                    self.database_writer.write_granule(value)
-                except Exception as e:
-                    # Log the error
-                    logger.error(f"Error writing granule for quadrant {key}: {e}")
-            
-                    # Create a debug directory if it doesn't exist
-                    debug_dir = os.path.join(self.data_info["debug_dir"], "failed_granules")
-                    os.makedirs(debug_dir, exist_ok=True)
-            
-                    # Save the problematic DataFrame for debugging
-                    debug_file = os.path.join(debug_dir, f"failed_quadrant_{key}.csv")
-                    value.to_csv(debug_file, index=False)
-                    
-            # Mark all granules as processed
-            for granule_id in granule_ids:
-                self.database_writer.mark_granule_as_processed(granule_id)
+        """
+        Process unprocessed granules in parallel using Dask, including writing to the database.
+        """
+        client = self.dask_client
+    
+        # Add temporal tiling for unprocessed granules
+        unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, self.data_info['tiledb']["temporal_tiling"])
+    
+        for timeframe, granules in unprocessed_temporal_cmr_data.items():
+            futures = []
+            granule_ids = []
+    
+            for granule_id, product_info in granules.items():
+                # Submit granule processing task
+                future = client.submit(
+                    self.process_granule,
+                    granule_id,
+                    product_info,
+                    self.data_info,
+                    self.download_path
+                )
+                futures.append(future)
+                granule_ids.append(granule_id)  # Track granule IDs for marking later
+    
+            # Gather processed granule data
+            granule_data = client.gather(futures)
+    
+            # Collect valid data for writing
+            valid_dataframes = [gdf for _, gdf in granule_data if gdf is not None]
+    
+            # Proceed only if there is valid data
+            if valid_dataframes:
+                concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
+    
+                # Sort data into quadrants for spatial processing
+                quadrants = self.database_writer.spatial_chunking(
+                    concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"]
+                )
+    
+                for key, value in quadrants.items():
+                    try:
+                        self.database_writer.write_granule(value)
+                    except Exception as e:
+                        # Log the error
+                        logger.error(f"Error writing granule for quadrant {key}: {e}")
+                
+                        # Create a debug directory if it doesn't exist
+                        debug_dir = os.path.join(self.data_info["debug_dir"], "failed_granules")
+                        os.makedirs(debug_dir, exist_ok=True)
+                
+                        # Save the problematic DataFrame for debugging
+                        debug_file = os.path.join(debug_dir, f"failed_quadrant_{key}.csv")
+                        value.to_csv(debug_file, index=False)
+                        
+                # Mark all granules as processed
+                for granule_id in granule_ids:
+                    self.database_writer.mark_granule_as_processed(granule_id)
 
     @staticmethod
     def process_granule(
