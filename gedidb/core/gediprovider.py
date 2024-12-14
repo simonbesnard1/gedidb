@@ -133,10 +133,10 @@ class GEDIProvider(TileDBProvider):
         lon_max, lat_max = point[0] + radius, point[1] + radius
     
         # Query the data within the bounding box
-        scalar_data_subset = self._query_array(
+        scalar_data_subset, profile_vars = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp, **quality_filters
         )
-            
+        
         if not scalar_data_subset:
             logger.info("No points found in the bounding box.")
             return {}, {}
@@ -151,7 +151,7 @@ class GEDIProvider(TileDBProvider):
         # Filter data based on nearest shot numbers
         scalar_data = {k: np.array(v)[np.isin(shot_numbers, nearest_shots)] for k, v in scalar_data_subset.items()}
         
-        return scalar_data
+        return scalar_data, profile_vars
     
     
     def query_data(
@@ -287,7 +287,7 @@ class GEDIProvider(TileDBProvider):
                 variables, geometry, start_time, end_time, **quality_filters
             )
         
-        if scalar_data["shot_number"].size == 0:
+        if not scalar_data:
             logger.info("No data found for specified criteria.")
             return None
         
