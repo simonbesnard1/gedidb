@@ -220,11 +220,9 @@ class GEDIProcessor:
                     concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"]
                 )
 
-                write_futures = [
-                        client.submit(self.database_writer.write_granule, value) 
-                        for key, value in quadrants.items()
-                    ]
-                client.gather(write_futures)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                     futures = [executor.submit(self.database_writer.write_granule, value) for key, value in quadrants.items()]
+                     concurrent.futures.wait(futures)
 
                 # Mark all granules as processed
                 for granule_id in granule_ids:
