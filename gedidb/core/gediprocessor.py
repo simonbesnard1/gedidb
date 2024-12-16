@@ -125,7 +125,7 @@ class GEDIProcessor:
             return yaml.safe_load(file)
 
     @log_execution(start_message="Processing requested granules...", end_message="Granules successfully processed")
-    def compute(self, consolidate:bool=True):
+    def compute(self, consolidate:bool=True, consolidation_type:str='spatial'):
         """
        Main method to download and process GEDI granules.
 
@@ -140,14 +140,14 @@ class GEDIProcessor:
 
         if not unprocessed_cmr_data:
             if consolidate:
-                self.database_writer.consolidate_fragments()
+                self.database_writer.consolidate_fragments(consolidation_type= consolidation_type)
             logger.info("All requested granules are already processed. No further computation needed.")
             return
 
         self._process_granules(unprocessed_cmr_data)
 
         if consolidate:
-            self.database_writer.consolidate_fragments()
+            self.database_writer.consolidate_fragments(consolidation_type= consolidation_type)
 
     def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""

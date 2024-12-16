@@ -30,7 +30,7 @@ provider = gdb.GEDIProvider(storage_type='s3',
                             credentials= credentials)
 
 #%% Load region of interest
-region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/foreststrucflux/data/geojson/ES-LM1.geojson')
+region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/foreststrucflux/data/geojson/DE-Hai.geojson')
 
 # Define the columns to query and additional parameters
 vars_selected = ['rh', "pavd_z", "agbd","sensitivity", 'pai_z']

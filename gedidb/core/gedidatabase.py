@@ -110,7 +110,7 @@ class GEDIDatabase:
         return quadrants
 
 
-    def consolidate_fragments(self) -> None:
+    def consolidate_fragments(self, consolidation_type:str = 'default') -> None:
         """
         Consolidate fragments, metadata, and commit logs for both array
         to optimize storage and access.
@@ -126,12 +126,16 @@ class GEDIDatabase:
             # Update configuration for fragment consolidation
             self.tiledb_config["sm.consolidation.mode"] = "fragments"
             self.tiledb_config["sm.vacuum.mode"] = "fragments"
-
-            with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:
-
-                # Generate the consolidation plan
-                cons_plan = tiledb.ConsolidationPlan(self.ctx, array_, self.config['tiledb']['consolidation_settings'].get('fragment_size', 100_000_000))
-
+            
+            if consolidation_type == 'default':
+                with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:
+    
+                    # Generate the consolidation plan
+                    cons_plan = tiledb.ConsolidationPlan(self.ctx, array_, self.config['tiledb']['consolidation_settings'].get('fragment_size', 100_000_000))
+                
+            if consolidation_type == 'spatial':
+                cons_plan = self.spatial_ConsolidationPlan(self.array_uri, self.ctx)
+            
             # Consolidate fragments
             for plan_ in cons_plan:
                 tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config, fragment_uris=plan_['fragment_uris'])
@@ -392,3 +396,83 @@ class GEDIDatabase:
                 variables_config[var_name] = var_info
 
         return variables_config
+    
+    @staticmethod
+    def spatial_ConsolidationPlan(array_uri, ctx):
+        """
+        Generate a spatial consolidation plan for a TileDB array, grouping spatially overlapping fragments.
+
+        Parameters:
+        ----------
+        array_uri : str
+            URI of the TileDB array.
+        ctx : tiledb.Ctx
+            TileDB context.
+
+        Returns:
+        -------
+        dict
+            A dictionary representing the consolidation plan, where each node contains:
+            - `num_fragments`: Number of fragments in the group.
+            - `fragment_uris`: List of fragment URIs in the group.
+        """
+        # Retrieve fragment information
+        fragment_info = tiledb.FragmentInfoList(array_uri, ctx=ctx)
+
+        # Extract spatial domains for fragments
+        fragments = []
+        for fragment in fragment_info:
+            nonempty_domain = fragment.nonempty_domain
+            fragments.append({
+                "uri": os.path.basename(fragment.uri),
+                "latitude_range": nonempty_domain[0],
+                "longitude_range": nonempty_domain[1],
+            })
+
+        # Function to check spatial overlap
+        def has_spatial_overlap(frag1, frag2):
+            """Check if two fragments overlap in spatial domains."""
+            lat_overlap = frag1["latitude_range"][0] <= frag2["latitude_range"][1] and \
+                          frag1["latitude_range"][1] >= frag2["latitude_range"][0]
+            lon_overlap = frag1["longitude_range"][0] <= frag2["longitude_range"][1] and \
+                          frag1["longitude_range"][1] >= frag2["longitude_range"][0]
+            return lat_overlap and lon_overlap
+
+        # Generate nodes (groups) of spatially overlapping fragments
+        visited = set()
+        plan = {}
+        node_id = 0
+
+        for fragment in fragments:
+            if fragment["uri"] in visited:
+                continue
+
+            # Create a new node
+            current_node = {
+                "num_fragments": 0,
+                "fragment_uris": []
+            }
+
+            # Recursively collect overlapping fragments
+            stack = [fragment]
+            while stack:
+                frag = stack.pop()
+                if frag["uri"] in visited:
+                    continue
+
+                # Mark fragment as visited and add to the current node
+                visited.add(frag["uri"])
+                current_node["fragment_uris"].append(frag["uri"])
+                current_node["num_fragments"] += 1
+
+                # Check for overlapping fragments
+                for candidate in fragments:
+                    if candidate["uri"] not in visited and has_spatial_overlap(frag, candidate):
+                        stack.append(candidate)
+
+            # Add the node to the plan
+            plan[node_id] = current_node
+            node_id += 1
+
+        return plan
+
