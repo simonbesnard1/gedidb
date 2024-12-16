@@ -13,7 +13,7 @@ import numpy as np
 import logging
 from typing import Dict, Any, List, Optional
 import os
-import retry
+from retry import retry
 
 from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 
