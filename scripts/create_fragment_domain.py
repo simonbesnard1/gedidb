@@ -75,14 +75,14 @@ for fragment in fragment_info:
 #%% Check specific fragments
 
 # Open the array and fetch the FragmentInfoList
-fragment_info_list = tiledb.FragmentInfoList(scalar_array_uri, ctx=ctx)
+fragment_info = tiledb.FragmentInfoList(scalar_array_uri, ctx=ctx)
 
 # Target schema name to search for
-target_schema_name = '__1732993286113_1732993286113_2c7197316c65044e49b90c199f06305f_22'
+target_schema_name = '__1734187714658_1734187714658_13d3a250e5442bf5a653574e8cb8cf46_22'
 
 # Loop over the fragment info to find the matching schema name
 matching_fragments = []
-for fragment in fragment_info_list:
+for fragment in fragment_info:
     if os.path.basename(fragment.uri) == target_schema_name:
         matching_fragments.append(fragment)
 
