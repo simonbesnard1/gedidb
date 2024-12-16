@@ -128,9 +128,7 @@ class GEDIDatabase:
             self.tiledb_config["sm.vacuum.mode"] = "fragments"
             
             if consolidation_type == 'default':
-                with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:
-    
-                    # Generate the consolidation plan
+                with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:    
                     cons_plan = tiledb.ConsolidationPlan(self.ctx, array_, self.config['tiledb']['consolidation_settings'].get('fragment_size', 100_000_000))
                 
             if consolidation_type == 'spatial':
