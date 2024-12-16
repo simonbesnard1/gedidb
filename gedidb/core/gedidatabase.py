@@ -13,6 +13,7 @@ import numpy as np
 import logging
 from typing import Dict, Any, List, Optional
 import os
+from retry import retry
 
 from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 
@@ -64,7 +65,7 @@ class GEDIDatabase:
 
                                                 # S3-specific configurations (if using S3)
                                                 "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
-                                                "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],                                                
+                                                "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],
                                                 "vfs.s3.endpoint_override": config['tiledb']['url'],
                                                 "vfs.s3.region": 'eu-central-1',
                                             })
@@ -82,30 +83,30 @@ class GEDIDatabase:
     def spatial_chunking(self, dataset, chunk_size=10):
         """
         Splits a dataset into spatial chunks (quadrants) based on latitude and longitude.
-    
+
         Parameters:
             dataset (pd.DataFrame): A DataFrame with 'latitude' and 'longitude' columns.
             chunk_size (int, optional): The size of each spatial chunk in degrees. Default is 10.
-    
+
         Returns:
-            dict: A dictionary where keys are tuples representing quadrant boundaries 
-                  (lat_min, lat_max, lon_min, lon_max), and values are DataFrames containing 
+            dict: A dictionary where keys are tuples representing quadrant boundaries
+                  (lat_min, lat_max, lon_min, lon_max), and values are DataFrames containing
                   the data in those quadrants.
         """
         # Validate input columns
         if not {'latitude', 'longitude'}.issubset(dataset.columns):
             raise ValueError("Dataset must contain 'latitude' and 'longitude' columns.")
-    
+
         # Compute quadrant indices for grouping
         lat_quadrants = np.floor_divide(dataset['latitude'], chunk_size).astype(int)
         lon_quadrants = np.floor_divide(dataset['longitude'], chunk_size).astype(int)
-    
+
         # Group and create chunks
         quadrants = {
             (lat * chunk_size, (lat + 1) * chunk_size, lon * chunk_size, (lon + 1) * chunk_size): group
             for (lat, lon), group in dataset.groupby([lat_quadrants, lon_quadrants])
         }
-    
+
         return quadrants
 
 
@@ -268,6 +269,7 @@ class GEDIDatabase:
                 except KeyError as e:
                     logger.warning(f"Missing metadata key for {var_name}: {e}")
 
+    @retry(tiledb.cc.TileDBError, tries=10, delay=5, backoff=3)
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays.

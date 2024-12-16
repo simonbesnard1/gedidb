@@ -221,7 +221,7 @@ class GEDIProcessor:
                 )
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    futures = [executor.submit(self.process_quadrant, key, value) for key, value in quadrants.items()]
+                    futures = [executor.submit(self.database_writer.write_granule, value) for key, value in quadrants.items()]
                     concurrent.futures.wait(futures)
 
                 # Mark all granules as processed
@@ -253,23 +253,6 @@ class GEDIProcessor:
         # Process granule
         granule_processor = GEDIGranule(download_path, data_info)
         return granule_processor.process_granule(download_results)
-
-    def process_quadrant(self, key, value):
-        try:
-            # print the key and value and timestamp
-            self.database_writer.write_granule(value)
-        except Exception as e:
-            # Log the error
-            logger.error(f"Error writing granule for quadrant {key}: {e}")
-
-            # Create a debug directory if it doesn't exist
-            debug_dir = os.path.join(self.data_info["debug_dir"], "failed_granules")
-            os.makedirs(debug_dir, exist_ok=True)
-
-            # Save the problematic DataFrame for debugging
-            debug_file = os.path.join(debug_dir, f"failed_quadrant_{key}.csv")
-            value.to_csv(debug_file, index=False)
-
 
     def close(self):
        """Close the Dask client and cluster."""
