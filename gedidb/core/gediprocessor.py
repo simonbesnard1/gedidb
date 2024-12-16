@@ -221,20 +221,8 @@ class GEDIProcessor:
                 )
     
                 for key, value in quadrants.items():
-                    try:
-                        self.database_writer.write_granule(value)
-                    except Exception as e:
-                        # Log the error
-                        logger.error(f"Error writing granule for quadrant {key}: {e}")
-                
-                        # Create a debug directory if it doesn't exist
-                        debug_dir = os.path.join(self.data_info["debug_dir"], "failed_granules")
-                        os.makedirs(debug_dir, exist_ok=True)
-                
-                        # Save the problematic DataFrame for debugging
-                        debug_file = os.path.join(debug_dir, f"failed_quadrant_{key}.csv")
-                        value.to_csv(debug_file, index=False)
-                        
+                    self.database_writer.write_granule(value)
+                    
                 # Mark all granules as processed
                 for granule_id in granule_ids:
                     self.database_writer.mark_granule_as_processed(granule_id)

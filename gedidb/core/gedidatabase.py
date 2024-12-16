@@ -13,6 +13,7 @@ import numpy as np
 import logging
 from typing import Dict, Any, List, Optional
 import os
+import retry
 
 from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 
@@ -267,7 +268,9 @@ class GEDIDatabase:
 
                 except KeyError as e:
                     logger.warning(f"Missing metadata key for {var_name}: {e}")
-
+    
+    
+    @retry((tiledb.cc.TileDBError), tries=10, delay=5, backoff=3)
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays.
