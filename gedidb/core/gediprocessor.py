@@ -65,7 +65,7 @@ class GEDIProcessor:
 
         # Create the database schema
         self.database_writer._create_arrays()
-                
+
     def _initialize_database_writer(self, credentials:Optional[dict]):
         """
         Initialize and return the GEDIDatabase instance.
@@ -185,14 +185,14 @@ class GEDIProcessor:
         Process unprocessed granules in parallel using Dask, including writing to the database.
         """
         client = self.dask_client
-    
+
         # Add temporal tiling for unprocessed granules
         unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, self.data_info['tiledb']["temporal_tiling"])
-    
+
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
             futures = []
             granule_ids = []
-    
+
             for granule_id, product_info in granules.items():
                 # Submit granule processing task
                 future = client.submit(
@@ -204,25 +204,26 @@ class GEDIProcessor:
                 )
                 futures.append(future)
                 granule_ids.append(granule_id)  # Track granule IDs for marking later
-    
+
             # Gather processed granule data
             granule_data = client.gather(futures)
-    
+
             # Collect valid data for writing
             valid_dataframes = [gdf for _, gdf in granule_data if gdf is not None]
-    
+
             # Proceed only if there is valid data
             if valid_dataframes:
                 concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-    
+
                 # Sort data into quadrants for spatial processing
                 quadrants = self.database_writer.spatial_chunking(
                     concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"]
                 )
-    
-                for key, value in quadrants.items():
-                    self.database_writer.write_granule(value)
-                    
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    futures = [executor.submit(self.database_writer.write_granule, value) for key, value in quadrants.items()]
+                    concurrent.futures.wait(futures)
+
                 # Mark all granules as processed
                 for granule_id in granule_ids:
                     self.database_writer.mark_granule_as_processed(granule_id)
@@ -252,9 +253,7 @@ class GEDIProcessor:
         # Process granule
         granule_processor = GEDIGranule(download_path, data_info)
         return granule_processor.process_granule(download_results)
-    
 
-        
     def close(self):
        """Close the Dask client and cluster."""
        if self.dask_client:
@@ -265,10 +264,10 @@ class GEDIProcessor:
     def __enter__(self):
         """Enter the runtime context related to this object."""
         return self
- 
+
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the runtime context and close resources."""
         self.close()
 
-    
-    
+
+
