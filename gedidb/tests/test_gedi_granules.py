@@ -26,7 +26,6 @@ class TestCase(unittest.TestCase):
     def setUp(self) -> None:
         warnings.simplefilter("ignore", DeprecationWarning)
         os.chdir(os.path.dirname(__file__))
-        print(os.getcwd())
 
     _data_info = {
         "level_2a": {
