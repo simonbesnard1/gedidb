@@ -55,6 +55,22 @@ test-geospatial-tools:
     - echo "Running test_geospatial_tools.py..."
     - python -m unittest gedidb.tests.test_geospatial_tools
 
+test-local-tiledb:
+  stage: test
+  before_script:
+    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
+  script:
+    - echo "Running test_local_tiledb.py..."
+    - python -m unittest gedidb.tests.test_local_tiledb
+
+test-data-config-yml:
+  stage: test
+  before_script:
+    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
+  script:
+    - echo "Running test_data_config_yml.py..."
+    - python -m unittest gedidb.tests.test_data_config_yml
+
 #test-data-downloader:
 #  stage: test
 #  before_script:
