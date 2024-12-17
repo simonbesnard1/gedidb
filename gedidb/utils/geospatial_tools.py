@@ -16,7 +16,8 @@ import dateutil.parser
 import numpy as np
 import pandas as pd
 from typing import Union
-
+from collections import defaultdict
+from datetime import datetime, timedelta
 
 # Maximum number of coordinates allowed for NASA CMR API
 MAX_CMR_COORDS = 4999
@@ -92,10 +93,10 @@ def check_and_format_shape(
         return gpd.GeoSeries(orient(geom), crs=shp.crs)
     
     
-def _datetime_to_timestamp(dt: Union[str, np.datetime64]) -> int:
+def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
     """
     Convert an ISO8601 datetime string (e.g., "2018-01-01T00:00:00Z") or numpy.datetime64 
-    to a timestamp in microseconds since epoch (UTC).
+    to a timestamp in days since epoch (UTC).
 
     Parameters:
     ----------
@@ -105,31 +106,101 @@ def _datetime_to_timestamp(dt: Union[str, np.datetime64]) -> int:
     Returns:
     --------
     int
-        The timestamp in microseconds since epoch.
+        The timestamp in days since epoch.
     """
     if isinstance(dt, np.datetime64):
-        # Treat datetime64 as UTC and convert to microseconds since epoch without 'Z' in the reference
-        timestamp = int((dt - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 'us'))
+        # Convert datetime64 to days since epoch
+        timestamp = int((dt - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 'D'))
     else:
-        # Parse ISO string and convert to microseconds since epoch
+        # Parse ISO string and convert to days since epoch
         dt = dateutil.parser.isoparse(dt).replace(tzinfo=dateutil.tz.UTC)  # Ensure UTC
-        timestamp = int(dt.timestamp() * 1e6)  # Convert to microseconds
+        timestamp = int(dt.timestamp() // (86400))  # Convert to days (86400 seconds/day)
     return timestamp
 
-def _timestamp_to_datetime(microseconds: np.ndarray) -> np.ndarray:
+def _timestamp_to_datetime(days: np.ndarray) -> np.ndarray:
     """
-    Convert an array of timestamps in microseconds since epoch to np.datetime64 with nanosecond precision.
+    Convert an array of timestamps in days since epoch to np.datetime64 with daily precision.
 
     Parameters:
     ----------
-    microseconds : np.ndarray
-        Array of timestamps in microseconds since the epoch.
+    days : np.ndarray
+        Array of timestamps in days since the epoch.
 
     Returns:
     --------
     np.ndarray
-        Array of datetime64[ns] values in UTC.
+        Array of datetime64[D] values in UTC.
     """
-    # Convert using pandas and cast to datetime64[ns]
-    return pd.to_datetime(microseconds, unit='us', utc=True).values.astype("datetime64[ns]")
+    # Convert days since epoch to datetime64 with daily precision
+    return (np.datetime64('1970-01-01', 'D') + days).astype('datetime64[ns]')
 
+def convert_to_days_since_epoch(timestamps: Union[pd.DatetimeIndex, pd.Series, list]) -> pd.Series:
+    """
+    Convert nanosecond-precision timestamps to daily timestamps in days since the Unix epoch (1970-01-01).
+
+    Parameters:
+    ----------
+    timestamps : Union[pd.DatetimeIndex, pd.Series, list]
+        A sequence of timestamps (e.g., DatetimeIndex, pandas Series, or list of ISO8601 strings).
+
+    Returns:
+    --------
+    pd.Series
+        A pandas Series representing the number of days since the Unix epoch.
+    """
+    # Ensure timestamps are converted to pandas DatetimeIndex
+    timestamps = pd.to_datetime(timestamps, utc=True)
+    
+    # Define the Unix epoch
+    epoch = pd.Timestamp('1970-01-01', tz='UTC')
+    
+    # Truncate timestamps to daily resolution and calculate days since epoch
+    days_since_epoch = (timestamps.floor('D') - epoch).days
+    
+    return days_since_epoch
+
+
+def _temporal_tiling(unprocessed_cmr_data: dict, time_granularity: str = 'weekly') -> dict:
+    """
+    Separate the granules into temporal tiles by either daily or weekly.
+
+    Parameters:
+    ----------
+    unprocessed_cmr_data : dict
+        Dictionary of unprocessed granules from the CMR API.
+    time_granularity : str
+        A string that defines the granularity of temporal tiling. Can be 'daily' or 'weekly'.
+        Default is 'weekly'.
+
+    Returns:
+    --------
+    dict
+        Nested dictionary where the outer keys represent temporal tiles, and inner keys are granule IDs.
+    """
+
+    grouped_data = defaultdict(lambda: defaultdict(list))
+
+    def get_week_start(date: datetime) -> datetime:
+        """Get the start of the week (Monday)."""
+        return date - timedelta(days=date.weekday())
+
+    def get_day_start(date: datetime) -> datetime:
+        """Get the start of the day (midnight)."""
+        return date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    for granule_id, entries in unprocessed_cmr_data.items():
+        for entry in entries:
+            url, product, date_str = entry
+            start_date = datetime.fromisoformat(date_str.replace("Z", ""))
+
+            if time_granularity == 'weekly':
+                week_start = get_week_start(start_date)
+                year_week = f"{week_start.year}-W{week_start.strftime('%U')}"
+                grouped_data[year_week][granule_id].append((url, product, date_str))
+
+            elif time_granularity == 'daily':
+                day_start = get_day_start(start_date)
+                day_key = day_start.date().isoformat()
+                grouped_data[day_key][granule_id].append((url, product, date_str))
+
+    return grouped_data
