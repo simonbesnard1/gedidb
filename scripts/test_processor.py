@@ -8,16 +8,28 @@
 #
 
 import gedidb as gdb
+import boto3
 
-config_file = "./config_files/data_config.yml"
-n_workers = 2
+#%% Get credentials
+session = boto3.Session()
+creds = session.get_credentials()
+credentials = {
+                "AccessKeyId": creds.access_key,
+                "SecretAccessKey": creds.secret_key
+                }
+
+config_file = "../config_files/data_config.yml"
+n_workers = 5
 
 if __name__ == "__main__":
 
     # Initialize the GEDIProcessor and compute
     with gdb.GEDIProcessor(
         config_file=config_file,
+        credentials = credentials,
         n_workers=n_workers
     ) as processor:
         processor.compute(consolidate=True)
-    
+
+
+
