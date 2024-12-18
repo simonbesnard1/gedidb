@@ -188,7 +188,10 @@ class GEDIDatabase:
 
         domain = self._create_domain()
         attributes = self._create_attributes()
-        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True)
+        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True, 
+                                    capacity=self.config.get("tiledb", {}).get("capacity", 10000), 
+                                    cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'),  
+                                    tile_order=self.config.get("tiledb", {}).get("tile_order", 'hilbert'),  )
         tiledb.Array.create(uri, schema, ctx=self.ctx)
 
     def _create_domain(self) -> tiledb.Domain:
