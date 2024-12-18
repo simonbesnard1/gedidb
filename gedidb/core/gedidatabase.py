@@ -150,10 +150,18 @@ class GEDIDatabase:
             # Consolidate metadata
             tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
             tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-
-            # Update configuration for commit log consolidation
+            
+            # Update configuration for fragment_meta consolidation
             self.tiledb_config["sm.consolidation.mode"] = "fragment_meta"
             self.tiledb_config["sm.vacuum.mode"] = "fragment_meta"
+
+            # Consolidate commit logs
+            tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
+            tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
+            
+            # Update configuration for commit log consolidation
+            self.tiledb_config["sm.consolidation.mode"] = "commits"
+            self.tiledb_config["sm.vacuum.mode"] = "commits"
 
             # Consolidate commit logs
             tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
@@ -210,9 +218,9 @@ class GEDIDatabase:
 
         # Define the main dimensions: latitude, longitude, and time
         dimensions = [
-            tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=1, dtype="float64"),
-            tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=1, dtype="float64"),
-            tiledb.Dim("time", domain=(time_min, time_max), tile=1825, dtype="int64")  # ~5-year tile for time
+            tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=self.config.get("tiledb", {}).get("latitude_tile", 1), dtype="float64"),
+            tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=self.config.get("tiledb", {}).get("longitude_tile", 1), dtype="float64"),
+            tiledb.Dim("time", domain=(time_min, time_max), tile=self.config.get("tiledb", {}).get("time_tile", 1825), dtype="int64")
         ]
 
         return tiledb.Domain(*dimensions)
