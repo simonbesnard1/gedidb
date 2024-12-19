@@ -7,13 +7,10 @@ import os
 
 class TestDataConfig(unittest.TestCase):
 
-    @classmethod
-    def setUp(cls):
-        os.chdir(os.path.dirname(__file__))
-
 
     @classmethod
     def setUpClass(cls):
+        os.chdir(os.path.dirname(__file__))
         cls.yaml_file_path = '../../config_files/data_config.yml'
         with open(cls.yaml_file_path, 'r') as file:
             cls.config = yaml.safe_load(file)

@@ -182,12 +182,12 @@ class TestCase(unittest.TestCase):
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["geolocation"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["geolocation"]["lon_lowestmode"][idx]
-        pai_z0 = data_orig["BEAM1000"]["pai_z"][idx][0]
+        pai_z1 = data_orig["BEAM1000"]["pai_z"][idx][0]
 
         row = data.loc[data["shot_number"] == shot_number]
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
         self.assertEqual(row["lon_lowestmode"].values[0], lon)
-        self.assertEqual(row["pai_z"].values[0][0], pai_z0)
+        self.assertEqual(row["pai_z_1"].values[0], pai_z1)
 
     def test_parse_granule_l2a(self):
         data = parse_h5_file(
@@ -208,7 +208,7 @@ class TestCase(unittest.TestCase):
         row = data.loc[data["shot_number"] == shot_number]
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
         self.assertEqual(row["lon_lowestmode"].values[0], lon)
-        self.assertEqual(row["rh"].values[0][98], rh_98)
+        self.assertEqual(row["rh_98"].values[0], rh_98)
 
     # TODO basic tests of quality filtering
 
