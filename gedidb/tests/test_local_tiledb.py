@@ -11,7 +11,6 @@ from gedidb.core.gedidatabase import GEDIDatabase
 
 class TestGEDIDatabase(unittest.TestCase):
 
-
     @classmethod
     def setUpClass(cls):
         os.chdir(os.path.dirname(__file__))
@@ -100,7 +99,7 @@ class TestGEDIDatabase(unittest.TestCase):
             beam_name = array.query(attrs=('beam_name',)).multi_index[:, :, :]
 
             self.assertTrue(np.array_equal(shot_number['shot_number'],
-                [84480000200057402,84480000200057734,84480000200057753,84480000200057754,84480000200057755]),
+                [84480000200057402, 84480000200057734, 84480000200057753, 84480000200057754, 84480000200057755]),
                 "Shot number mismatch")
             self.assertTrue(np.array_equal(beam_type['beam_type'],
                 ['coverage', 'coverage', 'coverage', 'coverage', 'coverage']),
@@ -108,5 +107,6 @@ class TestGEDIDatabase(unittest.TestCase):
             self.assertTrue(np.array_equal(beam_name['beam_name'],
                 ['/BEAM0000', '/BEAM0000', '/BEAM0000', '/BEAM0000', '/BEAM0000']),
                 "Beam name mismatch")
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestGEDIDatabase)

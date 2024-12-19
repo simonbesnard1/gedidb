@@ -15,8 +15,8 @@ from typing import Dict, Any, List, Optional
 import os
 from retry import retry
 
-from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
-from gedidb.utils.tiledb_consolidation import  SpatialConsolidationPlanner
+from gedidb.utils.geospatial_tools import _datetime_to_timestamp_days, convert_to_days_since_epoch
+from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 
 
 # Configure the logger
@@ -24,13 +24,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
+
 class GEDIDatabase:
     """
     A class to manage the creation and operation of global TileDB arrays for GEDI data storage.
     This class is configured via an external configuration, allowing flexible schema definitions and metadata handling.
     """
 
-    def __init__(self, config: Dict[str, Any], credentials:Optional[dict]=None):
+    def __init__(self, config: Dict[str, Any], credentials: Optional[dict] = None):
         """
         Initialize GEDIDatabase with configuration, supporting both S3 and local storage.
 
@@ -56,7 +57,8 @@ class GEDIDatabase:
         # Set up TileDB context based on storage type
         if storage_type == 's3':
             # S3 TileDB context with consolidation settings
-            self.tiledb_config =tiledb.Config({# Timeout settings
+            self.tiledb_config = tiledb.Config({
+                                                # Timeout settings
                                                 "sm.vfs.s3.connect_timeout_ms": config['tiledb']['s3_timeout_settings'].get('connect_timeout_ms', "10800"),
                                                 "sm.vfs.s3.request_timeout_ms": config['tiledb']['s3_timeout_settings'].get('request_timeout_ms', "3000"),
                                                 "sm.vfs.s3.connect_max_tries": config['tiledb']['s3_timeout_settings'].get('connect_max_tries', "5"),
@@ -112,7 +114,7 @@ class GEDIDatabase:
         return quadrants
 
 
-    def consolidate_fragments(self, consolidation_type:str = 'default') -> None:
+    def consolidate_fragments(self, consolidation_type: str = 'default') -> None:
         """
         Consolidate fragments, metadata, and commit logs for both array
         to optimize storage and access.
@@ -128,14 +130,14 @@ class GEDIDatabase:
             # Update configuration for fragment consolidation
             self.tiledb_config["sm.consolidation.mode"] = "fragments"
             self.tiledb_config["sm.vacuum.mode"] = "fragments"
-            
+
             if consolidation_type == 'default':
-                with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:    
+                with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:
                     cons_plan = tiledb.ConsolidationPlan(self.ctx, array_, self.config['tiledb']['consolidation_settings'].get('fragment_size', 100_000_000))
-                
+
             if consolidation_type == 'spatial':
                 cons_plan = SpatialConsolidationPlanner.compute(self.array_uri, self.ctx)
-            
+
             # Consolidate fragments
             for plan_ in cons_plan:
                 tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config, fragment_uris=plan_['fragment_uris'])
@@ -395,4 +397,3 @@ class GEDIDatabase:
                 variables_config[var_name] = var_info
 
         return variables_config
-    

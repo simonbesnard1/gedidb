@@ -17,19 +17,13 @@ from gedidb.database import column_to_field
 
 THIS_DIR = pathlib.Path(__file__).parent
 L4A_NAME = (
-    THIS_DIR
-    / "data"
-    / "GEDI04_A_2019117051430_O02102_01_T04603_02_002_02_V002.h5"
+    THIS_DIR / "data" / "GEDI04_A_2019117051430_O02102_01_T04603_02_002_02_V002.h5"
 ).as_posix()
 L2B_NAME = (
-    THIS_DIR
-    / "data"
-    / "GEDI02_B_2019117051430_O02102_01_T04603_02_003_01_V002.h5"
+    THIS_DIR / "data" / "GEDI02_B_2019117051430_O02102_01_T04603_02_003_01_V002.h5"
 ).as_posix()
 L2A_NAME = (
-    THIS_DIR
-    / "data"
-    / "GEDI02_A_2019162222610_O02812_04_T01244_02_003_01_V002.h5"
+    THIS_DIR / "data" / "GEDI02_A_2019162222610_O02812_04_T01244_02_003_01_V002.h5"
 ).as_posix()
 
 

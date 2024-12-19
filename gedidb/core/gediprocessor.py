@@ -48,12 +48,12 @@ class GEDIProcessor:
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata,
     and writing data into the database.
     """
-    def __init__(self, config_file: str, credentials:Optional[dict]= None, dask_client: Client = None, n_workers: int = None, memory_limit = '8GB'):
+    def __init__(self, config_file: str, credentials: Optional[dict]= None, dask_client: Client= None, n_workers: int= None, memory_limit= '8GB'):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
         """
         # Initialize Dask client
-        self.dask_client = dask_client or self._initialize_dask_client(n_workers=n_workers, memory_limit = memory_limit)
+        self.dask_client = dask_client or self._initialize_dask_client(n_workers = n_workers, memory_limit = memory_limit)
 
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
@@ -66,7 +66,7 @@ class GEDIProcessor:
         # Create the database schema
         self.database_writer._create_arrays()
 
-    def _initialize_database_writer(self, credentials:Optional[dict]):
+    def _initialize_database_writer(self, credentials: Optional[dict]):
         """
         Initialize and return the GEDIDatabase instance.
         """
@@ -124,17 +124,17 @@ class GEDIProcessor:
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
 
-    @log_execution(start_message="Processing requested granules...", end_message="Granules successfully processed")
-    def compute(self, consolidate:bool=True, consolidation_type:str='spatial'):
+    @log_execution(start_message= "Processing requested granules...", end_message= "Granules successfully processed")
+    def compute(self, consolidate: bool= True, consolidation_type: str= 'spatial'):
         """
-       Main method to download and process GEDI granules.
+        Main method to download and process GEDI granules.
 
-       Parameters:
-       ----------
-       consolidate : bool, default=True
+        Parameters:
+        ----------
+        consolidate : bool, default=True
            If True, consolidates fragments in the TileDB arrays after processing all granules.
-       """
-       # Download and filter CMR data
+        """
+        # Download and filter CMR data
         cmr_data = self._download_cmr_data()
         unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
 
@@ -221,8 +221,8 @@ class GEDIProcessor:
                 )
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                     futures = [executor.submit(self.database_writer.write_granule, value) for key, value in quadrants.items()]
-                     concurrent.futures.wait(futures)
+                    futures = [executor.submit(self.database_writer.write_granule, value) for key, value in quadrants.items()]
+                    concurrent.futures.wait(futures)
 
                 # Mark all granules as processed
                 for granule_id in granule_ids:
@@ -255,11 +255,11 @@ class GEDIProcessor:
         return granule_processor.process_granule(download_results)
 
     def close(self):
-       """Close the Dask client and cluster."""
-       if self.dask_client:
-           self.dask_client.close()
-           self.dask_client = None
-           logger.info("Dask client and cluster have been closed.")
+        """Close the Dask client and cluster."""
+        if self.dask_client:
+            self.dask_client.close()
+            self.dask_client = None
+            logger.info("Dask client and cluster have been closed.")
 
     def __enter__(self):
         """Enter the runtime context related to this object."""
@@ -268,6 +268,3 @@ class GEDIProcessor:
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the runtime context and close resources."""
         self.close()
-
-
-

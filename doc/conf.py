@@ -9,9 +9,18 @@ import os
 import re
 import sys
 import importlib
+
+import numpy
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from datetime import datetime
+import gedidb
+import math
+from pygments.lexers import CLexer
+from pygments.lexer import inherit
+from pygments.token import Comment
+import inspect
+from os.path import relpath, dirname
 
 # Minimum version, enforced by sphinx
 needs_sphinx = '4.3'
@@ -22,6 +31,7 @@ needs_sphinx = '4.3'
 
 # must be kept alive to hold the patched names
 _name_cache = {}
+
 
 def replace_scalar_type_names():
     """ Rename numpy types to use the canonical names to make sphinx behave """
@@ -39,7 +49,6 @@ def replace_scalar_type_names():
         ('ob_refcnt', Py_ssize_t),
         ('ob_type', ctypes.POINTER(PyTypeObject)),
     ]
-
 
     PyTypeObject._fields_ = [
         # varhead
@@ -119,7 +128,7 @@ copyright = f'2024-{year}, gediDB Developers'
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
 #
-import gedidb
+
 # The short X.Y version (including .devXXXX, rcX, b1 suffixes if present)
 version = re.sub(r'(\d+\.\d+)\.\d+(.*)', r'\1\2', gedidb.__version__)
 version = re.sub(r'(\.dev\d+).*?$', r'\1', version)
@@ -129,12 +138,12 @@ print("%s %s" % (version, release))
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
-#today = ''
+# today = ''
 # Else, today_fmt is used as the format for a strftime call.
 today_fmt = '%B %d, %Y'
 
 # List of documents that shouldn't be included in the build.
-#unused_docs = []
+# unused_docs = []
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 default_role = "autolink"
@@ -152,11 +161,12 @@ add_function_parentheses = False
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
-#add_module_names = True
+# add_module_names = True
 
 # If true, sectionauthor and moduleauthor directives will be shown in the
 # output. They are ignored by default.
-#show_authors = False
+# show_authors = False
+
 
 class LegacyDirective(Directive):
     """
@@ -182,7 +192,7 @@ class LegacyDirective(Directive):
                 "NumPy versions.")
 
         try:
-            self.content[0] = text+" "+self.content[0]
+            self.content[0] = text + " " + self.content[0]
         except IndexError:
             # Content is empty; use the default text
             source, lineno = self.state_machine.get_source_and_line(
@@ -222,7 +232,7 @@ def setup(app):
 # so we make the alias look like a "real" module for it.
 # If we deemed it desirable, we could in future make these real modules, which
 # would make `from numpy.char import split` work.
-#sys.modules['gedidb.char'] = gedidb.char
+# sys.modules['gedidb.char'] = gedidb.char
 
 # -----------------------------------------------------------------------------
 # HTML output
@@ -230,7 +240,7 @@ def setup(app):
 
 html_theme = 'pydata_sphinx_theme'
 
-#html_favicon = '_static/favicon/favicon.ico'
+# html_favicon = '_static/favicon/favicon.ico'
 
 # Set up the version switcher.  The versions.json is stored in the doc repo.
 if os.environ.get('CIRCLE_JOB', False) and \
@@ -288,10 +298,10 @@ copybutton_prompt_is_regexp = True
 # -----------------------------------------------------------------------------
 
 # The paper size ('letter' or 'a4').
-#latex_paper_size = 'letter'
+# latex_paper_size = 'letter'
 
 # The font size ('10pt', '11pt' or '12pt').
-#latex_font_size = '10pt'
+# latex_font_size = '10pt'
 
 # XeLaTeX for better support of unicode characters
 latex_engine = 'xelatex'
@@ -308,11 +318,11 @@ latex_documents = [
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-#latex_logo = None
+# latex_logo = None
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
-#latex_use_parts = False
+# latex_use_parts = False
 
 latex_elements = {
 }
@@ -371,7 +381,7 @@ latex_elements['preamble'] = r'''
 '''
 
 # Documents to append as an appendix to all manuals.
-#latex_appendices = []
+# latex_appendices = []
 
 # If false, no module index is generated.
 latex_use_modindex = False
@@ -451,8 +461,7 @@ np.random.seed(0)
 plot_include_source = True
 plot_formats = [('png', 100), 'pdf']
 
-import math
-phi = (math.sqrt(5) + 1)/2
+phi = (math.sqrt(5) + 1) / 2
 
 plot_rcparams = {
     'font.size': 8,
@@ -461,7 +470,7 @@ plot_rcparams = {
     'xtick.labelsize': 8,
     'ytick.labelsize': 8,
     'legend.fontsize': 8,
-    'figure.figsize': (3*phi, 3),
+    'figure.figsize': (3 * phi, 3),
     'figure.subplot.bottom': 0.2,
     'figure.subplot.left': 0.2,
     'figure.subplot.right': 0.9,
@@ -475,8 +484,6 @@ plot_rcparams = {
 # Source code links
 # -----------------------------------------------------------------------------
 
-import inspect
-from os.path import relpath, dirname
 
 for name in ['sphinx.ext.linkcode', 'numpydoc.linkcode']:
     try:
@@ -568,9 +575,6 @@ def linkcode_resolve(domain, info):
         return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/v%s/numpy/%s%s" % (
            gedidb.__version__, fn, linespec)
 
-from pygments.lexers import CLexer
-from pygments.lexer import inherit
-from pygments.token import Comment
 
 class NumPyLexer(CLexer):
     name = 'NUMPYLEXER'
