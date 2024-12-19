@@ -48,17 +48,24 @@ class GEDIProcessor:
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata,
     and writing data into the database.
     """
-    def __init__(self, config_file: str, credentials: Optional[dict]= None, dask_client: Client= None, n_workers: int= None, memory_limit= '8GB'):
+    def __init__(self, config_file: str, credentials: Optional[dict] = None,
+                 dask_client: Client = None, n_workers: int = None, memory_limit: str = '8GB',
+                 geometry: Optional[gpd.GeoDataFrame] = None):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
         """
         # Initialize Dask client
-        self.dask_client = dask_client or self._initialize_dask_client(n_workers = n_workers, memory_limit = memory_limit)
+        self.n_workers = n_workers
+        self.dask_client = dask_client or self._initialize_dask_client(n_workers=self.n_workers, memory_limit=memory_limit)
 
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
         self._setup_paths_and_dates()
         self.credentials = credentials
+        self.geometry = geometry  # Optional geometry passed directly
+
+        # Initialize paths, dates, and geometry
+        self.load_configuration_data()
 
         # Initialize database writer
         self.database_writer = self._initialize_database_writer(credentials)
@@ -100,13 +107,17 @@ class GEDIProcessor:
 
         return client
 
-    def _setup_paths_and_dates(self):
-        """Set up paths and date information from the configuration."""
+    def load_configuration_data(self):
+        """Set up paths, dates, and geometry from configuration or direct input."""
         self.download_path = self._ensure_directory(os.path.join(self.data_info['data_dir'], 'download'))
 
-        # Load and format region of interest geometry
-        initial_geom = gpd.read_file(self.data_info['region_of_interest'])
-        self.geom = check_and_format_shape(initial_geom, simplify=True)
+        if self.geometry is not None:
+            # Use provided geometry
+            self.geom = check_and_format_shape(self.geometry, simplify=True)
+        else:
+            # Load geometry from the configuration file
+            initial_geom = gpd.read_file(self.data_info['region_of_interest'])
+            self.geom = check_and_format_shape(initial_geom, simplify=True)
 
         # Parse dates
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
@@ -124,17 +135,18 @@ class GEDIProcessor:
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
 
-    @log_execution(start_message= "Processing requested granules...", end_message= "Granules successfully processed")
-    def compute(self, consolidate: bool= True, consolidation_type: str= 'spatial'):
+    def compute(self, consolidate:bool=True, consolidation_type:str='spatial'):
         """
-        Main method to download and process GEDI granules.
+       Main method to download and process GEDI granules.
 
-        Parameters:
-        ----------
-        consolidate : bool, default=True
+       Parameters:
+       ----------
+       consolidate : bool, default=True
            If True, consolidates fragments in the TileDB arrays after processing all granules.
-        """
+       """
+
         # Download and filter CMR data
+        logger.info("Processing requested granules...")
         cmr_data = self._download_cmr_data()
         unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
 
@@ -148,6 +160,7 @@ class GEDIProcessor:
 
         if consolidate:
             self.database_writer.consolidate_fragments(consolidation_type= consolidation_type)
+        logger.info("Granules successfully processed")
 
     def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""
@@ -220,9 +233,9 @@ class GEDIProcessor:
                     concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"]
                 )
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                    futures = [executor.submit(self.database_writer.write_granule, value) for key, value in quadrants.items()]
-                    concurrent.futures.wait(futures)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+                     futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
+                     concurrent.futures.wait(futures)
 
                 # Mark all granules as processed
                 for granule_id in granule_ids:
@@ -241,7 +254,7 @@ class GEDIProcessor:
 
         # Download products
         downloader = H5FileDownloader(download_path)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(product_info)) as executor:
             futures = [
                 executor.submit(
                     downloader.download, granule_id, url, GediProduct(product)
@@ -255,11 +268,11 @@ class GEDIProcessor:
         return granule_processor.process_granule(download_results)
 
     def close(self):
-        """Close the Dask client and cluster."""
-        if self.dask_client:
-            self.dask_client.close()
-            self.dask_client = None
-            logger.info("Dask client and cluster have been closed.")
+       """Close the Dask client and cluster."""
+       if self.dask_client:
+           self.dask_client.close()
+           self.dask_client = None
+           logger.info("Dask client and cluster have been closed.")
 
     def __enter__(self):
         """Enter the runtime context related to this object."""
@@ -268,3 +281,6 @@ class GEDIProcessor:
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the runtime context and close resources."""
         self.close()
+
+
+
