@@ -119,7 +119,7 @@ class TestDataConfig(unittest.TestCase):
         self.assertIsInstance(variables, dict)
         self.assertIn('shot_number', variables, "'shot_number' variable is missing")
         shot_number = variables['shot_number']
-        self.assertEqual(shot_number.get('dtype'), 'float64', "shot_number dtype should be 'float64'")
+        self.assertEqual(shot_number.get('dtype'), 'uint64', "shot_number dtype should be 'float64'")
         self.assertIn('description', shot_number)
         self.assertIsInstance(shot_number['description'], str)
 
