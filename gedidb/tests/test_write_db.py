@@ -16,23 +16,18 @@ from sqlalchemy import text
 import pandas as pd
 import numpy as np
 import warnings
-
-
+from gedidb.pipeline.data_setup import _write_db
+from gedidb.database import gedidb_common
 import logging
 
 logging.basicConfig()
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARN)
 
 
-from gedidb.pipeline.data_setup import _write_db
-from gedidb.database import gedidb_common
-
 THIS_DIR = pathlib.Path(__file__).parent
 
 GRANULE_FNAME = (
-    THIS_DIR
-    / "data"
-    / ("filtered_l2ab_l4a_O02027_02_cc426d921d3fa1585d1cc8a06a0ceda3.parquet")
+    THIS_DIR / "data" / "filtered_l2ab_l4a_O02027_02_cc426d921d3fa1585d1cc8a06a0ceda3.parquet"
 )
 
 # N.b. THESE CURRENTLY DON'T MATCH THE HASH in the file

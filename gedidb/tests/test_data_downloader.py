@@ -52,19 +52,19 @@ class TestH5Downloader(unittest.TestCase):
     def test_l2a(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L2A[1], L2A[2], GediProduct.L2A)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L2A[0], 2, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1]) / (1024 ** 2), L2A[0], 2, f"File {path[1]} does not have the correct size")
 
     def test_l2b(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L2B[1], L2B[2], GediProduct.L2B)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1024 ** 2), L2B[0], 2, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1]) / (1024 ** 2), L2B[0], 2, f"File {path[1]} does not have the correct size")
 
     def test_l4a(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L4A[1], L4A[2], GediProduct.L4A)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1000**2), L4A[0], 2, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1]) / (1000**2), L4A[0], 2, f"File {path[1]} does not have the correct size")
 
     def test_l4c(self):
         granule_key, path = H5FileDownloader("data/downloads").download(L4C[1], L4C[2], GediProduct.L4C)
         self.assertTrue(os.path.exists(path[1]), f"File {path[1]} does not exist")
-        self.assertAlmostEqual(os.path.getsize(path[1])/(1000**2), L4C[0], 2, f"File {path[1]} does not have the correct size")
+        self.assertAlmostEqual(os.path.getsize(path[1]) / (1000**2), L4C[0], 2, f"File {path[1]} does not have the correct size")

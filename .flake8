@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 100
-ignore = E501, W293
+ignore = E501, W293, W291, E127, E126, E121, E302, E303, E128, E252, E251
 exclude =
     .venv
     scripts

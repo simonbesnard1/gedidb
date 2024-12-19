@@ -129,4 +129,5 @@ class TestDataConfig(unittest.TestCase):
         self.assertIsNotNone(data_dir, "'data_dir' is missing")
         self.assertIsInstance(data_dir, str)
 
+
 suite = unittest.TestLoader().loadTestsFromTestCase(TestDataConfig)

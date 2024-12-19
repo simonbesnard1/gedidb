@@ -22,6 +22,7 @@ from gedidb.utils.constants import GediProduct
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 # Decorator for handling exceptions
 def handle_exceptions(func):
     @wraps(func)
@@ -84,7 +85,8 @@ class CMRQuery:
     @handle_exceptions
     def _construct_spatial_params(geom: gpd.GeoSeries) -> str:
 
-        if geom is None: return
+        if geom is None:
+            return
         """
         Construct the bounding box query parameter from a GeoSeries geometry.
         """
@@ -268,4 +270,3 @@ class GranuleQuery(CMRQuery):
         return pd.DataFrame(
             granule_data_processed, columns=["id", "name", "url", "size", "product", "start_time"]
         )
-
