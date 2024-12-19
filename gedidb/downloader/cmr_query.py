@@ -8,32 +8,19 @@
 #
 
 import requests
-import urllib3.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import geopandas as gpd
 from datetime import datetime
 import pandas as pd
 import logging
-from functools import wraps
 from gedidb.granule.granule import granule_name
 from gedidb.utils.constants import GediProduct
 
 # Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Decorator for handling exceptions
-def handle_exceptions(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except urllib3.exceptions.MaxRetryError:
-            logger.error("Max retry error occurred during the request")
-        except Exception as e:
-            logger.error(f"Error in {func.__name__}: {e}")
-            return None  # Ensure graceful handling of the exception
-    return wrapper
 
 class CMRQuery:
     """
@@ -41,7 +28,6 @@ class CMRQuery:
     """
 
     @staticmethod
-    @handle_exceptions
     def _construct_query_params(
         product: GediProduct,
         geom: gpd.GeoSeries,
@@ -63,7 +49,6 @@ class CMRQuery:
         }
 
     @staticmethod
-    @handle_exceptions
     def _construct_temporal_params(
         start_date: datetime, end_date: datetime
     ) -> str:
@@ -72,7 +57,8 @@ class CMRQuery:
         """
         if start_date and end_date:
             if start_date > end_date:
-                raise ValueError("Start date must be before end date")
+                logger.error("Start date must be before end date")
+                return ""
             return f'{start_date.strftime("%Y-%m-%dT00:00:00Z")}/{end_date.strftime("%Y-%m-%dT23:59:59Z")}'
         if start_date:
             return f'{start_date.strftime("%Y-%m-%dT00:00:00Z")}/'
@@ -81,7 +67,6 @@ class CMRQuery:
         return ""
 
     @staticmethod
-    @handle_exceptions
     def _construct_spatial_params(geom: gpd.GeoSeries) -> str:
 
         if geom is None: return
@@ -100,46 +85,6 @@ class CMRQuery:
         """
         metadata = granule_name.parse_granule_filename(name)
         return f"{metadata.orbit}_{metadata.sub_orbit_granule}"
-
-    @staticmethod
-    def _compute_bounding_box(polygon_):
-        """
-        Computes the bounding box for a given polygon.
-
-        Parameters:
-            polygon_ (list): A list of polygons, each containing a single string
-                             with space-separated longitude and latitude pairs.
-
-        Returns:
-            dict: A dictionary containing the bounding box as GeoJSON format.
-        """
-        # Extract coordinates
-        polygon_coords = []
-        for coords in polygon_:
-            coord_pairs = coords[0].split()  # Split the string of coordinates
-            polygon_coords += [
-                [float(coord_pairs[i]), float(coord_pairs[i + 1])]
-                for i in range(0, len(coord_pairs), 2)
-            ]
-
-        # Find bounding box
-        # TODO: i flipped this, i think it was the wrong way around (Felix)
-        min_lat = min(coord[0] for coord in polygon_coords)
-        max_lat = max(coord[0] for coord in polygon_coords)
-        min_lon = min(coord[1] for coord in polygon_coords)
-        max_lon = max(coord[1] for coord in polygon_coords)
-
-        # Define the bounding box as a polygon (counter-clockwise order)
-        bounding_box_coords = [
-            [min_lon, min_lat],  # Bottom-left
-            [max_lon, min_lat],  # Bottom-right
-            [max_lon, max_lat],  # Top-right
-            [min_lon, max_lat],  # Top-left
-            [min_lon, min_lat],  # Closing the polygon
-        ]
-
-        return bounding_box_coords
-
 
     @staticmethod
     def _get_name(item: dict) -> str:
@@ -205,7 +150,6 @@ class GranuleQuery(CMRQuery):
         self.end_date = end_date
         self.earth_data_info = earth_data_info
 
-    @handle_exceptions
     def query_granules(self, page_size: int = 2000, page_num: int = 1) -> pd.DataFrame:
         """
         Query granules from CMR and return them as a DataFrame.

@@ -45,7 +45,7 @@ class TileDBProvider:
     """
 
     def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './', 
-                 url: Optional[str] = None, region: str = 'eu-central-1', credentials:Optional[dict]= None):
+                 url: Optional[str] = None, region: str = 'eu-central-1', credentials:Optional[dict]= None, n_workers:int =5):
         """
         Initialize the TileDBProvider with URIs for scalar and profile data arrays, configured based on storage type.
 
@@ -66,6 +66,7 @@ class TileDBProvider:
         -----
         - Configures TileDB contexts and array URIs based on storage type, either S3 or local.
         """
+        self.n_workers = n_workers
         if storage_type.lower() == 's3':
             if not s3_bucket:
                 raise ValueError("s3_bucket must be provided when storage_type is 's3'")
@@ -241,7 +242,6 @@ class TileDBProvider:
             # Construct the quality filter condition
             cond_list = []
             for key, condition in filters.items():
-                # Handle range conditions like ">= 0.9 and <= 1.0"
                 if 'and' in condition:
                     parts = condition.split('and')
                     for part in parts:

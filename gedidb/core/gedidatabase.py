@@ -14,6 +14,7 @@ import logging
 from typing import Dict, Any, List, Optional
 import os
 from retry import retry
+import concurrent.futures
 
 from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 from gedidb.utils.tiledb_consolidation import  SpatialConsolidationPlanner
@@ -112,7 +113,7 @@ class GEDIDatabase:
         return quadrants
 
 
-    def consolidate_fragments(self, consolidation_type:str = 'default') -> None:
+    def consolidate_fragments(self, consolidation_type:str = 'default', n_workers:int = 1) -> None:
         """
         Consolidate fragments, metadata, and commit logs for both array
         to optimize storage and access.
@@ -136,10 +137,20 @@ class GEDIDatabase:
             if consolidation_type == 'spatial':
                 cons_plan = SpatialConsolidationPlanner.compute(self.array_uri, self.ctx)
             
-            # Consolidate fragments
-            for plan_ in cons_plan:
-                tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config, fragment_uris=plan_['fragment_uris'])
-
+            with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
+                # Submit a consolidation task for each plan
+                futures = [
+                    executor.submit(
+                        tiledb.consolidate,
+                        self.array_uri,
+                        ctx=self.ctx,
+                        config=self.tiledb_config,
+                        fragment_uris=plan_['fragment_uris']
+                    )
+                    for plan_ in cons_plan
+                ]
+                concurrent.futures.wait(futures)
+            
             # Vacuum after fragment consolidation
             tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
 
@@ -190,8 +201,7 @@ class GEDIDatabase:
         attributes = self._create_attributes()
         schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True, 
                                     capacity=self.config.get("tiledb", {}).get("capacity", 10000), 
-                                    cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'),  
-                                    tile_order=self.config.get("tiledb", {}).get("tile_order", 'hilbert'),  )
+                                    cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'))
         tiledb.Array.create(uri, schema, ctx=self.ctx)
 
     def _create_domain(self) -> tiledb.Domain:
