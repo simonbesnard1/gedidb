@@ -198,11 +198,11 @@ class TestCase(unittest.TestCase):
         self._generic_test_parse_granule(L2A_NAME, data)
         # Some of the data is correct
         data_orig = h5py.File(L2A_NAME, "r")
-        idx = 0
+        idx = 10000
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]
-        rh_98 = data_orig["BEAM1000"]["rh"][0][98]
+        rh_98 = data_orig["BEAM1000"]["rh"][idx][98]
 
         row = data.loc[data["shot_number"] == shot_number]
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
