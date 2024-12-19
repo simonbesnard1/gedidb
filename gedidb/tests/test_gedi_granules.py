@@ -202,7 +202,7 @@ class TestCase(unittest.TestCase):
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]
-        rh_98 = data_orig["BEAM1000"]["rh"][idx][98]
+        # rh_98 = data_orig["BEAM1000"]["rh"][idx][98]
 
         row = data.loc[data["shot_number"] == shot_number]
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
