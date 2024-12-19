@@ -208,7 +208,7 @@ class TestCase(unittest.TestCase):
         row = data.loc[data["shot_number"] == shot_number]
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
         self.assertEqual(row["lon_lowestmode"].values[0], lon)
-        self.assertEqual(row["rh_98"].values[0], rh_98)
+        self.assertEqual(row["rh_98"].values[idx], rh_98)
 
     # TODO basic tests of quality filtering
 
