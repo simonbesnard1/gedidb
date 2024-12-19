@@ -10,6 +10,7 @@
 import pandas as pd
 from typing import Optional, Dict
 from pathlib import Path
+import logging
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule.granule.granule import Granule
@@ -17,6 +18,11 @@ from gedidb.granule.granule.l2a_granule import L2AGranule
 from gedidb.granule.granule.l2b_granule import L2BGranule
 from gedidb.granule.granule.l4a_granule import L4AGranule
 from gedidb.granule.granule.l4c_granule import L4CGranule
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class GranuleParser:
@@ -35,7 +41,8 @@ class GranuleParser:
         """
         self.file = Path(file)
         if not self.file.exists():
-            raise FileNotFoundError(f"Granule file {self.file} not found.")
+            logger.error(f"Granule file {self.file} not found.")
+            self.file = None  
         self.data_info = data_info if data_info else {}
     
     @staticmethod
@@ -60,9 +67,11 @@ class GranuleParser:
                 df = pd.concat(granule_data, ignore_index=True)
                 return df
             except Exception as e:
-                raise ValueError(f"Error parsing granule data: {e}")
-        
-        return pd.DataFrame()  # Return empty GeoDataFrame if no data found
+                logger.error(f"Error parsing granule: {e}")
+                return pd.DataFrame()  # Return empty DataFrame on failure
+    
+        logger.warning("No data found in granule.")
+        return pd.DataFrame()  # Return empty dataframe if no data found
 
     def parse(self) -> pd.DataFrame:
         """

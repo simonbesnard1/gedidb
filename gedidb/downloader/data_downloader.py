@@ -13,40 +13,35 @@ import requests
 from datetime import datetime
 import geopandas as gpd
 from typing import Tuple, Any
-from functools import wraps
 from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
 from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError
+from abc import ABC, abstractmethod
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
 
 # Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Decorator for handling exceptions
-def handle_exceptions(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error occurred in {func.__name__}: {e}")
-            # Additional error handling logic can be placed here
-            return None
-    return wrapper
 
-class GEDIDownloader:
+class GEDIDownloader(ABC):
     """
     Base class for GEDI data downloaders.
     """
 
-    @handle_exceptions
+    @abstractmethod
     def _download(self, *args, **kwargs):
-        raise NotImplementedError("This method should be implemented by subclasses.")
-
+        """
+        Abstract method that must be implemented by subclasses.
+        """
+        logger = logging.getLogger(__name__)
+        logger.debug("Calling abstract method _download.")
+        
 class CMRDataDownloader(GEDIDownloader):
     """
     Downloader for GEDI granules from NASA's CMR service.
@@ -102,14 +97,16 @@ class CMRDataDownloader(GEDIDownloader):
                 continue
 
         if not cmr_dict:
-            raise ValueError("No granules found after retry attempts.")
+            logger.warning("No granules found after retry attempts.")
+            cmr_dict = None
 
         # Filter granules to only include those with all required products
         filtered_cmr_dict = self._filter_granules_with_all_products(cmr_dict)
 
         if not filtered_cmr_dict:
-            raise ValueError("No granules with all required products found.")
-
+            logger.warning("No granules with all required products found.")
+            filtered_cmr_dict = None
+            
         # Log the total number of granules and total size of the data
         logger.info(f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB).")
 

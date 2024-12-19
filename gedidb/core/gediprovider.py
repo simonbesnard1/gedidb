@@ -225,8 +225,8 @@ class GEDIProvider(TileDBProvider):
         return_type: str = "xarray", 
         query_type: str = "bounding_box",
         point: Optional[Tuple[float, float]] = None, 
-        num_shots: int = 10, 
-        radius: float = 0.1,
+        num_shots: Optional[int] = None, 
+        radius: Optional[float] = None,
         **quality_filters
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """

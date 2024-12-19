@@ -33,10 +33,6 @@ class L2BBeam(Beam):
         
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
-            # 'l2a_quality_flag': lambda: self["l2a_quality_flag"][()] == 1,
-            # 'l2b_quality_flag': lambda: self["l2b_quality_flag"][()] == 1,
-            # 'sensitivity': lambda: (self['sensitivity'][()] >= 0.9) & (self['sensitivity'][()] <= 1.0),
-            # 'rh100': lambda: (self['rh100'][()] >= 0) & (self['rh100'][()] <= 1200),
             'water_persistence': lambda: self["land_cover_data/landsat_water_persistence"][()] <10,
             'urban_proportion': lambda: self['land_cover_data/urban_proportion'][()] <50,
         }

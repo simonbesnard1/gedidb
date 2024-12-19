@@ -18,7 +18,7 @@ credentials = {
                 "SecretAccessKey": creds.secret_key
                 }
 
-config_file = "../config_files/data_config.yml"
+config_file = "/home/simon/Documents/science/GFZ/projects/gedi-toolbox/config_files/data_config.yml"
 n_workers = 5
 
 if __name__ == "__main__":

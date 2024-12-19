@@ -28,7 +28,6 @@ from gedidb.core.gedigranule import GEDIGranule
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
 class GEDIProcessor:
     """
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata,
@@ -136,14 +135,14 @@ class GEDIProcessor:
 
         if not unprocessed_cmr_data:
             if consolidate:
-                self.database_writer.consolidate_fragments(consolidation_type= consolidation_type)
+                self.database_writer.consolidate_fragments(consolidation_type= consolidation_type, n_workers= self.n_workers)
             logger.info("All requested granules are already processed. No further computation needed.")
             return
 
         self._process_granules(unprocessed_cmr_data)
 
         if consolidate:
-            self.database_writer.consolidate_fragments(consolidation_type= consolidation_type)
+            self.database_writer.consolidate_fragments(consolidation_type= consolidation_type, n_workers= self.n_workers)
         logger.info("Granules successfully processed")
 
     def _download_cmr_data(self) -> pd.DataFrame:
@@ -221,9 +220,9 @@ class GEDIProcessor:
                      futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
                      concurrent.futures.wait(futures)
 
-                # Mark all granules as processed
-                for granule_id in granule_ids:
-                    self.database_writer.mark_granule_as_processed(granule_id)
+            # Mark all granules as processed
+            for granule_id in granule_ids:
+                self.database_writer.mark_granule_as_processed(granule_id)
 
     @staticmethod
     def process_granule(
