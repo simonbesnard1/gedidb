@@ -41,8 +41,8 @@ class GranuleParser:
         """
         self.file = Path(file)
         if not self.file.exists():
-            logger.error(f"Granule file {self.file} not found.")
-            self.file = None  
+            raise FileNotFoundError(f"Granule file {self.file} not found.")
+
         self.data_info = data_info if data_info else {}
     
     @staticmethod
@@ -67,10 +67,8 @@ class GranuleParser:
                 df = pd.concat(granule_data, ignore_index=True)
                 return df
             except Exception as e:
-                logger.error(f"Error parsing granule: {e}")
-                return pd.DataFrame()  # Return empty DataFrame on failure
+                raise ValueError(f"Error parsing granule data: {e}")
     
-        logger.warning("No data found in granule.")
         return pd.DataFrame()  # Return empty dataframe if no data found
 
     def parse(self) -> pd.DataFrame:
