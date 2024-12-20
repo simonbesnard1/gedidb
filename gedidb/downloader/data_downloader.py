@@ -39,8 +39,7 @@ class GEDIDownloader(ABC):
         """
         Abstract method that must be implemented by subclasses.
         """
-        logger = logging.getLogger(__name__)
-        logger.debug("Calling abstract method _download.")
+        raise NotImplementedError("This method should be implemented by subclasses.")
         
 class CMRDataDownloader(GEDIDownloader):
     """
@@ -97,15 +96,13 @@ class CMRDataDownloader(GEDIDownloader):
                 continue
 
         if not cmr_dict:
-            logger.warning("No granules found after retry attempts.")
-            cmr_dict = None
+            raise ValueError("No granules found after retry attempts.")
 
         # Filter granules to only include those with all required products
         filtered_cmr_dict = self._filter_granules_with_all_products(cmr_dict)
 
         if not filtered_cmr_dict:
-            logger.warning("No granules with all required products found.")
-            filtered_cmr_dict = None
+            raise ValueError("No granules with all required products found.")
             
         # Log the total number of granules and total size of the data
         logger.info(f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB).")
@@ -194,7 +191,7 @@ class H5FileDownloader(GEDIDownloader):
             return granule_key, (product.value, str(h5file_path))
 
         except (HTTPError, ConnectionError, ChunkedEncodingError):
-            raise  # Let the retry decorator handle retries
+            raise
 
         except Exception as e:
             logger.error(f"Download failed after all retries for {url}: {e}")

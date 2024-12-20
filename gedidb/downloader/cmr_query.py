@@ -57,8 +57,7 @@ class CMRQuery:
         """
         if start_date and end_date:
             if start_date > end_date:
-                logger.error("Start date must be before end date")
-                return ""
+                raise ValueError("Start date must be before end date")
             return f'{start_date.strftime("%Y-%m-%dT00:00:00Z")}/{end_date.strftime("%Y-%m-%dT23:59:59Z")}'
         if start_date:
             return f'{start_date.strftime("%Y-%m-%dT00:00:00Z")}/'
