@@ -18,6 +18,7 @@ import concurrent.futures
 import pandas as pd
 from typing import Optional
 
+
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
@@ -26,6 +27,8 @@ from gedidb.core.gedigranule import GEDIGranule
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.getLogger("distributed").setLevel(logging.WARNING)
+logging.getLogger("tornado").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 class GEDIProcessor:
