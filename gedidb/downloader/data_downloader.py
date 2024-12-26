@@ -18,7 +18,6 @@ import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
 from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError
-from abc import ABC, abstractmethod
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -29,12 +28,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class GEDIDownloader(ABC):
+class GEDIDownloader:
     """
     Base class for GEDI data downloaders.
     """
 
-    @abstractmethod
     def _download(self, *args, **kwargs):
         """
         Abstract method that must be implemented by subclasses.
