@@ -28,6 +28,7 @@ setup-job:
     - pip install -e .
     - pip install geodatasets
     - pip install flake8 # linter
+    - pp install yaml # for testing local files
   artifacts:
     paths:
     - .venv
