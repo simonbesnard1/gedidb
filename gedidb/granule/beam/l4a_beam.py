@@ -32,15 +32,6 @@ class L4ABeam(Beam):
         super().__init__(granule, beam, field_mapping)
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = None
-        # self.DEFAULT_QUALITY_FILTERS = {
-        #     'l2_quality_flag': lambda: self["l2_quality_flag"][()] == 1,
-        #     'sensitivity_a0': lambda: (self['sensitivity'][()] >= 0.9) & (self['sensitivity'][()] <= 1.0),
-        #     'sensitivity_a2': lambda: (self['geolocation/sensitivity_a2'][()] >= 0.9) & (self['geolocation/sensitivity_a2'][()] <= 1.0),
-        #     'pft_sensitivity_filter': lambda: (
-        #         (self['land_cover_data/pft_class'][()] == 2) & (self['geolocation/sensitivity_a2'][()] > 0.98)) |
-        #         ((self['land_cover_data/pft_class'][()] != 2) & (self['geolocation/sensitivity_a2'][()] > 0.95))
-        # }
-
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
         """

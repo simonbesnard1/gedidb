@@ -13,7 +13,6 @@ import requests
 from datetime import datetime
 import geopandas as gpd
 from typing import Tuple, Any
-from functools import wraps
 from retry import retry
 import logging
 from collections import defaultdict
@@ -24,29 +23,22 @@ from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
 
 # Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Decorator for handling exceptions
-def handle_exceptions(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error occurred in {func.__name__}: {e}")
-            # Additional error handling logic can be placed here
-            return None
-    return wrapper
 
 class GEDIDownloader:
     """
     Base class for GEDI data downloaders.
     """
 
-    @handle_exceptions
     def _download(self, *args, **kwargs):
+        """
+        Abstract method that must be implemented by subclasses.
+        """
         raise NotImplementedError("This method should be implemented by subclasses.")
-
+        
 class CMRDataDownloader(GEDIDownloader):
     """
     Downloader for GEDI granules from NASA's CMR service.
@@ -109,7 +101,7 @@ class CMRDataDownloader(GEDIDownloader):
 
         if not filtered_cmr_dict:
             raise ValueError("No granules with all required products found.")
-
+            
         # Log the total number of granules and total size of the data
         logger.info(f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB).")
 
@@ -197,7 +189,7 @@ class H5FileDownloader(GEDIDownloader):
             return granule_key, (product.value, str(h5file_path))
 
         except (HTTPError, ConnectionError, ChunkedEncodingError):
-            raise  # Let the retry decorator handle retries
+            raise
 
         except Exception as e:
             logger.error(f"Download failed after all retries for {url}: {e}")

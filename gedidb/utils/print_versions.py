@@ -7,8 +7,6 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-"""Utility functions for printing version information."""
-
 import importlib
 import locale
 import os

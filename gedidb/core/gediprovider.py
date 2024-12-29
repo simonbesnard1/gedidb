@@ -225,8 +225,8 @@ class GEDIProvider(TileDBProvider):
         return_type: str = "xarray",
         query_type: str = "bounding_box",
         point: Optional[Tuple[float, float]] = None,
-        num_shots: int = 10,
-        radius: float = 0.1,
+        num_shots: Optional[int] = None,
+        radius: Optional[float] = None,
         **quality_filters
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
@@ -339,6 +339,7 @@ class GEDIProvider(TileDBProvider):
         # Merge scalar and profile data on shot_number
         return scalar_df
 
+
     def to_xarray(self, scalar_data: Dict[str, np.ndarray], metadata: pd.DataFrame, profile_vars: Dict[str, List[str]]) -> xr.Dataset:
         """
         Convert scalar and profile data to an Xarray Dataset, with metadata attached.
@@ -421,6 +422,7 @@ class GEDIProvider(TileDBProvider):
 
         return dataset
 
+
     def _attach_metadata(self, dataset: xr.Dataset, metadata: pd.DataFrame) -> None:
         """
         Attach metadata to each variable in an Xarray Dataset.
@@ -462,3 +464,4 @@ class GEDIProvider(TileDBProvider):
                     'units': var_metadata.get('units', ''),
                     'product_level': var_metadata.get('product_level', '')
                 })
+
