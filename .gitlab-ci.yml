@@ -25,11 +25,9 @@ setup-job:
   stage: build
   script:
     - python -m venv .venv
-    - source .venv/bin/activate
+    # - source .venv/bin/activate
     - pip install -e .
-    - pip install geodatasets
-    - pip install flake8 # linter
-    - pip install pyyaml # for testing local files
+    - pip install geodatasets flake8 pyyaml
   artifacts:
     paths:
     - .venv
@@ -40,6 +38,10 @@ test-gedi-granules:
   dependencies:
     - setup-job
   script:
+    - source .venv/bin/activate
+    - echo "Checking .venv directory..."
+    - ls -la .venv  # Check if .venv was extracted
+    - ls -la .venv/bin  # Verify the bin directory exists
     - echo "Running test_gedi_granules.py..."
     - python -m unittest gedidb.tests.test_gedi_granules
 
