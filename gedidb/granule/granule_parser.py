@@ -111,7 +111,7 @@ class L4CGranuleParser(GranuleParser):
         granule = L4CGranule(self.file, self.data_info.get('level_4c', {}).get('variables', []))
         return self.parse_granule(granule)
 
-def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = None) ->pd.DataFrame:
+def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = None) -> pd.DataFrame:
     """
     Parse an HDF5 file based on the product type and return a GeoDataFrame.
 
@@ -139,4 +139,3 @@ def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = N
 
     parser = parser_class(file, data_info or {})
     return parser.parse()
-

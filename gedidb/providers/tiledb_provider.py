@@ -45,7 +45,7 @@ class TileDBProvider:
     """
 
     def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './',
-                 url: Optional[str] = None, region: str = 'eu-central-1', credentials:Optional[dict]= None, n_workers:int =5):
+                 url: Optional[str] = None, region: str = 'eu-central-1', credentials: Optional[dict]= None, n_workers: int =5):
         """
         Initialize the TileDBProvider with URIs for scalar and profile data arrays, configured based on storage type.
 

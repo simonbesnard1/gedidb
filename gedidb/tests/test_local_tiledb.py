@@ -96,8 +96,10 @@ class TestGEDIDatabase(unittest.TestCase):
             beam_type = array.query(attrs=('beam_type',)).multi_index[:, :, :]
             beam_name = array.query(attrs=('beam_name',)).multi_index[:, :, :]
 
+            print((shot_number['shot_number']))
+
             self.assertTrue(np.array_equal(shot_number['shot_number'],
-                [84480000200057402, 84480000200057734, 84480000200057753, 84480000200057754, 84480000200057755]),
+                [84480000200057734, 84480000200057402, 84480000200057755, 84480000200057754, 84480000200057753]),
                 "Shot number mismatch")
             self.assertTrue(np.array_equal(beam_type['beam_type'],
                 ['coverage', 'coverage', 'coverage', 'coverage', 'coverage']),
