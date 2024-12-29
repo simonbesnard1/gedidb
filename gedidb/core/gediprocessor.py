@@ -9,8 +9,8 @@
 import os
 import logging
 
-import yaml
 import geopandas as gpd
+import yaml
 from datetime import datetime
 import dask
 from dask.distributed import Client, LocalCluster
