@@ -152,7 +152,7 @@ class GEDIDatabase:
             # Consolidate metadata
             tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
             tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-            
+
             # Update configuration for fragment_meta consolidation
             self.tiledb_config["sm.consolidation.mode"] = "fragment_meta"
             self.tiledb_config["sm.vacuum.mode"] = "fragment_meta"
@@ -160,7 +160,7 @@ class GEDIDatabase:
             # Consolidate commit logs
             tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
             tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-            
+
             # Update configuration for commit log consolidation
             self.tiledb_config["sm.consolidation.mode"] = "commits"
             self.tiledb_config["sm.vacuum.mode"] = "commits"
@@ -190,10 +190,10 @@ class GEDIDatabase:
 
         domain = self._create_domain()
         attributes = self._create_attributes()
-        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True, 
-                                    capacity=self.config.get("tiledb", {}).get("capacity", 10000), 
-                                    cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'),  
-                                    tile_order=self.config.get("tiledb", {}).get("tile_order", 'hilbert'),  )
+        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True,
+                                    capacity=self.config.get("tiledb", {}).get("capacity", 10000),
+                                    cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'),
+                                    tile_order=self.config.get("tiledb", {}).get("tile_order", 'hilbert'))
         tiledb.Array.create(uri, schema, ctx=self.ctx)
 
     def _create_domain(self) -> tiledb.Domain:
