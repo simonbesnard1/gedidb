@@ -41,6 +41,7 @@ test-gedi-granules:
   script:
     - echo "Running test_gedi_granules.py..."
     - source .venv/bin/activate
+    - pip show pyyaml
     - python -m unittest gedidb.tests.test_gedi_granules
 
 test-granule-name:
