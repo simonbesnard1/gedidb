@@ -1,6 +1,6 @@
-#stages:          # List of stages for jobs, and their order of execution
-#  - build
-#  - test
+stages:          # List of stages for jobs, and their order of execution
+  - build
+  - test
 #  - deploy
 #
 #build-job:
@@ -21,54 +21,69 @@
 #      - doc/_build/html  # Store the build results as artifacts
 #    expire_in: 1 day     # Optional: Define how long to keep artifacts
 
+setup-job:
+  stage: build
+  script:
+    - pip install -e .
+    - pip install geodatasets
+    - pip install flake8 # linter
+  artifacts:
+    paths:
+    - .venv
+    expire_in: 1 day
+
 test-gedi-granules:
   stage: test
-  before_script:
-    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
+  dependencies:
+    - setup-job
   script:
     - echo "Running test_gedi_granules.py..."
+    - source .venv/bin/activate
     - python -m unittest gedidb.tests.test_gedi_granules
 
 test-granule-name:
   stage: test
-  before_script:
-    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
+  dependencies:
+    - setup-job
   script:
     - echo "Running test_granule_name.py..."
+    - source .venv/bin/activate
     - python -m unittest gedidb.tests.test_granule_name
 
 test-nasa-cmr-api:
   stage: test
-  before_script:
-    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
-    - pip install geodatasets # needed for test_nasa_cmr_api.py
+  dependencies:
+    - setup-job
   script:
     - echo "Running test_nasa_cmr_api.py..."
+    - source .venv/bin/activate
     - python -m unittest gedidb.tests.test_nasa_cmr_api
 
 test-geospatial-tools:
   stage: test
-  before_script:
-    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
-    - pip install geodatasets # needed for test_geospatial_tools.py
+  dependencies:
+    - setup-job
   script:
     - echo "Running test_geospatial_tools.py..."
+    - source .venv/bin/activate
     - python -m unittest gedidb.tests.test_geospatial_tools
 
 test-local-tiledb:
   stage: test
-  before_script:
-    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
+  dependencies:
+    - setup-job
   script:
     - echo "Running test_local_tiledb.py..."
+    - source .venv/bin/activate
     - python -m unittest gedidb.tests.test_local_tiledb
 
 test-data-config-yml:
   stage: test
-  before_script:
-    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
+  dependencies:
+    - setup-job
   script:
     - echo "Running test_data_config_yml.py..."
+    - source .venv/bin/activate
     - python -m unittest gedidb.tests.test_data_config_yml
 
 #test-data-downloader:

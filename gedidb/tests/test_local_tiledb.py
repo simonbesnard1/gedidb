@@ -39,8 +39,6 @@ class TestGEDIDatabase(unittest.TestCase):
             schema = array.schema
             dims = schema.domain
 
-            print(schema)
-
             # Check dimensions
             lat_dim = dims.dim("latitude")
             lon_dim = dims.dim("longitude")
