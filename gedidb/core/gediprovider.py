@@ -464,4 +464,3 @@ class GEDIProvider(TileDBProvider):
                     'units': var_metadata.get('units', ''),
                     'product_level': var_metadata.get('product_level', '')
                 })
-

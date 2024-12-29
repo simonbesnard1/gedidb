@@ -221,8 +221,8 @@ class GEDIProcessor:
                 )
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_workers) as executor:
-                     futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
-                     concurrent.futures.wait(futures)
+                    futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
+                    concurrent.futures.wait(futures)
 
             # Mark all granules as processed
             for granule_id in granule_ids:
@@ -255,11 +255,11 @@ class GEDIProcessor:
         return granule_processor.process_granule(download_results)
 
     def close(self):
-       """Close the Dask client and cluster."""
-       if self.dask_client:
-           self.dask_client.close()
-           self.dask_client = None
-           logger.info("Dask client and cluster have been closed.")
+        """Close the Dask client and cluster."""
+        if self.dask_client:
+            self.dask_client.close()
+            self.dask_client = None
+            logger.info("Dask client and cluster have been closed.")
 
     def __enter__(self):
         """Enter the runtime context related to this object."""

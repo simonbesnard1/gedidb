@@ -68,7 +68,8 @@ class CMRQuery:
     @staticmethod
     def _construct_spatial_params(geom: gpd.GeoSeries) -> str:
 
-        if geom is None: return
+        if geom is None:
+            return
         """
         Construct the bounding box query parameter from a GeoSeries geometry.
         """

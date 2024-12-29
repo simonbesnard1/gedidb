@@ -58,7 +58,7 @@ class GEDIDatabase:
         # Set up TileDB context based on storage type
         if storage_type == 's3':
             # S3 TileDB context with consolidation settings
-            self.tiledb_config =tiledb.Config({# Timeout settings
+            self.tiledb_config = tiledb.Config({  # Timeout settings
                                                 "sm.vfs.s3.connect_timeout_ms": config['tiledb']['s3_timeout_settings'].get('connect_timeout_ms', "10800"),
                                                 "sm.vfs.s3.request_timeout_ms": config['tiledb']['s3_timeout_settings'].get('request_timeout_ms', "3000"),
                                                 "sm.vfs.s3.connect_max_tries": config['tiledb']['s3_timeout_settings'].get('connect_max_tries', "5"),
@@ -114,7 +114,7 @@ class GEDIDatabase:
         return quadrants
 
 
-    def consolidate_fragments(self, consolidation_type:str = 'default', n_workers:int = 1) -> None:
+    def consolidate_fragments(self, consolidation_type: str = 'default', n_workers: int = 1) -> None:
         """
         Consolidate fragments, metadata, and commit logs for both array
         to optimize storage and access.
