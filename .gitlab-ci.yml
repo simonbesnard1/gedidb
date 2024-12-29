@@ -38,10 +38,6 @@ test-gedi-granules:
   dependencies:
     - setup-job
   script:
-    - echo "Checking .venv directory in test stage..."
-    - ls -la .venv/
-    - ls -la .venv/bin/
-    - if [ ! -f ".venv/bin/python" ]; then echo "Python executable is missing in .venv/bin/"; exit 1; fi
     - source .venv/bin/activate
     - echo "Running test_gedi_granules.py..."
     - python -m unittest gedidb.tests.test_gedi_granules
@@ -51,6 +47,7 @@ test-granule-name:
   dependencies:
     - setup-job
   script:
+    - source .venv/bin/activate
     - echo "Running test_granule_name.py..."
     - python -m unittest gedidb.tests.test_granule_name
 
@@ -59,6 +56,7 @@ test-nasa-cmr-api:
   dependencies:
     - setup-job
   script:
+    - source .venv/bin/activate
     - echo "Running test_nasa_cmr_api.py..."
     - python -m unittest gedidb.tests.test_nasa_cmr_api
 
@@ -67,6 +65,7 @@ test-geospatial-tools:
   dependencies:
     - setup-job
   script:
+    - source .venv/bin/activate
     - echo "Running test_geospatial_tools.py..."
     - python -m unittest gedidb.tests.test_geospatial_tools
 
@@ -75,6 +74,7 @@ test-local-tiledb:
   dependencies:
     - setup-job
   script:
+    - source .venv/bin/activate
     - echo "Running test_local_tiledb.py..."
     - python -m unittest gedidb.tests.test_local_tiledb
 
@@ -83,6 +83,7 @@ test-data-config-yml:
   dependencies:
     - setup-job
   script:
+    - source .venv/bin/activate
     - echo "Running test_data_config_yml.py..."
     - python -m unittest gedidb.tests.test_data_config_yml
 
