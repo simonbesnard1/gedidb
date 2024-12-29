@@ -24,6 +24,8 @@ stages:          # List of stages for jobs, and their order of execution
 setup-job:
   stage: build
   script:
+    - echo "Removing .venv directory..."
+    - rm -rf .venv
     - python -m venv .venv
     - source .venv/bin/activate
     - pip install -e .
