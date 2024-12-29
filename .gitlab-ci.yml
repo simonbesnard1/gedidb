@@ -25,7 +25,6 @@ setup-job:
   stage: build
   script:
     - python -m venv .venv
-    - source .venv/bin/activate
     - pip install -e .
     - pip install geodatasets flake8 pyyaml
   artifacts:
