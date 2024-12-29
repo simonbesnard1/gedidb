@@ -9,14 +9,15 @@
 import os
 import logging
 
-import geopandas as gpd
 import yaml
+import geopandas as gpd
 from datetime import datetime
 import dask
 from dask.distributed import Client, LocalCluster
 import concurrent.futures
 import pandas as pd
 from typing import Optional
+
 
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
@@ -26,22 +27,9 @@ from gedidb.core.gedigranule import GEDIGranule
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.getLogger("distributed").setLevel(logging.WARNING)
+logging.getLogger("tornado").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
-
-def log_execution(start_message=None, end_message=None):
-    """
-    A decorator to log the execution of a method.
-    """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            log_message = start_message or f"Executing {func.__name__}..."
-            logger.info(log_message)
-            result = func(*args, **kwargs)
-            log_message = end_message or f"Finished {func.__name__}..."
-            logger.info(log_message)
-            return result
-        return wrapper
-    return decorator
 
 class GEDIProcessor:
     """
@@ -60,7 +48,6 @@ class GEDIProcessor:
 
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
-        self._setup_paths_and_dates()
         self.credentials = credentials
         self.geometry = geometry  # Optional geometry passed directly
 
@@ -152,14 +139,14 @@ class GEDIProcessor:
 
         if not unprocessed_cmr_data:
             if consolidate:
-                self.database_writer.consolidate_fragments(consolidation_type= consolidation_type)
+                self.database_writer.consolidate_fragments(consolidation_type= consolidation_type, n_workers= self.n_workers)
             logger.info("All requested granules are already processed. No further computation needed.")
             return
 
         self._process_granules(unprocessed_cmr_data)
 
         if consolidate:
-            self.database_writer.consolidate_fragments(consolidation_type= consolidation_type)
+            self.database_writer.consolidate_fragments(consolidation_type= consolidation_type, n_workers= self.n_workers)
         logger.info("Granules successfully processed")
 
     def _download_cmr_data(self) -> pd.DataFrame:
@@ -234,12 +221,12 @@ class GEDIProcessor:
                 )
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_workers) as executor:
-                    futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
-                    concurrent.futures.wait(futures)
+                     futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
+                     concurrent.futures.wait(futures)
 
-                # Mark all granules as processed
-                for granule_id in granule_ids:
-                    self.database_writer.mark_granule_as_processed(granule_id)
+            # Mark all granules as processed
+            for granule_id in granule_ids:
+                self.database_writer.mark_granule_as_processed(granule_id)
 
     @staticmethod
     def process_granule(
@@ -268,11 +255,11 @@ class GEDIProcessor:
         return granule_processor.process_granule(download_results)
 
     def close(self):
-        """Close the Dask client and cluster."""
-        if self.dask_client:
-            self.dask_client.close()
-            self.dask_client = None
-            logger.info("Dask client and cluster have been closed.")
+       """Close the Dask client and cluster."""
+       if self.dask_client:
+           self.dask_client.close()
+           self.dask_client = None
+           logger.info("Dask client and cluster have been closed.")
 
     def __enter__(self):
         """Enter the runtime context related to this object."""

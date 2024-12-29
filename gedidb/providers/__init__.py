@@ -6,3 +6,9 @@
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
+
+from . import tiledb_provider
+
+__all__ = [
+    "tiledb_provider"
+]
