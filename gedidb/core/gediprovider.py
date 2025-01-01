@@ -200,11 +200,17 @@ class GEDIProvider(TileDBProvider):
             lat_min, lat_max = -56.0, 56.0
             lon_min, lon_max = -180.0, 180.0
 
-        # Convert start and end times to numpy datetime64
-        start_time = np.datetime64(start_time) if start_time else None
-        end_time = np.datetime64(end_time) if end_time else None
-        start_timestamp = _datetime_to_timestamp_days(start_time)
-        end_timestamp = _datetime_to_timestamp_days(end_time)
+        if start_time:
+            start_time = np.datetime64(start_time)
+            start_timestamp = _datetime_to_timestamp_days(start_time)
+        else:
+            start_timestamp = None
+
+        if end_time:
+            end_time = np.datetime64(end_time)
+            end_timestamp = _datetime_to_timestamp_days(end_time)
+        else:
+            end_timestamp = None
 
         # Determine variables, including dimension variables
         scalar_vars = variables + DEFAULT_DIMS
