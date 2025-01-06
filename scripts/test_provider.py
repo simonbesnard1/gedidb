@@ -24,16 +24,16 @@ credentials = {
                 }
 
 #%% Instantiate the GEDIProvider
-provider = gdb.GEDIProvider(storage_type='s3', 
-                            s3_bucket= "dog.gedidb.gedi-l2-l4-v002",
+provider = gdb.GEDIProvider(storage_type='local', 
+                            local_path= "/home/simon/Documents/science/GFZ/projects/gedi-toolbox/data",
                             url= "https://s3.gfz-potsdam.de", 
                             credentials= credentials)
 
 #%% Load region of interest
-region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/foreststrucflux/data/geojson/DE-Hai.geojson')
+region_of_interest = gpd.read_file('/home/simon/Documents/science/GFZ/projects/foreststrucflux/data/geojson/BR-Sa3.geojson')
 
 # Define the columns to query and additional parameters
-vars_selected = ['rh', "pavd_z", "agbd","sensitivity", 'pai_z']
+vars_selected = ["agbd", 'rh']
 quality_filters = {
     'sensitivity': '>= 0.9 and <= 1.0',
     'beam_type': "== 'full'"
@@ -43,7 +43,7 @@ quality_filters = {
 gedi_data = provider.get_data(
     variables=vars_selected,
     query_type="bounding_box",
-    geometry=region_of_interest,
+    geometry=None,
     start_time="2019-07-21",
     end_time="2024-07-25",
     return_type='xarray'

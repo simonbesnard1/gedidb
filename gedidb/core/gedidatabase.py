@@ -46,10 +46,10 @@ class GEDIDatabase:
         # Set array URIs based on storage type
         if storage_type == 's3':
             bucket = config['tiledb']['s3_bucket']
-            self.array_uri = os.path.join(f"s3://{bucket}", 'gedi_array_uri')
+            self.array_uri = os.path.join(f"s3://{bucket}", 'array_uri')
         elif storage_type == 'local':
             base_path = config['tiledb'].get('local_path', './')
-            self.array_uri = os.path.join(base_path, 'gedi_array_uri')
+            self.array_uri = os.path.join(base_path, 'array_uri')
 
         self.overwrite = config['tiledb'].get('overwrite', False)
         self.variables_config = self._load_variables_config(config)
@@ -199,7 +199,7 @@ class GEDIDatabase:
 
         domain = self._create_domain()
         attributes = self._create_attributes()
-        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True, 
+        schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True,
                                     capacity=self.config.get("tiledb", {}).get("capacity", 10000), 
                                     cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'))
         tiledb.Array.create(uri, schema, ctx=self.ctx)

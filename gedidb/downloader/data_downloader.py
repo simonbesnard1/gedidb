@@ -139,6 +139,7 @@ class H5FileDownloader(GEDIDownloader):
 
     def __init__(self, download_path: str = "."):
         self.download_path = download_path
+        
 
     @retry((ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError), tries=10, delay=5, backoff=3)
     def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, None]]:
@@ -155,11 +156,14 @@ class H5FileDownloader(GEDIDownloader):
 
         # Check local file size if already partially downloaded
         downloaded_size = h5file_path.stat().st_size if h5file_path.exists() else 0
-
-        # Attempt to retrieve total file size with a small GET request
+        total_size = None
         headers = {'Range': 'bytes=0-1'}
+
         try:
+            # Get total file size from server
             partial_response = requests.get(url, headers=headers, stream=True, timeout=30)
+            partial_response.raise_for_status()
+
             if 'Content-Range' in partial_response.headers:
                 total_size = int(partial_response.headers['Content-Range'].split('/')[-1])
 
@@ -167,30 +171,41 @@ class H5FileDownloader(GEDIDownloader):
                 if downloaded_size == total_size:
                     return granule_key, (product.value, str(h5file_path))
 
-                # Adjust Range header to resume download from downloaded_size
+                # Validate downloaded size
+                if downloaded_size > total_size:
+                    h5file_path.unlink()  # Delete corrupted file
+                    downloaded_size = 0
+
+                # Adjust Range header to resume download
                 headers['Range'] = f'bytes={downloaded_size}-'
             else:
-                headers = {}  # Remove Range if size cannot be determined
+                headers = {}
 
-        except requests.RequestException:
-            headers = {}  # Proceed with a full download if size check fails
+        except requests.RequestException as e:
+            headers = {}  # Fallback to full download
 
         try:
+            # Download the file (full or partial)
             with requests.get(url, headers=headers, stream=True, timeout=30) as r:
-                # Handle partial content (206) or full content (200)
                 r.raise_for_status()
-
+    
                 # Open file in append mode to resume download if needed
-                with open(h5file_path, 'ab') as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                mode = 'ab' if downloaded_size > 0 else 'wb'
+                with open(h5file_path, mode) as f:
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):  # 1 MB chunks
                         if chunk:
                             f.write(chunk)
-
+    
             return granule_key, (product.value, str(h5file_path))
-
-        except (HTTPError, ConnectionError, ChunkedEncodingError):
+    
+        except requests.exceptions.RequestException as e:
+            # Log the error and remove the file
+            logger.error(f"Download failed for {url} with error: {e}. Removing partial file and retrying.")
+            h5file_path.unlink(missing_ok=True)  # Remove the file to ensure a clean retry
             raise
+
 
         except Exception as e:
             logger.error(f"Download failed after all retries for {url}: {e}")
-            return granule_key, (product.value, None)  # Return None if all retries fail
+            return granule_key, (product.value, None)
+
