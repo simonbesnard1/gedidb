@@ -70,11 +70,11 @@ class TileDBProvider:
         if storage_type.lower() == 's3':
             if not s3_bucket:
                 raise ValueError("s3_bucket must be provided when storage_type is 's3'")
-            self.scalar_array_uri = f"s3://{s3_bucket}/gedi_array_uri"
+            self.scalar_array_uri = f"s3://{s3_bucket}/array_uri"
             self.ctx = self._initialize_s3_context(credentials, url, region)
         else:
             # Local storage
-            self.scalar_array_uri = os.path.join(local_path, 'gedi_array_uri')
+            self.scalar_array_uri = os.path.join(local_path, 'array_uri')
             self.ctx = self._initialize_local_context()
 
     def _initialize_s3_context(self, credentials:dict, url: str, region: str) -> tiledb.Ctx:
@@ -94,11 +94,11 @@ class TileDBProvider:
             Configured TileDB context for S3 storage.
         """
         return tiledb.Ctx({
-            "sm.num_reader_threads": 8,
             "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
             "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],
             "vfs.s3.endpoint_override": url,
-            "vfs.s3.region": region
+            "vfs.s3.region": region,
+            "py.init_buffer_bytes": "102400000"
         })
 
     def _initialize_local_context(self) -> tiledb.Ctx:
@@ -111,7 +111,7 @@ class TileDBProvider:
             Configured TileDB context for local storage.
         """
         return tiledb.Ctx({
-            "sm.num_reader_threads": 8
+            "py.init_buffer_bytes": "102400000"
         })
 
 
@@ -249,7 +249,7 @@ class TileDBProvider:
                 else:
                     cond_list.append(f"{key} {condition.strip()}")
             cond_string = " and ".join(cond_list) if cond_list else None
-                    
+            
             # Query the data
             query = array.query(attrs=attr_list, cond=cond_string)
             data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]
