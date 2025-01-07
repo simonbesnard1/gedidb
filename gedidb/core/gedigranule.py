@@ -18,7 +18,6 @@ from gedidb.utils.constants import GediProduct
 from gedidb.granule import granule_parser
 
 # Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class GEDIGranule:

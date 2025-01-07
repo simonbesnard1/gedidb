@@ -14,7 +14,6 @@ import pandas as pd
 from typing import Optional, List, Dict
 
 # Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 DEFAULT_DIMS = ["shot_number"]
@@ -70,14 +69,14 @@ class TileDBProvider:
         if storage_type.lower() == 's3':
             if not s3_bucket:
                 raise ValueError("s3_bucket must be provided when storage_type is 's3'")
-            self.scalar_array_uri = f"s3://{s3_bucket}/gedi_array_uri"
+            self.scalar_array_uri = f"s3://{s3_bucket}/array_uri"
             self.ctx = self._initialize_s3_context(credentials, url, region)
         else:
             # Local storage
-            self.scalar_array_uri = os.path.join(local_path, 'gedi_array_uri')
+            self.scalar_array_uri = os.path.join(local_path, 'array_uri')
             self.ctx = self._initialize_local_context()
 
-    def _initialize_s3_context(self, credentials: dict, url: str, region: str) -> tiledb.Ctx:
+    def _initialize_s3_context(self, credentials:dict, url: str, region: str) -> tiledb.Ctx:
         """
         Set up and return a TileDB context configured for S3 storage with credentials from boto3.
 
@@ -98,7 +97,8 @@ class TileDBProvider:
             "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
             "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],
             "vfs.s3.endpoint_override": url,
-            "vfs.s3.region": region
+            "vfs.s3.region": region,
+            "py.init_buffer_bytes": "102400000"
         })
 
     def _initialize_local_context(self) -> tiledb.Ctx:
@@ -111,7 +111,7 @@ class TileDBProvider:
             Configured TileDB context for local storage.
         """
         return tiledb.Ctx({
-            "sm.num_reader_threads": 8
+            "py.init_buffer_bytes": "102400000"
         })
 
 
@@ -242,7 +242,6 @@ class TileDBProvider:
             # Construct the quality filter condition
             cond_list = []
             for key, condition in filters.items():
-                # Handle range conditions like ">= 0.9 and <= 1.0"
                 if 'and' in condition:
                     parts = condition.split('and')
                     for part in parts:

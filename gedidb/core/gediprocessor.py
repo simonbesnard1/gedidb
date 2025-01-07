@@ -22,7 +22,7 @@ from typing import Optional
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
-from gedidb.utils.geospatial_tools import check_and_format_shape, _temporal_tiling
+from gedidb.utils.geo_processing import check_and_format_shape, _temporal_tiling
 from gedidb.core.gedigranule import GEDIGranule
 
 # Configure logging
