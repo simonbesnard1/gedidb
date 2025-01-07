@@ -45,7 +45,7 @@ unit-test-job:
   artifacts:
     when: always
     reports:
-      junit: reports/TEST-*.xml
+      junit: reports/
     paths:
       - reports/
 
