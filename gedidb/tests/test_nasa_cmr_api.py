@@ -40,7 +40,7 @@ class TestNasaCmrApi(unittest.TestCase):
         )
 
     def _get_earthdata_from_config(self):
-        with open('../../config_files/data_config.yml', 'r') as file:
+        with open('/data/data_config.yml', 'r') as file:
             return yaml.safe_load(file)['earth_data_info']
 
     def test_l2a(self):
