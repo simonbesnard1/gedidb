@@ -21,7 +21,7 @@ class Beam(h5py.Group):
     Represents a single beam in a GEDI granule file, inheriting from h5py.Group.
     Provides methods to extract and process the beam data, including filtering, caching, and SQL formatting.
     """
-    
+
     def __init__(self, granule: h5py.File, beam: str, field_mapping: Dict[str, str]):
         """
         Initialize the Beam class.
@@ -55,8 +55,8 @@ class Beam(h5py.Group):
                     filter_mask = filter_func()
                     mask &= filter_mask
                 except KeyError:
-                   logger.warning(f"Filter '{filter_name}' not found in granule. Skipping.")
-                   continue  # Skip filters that are missing in the granule
+                    logger.warning(f"Filter '{filter_name}' not found in granule. Skipping.")
+                    continue  # Skip filters that are missing in the granule
             return mask
         return np.ones(len(data['shot_number']), dtype=bool)
 
@@ -94,13 +94,13 @@ class Beam(h5py.Group):
     def main_data(self) -> pd.DataFrame:
         """
         Get the main data for the beam as a DataFrame, cached for efficiency.
-    
+
         Returns:
             pd.DataFrame: The main beam data in Pandas DataFrame format.
         """
         if self._cached_data is None:
             data = self._get_main_data()  # Fetch main data
-    
+
             # Flatten multi-dimensional profile data
             flattened_data = {}
             for key, value in data.items():
@@ -111,8 +111,8 @@ class Beam(h5py.Group):
                 else:
                     # Handle scalar data (1D arrays)
                     flattened_data[key] = value
-    
+
             # Create the DataFrame and cache it
             self._cached_data = pd.DataFrame(flattened_data)
-    
+
         return self._cached_data
