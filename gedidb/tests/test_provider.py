@@ -4,7 +4,6 @@ import unittest
 
 import pandas as pd
 import yaml
-import geopandas as gpd
 from pandas import DataFrame
 from xarray import Dataset
 

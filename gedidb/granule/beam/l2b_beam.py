@@ -55,7 +55,6 @@ class L2BBeam(Beam):
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
             elif key == "waveform_start":
                 data[key] = np.array(self[sds_name][()] - 1)  # Adjusting waveform start
-            # this is needed for tests, see test_gedi_granules.py
             elif key == "beam_name":
                 data[key] = np.array([self.name] * self.n_shots)
             else:

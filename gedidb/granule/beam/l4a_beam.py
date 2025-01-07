@@ -48,7 +48,6 @@ class L4ABeam(Beam):
         # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
             sds_name = source['SDS_Name']
-            # this is needed for tests, see test_gedi_granules.py
             if key == "beam_name":
                 data[key] = np.array([self.name] * self.n_shots)
             else:
