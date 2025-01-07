@@ -33,7 +33,7 @@ setup-job:
     - .venv/
     expire_in: 1 day
 
-test-gedi-granules:
+test-unit-test-job:  # This job runs in the test stage.
   stage: test
   dependencies:
     - setup-job
@@ -41,59 +41,12 @@ test-gedi-granules:
     - source .venv/bin/activate
     - echo "Running test_gedi_granules.py..."
     - python -m unittest gedidb.tests.test_gedi_granules
-
-test-granule-name:
-  stage: test
-  dependencies:
-    - setup-job
-  script:
-    - source .venv/bin/activate
-    - echo "Running test_granule_name.py..."
-    - python -m unittest gedidb.tests.test_granule_name
-
-test-nasa-cmr-api:
-  stage: test
-  dependencies:
-    - setup-job
-  script:
-    - source .venv/bin/activate
-    - echo "Running test_nasa_cmr_api.py..."
-    - python -m unittest gedidb.tests.test_nasa_cmr_api
-
-test-geospatial-tools:
-  stage: test
-  dependencies:
-    - setup-job
-  script:
-    - source .venv/bin/activate
-    - echo "Running test_geospatial_tools.py..."
-    - python -m unittest gedidb.tests.test_geospatial_tools
-
-test-local-tiledb:
-  stage: test
-  dependencies:
-    - setup-job
-  script:
-    - source .venv/bin/activate
-    - echo "Running test_local_tiledb.py..."
-    - python -m unittest gedidb.tests.test_local_tiledb
-
-test-data-config-yml:
-  stage: test
-  dependencies:
-    - setup-job
-  script:
-    - source .venv/bin/activate
-    - echo "Running test_data_config_yml.py..."
-    - python -m unittest gedidb.tests.test_data_config_yml
-
-#test-data-downloader:
-#  stage: test
-#  before_script:
-#    - pip install -e . # might there be a better solution to this? increases the needed time for unittests a looot
-#  script:
-#    - echo "Running test_data_downloader.py..."
-#    - python -m unittest gedidb.tests.test_data_downloader
+    - echo "Running all tests in the 'tests/' folder..."
+    - python -m unittest discover -s gedidb/tests -p "test_*.py" > test-results.txt
+  artifacts:
+   paths:
+   - test-results.txt
+   expire_in: 1 day
 
 lint-test-job:   # This job also runs in the test stage.
   stage: test    # It can run at the same time as unit-test-job (in parallel).
