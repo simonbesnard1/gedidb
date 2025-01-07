@@ -6,7 +6,6 @@ import pandas as pd
 import yaml
 from pandas import DataFrame
 from xarray import Dataset
-import geopandas as gpd
 
 from gedidb import GEDIDatabase
 from gedidb import GEDIProvider
