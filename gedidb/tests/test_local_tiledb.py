@@ -14,7 +14,7 @@ class TestGEDIDatabase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         os.chdir(os.path.dirname(__file__))
-        cls.yaml_file_path = '/data/data_config.yml'
+        cls.yaml_file_path = 'data/data_config.yml'
         with open(cls.yaml_file_path, 'r') as file:
             cls.config = yaml.safe_load(file)
 
