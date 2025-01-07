@@ -48,7 +48,7 @@ class GEDIProvider(TileDBProvider):
     """
 
     def __init__(self, storage_type: Optional[str] = None, s3_bucket: Optional[str] = None, local_path: Optional[str] = None,
-                 url: Optional[str] = None, region: Optional[str] = 'eu-central-1', credentials:Optional[dict]=None):
+                 url: Optional[str] = None, region: Optional[str] = 'eu-central-1', credentials: Optional[dict] = None):
         """
         Initialize GEDIProvider with URIs for scalar and profile data arrays, configured based on storage type.
 
@@ -161,7 +161,7 @@ class GEDIProvider(TileDBProvider):
             start_time: Optional[str] = None,
             end_time: Optional[str] = None,
             **quality_filters
-        ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Query GEDI data from TileDB arrays within a specified spatial bounding box and time range,
         applying optional quality filters with flexible filter expressions.
@@ -200,11 +200,17 @@ class GEDIProvider(TileDBProvider):
             lat_min, lat_max = -56.0, 56.0
             lon_min, lon_max = -180.0, 180.0
 
-        # Convert start and end times to numpy datetime64
-        start_time = np.datetime64(start_time) if start_time else None
-        end_time = np.datetime64(end_time) if end_time else None
-        start_timestamp = _datetime_to_timestamp_days(start_time)
-        end_timestamp = _datetime_to_timestamp_days(end_time)
+        if start_time:
+            start_time = np.datetime64(start_time)
+            start_timestamp = _datetime_to_timestamp_days(start_time)
+        else:
+            start_timestamp = None
+
+        if end_time:
+            end_time = np.datetime64(end_time)
+            end_timestamp = _datetime_to_timestamp_days(end_time)
+        else:
+            end_timestamp = None
 
         # Determine variables, including dimension variables
         scalar_vars = variables + DEFAULT_DIMS
@@ -282,10 +288,12 @@ class GEDIProvider(TileDBProvider):
             scalar_data, profile_vars = self.query_nearest_shots(
                 variables, point, num_shots, radius, start_time, end_time, **quality_filters
             )
-        else:
+        elif query_type == "bounding_box":
             scalar_data, profile_vars = self.query_data(
                 variables, geometry, start_time, end_time, **quality_filters
             )
+        else:
+            raise ValueError("Invali query_type. Must be either 'nearest' or 'bounding_box'.")
 
         if not scalar_data:
             logger.info("No data found for specified criteria.")
@@ -293,11 +301,12 @@ class GEDIProvider(TileDBProvider):
 
         metadata = self.get_available_variables()
 
-        return (
-            self.to_xarray(scalar_data, metadata, profile_vars)
-            if return_type == "xarray"
-            else self.to_dataframe(scalar_data)
-        )
+        if return_type == "xarray":
+            return self.to_xarray(scalar_data, metadata, profile_vars)
+        elif return_type == "dataframe":
+            return self.to_dataframe(scalar_data)
+        else:
+            raise ValueError("Invalid return_type. Must be either 'xarray' or 'dataframe'.")
 
     def to_dataframe(self, scalar_data: Dict[str, np.ndarray]) -> pd.DataFrame:
         """
@@ -464,4 +473,3 @@ class GEDIProvider(TileDBProvider):
                     'units': var_metadata.get('units', ''),
                     'product_level': var_metadata.get('product_level', '')
                 })
-
