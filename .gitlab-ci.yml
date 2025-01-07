@@ -33,18 +33,22 @@ setup-job:
     - .venv/
     expire_in: 1 day
 
-test-unit-test-job:  # This job runs in the test stage.
+unit-test-job:
   stage: test
   dependencies:
     - setup-job
   script:
     - source .venv/bin/activate
-    - echo "Running all tests in the 'tests/' folder..."
-    - python -m unittest discover -s gedidb/tests -p "test_*.py" > test-results.txt
+    - pip install unittest-xml-reporting  # Install the library for XML reporting
+    - echo "Running all tests in the 'tests/' folder and saving results as JUnit XML..."
+    - python -m xmlrunner discover -s gedidb/tests -p "test_*.py" -o test-reports
   artifacts:
-   paths:
-   - test-results.txt
-   expire_in: 1 day
+    when: always
+    paths:
+      - test-reports.xml
+    reports:
+      junit: test-reports.xml
+
 
 lint-test-job:   # This job also runs in the test stage.
   stage: test    # It can run at the same time as unit-test-job (in parallel).
