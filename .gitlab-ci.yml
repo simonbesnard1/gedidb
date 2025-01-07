@@ -41,7 +41,7 @@ unit-test-job:
     - source .venv/bin/activate
     - pip install unittest-xml-reporting  # Install the library for XML reporting
     - echo "Running all tests in the 'tests/' folder and saving results as JUnit XML..."
-    - python -m xmlrunner discover -s gedidb/tests -p "test_*.py" -o test-reports/
+    - python -m xmlrunner discover -s gedidb/tests -p "test_*.py" -o reports/
   artifacts:
     when: always
     reports:
