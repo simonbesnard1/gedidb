@@ -13,6 +13,7 @@ import xarray as xr
 import geopandas as gpd
 from scipy.spatial import cKDTree
 from typing import Optional, List, Union, Dict, Tuple
+from collections import defaultdict
 import re
 
 from gedidb.utils.geo_processing import check_and_format_shape, _datetime_to_timestamp_days, _timestamp_to_datetime
@@ -121,18 +122,13 @@ class GEDIProvider(TileDBProvider):
 
         """
 
-        # Determine variables, including dimension variables
         scalar_vars = variables + DEFAULT_DIMS
+        start_timestamp = _datetime_to_timestamp_days(start_time) if start_time else None
+        end_timestamp = _datetime_to_timestamp_days(end_time) if end_time else None
 
-        # Convert start and end times to timestamps
-        start_timestamp = _datetime_to_timestamp_days(np.datetime64(start_time) if start_time else None)
-        end_timestamp = _datetime_to_timestamp_days(np.datetime64(end_time) if end_time else None)
-
-        # Define bounding box limits based on the radius
         lon_min, lat_min = point[0] - radius, point[1] - radius
         lon_max, lat_max = point[0] + radius, point[1] + radius
 
-        # Query the data within the bounding box
         scalar_data_subset, profile_vars = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp, **quality_filters
         )
@@ -141,15 +137,16 @@ class GEDIProvider(TileDBProvider):
             logger.info("No points found in the bounding box.")
             return {}, {}
 
-        # Find nearest points using KD-tree
         longitudes, latitudes = scalar_data_subset["longitude"], scalar_data_subset["latitude"]
-        shot_numbers = scalar_data_subset["shot_number"]
-        tree = cKDTree(np.column_stack((longitudes, latitudes)))
-        distances, indices = tree.query(point, k=min(num_shots, len(shot_numbers)))
-        nearest_shots = shot_numbers[indices]
+        if not longitudes.size:
+            logger.warning("No points found within the bounding box for nearest shot query.")
+            return {}, {}
 
-        # Filter data based on nearest shot numbers
-        scalar_data = {k: np.array(v)[np.isin(shot_numbers, nearest_shots)] for k, v in scalar_data_subset.items()}
+        tree = cKDTree(np.column_stack((longitudes, latitudes)))
+        distances, indices = tree.query(point, k=min(num_shots, len(longitudes)))
+        nearest_shots = scalar_data_subset["shot_number"][indices]
+
+        scalar_data = {k: np.array(v)[np.isin(scalar_data_subset["shot_number"], nearest_shots)] for k, v in scalar_data_subset.items()}
 
         return scalar_data, profile_vars
 
@@ -381,52 +378,30 @@ class GEDIProvider(TileDBProvider):
         - Profile data variables are reshaped to include the `profile_point` dimension alongside `shot_number`.
         - The Dataset is annotated with metadata (descriptions, units, etc.) from the provided metadata DataFrame.
         """
-        # Identify scalar variables (exclude profile variable components and coordinates)
         profile_var_components = [item for sublist in profile_vars.values() for item in sublist]
-        scalar_vars = [
-            var for var in scalar_data
-            if var not in ["latitude", "longitude", "time", "shot_number"] + profile_var_components
-        ]
+        scalar_vars = [var for var in scalar_data if var not in ["latitude", "longitude", "time", "shot_number"] + profile_var_components]
 
-        # Convert time to datetime
         times = _timestamp_to_datetime(scalar_data["time"])
 
-        # Create Dataset for scalar data
         scalar_ds = xr.Dataset({
-            var: xr.DataArray(
-                scalar_data[var],
-                coords={"shot_number": scalar_data["shot_number"]},
-                dims=["shot_number"]
-            )
+            var: xr.DataArray(scalar_data[var], coords={"shot_number": scalar_data["shot_number"]}, dims=["shot_number"])
             for var in scalar_vars
         })
 
-        # Create Dataset for profile data
         profile_ds = xr.Dataset()
         for base_var, components in profile_vars.items():
-            # Use regex to extract the numeric suffix for sorting
-            components = sorted(
-                components,
-                key=lambda x: int(re.search(r"_(\d+)$", x).group(1))
-            )
+            try:
+                components = sorted(components, key=lambda x: int(re.search(r"_(\d+)$", x).group(1)))
+            except AttributeError:
+                logger.warning(f"Unexpected profile variable naming for {components}. Skipping variable.")
+                continue
+
             profile_data = np.stack([scalar_data[comp] for comp in components], axis=-1)
-            profile_ds[base_var] = xr.DataArray(
-                profile_data,
-                coords={"shot_number": scalar_data["shot_number"], "profile_points": range(profile_data.shape[1])},
-                dims=["shot_number", "profile_points"]
-            )
+            profile_ds[base_var] = xr.DataArray(profile_data, coords={"shot_number": scalar_data["shot_number"], "profile_points": range(profile_data.shape[1])}, dims=["shot_number", "profile_points"])
 
-        # Merge scalar and profile datasets
         dataset = xr.merge([scalar_ds, profile_ds])
+        dataset = dataset.assign_coords({"latitude": ("shot_number", scalar_data["latitude"]), "longitude": ("shot_number", scalar_data["longitude"]), "time": ("shot_number", times)})
 
-        # Assign coordinates
-        dataset = dataset.assign_coords({
-            "latitude": ("shot_number", scalar_data["latitude"]),
-            "longitude": ("shot_number", scalar_data["longitude"]),
-            "time": ("shot_number", times)
-        })
-
-        # Attach metadata
         self._attach_metadata(dataset, metadata)
 
         return dataset
@@ -465,11 +440,9 @@ class GEDIProvider(TileDBProvider):
         - This function provides context and unit information for each variable, improving the Dataset's interpretability.
 
         """
+        metadata_dict = metadata.to_dict(orient='index')
+        default_metadata = defaultdict(lambda: {'description': '', 'units': '', 'product_level': ''})
+
         for var in dataset.variables:
-            if var in metadata.index:
-                var_metadata = metadata.loc[var]
-                dataset[var].attrs.update({
-                    'description': var_metadata.get('description', ''),
-                    'units': var_metadata.get('units', ''),
-                    'product_level': var_metadata.get('product_level', '')
-                })
+            var_metadata = metadata_dict.get(var, default_metadata)
+            dataset[var].attrs.update(var_metadata)
