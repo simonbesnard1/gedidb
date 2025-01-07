@@ -18,8 +18,6 @@ from gedidb.granule.granule import granule_name
 from gedidb.utils.constants import GediProduct
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CMRQuery:

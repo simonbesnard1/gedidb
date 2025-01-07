@@ -22,7 +22,7 @@ from typing import Optional
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
-from gedidb.utils.geospatial_tools import check_and_format_shape, _temporal_tiling
+from gedidb.utils.geo_processing import check_and_format_shape, _temporal_tiling
 from gedidb.core.gedigranule import GEDIGranule
 
 # Configure logging
@@ -36,8 +36,8 @@ class GEDIProcessor:
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata,
     and writing data into the database.
     """
-    def __init__(self, config_file: str, credentials: Optional[dict] = None, 
-                 dask_client: Client = None, n_workers: int = None, memory_limit: str = '8GB', 
+    def __init__(self, config_file: str, credentials: Optional[dict] = None,
+                 dask_client: Client = None, n_workers: int = None, memory_limit: str = '8GB',
                  geometry: Optional[gpd.GeoDataFrame] = None):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
@@ -130,7 +130,7 @@ class GEDIProcessor:
        consolidate : bool, default=True
            If True, consolidates fragments in the TileDB arrays after processing all granules.
        """
-      
+
         # Download and filter CMR data
         logger.info("Processing requested granules...")
         cmr_data = self._download_cmr_data()

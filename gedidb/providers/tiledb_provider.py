@@ -14,7 +14,6 @@ import pandas as pd
 from typing import Optional, List, Dict
 
 # Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 DEFAULT_DIMS = ["shot_number"]
