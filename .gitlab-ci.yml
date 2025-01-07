@@ -97,8 +97,6 @@ test-data-config-yml:
 
 lint-test-job:   # This job also runs in the test stage.
   stage: test    # It can run at the same time as unit-test-job (in parallel).
-  before_script:
-    - pip install flake8
   script:
     - echo "Linting code..."
     - python -m flake8
