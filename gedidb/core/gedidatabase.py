@@ -16,12 +16,11 @@ import os
 from retry import retry
 import concurrent.futures
 
-from gedidb.utils.geospatial_tools import  _datetime_to_timestamp_days, convert_to_days_since_epoch
+from gedidb.utils.geo_processing import  _datetime_to_timestamp_days, convert_to_days_since_epoch
 from gedidb.utils.tiledb_consolidation import  SpatialConsolidationPlanner
 
 
 # Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
@@ -129,14 +128,14 @@ class GEDIDatabase:
             # Update configuration for fragment consolidation
             self.tiledb_config["sm.consolidation.mode"] = "fragments"
             self.tiledb_config["sm.vacuum.mode"] = "fragments"
-            
+
             if consolidation_type == 'default':
-                with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:    
+                with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:
                     cons_plan = tiledb.ConsolidationPlan(self.ctx, array_, self.config['tiledb']['consolidation_settings'].get('fragment_size', 100_000_000))
-                
+
             if consolidation_type == 'spatial':
                 cons_plan = SpatialConsolidationPlanner.compute(self.array_uri, self.ctx)
-            
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
                 # Submit a consolidation task for each plan
                 futures = [
@@ -150,7 +149,7 @@ class GEDIDatabase:
                     for plan_ in cons_plan
                 ]
                 concurrent.futures.wait(futures)
-            
+
             # Vacuum after fragment consolidation
             tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
 
@@ -161,7 +160,7 @@ class GEDIDatabase:
             # Consolidate metadata
             tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
             tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-            
+
             # Update configuration for fragment_meta consolidation
             self.tiledb_config["sm.consolidation.mode"] = "fragment_meta"
             self.tiledb_config["sm.vacuum.mode"] = "fragment_meta"
@@ -169,7 +168,7 @@ class GEDIDatabase:
             # Consolidate commit logs
             tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
             tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-            
+
             # Update configuration for commit log consolidation
             self.tiledb_config["sm.consolidation.mode"] = "commits"
             self.tiledb_config["sm.vacuum.mode"] = "commits"
@@ -200,7 +199,7 @@ class GEDIDatabase:
         domain = self._create_domain()
         attributes = self._create_attributes()
         schema = tiledb.ArraySchema(domain=domain, attrs=attributes, sparse=True,
-                                    capacity=self.config.get("tiledb", {}).get("capacity", 10000), 
+                                    capacity=self.config.get("tiledb", {}).get("capacity", 10000),
                                     cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'))
         tiledb.Array.create(uri, schema, ctx=self.ctx)
 
@@ -416,4 +415,3 @@ class GEDIDatabase:
                 variables_config[var_name] = var_info
 
         return variables_config
-    

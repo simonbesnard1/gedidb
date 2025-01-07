@@ -12,7 +12,7 @@ import unittest
 
 import geopandas as gpd
 import geodatasets
-from gedidb.utils import geospatial_tools as gt
+from gedidb.utils import geo_processing as gt
 
 from shapely import MultiPolygon, Polygon
 

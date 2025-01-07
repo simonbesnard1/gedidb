@@ -15,7 +15,7 @@ from scipy.spatial import cKDTree
 from typing import Optional, List, Union, Dict, Tuple
 import re
 
-from gedidb.utils.geospatial_tools import check_and_format_shape, _datetime_to_timestamp_days, _timestamp_to_datetime
+from gedidb.utils.geo_processing import check_and_format_shape, _datetime_to_timestamp_days, _timestamp_to_datetime
 from gedidb.providers.tiledb_provider import TileDBProvider
 
 # Configure the logger
@@ -34,7 +34,7 @@ class GEDIProvider(TileDBProvider):
         URI for accessing the scalar data array.
     ctx : tiledb.Ctx
         TileDB context for the configured storage type (S3 or local).
-    
+
     Methods
     -------
     get_available_variables() -> pd.DataFrame
@@ -47,7 +47,7 @@ class GEDIProvider(TileDBProvider):
         Retrieve queried data in either Pandas DataFrame or Xarray Dataset format.
     """
 
-    def __init__(self, storage_type: Optional[str] = None, s3_bucket: Optional[str] = None, local_path: Optional[str] = None, 
+    def __init__(self, storage_type: Optional[str] = None, s3_bucket: Optional[str] = None, local_path: Optional[str] = None,
                  url: Optional[str] = None, region: Optional[str] = 'eu-central-1', credentials:Optional[dict]=None):
         """
         Initialize GEDIProvider with URIs for scalar and profile data arrays, configured based on storage type.
@@ -64,7 +64,7 @@ class GEDIProvider(TileDBProvider):
             Custom endpoint URL for S3-compatible object stores (e.g., MinIO).
         region : str, optional
             AWS region for S3 access. Defaults to 'eu-central-1'.
-        
+
         Notes
         -----
         Supports both S3 and local storage configurations based on `storage_type`.
@@ -72,22 +72,22 @@ class GEDIProvider(TileDBProvider):
         super().__init__(storage_type, s3_bucket, local_path, url, region, credentials)
 
     def query_nearest_shots(
-        self, 
-        variables: List[str], 
-        point: Tuple[float, float], 
-        num_shots: int, 
+        self,
+        variables: List[str],
+        point: Tuple[float, float],
+        num_shots: int,
         radius: float = 0.1,
-        start_time: Optional[np.datetime64] = None, 
+        start_time: Optional[np.datetime64] = None,
         end_time: Optional[np.datetime64] = None,
         **quality_filters
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Retrieve data for the nearest GEDI shots around a specified reference point, within a given radius.
-    
+
         This function queries GEDI data for the closest shot locations to a specified longitude and latitude,
-        limiting the search to a bounding box defined by a radius around the point. It filters both scalar 
+        limiting the search to a bounding box defined by a radius around the point. It filters both scalar
         and profile variables by proximity, time range, and additional quality parameters if provided.
-    
+
         Parameters
         ----------
         variables : List[str]
@@ -104,75 +104,75 @@ class GEDIProvider(TileDBProvider):
             End time for filtering data within a specific temporal range.
         **quality_filters : dict
             Additional keyword arguments for quality filtering, applied to both scalar and profile data.
-    
+
         Returns
         -------
         Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]
             Two dictionaries containing the nearest GEDI shots:
             - The first dictionary holds scalar data variables, with variable names as keys and arrays of values as items.
             - The second dictionary holds profile data variables, similarly structured.
-    
+
         Notes
         -----
         - This function first creates a bounding box around the point with a defined radius to reduce the search area.
         - After querying this subset, it uses a KD-tree to efficiently find the nearest shots within the subset.
         - Only points within the bounding box and meeting any specified time and quality criteria are considered.
         - The number of shots returned may be fewer than `num_shots` if fewer points meet the criteria.
-        
+
         """
-        
+
         # Determine variables, including dimension variables
         scalar_vars = variables + DEFAULT_DIMS
-       
+
         # Convert start and end times to timestamps
         start_timestamp = _datetime_to_timestamp_days(np.datetime64(start_time) if start_time else None)
         end_timestamp = _datetime_to_timestamp_days(np.datetime64(end_time) if end_time else None)
-        
+
         # Define bounding box limits based on the radius
         lon_min, lat_min = point[0] - radius, point[1] - radius
         lon_max, lat_max = point[0] + radius, point[1] + radius
-    
+
         # Query the data within the bounding box
         scalar_data_subset, profile_vars = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp, **quality_filters
         )
-        
+
         if not scalar_data_subset:
             logger.info("No points found in the bounding box.")
             return {}, {}
-    
+
         # Find nearest points using KD-tree
         longitudes, latitudes = scalar_data_subset["longitude"], scalar_data_subset["latitude"]
         shot_numbers = scalar_data_subset["shot_number"]
         tree = cKDTree(np.column_stack((longitudes, latitudes)))
         distances, indices = tree.query(point, k=min(num_shots, len(shot_numbers)))
         nearest_shots = shot_numbers[indices]
-    
+
         # Filter data based on nearest shot numbers
         scalar_data = {k: np.array(v)[np.isin(shot_numbers, nearest_shots)] for k, v in scalar_data_subset.items()}
-        
+
         return scalar_data, profile_vars
-    
-    
+
+
     def query_data(
-            self, 
-            variables: List[str], 
+            self,
+            variables: List[str],
             geometry: Optional[gpd.GeoDataFrame] = None,
-            start_time: Optional[str] = None, 
+            start_time: Optional[str] = None,
             end_time: Optional[str] = None,
             **quality_filters
         ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Query GEDI data from TileDB arrays within a specified spatial bounding box and time range,
         applying optional quality filters with flexible filter expressions.
-    
+
         Parameters
         ----------
         variables : List[str]
             List of variable names to retrieve from the GEDI data.
         geometry : geopandas.GeoDataFrame, optional
-            A spatial geometry defining the bounding box for data filtering. 
-            If provided, the bounding box is extracted from the geometry's total bounds. 
+            A spatial geometry defining the bounding box for data filtering.
+            If provided, the bounding box is extracted from the geometry's total bounds.
             If `None`, the entire global range is used.
         start_time : str, optional
             Start time for filtering data within a specific temporal range. Expected format is ISO 8601 (e.g., '2020-01-01').
@@ -180,63 +180,63 @@ class GEDIProvider(TileDBProvider):
             End time for filtering data within a specific temporal range. Expected format is ISO 8601.
         **quality_filters : dict
             Additional keyword arguments for quality filtering, applied to both scalar and profile data.
-    
+
         Returns
         -------
         Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]
             Two dictionaries containing GEDI data filtered within the specified bounds:
             - The first dictionary holds scalar data variables, with variable names as keys and arrays of values as items.
             - The second dictionary holds profile data variables, similarly structured.
-        
+
         Notes
         -----
         - Quality filters are applied as boolean masks to the queried data arrays, supporting compound expressions.
         """
-    
+
         if geometry is not None:
             geometry = check_and_format_shape(geometry, simplify=True)
             lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
         else:
             lat_min, lat_max = -56.0, 56.0
             lon_min, lon_max = -180.0, 180.0
-    
+
         # Convert start and end times to numpy datetime64
         start_time = np.datetime64(start_time) if start_time else None
         end_time = np.datetime64(end_time) if end_time else None
         start_timestamp = _datetime_to_timestamp_days(start_time)
         end_timestamp = _datetime_to_timestamp_days(end_time)
-    
+
         # Determine variables, including dimension variables
         scalar_vars = variables + DEFAULT_DIMS
-        
+
         # Query tileDB array within the specified bounds and time range
         scalar_data = self._query_array(
             self.scalar_array_uri, scalar_vars, lat_min, lat_max, lon_min, lon_max, start_timestamp, end_timestamp, **quality_filters
         )
-                
+
         return scalar_data
 
     def get_data(
-        self, 
-        variables: List[str], 
+        self,
+        variables: List[str],
         geometry: Optional[gpd.GeoDataFrame] = None,
-        start_time: Optional[str] = None, 
+        start_time: Optional[str] = None,
         end_time: Optional[str] = None,
-        return_type: str = "xarray", 
+        return_type: str = "xarray",
         query_type: str = "bounding_box",
-        point: Optional[Tuple[float, float]] = None, 
-        num_shots: Optional[int] = None, 
+        point: Optional[Tuple[float, float]] = None,
+        num_shots: Optional[int] = None,
         radius: Optional[float] = None,
         **quality_filters
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
-        Retrieve GEDI data based on spatial, temporal, and quality filters, 
+        Retrieve GEDI data based on spatial, temporal, and quality filters,
         and return it in either Pandas or Xarray format.
-    
-        This function allows flexible querying of GEDI data, either by bounding box or 
-        nearest-point selection, with optional filtering based on time and quality criteria. 
+
+        This function allows flexible querying of GEDI data, either by bounding box or
+        nearest-point selection, with optional filtering based on time and quality criteria.
         Data can be returned as a Pandas DataFrame or Xarray Dataset.
-    
+
         Parameters
         ----------
         variables : List[str]
@@ -244,10 +244,10 @@ class GEDIProvider(TileDBProvider):
         geometry : geopandas.GeoDataFrame, optional
             Spatial filter defined as a GeoDataFrame. Used when `query_type` is 'bounding_box'.
         start_time : str, optional
-            Start of the time range for filtering data. Should be in a format compatible 
+            Start of the time range for filtering data. Should be in a format compatible
             with `np.datetime64`.
         end_time : str, optional
-            End of the time range for filtering data. Should be in a format compatible 
+            End of the time range for filtering data. Should be in a format compatible
             with `np.datetime64`.
         return_type : str, default "xarray"
             Format in which to return the data. Options are 'pandas' or 'xarray'.
@@ -256,7 +256,7 @@ class GEDIProvider(TileDBProvider):
             - "bounding_box": Retrieve data within the specified geometry or bounding box.
             - "nearest": Retrieve the nearest GEDI shots to a specified point.
         point : Tuple[float, float], optional
-            A tuple (longitude, latitude) representing the reference point for a nearest-shot query. 
+            A tuple (longitude, latitude) representing the reference point for a nearest-shot query.
             Required if `query_type` is "nearest".
         num_shots : int, default 10
             Number of nearest shots to retrieve if `query_type` is "nearest".
@@ -264,20 +264,20 @@ class GEDIProvider(TileDBProvider):
             Radius (in degrees) around the point to limit the spatial subset for nearest queries.
         **quality_filters : dict
             Additional filters for data quality or attribute-based filtering.
-    
+
         Returns
         -------
         Union[pd.DataFrame, xr.Dataset, None]
             - Pandas DataFrame or Xarray Dataset containing the queried data, based on `return_type`.
             - None if no data is found matching the specified criteria.
-    
+
         Notes
         -----
         - The `return_type` parameter controls whether data is returned as a DataFrame or Dataset.
         - The `query_type` parameter determines the querying mode (bounding box or nearest shot).
         - Ensure the TileDB context (`self.ctx`) and array URIs are correctly configured before calling this function.
         """
-        
+
         if query_type == "nearest" and point:
             scalar_data, profile_vars = self.query_nearest_shots(
                 variables, point, num_shots, radius, start_time, end_time, **quality_filters
@@ -286,13 +286,13 @@ class GEDIProvider(TileDBProvider):
             scalar_data, profile_vars = self.query_data(
                 variables, geometry, start_time, end_time, **quality_filters
             )
-        
+
         if not scalar_data:
             logger.info("No data found for specified criteria.")
             return None
-        
+
         metadata = self.get_available_variables()
-        
+
         return (
             self.to_xarray(scalar_data, metadata, profile_vars)
             if return_type == "xarray"
@@ -302,40 +302,40 @@ class GEDIProvider(TileDBProvider):
     def to_dataframe(self, scalar_data: Dict[str, np.ndarray]) -> pd.DataFrame:
         """
         Convert scalar and profile data dictionaries into a unified pandas DataFrame.
-    
-        This function takes scalar data (single-point measurements) and profile data 
-        (multi-point measurements per shot) and combines them into a single DataFrame. 
+
+        This function takes scalar data (single-point measurements) and profile data
+        (multi-point measurements per shot) and combines them into a single DataFrame.
         Profile data is aggregated for each `shot_number`, with profile values stored as lists.
-    
+
         Parameters
         ----------
         scalar_data : Dict[str, np.ndarray]
-            Dictionary containing scalar data variables, where each key is a variable name 
+            Dictionary containing scalar data variables, where each key is a variable name
             and each value is a numpy array of measurements indexed by `shot_number`.
         profile_data : Dict[str, np.ndarray]
-            Dictionary containing profile data variables, where each key is a variable name 
-            and each value is a numpy array of measurements. Profile data includes multiple 
+            Dictionary containing profile data variables, where each key is a variable name
+            and each value is a numpy array of measurements. Profile data includes multiple
             measurements per `shot_number` and `profile_point`.
-    
+
         Returns
         -------
         pd.DataFrame
-            A pandas DataFrame where scalar data is stored as individual columns, and 
-            profile data is grouped by `shot_number` with each variable represented as a 
+            A pandas DataFrame where scalar data is stored as individual columns, and
+            profile data is grouped by `shot_number` with each variable represented as a
             list of values per `shot_number`.
-    
+
         Notes
         -----
-        - Profile data columns (e.g., `latitude`, `longitude`, `time`, `profile_point`) 
+        - Profile data columns (e.g., `latitude`, `longitude`, `time`, `profile_point`)
           are dropped after aggregation to avoid duplication.
-        - The returned DataFrame merges scalar and profile data on `shot_number`, ensuring 
+        - The returned DataFrame merges scalar and profile data on `shot_number`, ensuring
           alignment between the two datasets.
-    
+
         """
         # Convert scalar data to DataFrame
         scalar_data["time"] = _timestamp_to_datetime(scalar_data["time"])
         scalar_df = pd.DataFrame.from_dict(scalar_data)
-        
+
         # Merge scalar and profile data on shot_number
         return scalar_df
 
@@ -343,29 +343,29 @@ class GEDIProvider(TileDBProvider):
     def to_xarray(self, scalar_data: Dict[str, np.ndarray], metadata: pd.DataFrame, profile_vars: Dict[str, List[str]]) -> xr.Dataset:
         """
         Convert scalar and profile data to an Xarray Dataset, with metadata attached.
-    
+
         This function creates an Xarray Dataset by transforming scalar and profile data dictionaries
         into separate DataArrays, then merging them based on the `shot_number` dimension.
         Metadata is added to each variable in the final Dataset for descriptive context.
-    
+
         Parameters
         ----------
         scalar_data : Dict[str, np.ndarray]
             Dictionary containing scalar data variables. Keys are variable names, and values
             are numpy arrays indexed by `shot_number`.
         metadata : pd.DataFrame
-            DataFrame containing variable metadata (e.g., descriptions and units). The index 
+            DataFrame containing variable metadata (e.g., descriptions and units). The index
             should match the variable names in `scalar_data` and `profile_vars`.
         profile_vars : Dict[str, List[str]]
-            Dictionary where keys are base names of profile variables (e.g., 'rh') and values 
+            Dictionary where keys are base names of profile variables (e.g., 'rh') and values
             are lists of associated variable names (e.g., ['rh_1', 'rh_2', ...]).
-    
+
         Returns
         -------
         xr.Dataset
             An Xarray Dataset containing scalar and profile data with attached metadata, indexed
             by `shot_number` for scalar data and both `shot_number` and `profile_point` for profile data.
-    
+
         Notes
         -----
         - Scalar data variables are included in the Dataset with the dimension `shot_number`.
@@ -375,13 +375,13 @@ class GEDIProvider(TileDBProvider):
         # Identify scalar variables (exclude profile variable components and coordinates)
         profile_var_components = [item for sublist in profile_vars.values() for item in sublist]
         scalar_vars = [
-            var for var in scalar_data 
+            var for var in scalar_data
             if var not in ["latitude", "longitude", "time", "shot_number"] + profile_var_components
         ]
-    
+
         # Convert time to datetime
         times = _timestamp_to_datetime(scalar_data["time"])
-    
+
         # Create Dataset for scalar data
         scalar_ds = xr.Dataset({
             var: xr.DataArray(
@@ -391,7 +391,7 @@ class GEDIProvider(TileDBProvider):
             )
             for var in scalar_vars
         })
-    
+
         # Create Dataset for profile data
         profile_ds = xr.Dataset()
         for base_var, components in profile_vars.items():
@@ -406,31 +406,31 @@ class GEDIProvider(TileDBProvider):
                 coords={"shot_number": scalar_data["shot_number"], "profile_points": range(profile_data.shape[1])},
                 dims=["shot_number", "profile_points"]
             )
-    
+
         # Merge scalar and profile datasets
         dataset = xr.merge([scalar_ds, profile_ds])
-    
+
         # Assign coordinates
         dataset = dataset.assign_coords({
             "latitude": ("shot_number", scalar_data["latitude"]),
             "longitude": ("shot_number", scalar_data["longitude"]),
             "time": ("shot_number", times)
         })
-    
+
         # Attach metadata
         self._attach_metadata(dataset, metadata)
-    
+
         return dataset
 
 
     def _attach_metadata(self, dataset: xr.Dataset, metadata: pd.DataFrame) -> None:
         """
         Attach metadata to each variable in an Xarray Dataset.
-    
-        This function iterates through the variables in the given Xarray Dataset, matching each variable 
-        to corresponding metadata entries from a provided DataFrame. Metadata attributes such as 
+
+        This function iterates through the variables in the given Xarray Dataset, matching each variable
+        to corresponding metadata entries from a provided DataFrame. Metadata attributes such as
         `description`, `units`, and `product level` are added to each variable in the Dataset for enhanced context.
-    
+
         Parameters
         ----------
         dataset : xr.Dataset
@@ -443,18 +443,18 @@ class GEDIProvider(TileDBProvider):
                 - 'description': A brief description of the variable.
                 - 'units': The unit of measurement for the variable.
                 - 'product_level': The data processing level or classification.
-    
+
         Returns
         -------
         None
             This function modifies the Dataset in-place, adding metadata attributes to each variable as applicable.
-    
+
         Notes
         -----
         - Only variables present in both the Dataset and metadata index will have metadata added.
         - Missing attributes in the metadata DataFrame are handled gracefully, defaulting to an empty string if absent.
         - This function provides context and unit information for each variable, improving the Dataset's interpretability.
-    
+
         """
         for var in dataset.variables:
             if var in metadata.index:
