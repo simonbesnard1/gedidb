@@ -288,10 +288,12 @@ class GEDIProvider(TileDBProvider):
             scalar_data, profile_vars = self.query_nearest_shots(
                 variables, point, num_shots, radius, start_time, end_time, **quality_filters
             )
-        else:
+        elif query_type == "bounding_box":
             scalar_data, profile_vars = self.query_data(
                 variables, geometry, start_time, end_time, **quality_filters
             )
+        else:
+            raise ValueError("Invali query_type. Must be either 'nearest' or 'bounding_box'.")
 
         if not scalar_data:
             logger.info("No data found for specified criteria.")
@@ -299,11 +301,12 @@ class GEDIProvider(TileDBProvider):
 
         metadata = self.get_available_variables()
 
-        return (
-            self.to_xarray(scalar_data, metadata, profile_vars)
-            if return_type == "xarray"
-            else self.to_dataframe(scalar_data)
-        )
+        if return_type == "xarray":
+            return self.to_xarray(scalar_data, metadata, profile_vars)
+        elif return_type == "dataframe":
+            return self.to_dataframe(scalar_data)
+        else:
+            raise ValueError("Invalid return_type. Must be either 'xarray' or 'dataframe'.")
 
     def to_dataframe(self, scalar_data: Dict[str, np.ndarray]) -> pd.DataFrame:
         """
