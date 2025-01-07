@@ -110,6 +110,7 @@ venv.bak/
 LICENSE
 
 # misc
+/config_files/
 /testing
 .idea
-/scripts/data
+/scripts/
