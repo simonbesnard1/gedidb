@@ -10,7 +10,6 @@
 import pandas as pd
 from typing import Optional, Dict
 from pathlib import Path
-import logging
 
 from gedidb.utils.constants import GediProduct
 from gedidb.granule.granule.granule import Granule
@@ -18,11 +17,6 @@ from gedidb.granule.granule.l2a_granule import L2AGranule
 from gedidb.granule.granule.l2b_granule import L2BGranule
 from gedidb.granule.granule.l4a_granule import L4AGranule
 from gedidb.granule.granule.l4c_granule import L4CGranule
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 class GranuleParser:

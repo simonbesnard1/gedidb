@@ -15,7 +15,7 @@ from scipy.spatial import cKDTree
 from typing import Optional, List, Union, Dict, Tuple
 import re
 
-from gedidb.utils.geospatial_tools import check_and_format_shape, _datetime_to_timestamp_days, _timestamp_to_datetime
+from gedidb.utils.geo_processing import check_and_format_shape, _datetime_to_timestamp_days, _timestamp_to_datetime
 from gedidb.providers.tiledb_provider import TileDBProvider
 
 # Configure the logger
@@ -48,7 +48,7 @@ class GEDIProvider(TileDBProvider):
     """
 
     def __init__(self, storage_type: Optional[str] = None, s3_bucket: Optional[str] = None, local_path: Optional[str] = None,
-                 url: Optional[str] = None, region: Optional[str] = 'eu-central-1', credentials: Optional[dict]=None):
+                 url: Optional[str] = None, region: Optional[str] = 'eu-central-1', credentials:Optional[dict]=None):
         """
         Initialize GEDIProvider with URIs for scalar and profile data arrays, configured based on storage type.
 
@@ -161,7 +161,7 @@ class GEDIProvider(TileDBProvider):
             start_time: Optional[str] = None,
             end_time: Optional[str] = None,
             **quality_filters
-    ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+        ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Query GEDI data from TileDB arrays within a specified spatial bounding box and time range,
         applying optional quality filters with flexible filter expressions.
@@ -473,3 +473,4 @@ class GEDIProvider(TileDBProvider):
                     'units': var_metadata.get('units', ''),
                     'product_level': var_metadata.get('product_level', '')
                 })
+
