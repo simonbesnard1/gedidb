@@ -45,9 +45,9 @@ unit-test-job:
   artifacts:
     when: always
     reports:
-      junit: reports/
+      junit: gedidb/tests/reports
     paths:
-      - reports/
+      - gedidb/tests/reports
 
 
 lint-test-job:   # This job also runs in the test stage.

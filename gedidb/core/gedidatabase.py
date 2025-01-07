@@ -16,8 +16,8 @@ import os
 from retry import retry
 import concurrent.futures
 
-from gedidb.utils.geo_processing import  _datetime_to_timestamp_days, convert_to_days_since_epoch
-from gedidb.utils.tiledb_consolidation import  SpatialConsolidationPlanner
+from gedidb.utils.geo_processing import _datetime_to_timestamp_days, convert_to_days_since_epoch
+from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 
 
 # Configure the logger

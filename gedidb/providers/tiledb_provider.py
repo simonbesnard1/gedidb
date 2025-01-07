@@ -76,7 +76,7 @@ class TileDBProvider:
             self.scalar_array_uri = os.path.join(local_path, 'array_uri')
             self.ctx = self._initialize_local_context()
 
-    def _initialize_s3_context(self, credentials:dict, url: str, region: str) -> tiledb.Ctx:
+    def _initialize_s3_context(self, credentials: dict, url: str, region: str) -> tiledb.Ctx:
         """
         Set up and return a TileDB context configured for S3 storage with credentials from boto3.
 
