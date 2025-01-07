@@ -175,7 +175,6 @@ class H5FileDownloader(GEDIDownloader):
     
                 # File is already fully downloaded
                 if downloaded_size == total_size:
-                    logger.info(f"File already downloaded: {h5file_path}")
                     return granule_key, (product.value, str(h5file_path))
     
                 # Corrupted partial download
@@ -188,6 +187,7 @@ class H5FileDownloader(GEDIDownloader):
                 headers = {}  # Fallback to full download if Range requests are not supported
         except requests.RequestException as e:
             logger.warning(f"Failed to fetch file size for {url}: {e}. Proceeding with full download.")
+            h5file_path.unlink(missing_ok=True)
             headers = {}
     
         # Perform file download (partial or full)

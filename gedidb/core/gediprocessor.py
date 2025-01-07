@@ -102,10 +102,13 @@ class GEDIProcessor:
             self.geom = check_and_format_shape(self.geometry, simplify=True)
         else:
             # Load geometry from the configuration file
-            initial_geom = gpd.read_file(self.data_info['region_of_interest'])
+            region_file = self.data_info.get('region_of_interest')
+            if not os.path.exists(region_file):
+                raise FileNotFoundError(f"Region file not found: {region_file}")
+            initial_geom = gpd.read_file(region_file)
             self.geom = check_and_format_shape(initial_geom, simplify=True)
 
-        # Parse dates
+        # Parse start and end dates
         self.start_date = datetime.strptime(self.data_info['start_date'], '%Y-%m-%d')
         self.end_date = datetime.strptime(self.data_info['end_date'], '%Y-%m-%d')
 
@@ -121,32 +124,40 @@ class GEDIProcessor:
         with open(file_path, 'r') as file:
             return yaml.safe_load(file)
 
-    def compute(self, consolidate:bool=True, consolidation_type:str='spatial'):
+    def compute(self, consolidate: bool = True, consolidation_type: str = 'spatial'):
         """
-       Main method to download and process GEDI granules.
+        Main method to download and process GEDI granules.
 
-       Parameters:
-       ----------
-       consolidate : bool, default=True
-           If True, consolidates fragments in the TileDB arrays after processing all granules.
-       """
+        Parameters:
+        ----------
+        consolidate : bool, default=True
+            If True, consolidates fragments in the TileDB arrays after processing all granules.
+        consolidation_type : str, default='spatial'
+            Type of consolidation to perform ('default' or 'spatial').
+        """
 
         # Download and filter CMR data
-        logger.info("Processing requested granules...")
         cmr_data = self._download_cmr_data()
         unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
 
         if not unprocessed_cmr_data:
+            logger.info("All requested granules are already processed.")
             if consolidate:
-                self.database_writer.consolidate_fragments(consolidation_type= consolidation_type, n_workers= self.n_workers)
-            logger.info("All requested granules are already processed. No further computation needed.")
+                self.database_writer.consolidate_fragments(
+                    consolidation_type=consolidation_type, n_workers=self.n_workers
+                )
             return
 
+        # Process unprocessed granules
+        logger.info("Starting GEDI granules processing...")
         self._process_granules(unprocessed_cmr_data)
 
+        # Consolidate fragments if required
         if consolidate:
-            self.database_writer.consolidate_fragments(consolidation_type= consolidation_type, n_workers= self.n_workers)
-        logger.info("Granules successfully processed")
+            self.database_writer.consolidate_fragments(
+                consolidation_type=consolidation_type, n_workers=self.n_workers
+            )
+        logger.info("GEDI granule processing completed successfully.")
 
     def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""
@@ -195,7 +206,7 @@ class GEDIProcessor:
             for granule_id, product_info in granules.items():
                 # Submit granule processing task
                 future = client.submit(
-                    self.process_granule,
+                    GEDIProcessor.process_single_granule,
                     granule_id,
                     product_info,
                     self.data_info,
@@ -218,7 +229,7 @@ class GEDIProcessor:
                 quadrants = self.database_writer.spatial_chunking(
                     concatenated_df, chunk_size=self.data_info['tiledb']["chunk_size"]
                 )
-
+                
                 with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_workers) as executor:
                      futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
                      concurrent.futures.wait(futures)
@@ -228,7 +239,7 @@ class GEDIProcessor:
                 self.database_writer.mark_granule_as_processed(granule_id)
 
     @staticmethod
-    def process_granule(
+    def process_single_granule(
         granule_id,
         product_info,
         data_info,

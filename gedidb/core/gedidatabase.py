@@ -224,7 +224,6 @@ class GEDIDatabase:
         mode : str
             The consolidation mode (e.g., 'array_meta', 'fragment_meta', 'commits').
         """
-        logger.info(f"Consolidating and vacuuming {mode} for array: {self.array_uri}")
         self.tiledb_config["sm.consolidation.mode"] = mode
         self.tiledb_config["sm.vacuum.mode"] = mode
         tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
@@ -239,10 +238,8 @@ class GEDIDatabase:
         mode : str
             The vacuum mode (e.g., 'fragments', 'array_meta').
         """
-        logger.info(f"Vacuuming {mode} for array: {self.array_uri}")
         self.tiledb_config["sm.vacuum.mode"] = mode
         tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-
 
     def _create_arrays(self) -> None:
         """Define and create TileDB arrays based on configuration."""
@@ -389,7 +386,6 @@ class GEDIDatabase:
                     if var_info.get('is_profile', False):
                         array.meta[f"{var_name}.profile_length"] = var_info.get("profile_length", 0)
     
-                    logger.debug(f"Metadata added for variable: {var_name}")
         except tiledb.TileDBError as e:
             logger.error(f"Error adding metadata to TileDB array: {e}")
             raise
@@ -417,14 +413,13 @@ class GEDIDatabase:
     
         # Extract data for scalar and profile variables
         data = self._extract_variable_data(granule_data)
-    
+            
         # Write to the TileDB array
         try:
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
                 dim_names = [dim.name for dim in array.schema.domain]
                 dims = tuple(coords[dim_name] for dim_name in dim_names)
                 array[dims] = data
-            logger.info(f"Successfully wrote granule data to TileDB array: {self.array_uri}")
         except tiledb.TileDBError as e:
             logger.error(f"Failed to write granule data to {self.array_uri}: {e}")
             raise
@@ -447,12 +442,6 @@ class GEDIDatabase:
         missing_dims = [dim for dim in self.config["tiledb"]['dimensions'] if dim not in granule_data]
         if missing_dims:
             raise ValueError(f"Granule data is missing required dimensions: {missing_dims}")
-    
-        # Check for critical variables
-        missing_vars = [var for var, info in self.variables_config.items() if not info.get('optional', False) and var not in granule_data]
-        if missing_vars:
-            raise ValueError(f"Granule data is missing critical variables: {missing_vars}")
-    
     
     def _prepare_coordinates(self, granule_data: pd.DataFrame) -> Dict[str, np.ndarray]:
         """
