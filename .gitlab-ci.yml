@@ -27,7 +27,7 @@ setup-job:
     - python -m venv .venv
     - source .venv/bin/activate
     - pip install -e .
-    - pip install geodatasets flake8 pyyaml tiledb flake8-junit-report
+    - pip install geodatasets flake8 pyyaml tiledb pytest pytest-flake8
   artifacts:
     paths:
     - .venv/
@@ -55,7 +55,14 @@ lint-test-job:   # This job also runs in the test stage.
   script:
     - source .venv/bin/activate
     - echo "Linting code..."
-    - flake8 --output-file=flake8.log
+    - pytest --flake8 --junitxml=flake8-report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: flake8-report.xml
+    paths:
+      - flake8-report.xml
+    expire_in: 1 day
 
 deploy-job:      # This job runs in the deploy stage.
   stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
