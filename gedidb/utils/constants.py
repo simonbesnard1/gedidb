@@ -12,7 +12,7 @@ from enum import Enum
 class GediProduct(Enum):
     """
     Enum representing different GEDI data products.
-    
+
     Attributes:
         L2A (str): Level 2A GEDI product (land and canopy structure).
         L2B (str): Level 2B GEDI product (biomass and carbon).
@@ -32,6 +32,7 @@ class GediProduct(Enum):
         :return: List of product names as strings.
         """
         return [product.value for product in cls]
+
 
 # Constant for the WGS84 coordinate reference system (CRS)
 WGS84 = "EPSG:4326"

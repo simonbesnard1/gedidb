@@ -9,7 +9,7 @@
 
 import logging
 import geopandas as gpd
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import MultiPolygon
 from shapely.geometry.polygon import orient
 from shapely.geometry.base import BaseGeometry  # for typing only
 import dateutil.parser
@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 # Maximum number of coordinates allowed for NASA CMR API
 MAX_CMR_COORDS = 4999
 
+
 class DetailError(Exception):
     """
     Exception raised when the shape exceeds the maximum number of points allowed by NASA's API.
@@ -32,6 +33,7 @@ class DetailError(Exception):
     def __init__(self, n_coords: int):
         self.n_coords = n_coords
         super().__init__(f"Shape contains {n_coords} coordinates, exceeding the limit of {MAX_CMR_COORDS}.")
+
 
 def _count_coordinates(geom: BaseGeometry) -> int:
     """
@@ -77,12 +79,12 @@ def check_and_format_shape(
     if n_coords > MAX_CMR_COORDS:
         if not simplify:
             raise DetailError(n_coords)
-        
+
         logging.info(f"Simplifying shape with {n_coords} coordinates to convex hull.")
         geom = geom.convex_hull
         n_coords = _count_coordinates(geom)
         logging.info(f"Simplified shape to {n_coords} coordinates.")
-        
+
         if n_coords > MAX_CMR_COORDS:
             raise DetailError(n_coords)
 
@@ -91,11 +93,11 @@ def check_and_format_shape(
         return gpd.GeoSeries([orient(p) for p in geom.geoms], crs=shp.crs)
     else:
         return gpd.GeoSeries(orient(geom), crs=shp.crs)
-    
-    
+
+
 def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
     """
-    Convert an ISO8601 datetime string (e.g., "2018-01-01T00:00:00Z") or numpy.datetime64 
+    Convert an ISO8601 datetime string (e.g., "2018-01-01T00:00:00Z") or numpy.datetime64
     to a timestamp in days since epoch (UTC).
 
     Parameters:
@@ -150,13 +152,13 @@ def convert_to_days_since_epoch(timestamps: Union[pd.DatetimeIndex, pd.Series, l
     """
     # Ensure timestamps are converted to pandas DatetimeIndex
     timestamps = pd.to_datetime(timestamps, utc=True)
-    
+
     # Define the Unix epoch
     epoch = pd.Timestamp('1970-01-01', tz='UTC')
-    
+
     # Truncate timestamps to daily resolution and calculate days since epoch
     days_since_epoch = (timestamps.floor('D') - epoch).days
-    
+
     return days_since_epoch
 
 
