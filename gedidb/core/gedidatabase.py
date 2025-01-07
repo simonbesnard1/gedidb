@@ -199,7 +199,6 @@ class GEDIDatabase:
             logger.warning("No consolidation plan generated. Skipping consolidation.")
             return
     
-        logger.info(f"Executing consolidation tasks with {n_workers} workers.")
         with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
             futures = [
                 executor.submit(

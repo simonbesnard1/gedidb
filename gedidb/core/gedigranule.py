@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class GEDIGranule:
     """
     GEDIGranule handles the processing and management of GEDI granules, including parsing, joining,
-    and saving the data to S3 object storage, as well as querying processed granules from a database.
+    and saving the data to TileDB, as well as querying processed granules from a database.
 
     Attributes:
     ----------
@@ -47,32 +47,38 @@ class GEDIGranule:
         self.download_path = download_path
         self.data_info = data_info
 
-    def process_granule(self, row: Tuple):
+    def process_granule(self, row: Tuple[Tuple[str, str], List[Tuple[str, str]]]) -> Tuple[str, Optional[pd.DataFrame]]:
         """
         Process a granule by parsing, joining, and saving it to TileDB.
 
         Parameters:
         ----------
-        row : tuple
+        row : Tuple
             Tuple containing the granule key and product data.
 
         Returns:
         -------
-        tuple or None
-            Tuple containing the granule key, output path (TileDB array URI), and list of processed files, or None if processing fails.
+        Tuple[str, Optional[pd.DataFrame]]
+            Tuple containing the granule key and the joined DataFrame, or None if processing fails.
         """
         granule_key = row[0][0]
         granules = [item[1] for item in row]
 
-        gdf_dict = self.parse_granules(granules, granule_key)
-        if not gdf_dict:
-            return granule_key, None
+        try:
+            gdf_dict = self.parse_granules(granules, granule_key)
+            if not gdf_dict:
+                logger.warning(f"Granule {granule_key}: Parsing returned no valid data.")
+                return granule_key, None
 
-        gdf = self._join_dfs(gdf_dict, granule_key)
-        if gdf is None:
-            return granule_key, None
+            gdf = self._join_dfs(gdf_dict, granule_key)
+            if gdf is None:
+                logger.warning(f"Granule {granule_key}: Joining returned no valid data.")
+                return granule_key, None
 
-        return granule_key, gdf
+            return granule_key, gdf
+        except Exception as e:
+            logger.error(f"Granule {granule_key}: Processing failed with error: {e}")
+            return granule_key, None
 
     def parse_granules(self, granules: List[Tuple[str, str]], granule_key: str) -> Dict[str, Dict[str, np.ndarray]]:
         """
@@ -86,18 +92,21 @@ class GEDIGranule:
         data_dict = {}
         granule_dir = os.path.join(self.download_path, granule_key)
 
-        for product, file in granules:
-            if file is None:
-                continue
+        try:
+            for product, file in filter(lambda x: x[1] is not None, granules):
+                data = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
 
-            data = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
+                if data is not None:
+                    data_dict[product] = data
+                else:
+                    logger.warning(f"Granule {granule_key}: Failed to parse product {product}.")
 
-            if data is not None:
-                data_dict[product] = data
-            else:
-                logger.warning(f"Skipping product {product} for granule {granule_key} due to parsing failure.")
-
-        shutil.rmtree(granule_dir)
+            # Clean up the directory after parsing
+            if os.path.exists(granule_dir):
+                shutil.rmtree(granule_dir, ignore_errors=True)
+        except Exception as e:
+            logger.error(f"Granule {granule_key}: Error while parsing: {e}")
+            return {}
 
         return {k: v for k, v in data_dict.items() if "shot_number" in v}
 
@@ -113,27 +122,28 @@ class GEDIGranule:
         """
         required_products = [GediProduct.L2A, GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]
 
-        # Check if required products are available and non-empty
-        for product in required_products:
-            if product.value not in df_dict or df_dict[product.value].empty:
-                return None
+        try:
+            # Validate required products
+            for product in required_products:
+                if product.value not in df_dict or df_dict[product.value].empty:
+                    logger.warning(f"Granule {granule_key}: Missing or empty product {product.value}.")
+                    return None
 
-        # Start with the L2A product DataFrame and reset the index
-        df = df_dict[GediProduct.L2A.value].reset_index(drop=True)
+            # Start joining with the L2A product
+            df = df_dict[GediProduct.L2A.value].reset_index(drop=True)
 
-        # Perform the join for each required product based on the 'shot_number' column
-        for product in [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]:
-            product_df = df_dict[product.value].set_index("shot_number")
-            df = df.set_index("shot_number").join(
-                product_df,
-                how="inner",
-                rsuffix=f'_{product.value}'
-            ).reset_index(drop=False)
+            for product in required_products[1:]:
+                product_df = df_dict[product.value].set_index("shot_number")
+                df = df.set_index("shot_number").join(
+                    product_df, how="inner", rsuffix=f'_{product.value}'
+                ).reset_index()
 
-        # Drop duplicate columns (those with suffixes from the join)
-        suffixes = [f'_{GediProduct.L2B.value}', f'_{GediProduct.L4A.value}', f'_{GediProduct.L4C.value}']
-        columns_to_drop = [col for col in df.columns if col.endswith(tuple(suffixes))]
-        if columns_to_drop:
-            df = df.drop(columns=columns_to_drop)
+            # Drop duplicate columns with suffixes
+            suffixes = [f'_{product.value}' for product in required_products[1:]]
+            df = df.loc[:, ~df.columns.str.endswith(tuple(suffixes))]
 
-        return df if not df.empty else None
+            return df if not df.empty else None
+        except Exception as e:
+            logger.error(f"Granule {granule_key}: Error while joining DataFrames: {e}")
+            return None
+
