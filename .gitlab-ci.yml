@@ -39,8 +39,6 @@ test-unit-test-job:  # This job runs in the test stage.
     - setup-job
   script:
     - source .venv/bin/activate
-    - echo "Running test_gedi_granules.py..."
-    - python -m unittest gedidb.tests.test_gedi_granules
     - echo "Running all tests in the 'tests/' folder..."
     - python -m unittest discover -s gedidb/tests -p "test_*.py" > test-results.txt
   artifacts:
