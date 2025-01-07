@@ -7,8 +7,10 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
+# === UPDATED ===
+
 import unittest
-from gedidb.processor.granule import granule_name
+from gedidb.granule.granule import granule_name
 
 TEST_V2_NAME = "GEDI02_A_2019268053258_O04446_04_T02132_02_003_01_V002.h5"
 # GEDI02_A_YYYYDDDHHMMSS_O[orbit_number]_[granule_number]_T[track_number]_[PPDS_type]_ [release_number]_[production_version]_V[version_number].h5

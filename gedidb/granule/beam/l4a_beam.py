@@ -48,11 +48,14 @@ class L4ABeam(Beam):
         # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
             sds_name = source['SDS_Name']
-            data[key] = np.array(self[sds_name][()])
+            if key == "beam_name":
+                data[key] = np.array([self.name] * self.n_shots)
+            else:
+                data[key] = np.array(self[sds_name][()])
 
         # Apply quality filters and store the filtered index
         self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
-        
+
         # Filter the data using the mask
         filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
 

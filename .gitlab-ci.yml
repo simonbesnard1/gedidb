@@ -21,19 +21,41 @@ build-job:
       - doc/_build/html  # Store the build results as artifacts
     expire_in: 1 day     # Optional: Define how long to keep artifacts
 
-unit-test-job:   # This job runs in the test stage.
-  stage: test    # It only starts when the job in the build stage completes successfully.
+setup-job:
+  stage: build
   script:
-    - echo "Running unit tests... This will take about 60 seconds."
-    - sleep 60
-    - echo "Code coverage is 90%"
+    - python -m venv .venv
+    - source .venv/bin/activate
+    - pip install -e .
+    - pip install geodatasets flake8 pyyaml tiledb pytest pytest-flake8
+  artifacts:
+    paths:
+    - .venv/
+    expire_in: 1 day
+
+unit-test-job:
+  stage: test
+  dependencies:
+    - setup-job
+  script:
+    - source .venv/bin/activate
+    - pip install unittest-xml-reporting  # Install the library for XML reporting
+    - echo "Running all tests in the 'tests/' folder and saving results as JUnit XML..."
+    - python -m xmlrunner discover -s gedidb/tests -p "test_*.py" -o reports/
+  artifacts:
+    when: always
+    reports:
+      junit: gedidb/tests/reports/*.xml
+    paths:
+      - gedidb/tests/reports/*.xml
+
 
 lint-test-job:   # This job also runs in the test stage.
   stage: test    # It can run at the same time as unit-test-job (in parallel).
   script:
-    - echo "Linting code... This will take about 10 seconds."
-    - sleep 10
-    - echo "No lint issues found."
+    - source .venv/bin/activate
+    - echo "Linting code..."
+    - python -m flake8
 
 deploy-job:      # This job runs in the deploy stage.
   stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
@@ -52,7 +74,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - mkdir public
     - mkdir -p public/doc
     - mkdir -p public/doc/_static/
-    
+
     # Copy over the docs
     - cp doc/index.html public/
     - cp -r doc/_build/html/* public/doc/

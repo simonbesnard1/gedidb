@@ -24,7 +24,7 @@ class GranuleParser:
     Base class for parsing GEDI granule data into a GeoDataFrame.
     Provides common parsing logic for different GEDI product types.
     """
-    
+
     def __init__(self, file: str, data_info: Optional[dict] = None):
         """
         Initialize the GranuleParser.
@@ -38,7 +38,7 @@ class GranuleParser:
             raise FileNotFoundError(f"Granule file {self.file} not found.")
 
         self.data_info = data_info if data_info else {}
-    
+
     @staticmethod
     def parse_granule(granule: Granule) -> pd.DataFrame:
         """
@@ -62,7 +62,7 @@ class GranuleParser:
                 return df
             except Exception as e:
                 raise ValueError(f"Error parsing granule data: {e}")
-    
+
         return pd.DataFrame()  # Return empty dataframe if no data found
 
     def parse(self) -> pd.DataFrame:
@@ -76,7 +76,7 @@ class GranuleParser:
 
 class L2AGranuleParser(GranuleParser):
     """Parser for L2A granules."""
-    
+
     def parse(self) -> pd.DataFrame:
         granule = L2AGranule(self.file, self.data_info.get('level_2a', {}).get('variables', []))
         return self.parse_granule(granule)
@@ -84,7 +84,7 @@ class L2AGranuleParser(GranuleParser):
 
 class L2BGranuleParser(GranuleParser):
     """Parser for L2B granules."""
-    
+
     def parse(self) -> pd.DataFrame:
         granule = L2BGranule(self.file, self.data_info.get('level_2b', {}).get('variables', []))
         return self.parse_granule(granule)
@@ -92,7 +92,7 @@ class L2BGranuleParser(GranuleParser):
 
 class L4AGranuleParser(GranuleParser):
     """Parser for L4A granules."""
-    
+
     def parse(self) -> pd.DataFrame:
         granule = L4AGranule(self.file, self.data_info.get('level_4a', {}).get('variables', []))
         return self.parse_granule(granule)
@@ -100,12 +100,12 @@ class L4AGranuleParser(GranuleParser):
 
 class L4CGranuleParser(GranuleParser):
     """Parser for L4C granules."""
-    
+
     def parse(self) -> pd.DataFrame:
         granule = L4CGranule(self.file, self.data_info.get('level_4c', {}).get('variables', []))
         return self.parse_granule(granule)
 
-def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = None) ->pd.DataFrame:
+def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = None) -> pd.DataFrame:
     """
     Parse an HDF5 file based on the product type and return a GeoDataFrame.
 
@@ -126,11 +126,10 @@ def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = N
         GediProduct.L4A.value: L4AGranuleParser,
         GediProduct.L4C.value: L4CGranuleParser,
     }
-    
+
     parser_class = parser_classes.get(product)
     if parser_class is None:
         raise ValueError(f"Product {product.value} is not supported.")
-    
+
     parser = parser_class(file, data_info or {})
     return parser.parse()
-
