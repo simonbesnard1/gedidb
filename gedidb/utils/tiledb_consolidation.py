@@ -1,14 +1,20 @@
 import os
 import tiledb
-from typing import Dict, List, Iterator
+from typing import Dict, List, Iterator, Any, Tuple, Union
+import logging
+from shapely.geometry import box
+from shapely.strtree import STRtree
 
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class SpatialConsolidationPlan:
     def __init__(self, plan_dict: Dict[int, Dict[str, List[str]]]):
         """
         Initialize the spatial consolidation plan.
 
-        Parameters:
+        Parameters
         ----------
         plan_dict : Dict[int, Dict[str, List[str]]]
             Dictionary where keys are node IDs and values are dictionaries
@@ -43,27 +49,32 @@ class SpatialConsolidationPlanner:
         """
         Generate a spatial consolidation plan for a TileDB array.
 
-        Parameters:
+        Parameters
         ----------
         array_uri : str
             URI of the TileDB array.
         ctx : tiledb.Ctx
             TileDB context.
 
-        Returns:
+        Returns
         -------
         SpatialConsolidationPlan
             The spatial consolidation plan object.
         """
-        # Retrieve fragment information
-        fragment_info = tiledb.FragmentInfoList(array_uri, ctx=ctx)
+        logger.info(f"Generating spatial consolidation plan for array: {array_uri}")
+        
+        try:
+            fragment_info = tiledb.FragmentInfoList(array_uri, ctx=ctx)
+        except Exception as e:
+            logger.error(f"Failed to retrieve fragment info for {array_uri}: {e}")
+            raise
 
-        # Extract spatial domains
         fragments = SpatialConsolidationPlanner._extract_fragments(fragment_info)
+        if not fragments:
+            logger.warning(f"No fragments found for array: {array_uri}")
+            return SpatialConsolidationPlan({})
 
-        # Generate groups of spatially overlapping fragments
         plan = SpatialConsolidationPlanner._generate_plan(fragments)
-
         return SpatialConsolidationPlan(plan)
 
     @staticmethod
@@ -92,57 +103,63 @@ class SpatialConsolidationPlanner:
         return fragments
 
     @staticmethod
-    def _generate_plan(fragments: List[Dict[str, object]]) -> Dict[int, Dict[str, List[str]]]:
+    def _generate_plan(fragments: List[Dict[str, Union[str, Tuple[float, float]]]]) -> Dict[int, Dict[str, List[str]]]:
         """
         Generate a plan by grouping overlapping fragments.
-
-        Parameters:
+    
+        Parameters
         ----------
-        fragments : List[Dict[str, object]]
+        fragments : List[Dict[str, Union[str, Tuple[float, float]]]]
             List of fragments with spatial domains.
-
-        Returns:
+    
+        Returns
         -------
         Dict[int, Dict[str, List[str]]]
             Consolidation plan grouped by spatial overlap.
         """
-        def has_spatial_overlap(frag1: Dict[str, object], frag2: Dict[str, object]) -> bool:
+        def has_spatial_overlap(frag1: Dict[str, Union[str, Tuple[float, float]]], 
+                                frag2: Dict[str, Union[str, Tuple[float, float]]]) -> bool:
             """Check if two fragments spatially overlap."""
-            lat_overlap = frag1["latitude_range"][0] <= frag2["latitude_range"][1] and \
-                          frag1["latitude_range"][1] >= frag2["latitude_range"][0]
-            lon_overlap = frag1["longitude_range"][0] <= frag2["longitude_range"][1] and \
-                          frag1["longitude_range"][1] >= frag2["longitude_range"][0]
-            return lat_overlap and lon_overlap
-
+            return (
+                frag1["latitude_range"][0] <= frag2["latitude_range"][1] and
+                frag1["latitude_range"][1] >= frag2["latitude_range"][0] and
+                frag1["longitude_range"][0] <= frag2["longitude_range"][1] and
+                frag1["longitude_range"][1] >= frag2["longitude_range"][0]
+            )
+    
         visited = set()
         plan = {}
         node_id = 0
-
-        for fragment in fragments:
-            if fragment["uri"] in visited:
-                continue
-
-            current_node = {
-                "num_fragments": 0,
-                "fragment_uris": []
-            }
-
+    
+        # Create a lookup dictionary for unvisited fragments
+        unvisited = {frag["uri"]: frag for frag in fragments}
+    
+        while unvisited:
+            # Pop one fragment from the unvisited list
+            _, fragment = unvisited.popitem()
+            current_node = {"num_fragments": 0, "fragment_uris": []}
+    
+            # Initialize a stack for depth-first search
             stack = [fragment]
             while stack:
                 frag = stack.pop()
                 if frag["uri"] in visited:
                     continue
-
+    
                 visited.add(frag["uri"])
                 current_node["fragment_uris"].append(frag["uri"])
                 current_node["num_fragments"] += 1
-
-                # Find all overlapping fragments
-                for candidate in fragments:
-                    if candidate["uri"] not in visited and has_spatial_overlap(frag, candidate):
+    
+                # Find overlapping fragments
+                for uri, candidate in list(unvisited.items()):
+                    if has_spatial_overlap(frag, candidate):
                         stack.append(candidate)
-
+                        del unvisited[uri]  # Mark as visited by removing from unvisited
+    
+            # Assign the current node to the plan
             plan[node_id] = current_node
             node_id += 1
-
+    
         return plan
+
+
