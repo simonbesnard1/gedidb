@@ -1,9 +1,7 @@
 import os
 import tiledb
-from typing import Dict, List, Iterator, Any, Tuple, Union
+from typing import Dict, List, Iterator, Tuple, Union
 import logging
-from shapely.geometry import box
-from shapely.strtree import STRtree
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -121,10 +119,10 @@ class SpatialConsolidationPlanner:
                                 frag2: Dict[str, Union[str, Tuple[float, float]]]) -> bool:
             """Check if two fragments spatially overlap."""
             return (
-                frag1["latitude_range"][0] <= frag2["latitude_range"][1] and
-                frag1["latitude_range"][1] >= frag2["latitude_range"][0] and
-                frag1["longitude_range"][0] <= frag2["longitude_range"][1] and
-                frag1["longitude_range"][1] >= frag2["longitude_range"][0]
+                frag1["latitude_range"][0] <= frag2["latitude_range"][1]
+                and frag1["latitude_range"][1] >= frag2["latitude_range"][0]
+                and frag1["longitude_range"][0] <= frag2["longitude_range"][1]
+                and frag1["longitude_range"][1] >= frag2["longitude_range"][0]
             )
     
         visited = set()
@@ -161,5 +159,4 @@ class SpatialConsolidationPlanner:
             node_id += 1
     
         return plan
-
 

@@ -12,12 +12,12 @@ import pathlib
 import requests
 from datetime import datetime
 import geopandas as gpd
-from typing import Tuple, Any, Optional
+from typing import Tuple, Optional
 from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
-from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError
+from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -130,72 +130,69 @@ class CMRDataDownloader(GEDIDownloader):
 
         return filtered_granules
 
-class H5FileDownloader(GEDIDownloader):
+class H5FileDownloader:
     """
-    Downloader for HDF5 files from URLs.
+    Downloader for HDF5 files from URLs, with resume and retry support.
     """
 
     def __init__(self, download_path: str = "."):
-        self.download_path = download_path
+        self.download_path = pathlib.Path(download_path)
 
-
-    @retry((ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError), tries=10, delay=5, backoff=3)
-    def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[Any, Optional[str]]]:
+    @retry((ValueError, TypeError, HTTPError, ConnectionError, Timeout, RequestException), tries=10, delay=5, backoff=3)
+    def download(self, granule_key: str, url: str, product: str) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
         Download an HDF5 file for a specific granule and product with resume support.
 
-        Parameters:
+        Parameters
         ----------
         granule_key : str
             Granule ID.
         url : str
             URL to download the HDF5 file from.
-        product : GediProduct
+        product : str
             GEDI product.
 
-        Returns:
+        Returns
         -------
-        Tuple[str, Tuple[Any, Optional[str]]]
+        Tuple[str, Tuple[str, Optional[str]]]
             Tuple containing the granule ID and a tuple of product name and file path.
         """
         h5file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
-        os.makedirs(h5file_path.parent, exist_ok=True)
+        os.makedirs(h5file_path.parent, exist_ok=True) 
 
         downloaded_size = h5file_path.stat().st_size if h5file_path.exists() else 0
         headers = {'Range': f'bytes={downloaded_size}-'} if downloaded_size > 0 else {}
         total_size = None
 
         try:
-            # Fetch total file size from server
-            partial_response = requests.get(url, headers={'Range': 'bytes=0-1'}, stream=True, timeout=30)
+            # Fetch total file size
+            partial_response = requests.get(url, headers={'Range': 'bytes=0-1'}, stream=True, timeout=(30, 60))
             partial_response.raise_for_status()
 
             if 'Content-Range' in partial_response.headers:
                 total_size = int(partial_response.headers['Content-Range'].split('/')[-1])
 
-                # File is already fully downloaded
                 if downloaded_size == total_size:
                     return granule_key, (product.value, str(h5file_path))
 
-                # Corrupted partial download
                 if downloaded_size > total_size:
                     logger.warning(f"Corrupted file detected: {h5file_path}. Deleting and starting fresh.")
                     h5file_path.unlink()
+                    downloaded_size = 0
                     headers = {}
-
             else:
-                headers = {}  # Fallback to full download if Range requests are not supported
-        except requests.RequestException as e:
+                headers = {}
+
+        except RequestException as e:
             logger.warning(f"Failed to fetch file size for {url}: {e}. Proceeding with full download.")
-            h5file_path.unlink(missing_ok=True)
+            if h5file_path.exists():
+                h5file_path.unlink()
             headers = {}
 
-        # Perform file download (partial or full)
+        # Download the file
         try:
-            with requests.get(url, headers=headers, stream=True, timeout=120) as response:
+            with requests.get(url, headers=headers, stream=True, timeout=(30, 60)) as response:
                 response.raise_for_status()
-
-                # Open the file in append or write mode
                 mode = 'ab' if downloaded_size > 0 else 'wb'
                 with open(h5file_path, mode) as f:
                     for chunk in response.iter_content(chunk_size=1024 * 1024):  # 1 MB chunks
@@ -203,11 +200,18 @@ class H5FileDownloader(GEDIDownloader):
                             f.write(chunk)
                             downloaded_size += len(chunk)
 
+            # Verify download size
+            if total_size and downloaded_size != total_size:
+                logger.error(f"Downloaded file size mismatch: {downloaded_size} != {total_size}. Deleting file.")
+                h5file_path.unlink()
+                raise ValueError("File size mismatch after download.")
+
             return granule_key, (product.value, str(h5file_path))
 
-        except requests.RequestException as e:
-            logger.error(f"Download failed for {url}: {e}. Removing partial file and retrying.")
-            h5file_path.unlink(missing_ok=True)
+        except RequestException as e:
+            logger.error(f"Download failed for {url}: {e}")
+            if h5file_path.exists():
+                h5file_path.unlink()
             raise
         except Exception as e:
             logger.error(f"Unexpected error during download: {e}")

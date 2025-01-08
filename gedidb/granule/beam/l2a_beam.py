@@ -10,13 +10,10 @@
 import numpy as np
 import pandas as pd
 from typing import Dict, Optional
-import logging
 
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
 
-# Configure logging
-logger = logging.getLogger(__name__)
 
 class L2ABeam(Beam):
     """
@@ -54,40 +51,33 @@ class L2ABeam(Beam):
         Returns:
             Optional[Dict[str, np.ndarray]]: The filtered data as a dictionary or None if no data is present.
         """
-        try:
-            # Define GEDI mission start time and calculate actual timestamps
-            gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
-            delta_time = self["delta_time"][()]
-            
-            # Initialize the data dictionary with calculated fields
-            data = {
-                "time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds"),
-                'longitude': self["lon_lowestmode"][()],
-                'latitude': self["lat_lowestmode"][()],            
-            }
-    
-            # Populate data dictionary with fields from field mapping
-            for key, source in self.field_mapper.items():
-                sds_name = source['SDS_Name']
-                if key == "beam_type":
-                    beam_type = getattr(self, sds_name)
-                    data[key] = np.array([beam_type] * self.n_shots)
-                elif key == "beam_name":
-                    data[key] = np.array([self.name] * self.n_shots)
-                else:
-                    data[key] = np.array(self[sds_name][()])
-    
-            # Apply quality filters and store filtered index
-            self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
-            
-            # Filter the data based on the quality filters
-            filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
-            
-            return filtered_data if filtered_data else None
+        # Define GEDI mission start time and calculate actual timestamps
+        gedi_count_start = pd.to_datetime('2018-01-01T00:00:00Z')
+        delta_time = self["delta_time"][()]
         
-        except KeyError as e:
-          logger.error(f"Missing key in field mapping or granule data: {e}")
-          return None
-        except Exception as e:
-            logger.error(f"Error extracting main data for beam {self.name}: {e}")
-            return None
+        # Initialize the data dictionary with calculated fields
+        data = {
+            "time": gedi_count_start + pd.to_timedelta(delta_time, unit="seconds"),
+            'longitude': self["lon_lowestmode"][()],
+            'latitude': self["lat_lowestmode"][()],            
+        }
+
+        # Populate data dictionary with fields from field mapping
+        for key, source in self.field_mapper.items():
+            sds_name = source['SDS_Name']
+            if key == "beam_type":
+                beam_type = getattr(self, sds_name)
+                data[key] = np.array([beam_type] * self.n_shots)
+            elif key == "beam_name":
+                data[key] = np.array([self.name] * self.n_shots)
+            else:
+                data[key] = np.array(self[sds_name][()])
+
+        # Apply quality filters and store filtered index
+        self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
+        
+        # Filter the data based on the quality filters
+        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
+        
+        return filtered_data if filtered_data else None
+    
