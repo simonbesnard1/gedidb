@@ -35,35 +35,33 @@ class Beam(h5py.Group):
         self.parent_granule = granule
         self.field_mapping = field_mapping
         self._cached_data: Optional[pd.DataFrame] = None  # Cache for the beam's main data
-
+    
     @staticmethod
     def apply_filter(data: Dict[str, np.ndarray], filters: Optional[Dict[str, Callable]] = None) -> np.ndarray:
         """
         Apply a set of filters to the beam data.
-    
+
         Args:
             data (Dict[str, np.ndarray]): The beam data in dictionary form.
             filters (Optional[Dict[str, Callable]]): A dictionary of filter functions.
-    
+
         Returns:
             np.ndarray: A boolean mask indicating which rows pass the filters.
         """
         if not filters:
             return np.ones(len(data['shot_number']), dtype=bool)
-    
+        
         mask = np.ones(len(data['shot_number']), dtype=bool)
-    
         for filter_name, filter_func in filters.items():
-            if filter_name not in data:
-                logger.warning(f"Filter '{filter_name}' not found in granule. Skipping.")
-                continue
-    
             try:
-                filter_mask = filter_func(data[filter_name])
+                filter_mask = filter_func()
                 mask &= filter_mask
-            except Exception as e:
-                logger.error(f"Error applying filter '{filter_name}': {e}")
+            except KeyError:
+                logger.warning(f"Filter '{filter_name}' not found in granule. Skipping.")
+                continue  # Skip filters that are missing in the granule
         return mask
+    
+    
     
     @property
     def n_shots(self) -> int:
@@ -95,7 +93,8 @@ class Beam(h5py.Group):
         """
         return self.field_mapping
 
-    def _get_main_data(self) -> Dict[str, np.ndarray]:
+    @property
+    def main_data(self) -> Dict[str, np.ndarray]:
         """
         Retrieve the main data for the beam from the granule file.
     
