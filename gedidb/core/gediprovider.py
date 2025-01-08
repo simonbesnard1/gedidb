@@ -378,6 +378,7 @@ class GEDIProvider(TileDBProvider):
         - Profile data variables are reshaped to include the `profile_point` dimension alongside `shot_number`.
         - The Dataset is annotated with metadata (descriptions, units, etc.) from the provided metadata DataFrame.
         """
+        
         profile_var_components = [item for sublist in profile_vars.values() for item in sublist]
         scalar_vars = [var for var in scalar_data if var not in ["latitude", "longitude", "time", "shot_number"] + profile_var_components]
 
@@ -389,16 +390,27 @@ class GEDIProvider(TileDBProvider):
         })
 
         profile_ds = xr.Dataset()
+
         for base_var, components in profile_vars.items():
-            try:
-                components = sorted(components, key=lambda x: int(re.search(r"_(\d+)$", x).group(1)))
-            except AttributeError:
-                logger.warning(f"Unexpected profile variable naming for {components}. Skipping variable.")
-                continue
-
-            profile_data = np.stack([scalar_data[comp] for comp in components], axis=-1)
-            profile_ds[base_var] = xr.DataArray(profile_data, coords={"shot_number": scalar_data["shot_number"], "profile_points": range(profile_data.shape[1])}, dims=["shot_number", "profile_points"])
-
+            # Number of profile points (columns)
+            num_profile_points = len(components)
+        
+            # Preallocate an array with shape (num_shots, num_profile_points)
+            profile_data = np.empty((len(scalar_data["shot_number"]), num_profile_points), dtype=np.float32)
+        
+            # Fill the preallocated array directly
+            for idx, comp in enumerate(components):
+                profile_data[:, idx] = scalar_data[comp]
+        
+            # Add the preallocated array to Xarray Dataset
+            profile_ds[base_var] = xr.DataArray(
+                profile_data,
+                coords={
+                    "shot_number": scalar_data["shot_number"],
+                    "profile_points": range(num_profile_points),
+                },
+                dims=["shot_number", "profile_points"]
+            )
         dataset = xr.merge([scalar_ds, profile_ds])
         dataset = dataset.assign_coords({"latitude": ("shot_number", scalar_data["latitude"]), "longitude": ("shot_number", scalar_data["longitude"]), "time": ("shot_number", times)})
 
