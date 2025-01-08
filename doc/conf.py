@@ -256,8 +256,7 @@ html_theme = "pydata_sphinx_theme"
 
 # Set up the version switcher.  The versions.json is stored in the doc repo.
 if (
-    os.environ.get("CIRCLE_JOB", False)
-    and os.environ.get("CIRCLE_BRANCH", "") != "main"
+    os.environ.get("CIRCLE_JOB", False) and os.environ.get("CIRCLE_BRANCH", "") != "main"
 ):
     # For PR, name is set to its ref
     switcher_version = os.environ["CIRCLE_BRANCH"]
