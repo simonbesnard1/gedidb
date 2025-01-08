@@ -37,17 +37,18 @@ class TileDBProvider:
 
     def _initialize_s3_context(self, credentials: dict, url: str, region: str) -> tiledb.Ctx:
         return tiledb.Ctx({
-            "sm.num_reader_threads": 8,
+            "sm.num_reader_threads": 16,
             "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
             "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],
             "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region,
-            "py.init_buffer_bytes": "102400000"
+            "py.init_buffer_bytes": "512000000",  # Increase buffer size
         })
 
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx({
-            "py.init_buffer_bytes": "102400000"
+            "sm.num_reader_threads": 16,
+            "py.init_buffer_bytes": "512000000",  # Increase buffer size
         })
 
     def get_available_variables(self) -> pd.DataFrame:

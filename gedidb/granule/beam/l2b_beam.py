@@ -68,4 +68,3 @@ class L2BBeam(Beam):
         filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
 
         return filtered_data if filtered_data else None
-
