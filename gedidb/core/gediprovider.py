@@ -438,8 +438,7 @@ class GEDIProvider(TileDBProvider):
             var
             for var in scalar_data
             if var
-            not in ["latitude", "longitude", "time", "shot_number"]
-            + profile_var_components
+            not in ["latitude", "longitude", "time", "shot_number"] + profile_var_components
         ]
 
         times = _timestamp_to_datetime(scalar_data["time"])

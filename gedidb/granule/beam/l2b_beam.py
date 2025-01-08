@@ -36,12 +36,8 @@ class L2BBeam(Beam):
 
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
-            "water_persistence": lambda: self[
-                "land_cover_data/landsat_water_persistence"
-            ][()]
-            < 10,
-            "urban_proportion": lambda: self["land_cover_data/urban_proportion"][()]
-            < 50,
+            "water_persistence": lambda: self["land_cover_data/landsat_water_persistence"][()] < 10,
+            "urban_proportion": lambda: self["land_cover_data/urban_proportion"][()] < 50,
         }
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:

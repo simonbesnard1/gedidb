@@ -129,10 +129,7 @@ class SpatialConsolidationPlanner:
         ) -> bool:
             """Check if two fragments spatially overlap."""
             return (
-                frag1["latitude_range"][0] <= frag2["latitude_range"][1]
-                and frag1["latitude_range"][1] >= frag2["latitude_range"][0]
-                and frag1["longitude_range"][0] <= frag2["longitude_range"][1]
-                and frag1["longitude_range"][1] >= frag2["longitude_range"][0]
+                frag1["latitude_range"][0] <= frag2["latitude_range"][1] and frag1["latitude_range"][1] >= frag2["latitude_range"][0] and frag1["longitude_range"][0] <= frag2["longitude_range"][1] and frag1["longitude_range"][1] >= frag2["longitude_range"][0]
             )
 
         visited = set()
