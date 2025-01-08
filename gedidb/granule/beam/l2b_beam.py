@@ -9,9 +9,13 @@
 
 import numpy as np
 from typing import Optional, Dict
+import logging
 
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class L2BBeam(Beam):
     """
@@ -45,25 +49,33 @@ class L2BBeam(Beam):
         Returns:
             Optional[Dict[str, np.ndarray]]: The filtered data as a dictionary or None if no data is present.
         """
-        # Initialize the data dictionary
-        data = {}
-
-        # Populate data dictionary with fields from field mapping
-        for key, source in self.field_mapper.items():
-            sds_name = source['SDS_Name']
-            if key == "dz":
-                data[key] = np.repeat(self[sds_name][()], self.n_shots)
-            elif key == "waveform_start":
-                data[key] = np.array(self[sds_name][()] - 1)  # Adjusting waveform start
-            elif key == "beam_name":
-                data[key] = np.array([self.name] * self.n_shots)
-            else:
-                data[key] = np.array(self[sds_name][()])
-
-        # Apply quality filters and store the filtered index
-        self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
-
-        # Filter the data using the mask
-        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
-
-        return filtered_data if filtered_data else None
+        try:
+            # Initialize the data dictionary
+            data = {}
+    
+            # Populate data dictionary with fields from field mapping
+            for key, source in self.field_mapper.items():
+                sds_name = source['SDS_Name']
+                if key == "dz":
+                    data[key] = np.repeat(self[sds_name][()], self.n_shots)
+                elif key == "waveform_start":
+                    data[key] = np.array(self[sds_name][()] - 1)  # Adjusting waveform start
+                elif key == "beam_name":
+                    data[key] = np.array([self.name] * self.n_shots)
+                else:
+                    data[key] = np.array(self[sds_name][()])
+    
+            # Apply quality filters and store the filtered index
+            self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
+    
+            # Filter the data using the mask
+            filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
+    
+            return filtered_data if filtered_data else None
+        
+        except KeyError as e:
+          logger.error(f"Missing key in field mapping or granule data: {e}")
+          return None
+        except Exception as e:
+            logger.error(f"Error extracting main data for beam {self.name}: {e}")
+            return None
