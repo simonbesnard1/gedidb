@@ -146,3 +146,4 @@ class GEDIGranule:
         except Exception as e:
             logger.error(f"Granule {granule_key}: Error while joining DataFrames: {e}")
             return None
+        

@@ -14,7 +14,6 @@ import geopandas as gpd
 from scipy.spatial import cKDTree
 from typing import Optional, List, Union, Dict, Tuple
 from collections import defaultdict
-import re
 
 from gedidb.utils.geo_processing import check_and_format_shape, _datetime_to_timestamp_days, _timestamp_to_datetime
 from gedidb.providers.tiledb_provider import TileDBProvider
