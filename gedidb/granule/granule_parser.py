@@ -75,34 +75,37 @@ class GranuleParser:
         """
         raise NotImplementedError("This method should be implemented in child classes")
 
+
 class L2AGranuleParser(GranuleParser):
     """Parser for L2A granules."""
-    
+
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get('level_2a', {}).get('variables', [])
+        self.variables = self.data_info.get("level_2a", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
         granule = L2AGranule(self.file, self.variables)
         return self.parse_granule(granule)
+
 
 class L2BGranuleParser(GranuleParser):
     """Parser for L2B granules."""
 
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get('level_2b', {}).get('variables', [])
+        self.variables = self.data_info.get("level_2b", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
         granule = L2BGranule(self.file, self.variables)
         return self.parse_granule(granule)
+
 
 class L4AGranuleParser(GranuleParser):
     """Parser for L4A granules."""
 
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get('level_4a', {}).get('variables', [])
+        self.variables = self.data_info.get("level_4a", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
         granule = L4AGranule(self.file, self.variables)
@@ -114,13 +117,16 @@ class L4CGranuleParser(GranuleParser):
 
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get('level_4c', {}).get('variables', [])
+        self.variables = self.data_info.get("level_4c", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
         granule = L4CGranule(self.file, self.variables)
         return self.parse_granule(granule)
 
-def parse_h5_file(file: str, product: GediProduct, data_info: Optional[Dict] = None) -> pd.DataFrame:
+
+def parse_h5_file(
+    file: str, product: GediProduct, data_info: Optional[Dict] = None
+) -> pd.DataFrame:
     """
     Parse an HDF5 file based on the product type and return a GeoDataFrame.
 

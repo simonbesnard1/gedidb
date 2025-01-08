@@ -18,47 +18,65 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DIMS = ["shot_number"]
 
+
 class TileDBProvider:
     """
     A base provider class for managing low-level interactions with TileDB arrays for GEDI data.
     """
 
-    def __init__(self, storage_type: str = 'local', s3_bucket: Optional[str] = None, local_path: Optional[str] = './',
-                 url: Optional[str] = None, region: str = 'eu-central-1', credentials: Optional[dict] = None, n_workers: int = 5):
+    def __init__(
+        self,
+        storage_type: str = "local",
+        s3_bucket: Optional[str] = None,
+        local_path: Optional[str] = "./",
+        url: Optional[str] = None,
+        region: str = "eu-central-1",
+        credentials: Optional[dict] = None,
+        n_workers: int = 5,
+    ):
         self.n_workers = n_workers
-        if storage_type.lower() == 's3':
+        if storage_type.lower() == "s3":
             if not s3_bucket:
                 raise ValueError("s3_bucket must be provided when storage_type is 's3'")
             self.scalar_array_uri = f"s3://{s3_bucket}/array_uri"
             self.ctx = self._initialize_s3_context(credentials, url, region)
         else:
-            self.scalar_array_uri = os.path.join(local_path, 'array_uri')
+            self.scalar_array_uri = os.path.join(local_path, "array_uri")
             self.ctx = self._initialize_local_context()
 
-    def _initialize_s3_context(self, credentials: dict, url: str, region: str) -> tiledb.Ctx:
-        return tiledb.Ctx({
-            "sm.num_reader_threads": 16,
-            "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
-            "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],
-            "vfs.s3.endpoint_override": url,
-            "vfs.s3.region": region,
-            "py.init_buffer_bytes": "512000000",  # Increase buffer size
-        })
+    def _initialize_s3_context(
+        self, credentials: dict, url: str, region: str
+    ) -> tiledb.Ctx:
+        return tiledb.Ctx(
+            {
+                "sm.num_reader_threads": 16,
+                "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
+                "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
+                "vfs.s3.endpoint_override": url,
+                "vfs.s3.region": region,
+                "py.init_buffer_bytes": "512000000",  # Increase buffer size
+            }
+        )
 
     def _initialize_local_context(self) -> tiledb.Ctx:
-        return tiledb.Ctx({
-            "sm.num_reader_threads": 16,
-            "py.init_buffer_bytes": "512000000",  # Increase buffer size
-        })
+        return tiledb.Ctx(
+            {
+                "sm.num_reader_threads": 16,
+                "py.init_buffer_bytes": "512000000",  # Increase buffer size
+            }
+        )
 
     def get_available_variables(self) -> pd.DataFrame:
         """
         Retrieve metadata for available variables in the scalar TileDB array.
         """
         try:
-            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as scalar_array:
+            with tiledb.open(
+                self.scalar_array_uri, mode="r", ctx=self.ctx
+            ) as scalar_array:
                 metadata = {
-                    k: scalar_array.meta[k] for k in scalar_array.meta
+                    k: scalar_array.meta[k]
+                    for k in scalar_array.meta
                     if not k.startswith("granule_") and "array_type" not in k
                 }
 
@@ -84,7 +102,7 @@ class TileDBProvider:
         lon_max: float,
         start_time: Optional[np.datetime64],
         end_time: Optional[np.datetime64],
-        **filters: Dict[str, str]
+        **filters: Dict[str, str],
     ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
         """
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
@@ -97,19 +115,31 @@ class TileDBProvider:
                 for var in variables:
                     if f"{var}.profile_length" in array.meta:
                         profile_length = array.meta[f"{var}.profile_length"]
-                        profile_attrs = [f"{var}_{i}" for i in range(1, profile_length + 1)]
+                        profile_attrs = [
+                            f"{var}_{i}" for i in range(1, profile_length + 1)
+                        ]
                         attr_list.extend(profile_attrs)
                         profile_vars[var] = profile_attrs
                     else:
                         attr_list.append(var)
 
-                cond_list = [f"{key} {value.strip()}" for key, value in filters.items()]
+                # Construct the quality filter condition
+                cond_list = []
+                for key, condition in filters.items():
+                    # Handle range conditions like ">= 0.9 and <= 1.0"
+                    if "and" in condition:
+                        parts = condition.split("and")
+                        for part in parts:
+                            cond_list.append(f"{key} {part.strip()}")
+                    else:
+                        cond_list.append(f"{key} {condition.strip()}")
                 cond_string = " and ".join(cond_list) if cond_list else None
-
                 query = array.query(attrs=attr_list, cond=cond_string)
-                data = query.multi_index[lat_min:lat_max, lon_min:lon_max, start_time:end_time]
+                data = query.multi_index[
+                    lat_min:lat_max, lon_min:lon_max, start_time:end_time
+                ]
 
-                if len(data['shot_number']) == 0:
+                if len(data["shot_number"]) == 0:
                     return None, profile_vars
 
                 return data, profile_vars

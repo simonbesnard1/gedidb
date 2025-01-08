@@ -21,7 +21,9 @@ class L2BBeam(Beam):
     and returns the filtered beam data as a dictionary.
     """
 
-    def __init__(self, granule: Granule, beam: str, field_mapping: Dict[str, Dict[str, str]]):
+    def __init__(
+        self, granule: Granule, beam: str, field_mapping: Dict[str, Dict[str, str]]
+    ):
         """
         Initialize the L2BBeam class.
 
@@ -34,8 +36,12 @@ class L2BBeam(Beam):
 
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
-            'water_persistence': lambda: self["land_cover_data/landsat_water_persistence"][()] < 10,
-            'urban_proportion': lambda: self['land_cover_data/urban_proportion'][()] < 50,
+            "water_persistence": lambda: self[
+                "land_cover_data/landsat_water_persistence"
+            ][()]
+            < 10,
+            "urban_proportion": lambda: self["land_cover_data/urban_proportion"][()]
+            < 50,
         }
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
@@ -51,7 +57,7 @@ class L2BBeam(Beam):
 
         # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
-            sds_name = source['SDS_Name']
+            sds_name = source["SDS_Name"]
             if key == "dz":
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
             elif key == "waveform_start":
@@ -62,9 +68,13 @@ class L2BBeam(Beam):
                 data[key] = np.array(self[sds_name][()])
 
         # Apply quality filters and store the filtered index
-        self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
+        self._filtered_index = self.apply_filter(
+            data, filters=self.DEFAULT_QUALITY_FILTERS
+        )
 
         # Filter the data using the mask
-        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
+        filtered_data = {
+            key: value[self._filtered_index] for key, value in data.items()
+        }
 
         return filtered_data if filtered_data else None

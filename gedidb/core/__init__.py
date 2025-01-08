@@ -7,14 +7,6 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-from . import (gedidatabase, 
-               gedigranule,
-               gediprocessor,
-               gediprovider)
+from . import gedidatabase, gedigranule, gediprocessor, gediprovider
 
-__all__ = [
-    "gedidatabase",
-    "gedigranule", 
-    "gediprocessor",
-    "gediprovider"
-]
+__all__ = ["gedidatabase", "gedigranule", "gediprocessor", "gediprovider"]

@@ -17,10 +17,10 @@ from gedidb.granule.beam.beam import Beam
 class L4CGranule(Granule):
     """
     Represents a GEDI Level 4C granule, providing access to its beams and related data.
-    
+
     This class extends the base Granule class and initializes with a specific file path and
     a field mapping that maps product variables to the corresponding data fields in the granule.
-    
+
     Attributes:
         field_mapping (Dict[str, str]): A dictionary mapping product variables to HDF5 field names.
     """
@@ -56,7 +56,7 @@ class L4CGranule(Granule):
     def _beam_from_name(self, beam: str) -> Beam:
         """
         Retrieve a specific beam from the granule by name.
-        
+
         Parameters:
             beam (str): The name of the beam to retrieve (e.g., "BEAM0000").
 

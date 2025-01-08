@@ -9,6 +9,7 @@
 
 from enum import Enum
 
+
 class GediProduct(Enum):
     """
     Enum representing different GEDI data products.
@@ -19,6 +20,7 @@ class GediProduct(Enum):
         L4A (str): Level 4A GEDI product (terrain elevation and canopy height).
         L4C (str): Level 4C GEDI product (ecosystem carbon and dynamics).
     """
+
     L2A = "level2A"
     L2B = "level2B"
     L4A = "level4A"
