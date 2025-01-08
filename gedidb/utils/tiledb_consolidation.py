@@ -60,7 +60,7 @@ class SpatialConsolidationPlanner:
             The spatial consolidation plan object.
         """
         logger.info(f"Generating spatial consolidation plan for array: {array_uri}")
-        
+
         try:
             fragment_info = tiledb.FragmentInfoList(array_uri, ctx=ctx)
         except Exception as e:
@@ -104,12 +104,12 @@ class SpatialConsolidationPlanner:
     def _generate_plan(fragments: List[Dict[str, Union[str, Tuple[float, float]]]]) -> Dict[int, Dict[str, List[str]]]:
         """
         Generate a plan by grouping overlapping fragments.
-    
+
         Parameters
         ----------
         fragments : List[Dict[str, Union[str, Tuple[float, float]]]]
             List of fragments with spatial domains.
-    
+
         Returns
         -------
         Dict[int, Dict[str, List[str]]]
@@ -124,39 +124,38 @@ class SpatialConsolidationPlanner:
                 and frag1["longitude_range"][0] <= frag2["longitude_range"][1]
                 and frag1["longitude_range"][1] >= frag2["longitude_range"][0]
             )
-    
+
         visited = set()
         plan = {}
         node_id = 0
-    
+
         # Create a lookup dictionary for unvisited fragments
         unvisited = {frag["uri"]: frag for frag in fragments}
-    
+
         while unvisited:
             # Pop one fragment from the unvisited list
             _, fragment = unvisited.popitem()
             current_node = {"num_fragments": 0, "fragment_uris": []}
-    
+
             # Initialize a stack for depth-first search
             stack = [fragment]
             while stack:
                 frag = stack.pop()
                 if frag["uri"] in visited:
                     continue
-    
+
                 visited.add(frag["uri"])
                 current_node["fragment_uris"].append(frag["uri"])
                 current_node["num_fragments"] += 1
-    
+
                 # Find overlapping fragments
                 for uri, candidate in list(unvisited.items()):
                     if has_spatial_overlap(frag, candidate):
                         stack.append(candidate)
                         del unvisited[uri]  # Mark as visited by removing from unvisited
-    
+
             # Assign the current node to the plan
             plan[node_id] = current_node
             node_id += 1
-    
-        return plan
 
+        return plan
