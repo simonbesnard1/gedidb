@@ -126,7 +126,9 @@ class Granule(h5py.File):
         elif isinstance(identifier, str):
             return self._beam_from_name(identifier)
         else:
-            raise ValueError("Identifier must either be the beam index (int) or beam name (str)")
+            raise ValueError(
+                "Identifier must either be the beam index (int) or beam name (str)"
+            )
 
     def _beam_from_index(self, beam_index: int) -> Beam:
         """

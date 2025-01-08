@@ -22,6 +22,7 @@ from gedidb.utils.constants import GediProduct
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 class CMRQuery:
     """
     Base class for constructing and handling CMR queries.
@@ -43,7 +44,7 @@ class CMRQuery:
         collection_id = earth_data_info["CMR_PRODUCT_IDS"].get(str(product))
         bounding_box = CMRQuery._construct_spatial_params(geom)
         temporal = CMRQuery._construct_temporal_params(start_date, end_date)
-    
+
         return {
             "collection_concept_id": collection_id,
             "page_size": page_size,
@@ -53,9 +54,7 @@ class CMRQuery:
         }
 
     @staticmethod
-    def _construct_temporal_params(
-        start_date: datetime, end_date: datetime
-    ) -> str:
+    def _construct_temporal_params(start_date: datetime, end_date: datetime) -> str:
         """
         Construct the temporal query parameter for the CMR request.
         """
@@ -76,10 +75,9 @@ class CMRQuery:
         """
         if geom is None or geom.empty:
             return None
-    
+
         bounds = geom.total_bounds
         return f"{bounds[0]},{bounds[1]},{bounds[2]},{bounds[3]}"
-
 
     @staticmethod
     def _get_id(name: str) -> str:
@@ -123,10 +121,11 @@ class CMRQuery:
         granule_name = granule_name.strip()
 
         # Remove '.h5' extension if present
-        if granule_name.endswith('.h5'):
+        if granule_name.endswith(".h5"):
             granule_name = granule_name[:-3]
 
         return granule_name
+
 
 class GranuleQuery(CMRQuery):
     """
@@ -139,7 +138,7 @@ class GranuleQuery(CMRQuery):
         geom: gpd.GeoSeries,
         start_date: datetime = None,
         end_date: datetime = None,
-        earth_data_info: dict = None
+        earth_data_info: dict = None,
     ):
         """
         Initialize the GranuleQuery class.
@@ -176,7 +175,7 @@ class GranuleQuery(CMRQuery):
         adapter = HTTPAdapter(max_retries=retry_strategy)
         with requests.Session() as session:
             session.mount("https://", adapter)
-    
+
             while True:
                 # Construct query parameters
                 cmr_params = self._construct_query_params(
@@ -188,23 +187,25 @@ class GranuleQuery(CMRQuery):
                     page_size,
                     page_num,
                 )
-    
+
                 # Fetch data from CMR
-                response = session.get(self.earth_data_info["CMR_URL"], params=cmr_params)
+                response = session.get(
+                    self.earth_data_info["CMR_URL"], params=cmr_params
+                )
                 response.raise_for_status()
                 cmr_response = response.json().get("feed", {}).get("entry", [])
-    
+
                 # Break the loop if no more data is returned
                 if not cmr_response:
                     break
-    
+
                 # Extend the list with new granules
                 granule_data.extend(cmr_response)
                 page_num += 1
-    
+
         # Process granule data into a structured DataFrame
         return self._construct_query(granule_data)
-    
+
     def _construct_query(self, granule_data: List[dict]) -> pd.DataFrame:
         """
         Process raw granule data from CMR into a structured DataFrame.
@@ -222,5 +223,6 @@ class GranuleQuery(CMRQuery):
             if (granule_name := self._get_name(item)) is not None
         ]
         return pd.DataFrame(
-            processed_data, columns=["id", "name", "url", "size", "product", "start_time"]
+            processed_data,
+            columns=["id", "name", "url", "size", "product", "start_time"],
         )

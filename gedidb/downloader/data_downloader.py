@@ -37,18 +37,30 @@ class GEDIDownloader:
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
 
+
 class CMRDataDownloader(GEDIDownloader):
     """
     Downloader for GEDI granules from NASA's CMR service.
     """
 
-    def __init__(self, geom: gpd.GeoSeries, start_date: datetime = None, end_date: datetime = None, earth_data_info=None):
+    def __init__(
+        self,
+        geom: gpd.GeoSeries,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        earth_data_info=None,
+    ):
         self.geom = geom
         self.start_date = start_date
         self.end_date = end_date
         self.earth_data_info = earth_data_info
 
-    @retry((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError), tries=10, delay=5, backoff=3)
+    @retry(
+        (ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError),
+        tries=10,
+        delay=5,
+        backoff=3,
+    )
     def download(self) -> dict:
         """
         Download granules across all GEDI products and ensure ID consistency.
@@ -66,13 +78,19 @@ class CMRDataDownloader(GEDIDownloader):
         for product in GediProduct:
             try:
                 granule_query = GranuleQuery(
-                    product, self.geom, self.start_date, self.end_date, self.earth_data_info
+                    product,
+                    self.geom,
+                    self.start_date,
+                    self.end_date,
+                    self.earth_data_info,
                 )
                 granules = granule_query.query_granules()
 
                 if not granules.empty:
                     total_granules += len(granules)
-                    total_size_mb += granules["size"].astype(float).sum()  # Summing the size column
+                    total_size_mb += (
+                        granules["size"].astype(float).sum()
+                    )  # Summing the size column
 
                     # Organize granules by ID and append (url, product) tuples
                     for _, row in granules.iterrows():
@@ -101,7 +119,9 @@ class CMRDataDownloader(GEDIDownloader):
             raise ValueError("No granules with all required products found.")
 
         # Log the total number of granules and total size of the data
-        logger.info(f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB).")
+        logger.info(
+            f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB)."
+        )
 
         return filtered_cmr_dict
 
@@ -112,7 +132,7 @@ class CMRDataDownloader(GEDIDownloader):
         :param granules: Dictionary where keys are granule IDs and values are lists of (url, product) tuples.
         :return: Filtered dictionary containing only granules with all required products.
         """
-        required_products = {'level2A', 'level2B', 'level4A', 'level4C'}
+        required_products = {"level2A", "level2B", "level4A", "level4C"}
         filtered_granules = {}
 
         for granule_id, product_info in granules.items():
@@ -130,6 +150,7 @@ class CMRDataDownloader(GEDIDownloader):
 
         return filtered_granules
 
+
 class H5FileDownloader:
     """
     Downloader for HDF5 files from URLs, with resume and retry support.
@@ -138,8 +159,15 @@ class H5FileDownloader:
     def __init__(self, download_path: str = "."):
         self.download_path = pathlib.Path(download_path)
 
-    @retry((ValueError, TypeError, HTTPError, ConnectionError, Timeout, RequestException), tries=10, delay=5, backoff=3)
-    def download(self, granule_key: str, url: str, product: str) -> Tuple[str, Tuple[str, Optional[str]]]:
+    @retry(
+        (ValueError, TypeError, HTTPError, ConnectionError, Timeout, RequestException),
+        tries=10,
+        delay=5,
+        backoff=3,
+    )
+    def download(
+        self, granule_key: str, url: str, product: str
+    ) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
         Download an HDF5 file for a specific granule and product with resume support.
 
@@ -157,26 +185,34 @@ class H5FileDownloader:
         Tuple[str, Tuple[str, Optional[str]]]
             Tuple containing the granule ID and a tuple of product name and file path.
         """
-        h5file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
-        os.makedirs(h5file_path.parent, exist_ok=True) 
+        h5file_path = (
+            pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
+        )
+        os.makedirs(h5file_path.parent, exist_ok=True)
 
         downloaded_size = h5file_path.stat().st_size if h5file_path.exists() else 0
-        headers = {'Range': f'bytes={downloaded_size}-'} if downloaded_size > 0 else {}
+        headers = {"Range": f"bytes={downloaded_size}-"} if downloaded_size > 0 else {}
         total_size = None
 
         try:
             # Fetch total file size
-            partial_response = requests.get(url, headers={'Range': 'bytes=0-1'}, stream=True, timeout=(30, 60))
+            partial_response = requests.get(
+                url, headers={"Range": "bytes=0-1"}, stream=True, timeout=(30, 60)
+            )
             partial_response.raise_for_status()
 
-            if 'Content-Range' in partial_response.headers:
-                total_size = int(partial_response.headers['Content-Range'].split('/')[-1])
+            if "Content-Range" in partial_response.headers:
+                total_size = int(
+                    partial_response.headers["Content-Range"].split("/")[-1]
+                )
 
                 if downloaded_size == total_size:
                     return granule_key, (product.value, str(h5file_path))
 
                 if downloaded_size > total_size:
-                    logger.warning(f"Corrupted file detected: {h5file_path}. Deleting and starting fresh.")
+                    logger.warning(
+                        f"Corrupted file detected: {h5file_path}. Deleting and starting fresh."
+                    )
                     h5file_path.unlink()
                     downloaded_size = 0
                     headers = {}
@@ -184,25 +220,33 @@ class H5FileDownloader:
                 headers = {}
 
         except RequestException as e:
-            logger.warning(f"Failed to fetch file size for {url}: {e}. Proceeding with full download.")
+            logger.warning(
+                f"Failed to fetch file size for {url}: {e}. Proceeding with full download."
+            )
             if h5file_path.exists():
                 h5file_path.unlink()
             headers = {}
 
         # Download the file
         try:
-            with requests.get(url, headers=headers, stream=True, timeout=(30, 60)) as response:
+            with requests.get(
+                url, headers=headers, stream=True, timeout=(30, 60)
+            ) as response:
                 response.raise_for_status()
-                mode = 'ab' if downloaded_size > 0 else 'wb'
+                mode = "ab" if downloaded_size > 0 else "wb"
                 with open(h5file_path, mode) as f:
-                    for chunk in response.iter_content(chunk_size=1024 * 1024):  # 1 MB chunks
+                    for chunk in response.iter_content(
+                        chunk_size=1024 * 1024
+                    ):  # 1 MB chunks
                         if chunk:
                             f.write(chunk)
                             downloaded_size += len(chunk)
 
             # Verify download size
             if total_size and downloaded_size != total_size:
-                logger.error(f"Downloaded file size mismatch: {downloaded_size} != {total_size}. Deleting file.")
+                logger.error(
+                    f"Downloaded file size mismatch: {downloaded_size} != {total_size}. Deleting file."
+                )
                 h5file_path.unlink()
                 raise ValueError("File size mismatch after download.")
 

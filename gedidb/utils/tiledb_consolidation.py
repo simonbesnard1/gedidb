@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 class SpatialConsolidationPlan:
     def __init__(self, plan_dict: Dict[int, Dict[str, List[str]]]):
         """
@@ -76,7 +77,9 @@ class SpatialConsolidationPlanner:
         return SpatialConsolidationPlan(plan)
 
     @staticmethod
-    def _extract_fragments(fragment_info: tiledb.FragmentInfoList) -> List[Dict[str, object]]:
+    def _extract_fragments(
+        fragment_info: tiledb.FragmentInfoList,
+    ) -> List[Dict[str, object]]:
         """
         Extract fragment metadata and spatial domains.
 
@@ -93,15 +96,19 @@ class SpatialConsolidationPlanner:
         fragments = []
         for fragment in fragment_info:
             nonempty_domain = fragment.nonempty_domain
-            fragments.append({
-                "uri": os.path.basename(fragment.uri),
-                "latitude_range": nonempty_domain[0],
-                "longitude_range": nonempty_domain[1],
-            })
+            fragments.append(
+                {
+                    "uri": os.path.basename(fragment.uri),
+                    "latitude_range": nonempty_domain[0],
+                    "longitude_range": nonempty_domain[1],
+                }
+            )
         return fragments
 
     @staticmethod
-    def _generate_plan(fragments: List[Dict[str, Union[str, Tuple[float, float]]]]) -> Dict[int, Dict[str, List[str]]]:
+    def _generate_plan(
+        fragments: List[Dict[str, Union[str, Tuple[float, float]]]]
+    ) -> Dict[int, Dict[str, List[str]]]:
         """
         Generate a plan by grouping overlapping fragments.
 
@@ -115,8 +122,11 @@ class SpatialConsolidationPlanner:
         Dict[int, Dict[str, List[str]]]
             Consolidation plan grouped by spatial overlap.
         """
-        def has_spatial_overlap(frag1: Dict[str, Union[str, Tuple[float, float]]], 
-                                frag2: Dict[str, Union[str, Tuple[float, float]]]) -> bool:
+
+        def has_spatial_overlap(
+            frag1: Dict[str, Union[str, Tuple[float, float]]],
+            frag2: Dict[str, Union[str, Tuple[float, float]]],
+        ) -> bool:
             """Check if two fragments spatially overlap."""
             return (
                 frag1["latitude_range"][0] <= frag2["latitude_range"][1]

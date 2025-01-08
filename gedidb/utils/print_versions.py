@@ -120,7 +120,7 @@ def show_versions(file=sys.stdout):
         ("mypy", lambda mod: importlib.metadata.version(mod.__name__)),
         # Misc.
         ("IPython", lambda mod: mod.__version__),
-        ("sphinx", lambda mod: mod.__version__)
+        ("sphinx", lambda mod: mod.__version__),
     ]
 
     deps_blob = []
