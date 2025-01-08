@@ -9,9 +9,13 @@
 
 import numpy as np
 from typing import Dict, Optional
+import logging
 
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class L4CBeam(Beam):
     """
@@ -41,21 +45,31 @@ class L4CBeam(Beam):
         Returns:
             Optional[Dict[str, np.ndarray]]: The filtered data as a dictionary or None if no data is present.
         """
-        # Initialize the data dictionary with time and geolocation fields
-        data = {}
+        try:
 
-        # Populate data dictionary with fields from the field mapping
-        for key, source in self.field_mapper.items():
-            sds_name = source['SDS_Name']
-            if key == "beam_name":
-                data[key] = np.array([self.name] * self.n_shots)
-            else:
-                data[key] = np.array(self[sds_name][()])
+            # Initialize the data dictionary with time and geolocation fields
+            data = {}
+    
+            # Populate data dictionary with fields from the field mapping
+            for key, source in self.field_mapper.items():
+                sds_name = source['SDS_Name']
+                if key == "beam_name":
+                    data[key] = np.array([self.name] * self.n_shots)
+                else:
+                    data[key] = np.array(self[sds_name][()])
+    
+            # Apply filter and get the filtered indices
+            self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
+    
+            # Filter the data using the mask
+            filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
+    
+            return filtered_data if filtered_data else None
+        
+        except KeyError as e:
+          logger.error(f"Missing key in field mapping or granule data: {e}")
+          return None
+        except Exception as e:
+            logger.error(f"Error extracting main data for beam {self.name}: {e}")
+            return None
 
-        # Apply filter and get the filtered indices
-        self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
-
-        # Filter the data using the mask
-        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
-
-        return filtered_data if filtered_data else None
