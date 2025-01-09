@@ -19,7 +19,6 @@ build-job:
   artifacts:
     paths:
       - doc/_build/html  # Store the build results as artifacts
-      - htmlcov/
     expire_in: 1 day     # Optional: Define how long to keep artifacts
 
 setup-job:
@@ -62,7 +61,7 @@ lint-test-job:   # This job also runs in the test stage.
     - echo "Linting code..."
     - python -m flake8
 
-pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
+pages: 
   stage: deploy
   dependencies:
     - build-job
@@ -73,6 +72,7 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - mkdir public
     - mkdir -p public/doc
     - mkdir -p public/doc/_static/
+    - mkdir -p public/coverage
 
     # Copy over the docs
     - cp doc/index.html public/
