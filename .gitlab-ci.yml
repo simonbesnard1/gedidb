@@ -27,7 +27,7 @@ setup-job:
     - python -m venv .venv
     - source .venv/bin/activate
     - pip install -e .
-    - pip install flake8 pytest-flake8 pytest-cov coverage
+    - pip install geodatasets flake8 pytest-flake8 pytest-cov coverage
   artifacts:
     paths:
     - .venv/
