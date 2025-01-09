@@ -65,6 +65,7 @@ lint-test-job:   # This job also runs in the test stage.
 pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
   stage: deploy
   dependencies:
+    - build-job
     - unit-test-job
   script:
     # Create the public directory
