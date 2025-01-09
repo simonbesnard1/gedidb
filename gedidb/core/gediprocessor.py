@@ -26,9 +26,9 @@ from gedidb.utils.geo_processing import check_and_format_shape, _temporal_tiling
 from gedidb.core.gedigranule import GEDIGranule
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+# logging.basicConfig(
+#     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+# )
 logging.getLogger("distributed").setLevel(logging.WARNING)
 logging.getLogger("tornado").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
