@@ -27,7 +27,7 @@ setup-job:
     - python -m venv .venv
     - source .venv/bin/activate
     - pip install -e .
-    - pip install geodatasets flake8 pyyaml tiledb pytest pytest-flake8 pytest-cov coverage
+    - pip install flake8 pytest-flake8 pytest-cov coverage
   artifacts:
     paths:
     - .venv/
@@ -40,7 +40,7 @@ unit-test-job:
   script:
     - source .venv/bin/activate
     - echo "Running tests with coverage..."
-    - pytest --cov=gedidb --cov-report=term --cov-report=xml --junitxml=reports/junit.xml gedidb/tests
+    - pytest --cov=gedidb --cov-report html:htmlcov --cov-report=term --cov-report=xml --junitxml=reports/junit.xml gedidb/tests
   coverage: '/^TOTAL.*\s+(\d+\%)$/'
   artifacts:
     when: always
@@ -50,6 +50,7 @@ unit-test-job:
         coverage_format: cobertura
         path: coverage.xml
     paths:
+      - htmlcov/
       - reports/
       - coverage.xml
 
@@ -75,9 +76,13 @@ pages:  # this job must be called 'pages' to advise GitLab to upload content to 
     - cp doc/index.html public/
     - cp -r doc/_build/html/* public/doc/
 
+     # Copy over the coverage reports
+    - cp -r htmlcov/* public/coverage/
+
     # Check if everything is working
     - ls -al public
     - ls -al public/doc
+    - ls -al public/coverage
   artifacts:
     paths:
       - public
