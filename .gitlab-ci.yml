@@ -19,6 +19,7 @@ build-job:
   artifacts:
     paths:
       - doc/_build/html  # Store the build results as artifacts
+      - htmlcov/
     expire_in: 1 day     # Optional: Define how long to keep artifacts
 
 setup-job:
