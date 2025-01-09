@@ -1,20 +1,23 @@
 import unittest
-
 import numpy as np
 import tiledb
 import pandas as pd
-import os
 import yaml
 import tempfile
 from gedidb.core.gedidatabase import GEDIDatabase
+from pathlib import Path
 
 
 class TestGEDIDatabase(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
-        os.chdir(os.path.dirname(__file__))
-        cls.yaml_file_path = "data/data_config.yml"
+        # Dynamically resolve the path to the `data` folder
+        cls.data_dir = Path(__file__).parent / "data"
+        cls.yaml_file_path = cls.data_dir / "data_config.yml"
+
+        if not cls.yaml_file_path.exists():
+            raise FileNotFoundError(f"Config file not found: {cls.yaml_file_path}")
+
         with open(cls.yaml_file_path, "r") as file:
             cls.config = yaml.safe_load(file)
 
@@ -108,8 +111,12 @@ class TestGEDIDatabase(unittest.TestCase):
 
     def test_write_granule(self):
         """Test the `write_granule` function to write data to TileDB."""
+        granule_file = self.data_dir / "example_data.csv"
 
-        granule_data = pd.read_csv("data/example_data.csv")
+        if not granule_file.exists():
+            raise FileNotFoundError(f"Granule file not found: {granule_file}")
+
+        granule_data = pd.read_csv(granule_file)
         self.gedi_db.write_granule(granule_data)
 
         with tiledb.open(
