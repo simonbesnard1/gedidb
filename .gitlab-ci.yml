@@ -31,6 +31,7 @@ setup-job:
   artifacts:
     paths:
     - .venv/
+    - data/example_data.csv
     expire_in: 1 day
 
 unit-test-job:
