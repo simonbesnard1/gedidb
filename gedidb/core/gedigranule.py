@@ -77,9 +77,6 @@ class GEDIGranule:
 
             gdf = self._join_dfs(gdf_dict, granule_key)
             if gdf is None:
-                logger.warning(
-                    f"Granule {granule_key}: Joining returned no valid data."
-                )
                 return granule_key, None
 
             return granule_key, gdf
@@ -146,9 +143,6 @@ class GEDIGranule:
             # Validate required products
             for product in required_products:
                 if product.value not in df_dict or df_dict[product.value].empty:
-                    logger.warning(
-                        f"Granule {granule_key}: Missing or empty product {product.value}."
-                    )
                     return None
 
             # Start joining with the L2A product
