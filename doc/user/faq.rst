@@ -14,7 +14,7 @@ Please use the following citation when referencing gediDB in your work:
 What are the main features of gediDB?
 -------------------------------------
 
-GediDB is a PostgreSQL/PostGIS-based tool designed to manage, query, and analyze large-scale GEDI data. Its main features include:
+GediDB is a [tile]DB-based tool designed to manage, query, and analyze large-scale GEDI data. Its main features include:
 
 - Efficient storage and querying of GEDI shot data with geospatial capabilities.
 - Automated data loading and processing with support for GEDI L2A, L2B, L4A, and L4C products.
@@ -38,7 +38,7 @@ For more detailed instructions, refer to the :ref:`database setup <database-setu
 Can I use the database scheme with other data besides GEDI?
 -----------------------------------------------------------
 
-The database scheme is specifically optimized for GEDI data structure and geospatial requirements. While it’s possible to adapt the database schema and functionality for other data, significant modifications would be required. 
+The database scheme is specifically optimized for GEDI data structure and geospatial requirements. While it’s possible to adapt the database schema and functionality for other data, significant modifications would be required.
 
 What data products does gediDB support?
 ---------------------------------------
