@@ -63,7 +63,7 @@ gediDB Documentation
         **Database Setup**
         ^^^
 
-        Ready to set up your own GEDI database? This guide walks you through configuring a GEDI database with PostgreSQL and PostGIS. Basic knowledge of databases is recommended.
+        Ready to set up your own GEDI database? This guide walks you through configuring a GEDI database with [tile]DB. Basic knowledge of databases is recommended.
 
         +++
 

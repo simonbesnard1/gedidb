@@ -4,4 +4,3 @@ ignore = E501, W293, W291, E127, E126, E121, E302, E303, E128, E252, E251
 exclude =
     .venv
     scripts
-    gedidb/core/test/_old
