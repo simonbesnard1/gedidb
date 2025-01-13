@@ -71,6 +71,12 @@ class GEDIDatabase:
                     "sm.vfs.s3.connect_max_tries": config["tiledb"][
                         "s3_timeout_settings"
                     ].get("connect_max_tries", "5"),
+                    "vfs.s3.backoff_scale": "2.0",  # Exponential backoff multiplier
+                    "vfs.s3.backoff_max_ms": "120000",  # Maximum backoff time of 120 seconds
+                    # Multipart upload settings
+                    "vfs.s3.multipart_part_size": config["tiledb"][
+                        "s3_timeout_settings"
+                    ].get("multipart_part_size", "52428800"),  # 50 MB
                     # Memory budget settings
                     "sm.memory_budget": config["tiledb"]["consolidation_settings"].get(
                         "memory_budget", "5000000000"
@@ -78,10 +84,6 @@ class GEDIDatabase:
                     "sm.memory_budget_var": config["tiledb"][
                         "consolidation_settings"
                     ].get("memory_budget_var", "2000000000"),
-                    # Multipart upload settings
-                    "vfs.s3.multipart_part_size": config["tiledb"][
-                        "s3_timeout_settings"
-                    ].get("multipart_part_size", "52428800"),  # 50 MB
                     # S3-specific configurations (if using S3)
                     "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                     "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
