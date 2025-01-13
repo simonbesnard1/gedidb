@@ -79,7 +79,9 @@ class GEDIDatabase:
                         "consolidation_settings"
                     ].get("memory_budget_var", "2000000000"),
                     # Multipart upload settings
-                    "vfs.s3.multipart_part_size": "52428800",  # 50 MB
+                    "vfs.s3.multipart_part_size": config["tiledb"][
+                        "s3_timeout_settings"
+                    ].get("multipart_part_size", "52428800"),  # 50 MB
                     # S3-specific configurations (if using S3)
                     "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                     "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
@@ -481,14 +483,14 @@ class GEDIDatabase:
         data = self._extract_variable_data(granule_data)
 
         # Write to the TileDB array
-        #try:
-        with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
-            dim_names = [dim.name for dim in array.schema.domain]
-            dims = tuple(coords[dim_name] for dim_name in dim_names)
-            array[dims] = data
-        # except tiledb.TileDBError as e:
-        #     logger.error(f"Failed to write granule data to {self.array_uri}: {e}")
-        #     raise
+        try:
+            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+                dim_names = [dim.name for dim in array.schema.domain]
+                dims = tuple(coords[dim_name] for dim_name in dim_names)
+                array[dims] = data
+        except tiledb.TileDBError as e:
+            logger.error(f"Failed to write granule data to {self.array_uri}: {e}")
+            raise
 
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
         """
