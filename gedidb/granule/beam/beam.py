@@ -16,6 +16,7 @@ import logging
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
 class Beam(h5py.Group):
     """
     Represents a single beam in a GEDI granule file, inheriting from h5py.Group.
@@ -34,10 +35,14 @@ class Beam(h5py.Group):
         super().__init__(granule[beam].id)
         self.parent_granule = granule
         self.field_mapping = field_mapping
-        self._cached_data: Optional[pd.DataFrame] = None  # Cache for the beam's main data
+        self._cached_data: Optional[pd.DataFrame] = (
+            None  # Cache for the beam's main data
+        )
 
     @staticmethod
-    def apply_filter(data: Dict[str, np.ndarray], filters: Optional[Dict[str, Callable]] = None) -> np.ndarray:
+    def apply_filter(
+        data: Dict[str, np.ndarray], filters: Optional[Dict[str, Callable]] = None
+    ) -> np.ndarray:
         """
         Apply a set of filters to the beam data.
 
@@ -48,17 +53,20 @@ class Beam(h5py.Group):
         Returns:
             np.ndarray: A boolean mask indicating which rows pass the filters.
         """
-        if filters is not None:
-            mask = np.ones(len(data['shot_number']), dtype=bool)
-            for filter_name, filter_func in filters.items():
-                try:
-                    filter_mask = filter_func()
-                    mask &= filter_mask
-                except KeyError:
-                    logger.warning(f"Filter '{filter_name}' not found in granule. Skipping.")
-                    continue  # Skip filters that are missing in the granule
-            return mask
-        return np.ones(len(data['shot_number']), dtype=bool)
+        if not filters:
+            return np.ones(len(data["shot_number"]), dtype=bool)
+
+        mask = np.ones(len(data["shot_number"]), dtype=bool)
+        for filter_name, filter_func in filters.items():
+            try:
+                filter_mask = filter_func()
+                mask &= filter_mask
+            except KeyError:
+                logger.warning(
+                    f"Filter '{filter_name}' not found in granule. Skipping."
+                )
+                continue  # Skip filters that are missing in the granule
+        return mask
 
     @property
     def n_shots(self) -> int:
@@ -91,12 +99,12 @@ class Beam(h5py.Group):
         return self.field_mapping
 
     @property
-    def main_data(self) -> pd.DataFrame:
+    def main_data(self) -> Dict[str, np.ndarray]:
         """
-        Get the main data for the beam as a DataFrame, cached for efficiency.
+        Retrieve the main data for the beam from the granule file.
 
         Returns:
-            pd.DataFrame: The main beam data in Pandas DataFrame format.
+            Dict[str, np.ndarray]: A dictionary where keys are variable names and values are NumPy arrays.
         """
         if self._cached_data is None:
             data = self._get_main_data()  # Fetch main data
@@ -105,11 +113,10 @@ class Beam(h5py.Group):
             flattened_data = {}
             for key, value in data.items():
                 if isinstance(value, np.ndarray) and value.ndim > 1:
-                    # Handle profile data (multi-dimensional arrays)
-                    for i in range(value.shape[1]):  # Iterate over profile dimensions
-                        flattened_data[f"{key}_{i + 1}"] = value[:, i]
+                    flattened_data.update(
+                        {f"{key}_{i + 1}": value[:, i] for i in range(value.shape[1])}
+                    )
                 else:
-                    # Handle scalar data (1D arrays)
                     flattened_data[key] = value
 
             # Create the DataFrame and cache it

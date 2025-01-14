@@ -7,7 +7,7 @@
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
 [![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/pipelines)
-[![Code coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/coverage.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/coverage)
+[![Code coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/coverage/)
 [![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885229)
 
@@ -45,7 +45,7 @@ The development of the gediDB package began during the PhD of Amelia Holcomb, wh
 For any questions or inquiries, please contact:
 - Amelia Holcomb (ah2174@cam.ac.uk)
 - Felix Dombrowski (felix.dombrowski@uni-potsdam.de)
-- Simon Besnard (besnard@gfz-potsdam.de)
+- Simon Besnard (besnard@gfz.de)
 
 ## Acknowledgments
 We acknowledge funding support by the European Union through the [FORWARDS](https://forwards-project.eu/) and [OpenEarthMonitor](https://earthmonitor.org/) projects. We would also like to thank the R2D2 Workshop (March 2024, GFZ Potsdam) for providing the opportunity to meet and discuss GEDI data processing.

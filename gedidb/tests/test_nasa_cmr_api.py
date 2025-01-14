@@ -30,18 +30,20 @@ import geodatasets
 class TestNasaCmrApi(unittest.TestCase):
 
     def _get_test_data(self):
-        os.chdir(os.path.dirname(__file__))  # this is needed to import local files such as the config
+        os.chdir(
+            os.path.dirname(__file__)
+        )  # this is needed to import local files such as the config
 
         return (
             gpd.read_file(geodatasets.get_path("naturalearth.land")).iloc[[50]],
             dt.datetime(2020, 10, 1),
             dt.datetime(2020, 11, 1),
-            self._get_earthdata_from_config()
+            self._get_earthdata_from_config(),
         )
 
     def _get_earthdata_from_config(self):
-        with open('data/data_config.yml', 'r') as file:
-            return yaml.safe_load(file)['earth_data_info']
+        with open("data/data_config.yml", "r") as file:
+            return yaml.safe_load(file)["earth_data_info"]
 
     def test_l2a(self):
         geom, start_date, end_date, earth_data_info = self._get_test_data()

@@ -7,12 +7,6 @@
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-from . import (authentication, 
-               cmr_query,
-               data_downloader)
+from . import authentication, cmr_query, data_downloader
 
-__all__ = [
-    "authentication",
-    "cmr_query", 
-    "data_downloader"
-]
+__all__ = ["authentication", "cmr_query", "data_downloader"]

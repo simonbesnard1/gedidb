@@ -22,34 +22,38 @@ build-job:
       - doc/_build/html  # Store the build results as artifacts
     expire_in: 1 day     # Optional: Define how long to keep artifacts
 
-#setup-job:
-#  stage: build
-#  script:
-#    - python -m venv .venv
-#    - source .venv/bin/activate
-#    - pip install -e .
-#    - pip install geodatasets flake8 pyyaml tiledb pytest pytest-flake8
-#  artifacts:
-#    paths:
-#    - .venv/
-#    expire_in: 1 day
-#
-#unit-test-job:
-#  stage: test
-#  dependencies:
-#    - setup-job
-#  script:
-#    - source .venv/bin/activate
-#    - pip install unittest-xml-reporting  # Install the library for XML reporting
-#    - echo "Running all tests in the 'tests/' folder and saving results as JUnit XML..."
-#    - python -m xmlrunner discover -s gedidb/tests -p "test_*.py" -o reports/
-#  artifacts:
-#    when: always
-#    reports:
-#      junit: gedidb/tests/reports/*.xml
-#    paths:
-#      - gedidb/tests/reports/*.xml
+setup-job:
+  stage: build
+  script:
+    - python -m venv .venv
+    - source .venv/bin/activate
+    - pip install -e .
+    - pip install geodatasets flake8 pytest-flake8 pytest-cov coverage
+  artifacts:
+    paths:
+    - .venv/
+    expire_in: 1 day
 
+unit-test-job:
+  stage: test
+  dependencies:
+    - setup-job
+  script:
+    - source .venv/bin/activate
+    - echo "Running tests with coverage..."
+    - pytest --cov=gedidb --cov-report html:htmlcov --cov-report=term --cov-report=xml --junitxml=reports/junit.xml gedidb/tests
+  coverage: '/^TOTAL.*\s+(\d+\%)$/'
+  artifacts:
+    when: always
+    reports:
+      junit: reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - htmlcov/
+      - reports/
+      - coverage.xml
 
 #lint-test-job:   # This job also runs in the test stage.
 #  stage: test    # It can run at the same time as unit-test-job (in parallel).
@@ -58,31 +62,30 @@ build-job:
 #    - echo "Linting code..."
 #    - python -m flake8
 
-deploy-job:      # This job runs in the deploy stage.
-  stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
-  environment: production
-  script:
-    - echo "Deploying application..."
-    - echo "Application successfully deployed."
-
-pages:  # this job must be called 'pages' to advise GitLab to upload content to GitLab Pages
+pages: 
   stage: deploy
   dependencies:
-    - build-job  # Ensure that the pages job depends on the build-job
+    - build-job
+    - unit-test-job
   script:
     # Create the public directory
     - rm -rf public
     - mkdir public
     - mkdir -p public/doc
     - mkdir -p public/doc/_static/
+    - mkdir -p public/coverage
 
     # Copy over the docs
     - cp doc/index.html public/
     - cp -r doc/_build/html/* public/doc/
 
+     # Copy over the coverage reports
+    - cp -r htmlcov/* public/coverage/
+
     # Check if everything is working
     - ls -al public
     - ls -al public/doc
+    - ls -al public/coverage
   artifacts:
     paths:
       - public

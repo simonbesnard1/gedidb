@@ -10,11 +10,12 @@
 from dataclasses import dataclass
 import re
 
+
 @dataclass(frozen=True)
 class GediNameMetadata:
     """
     Container for metadata derived from GEDI file name conventions.
-    
+
     Attributes:
         product (str): The product type (e.g., L1B, L2A).
         year (str): The year of data acquisition (4 digits).
@@ -30,6 +31,7 @@ class GediNameMetadata:
         granule_production_version (str): The granule production version.
         major_version_number (str): The major version of the product.
     """
+
     product: str
     year: str
     julian_day: str
@@ -48,32 +50,33 @@ class GediNameMetadata:
 # Precompile the GEDI filename pattern for efficient reuse
 GEDI_FILENAME_PATTERN = re.compile(
     (
-        r"(?P<product>\w+_\w)"                # Product identifier (e.g., GEDI_L2A)
-        r"_(?P<year>\d{4})"                   # Year (4 digits)
-        r"(?P<julian_day>\d{3})"              # Julian day (3 digits)
-        r"(?P<hour>\d{2})"                    # Hour (2 digits)
-        r"(?P<minute>\d{2})"                  # Minute (2 digits)
-        r"(?P<second>\d{2})"                  # Second (2 digits)
-        r"_(?P<orbit>O\d+)"                   # Orbit (O followed by digits)
-        r"_(?P<sub_orbit_granule>\d{2})"      # Sub-orbit granule (2 digits)
-        r"_(?P<ground_track>T\d+)"            # Ground track (T followed by digits)
-        r"_(?P<positioning>\d{2})"            # Positioning number (2 digits)
-        r"_(?P<release_number>\d{3})"         # Release number (3 digits)
+        r"(?P<product>\w+_\w)"  # Product identifier (e.g., GEDI_L2A)
+        r"_(?P<year>\d{4})"  # Year (4 digits)
+        r"(?P<julian_day>\d{3})"  # Julian day (3 digits)
+        r"(?P<hour>\d{2})"  # Hour (2 digits)
+        r"(?P<minute>\d{2})"  # Minute (2 digits)
+        r"(?P<second>\d{2})"  # Second (2 digits)
+        r"_(?P<orbit>O\d+)"  # Orbit (O followed by digits)
+        r"_(?P<sub_orbit_granule>\d{2})"  # Sub-orbit granule (2 digits)
+        r"_(?P<ground_track>T\d+)"  # Ground track (T followed by digits)
+        r"_(?P<positioning>\d{2})"  # Positioning number (2 digits)
+        r"_(?P<release_number>\d{3})"  # Release number (3 digits)
         r"_(?P<granule_production_version>\d{2})"  # Granule production version (2 digits)
-        r"_(?P<major_version_number>V\d+)"    # Major version number (V followed by digits)
+        r"_(?P<major_version_number>V\d+)"  # Major version number (V followed by digits)
     )
 )
+
 
 def parse_granule_filename(gedi_filename: str) -> GediNameMetadata:
     """
     Parses the GEDI filename and extracts metadata into a structured format.
-    
+
     Parameters:
         gedi_filename (str): The GEDI filename to parse.
-    
+
     Returns:
         GediNameMetadata: An instance of GediNameMetadata with extracted components.
-    
+
     Raises:
         ValueError: If the filename does not match the expected GEDI naming pattern.
     """

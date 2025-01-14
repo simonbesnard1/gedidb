@@ -13,6 +13,7 @@ from typing import Dict, Optional
 from gedidb.granule.granule.granule import Granule
 from gedidb.granule.beam.beam import Beam
 
+
 class L4ABeam(Beam):
     """
     Represents a Level 4A (L4A) GEDI beam and processes the beam data.
@@ -20,7 +21,9 @@ class L4ABeam(Beam):
     and returns the filtered beam data as a dictionary.
     """
 
-    def __init__(self, granule: Granule, beam: str, field_mapping: Dict[str, Dict[str, str]]):
+    def __init__(
+        self, granule: Granule, beam: str, field_mapping: Dict[str, Dict[str, str]]
+    ):
         """
         Initialize the L4ABeam class.
 
@@ -41,22 +44,25 @@ class L4ABeam(Beam):
         Returns:
             Optional[Dict[str, np.ndarray]]: The filtered data as a dictionary or None if no data is present.
         """
-
         # Initialize the data dictionary
         data = {}
 
         # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
-            sds_name = source['SDS_Name']
+            sds_name = source["SDS_Name"]
             if key == "beam_name":
                 data[key] = np.array([self.name] * self.n_shots)
             else:
                 data[key] = np.array(self[sds_name][()])
 
         # Apply quality filters and store the filtered index
-        self._filtered_index = self.apply_filter(data, filters=self.DEFAULT_QUALITY_FILTERS)
+        self._filtered_index = self.apply_filter(
+            data, filters=self.DEFAULT_QUALITY_FILTERS
+        )
 
         # Filter the data using the mask
-        filtered_data = {key: value[self._filtered_index] for key, value in data.items()}
+        filtered_data = {
+            key: value[self._filtered_index] for key, value in data.items()
+        }
 
         return filtered_data if filtered_data else None
