@@ -1,6 +1,6 @@
 stages:          # List of stages for jobs, and their order of execution
   - build
-  # - test
+  - test
   - deploy
 
 build-job:
@@ -55,12 +55,12 @@ unit-test-job:
       - reports/
       - coverage.xml
 
-#lint-test-job:   # This job also runs in the test stage.
-#  stage: test    # It can run at the same time as unit-test-job (in parallel).
-#  script:
-#    - source .venv/bin/activate
-#    - echo "Linting code..."
-#    - python -m flake8
+lint-test-job:   # This job also runs in the test stage.
+  stage: test    # It can run at the same time as unit-test-job (in parallel).
+  script:
+    - source .venv/bin/activate
+    - echo "Linting code..."
+    - python -m flake8
 
 pages: 
   stage: deploy
