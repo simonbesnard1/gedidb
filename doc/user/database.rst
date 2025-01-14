@@ -13,18 +13,16 @@ The gediDB package integrates with PostgreSQL/PostGIS to store, filter, and anal
 
 To get started, follow the detailed steps provided in the following sections:
 
- - **Setting up PostgreSQL and PostGIS**: Includes installation instructions, creating the GEDI database, and enabling PostGIS for geospatial capabilities.
  - **External resources**: Provides external foundational knowledge on PostgreSQL and PostGIS.
 
 .. toctree::
    :caption: Step-by-step guide
    :maxdepth: 1
 
-   database.setup
    database.external
 
 .. note::
-   
-   Familiarity with PostgreSQL and SQL basics is recommended. If you are new to database management, see the external resources section for additional learning materials.
+
+   Familiarity with [tile]DB is recommended. If you are new to database management, see the external resources section for additional learning materials.
 
 ---
