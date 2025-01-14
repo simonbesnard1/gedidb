@@ -101,27 +101,27 @@ The `data_config.yml` file also includes settings for configuring the database c
 
 .. code-block:: yaml
 
-tiledb:
-  storage_type: 'local'                             # either local or s3
-  local_path: ''                                    # TileDB URI for storing data
-  overwrite: true                                   # Whether to overwrite existing arrays
-  temporal_tiling: "weekly"                         # either daily or weekly
-  chunk_size: 25                                    # chunk siz ein degrees for spatial chunks
-  time_range:                                       # Global time range for data
-    start_time: "2018-01"                           # Global start time for data
-    end_time: "2030-12-31"                          # Global end time for data
-  spatial_range:                                    # Global spatial range (bounding box)
-    lat_min: -56.0
-    lat_max: 56.0
-    lon_min: -180.0
-    lon_max: 180.0
-  dimensions: ['latitude', 'longitude', 'time']     # Dimensions for the TileDB array
-  consolidation_settings:
-   fragment_size: 200_000_000_000                   # 100GB fragment size
-   memory_budget: "150000000000"                    # 150GB total memory budget
-   memory_budget_var: "50000000000"                 # 50GB for variable-sized attributes
-  cell_order: "hilbert"
-  capacity: 100000
+    tiledb:
+      storage_type: 'local'                             # either local or s3
+      local_path: ''                                    # TileDB URI for storing data
+      overwrite: true                                   # Whether to overwrite existing arrays
+      temporal_tiling: "weekly"                         # either daily or weekly
+      chunk_size: 25                                    # chunk siz ein degrees for spatial chunks
+      time_range:                                       # Global time range for data
+        start_time: "2018-01"                           # Global start time for data
+        end_time: "2030-12-31"                          # Global end time for data
+      spatial_range:                                    # Global spatial range (bounding box)
+        lat_min: -56.0
+        lat_max: 56.0
+        lon_min: -180.0
+        lon_max: 180.0
+      dimensions: ['latitude', 'longitude', 'time']     # Dimensions for the TileDB array
+      consolidation_settings:
+       fragment_size: 200_000_000_000                   # 100GB fragment size
+       memory_budget: "150000000000"                    # 150GB total memory budget
+       memory_budget_var: "50000000000"                 # 50GB for variable-sized attributes
+      cell_order: "hilbert"
+      capacity: 100000
 
 Users are free to modify these settings to suit their specific requirements, such as changing the `storage_type` to `s3` for cloud storage or adjusting the `temporal_tiling` to `daily` for more granular temporal data.
 Be aware that modifying these settings are for advanced users and may require additional knowledge of the TileDB library.
