@@ -60,14 +60,14 @@ gediDB Documentation
         :img-top: /_static/index-images/database.svg
         :text-align: center
 
-        **Database Setup**
+        **API**
         ^^^
 
         Ready to set up your own GEDI database? This guide walks you through configuring a GEDI database with [tile]DB. Basic knowledge of databases is recommended.
 
         +++
 
-        .. button-ref:: user/database
+        .. button-ref:: user/api/modules
             :expand:
             :color: primary
             :click-parent:
