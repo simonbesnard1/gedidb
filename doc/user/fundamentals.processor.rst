@@ -4,7 +4,7 @@
 Data Processing
 ###############
 
-The :py:class:`gedidb.GEDIProcessor` class in gediDB manages the entire workflow of downloading, processing, and storing GEDI data in a PostgreSQL database. This section outlines the key functions of :py:class:`gedidb.GEDIProcessor`, example usage, core functions, and customization options for efficient GEDI data handling.
+The :py:class:`gedidb.GEDIProcessor` class in gediDB manages the entire workflow of downloading, processing, and storing GEDI data in either a local or s3-based tileDB. This section outlines the key functions of :py:class:`gedidb.GEDIProcessor`, example usage, core functions, and customization options for efficient GEDI data handling.
 
 Overview of GEDIProcessor workflow
 ----------------------------------
@@ -25,31 +25,25 @@ Below is a quick example of using the :py:class:`gedidb.GEDIProcessor` in a work
 
    import gedidb as gdb
 
-   data_config_file = "./config_files/data_config.yml"
-   sql_config_file = './config_files/db_scheme.sql'
-   n_workers = 5
+   config_file = 'path/to/config_file.yml'
 
-   if __name__ == "__main__":
+   if __name__ == '__main__':
 
        # Initialize the GEDIProcessor and compute
-       with gdb.GEDIProcessor(
-           data_config_file=data_config_file,
-           sql_config_file=sql_config_file,
-           n_workers=n_workers
-       ) as processor:
+       with gdb.GEDIProcessor(config_file, n_workers = 4) as processor:
            processor.compute()
 
 
 Processing workflow
 -------------------
 
-The ``compute()`` method of :py:class:`gedidb.GEDIProcessor` initiates the following workflow, using configuration settings defined in `data_config.yml` and `db_scheme.sql`:
+The ``compute()`` method of :py:class:`gedidb.GEDIProcessor` initiates the following workflow, using configuration settings defined in `data_config.yml`:
 
 1. **Setup and initialization**:
 
    - The `GEDIProcessor` is initialized with the `data_config.yml` file for parameters like spatial and temporal boundaries, product details, and filtering criteria.
-   - Database tables are created based on the schema in `db_scheme.sql`, ensuring that all tables required for granule metadata, shot-level data, and additional metadata are in place.
-   - Paths are set up for storing granules, parquet files, and metadata, and a Dask cluster is initialized for parallel processing based on the specified `n_workers`.
+   - Database tables are created based on the parameters in `data_config.yml`, ensuring that the tileDB required for granule storage is in place and properly configured.
+   - Paths are set up for storing granules and a Dask cluster is initialized for parallel processing based on the specified `n_workers`.
 
 2. **Granule downloading**:
 
@@ -58,17 +52,16 @@ The ``compute()`` method of :py:class:`gedidb.GEDIProcessor` initiates the follo
 
 3. **Data processing**:
 
-   - Each granule is parsed and processed by the `GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied. 
+   - The granule downloading as well as the processing is done in parallel using Dask, each future is processing data of a temporal tile defined in the `data_config.yml`.
+   - Each granule is parsed and processed by the `GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied.
    - Data from different products is merged using shot numbers as the primary key, resulting in a unified dataset per granule.
-   - The processed data is saved as a parquet file for efficient storage and retrieval.
 
 4. **Database writing**:
 
-   - Processed data is stored in the PostgreSQL/PostGIS database across main tables:
-
-     - **Granule Table**: Contains granule-level information (e.g., ID, spatial extent, processing time).
-     - **Shot Table**: Stores detailed shot-level data, supporting robust geospatial analysis.
-     - **Metadata Table**: Includes descriptive metadata for interpreting stored variables.
+   - Processed data is stored in either a local or s3-based tileDB database across different fragments.
+   - The processed data is split up into spatial chunks defined in the `data_config.yml` file, and each chunk is stored in a separate fragment in the database.
+   - Metadata is added to the database to facilitate easy querying and retrieval of data.
+   - After processing all granules, the database is optimized for efficient querying and data retrieval by consolidation. The consolidation plan can be defined in the `data_config.yml` file.
 
 Advanced customization options
 ------------------------------
@@ -80,10 +73,7 @@ The :py:class:`gedidb.GEDIProcessor` class is highly configurable, allowing you 
   - Spatial extent (region of interest)
   - Time range (start and end dates)
   - Quality filters (e.g., sensitivity thresholds)
-  
-
-- **`db_scheme.sql`**: Update the schema to fit your specific database structure, especially if you’re working with existing datasets or need custom tables.
-
+  - Database connection/configuration details
 
   For details on configuration files, refer to the :ref:`fundamentals-setup` page.
 

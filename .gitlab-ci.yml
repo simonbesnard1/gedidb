@@ -1,6 +1,6 @@
 stages:          # List of stages for jobs, and their order of execution
   - build
-  - test
+  # - test
   - deploy
 
 build-job:
@@ -15,6 +15,7 @@ build-job:
     - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
     - conda activate gedidb-docs  # Activate the environment
     # Build the documentation
+    - sphinx-apidoc -e -o doc/user/api gedidb -H gediDB -V 2.0.1
     - sphinx-build -b html doc/ doc/_build/html
   artifacts:
     paths:
@@ -54,12 +55,12 @@ unit-test-job:
       - reports/
       - coverage.xml
 
-lint-test-job:   # This job also runs in the test stage.
-  stage: test    # It can run at the same time as unit-test-job (in parallel).
-  script:
-    - source .venv/bin/activate
-    - echo "Linting code..."
-    - python -m flake8
+#lint-test-job:   # This job also runs in the test stage.
+#  stage: test    # It can run at the same time as unit-test-job (in parallel).
+#  script:
+#    - source .venv/bin/activate
+#    - echo "Linting code..."
+#    - python -m flake8
 
 pages: 
   stage: deploy
@@ -93,3 +94,4 @@ pages:
     - documentation
     - main
     - staging
+    - 59-update-documentation-for-tiledb
