@@ -9,7 +9,4 @@ Functions
 .. autosummary::
    :toctree: api/
 
-    gedidb.core.gedidatabase
-    gedidb.core.gedigranule
-    gedidb.core.gediprocessor
-    gedidb.core.gediprovider
+    gedidb.core.gediprocessor.compute
