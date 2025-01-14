@@ -4,7 +4,7 @@
 Configuring gediDB for custom use
 #################################
 
-This section provides guidance on modifying both the **data configuration file** (`data_config.yml`) and the **database schema file** (`db_scheme.sql`). These files control how GEDI data is processed, stored, and queried, and can be customized to meet your project's unique requirements.
+This section provides guidance on modifying the **data configuration file** (`data_config.yml`). These files control how GEDI data is processed, stored, and queried, and can be customized to meet your project's unique requirements.
 
 Why customize configuration?
 ----------------------------
