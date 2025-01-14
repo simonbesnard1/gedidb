@@ -4,7 +4,7 @@ API Reference
 nrt.data package
 ----------------
 
-.. automodule:: nrt.data
+.. automodule:: gedidb.providers
    :members:
    :undoc-members:
    :show-inheritance:
