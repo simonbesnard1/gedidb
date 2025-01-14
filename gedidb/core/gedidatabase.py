@@ -13,8 +13,8 @@ import numpy as np
 import logging
 from typing import Dict, Any, List, Optional
 import os
-from retry import retry
 import concurrent.futures
+from retry import retry
 
 from gedidb.utils.geo_processing import (
     _datetime_to_timestamp_days,
@@ -460,7 +460,23 @@ class GEDIDatabase:
             logger.error(f"Error adding metadata to TileDB array: {e}")
             raise
 
-    #@retry(tiledb.cc.TileDBError, tries=10, delay=5, backoff=3)
+    @retry((tiledb.cc.TileDBError, ConnectionError), tries=10, delay=5, backoff=3, logger=logger)
+    def _write_to_tiledb(self, coords, data):
+        """
+        Write data to the TileDB array with retry logic.
+
+        Parameters:
+        ----------
+        coords : dict
+            Coordinates for the TileDB array dimensions.
+        data : dict
+            Variable data to write to the TileDB array.
+        """
+        with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+            dim_names = [dim.name for dim in array.schema.domain]
+            dims = tuple(coords[dim_name] for dim_name in dim_names)
+            array[dims] = data
+
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays.
@@ -475,23 +491,21 @@ class GEDIDatabase:
         ValueError
             If required dimension data or critical variables are missing.
         """
-        # Validate granule data
-        self._validate_granule_data(granule_data)
-
-        # Prepare coordinates (dimensions)
-        coords = self._prepare_coordinates(granule_data)
-
-        # Extract data for scalar and profile variables
-        data = self._extract_variable_data(granule_data)
-
-        # Write to the TileDB array
         try:
-            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
-                dim_names = [dim.name for dim in array.schema.domain]
-                dims = tuple(coords[dim_name] for dim_name in dim_names)
-                array[dims] = data
-        except tiledb.TileDBError as e:
-            logger.error(f"Failed to write granule data to {self.array_uri}: {e}")
+            # Validate granule data
+            self._validate_granule_data(granule_data)
+
+            # Prepare coordinates (dimensions)
+            coords = self._prepare_coordinates(granule_data)
+
+            # Extract data for scalar and profile variables
+            data = self._extract_variable_data(granule_data)
+
+            # Write to the TileDB array
+            self._write_to_tiledb(coords, data)
+
+        except Exception as e:
+            logger.error(f"Failed to process and write granule data: {e}")
             raise
 
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
