@@ -5,7 +5,7 @@ end_date: '2020-12-31'
 
 # database parameters
 tiledb:
-  storage_type: 'local'
+  storage_type: 'local' # either local or s3
   local_path: ''     # TileDB URI for storing data
   overwrite: true                                  # Whether to overwrite existing arrays
   temporal_tiling: "weekly"

@@ -1,378 +1,737 @@
-# database parameters
-database:
-  url: 'postgresql://glmadmin:SimonGFZ@mefe27:5434/glmdb'
-  tables:
-    shots: "filtered_l2ab_l4ac_shots"
-    granules: "gedi_granules"
-    metadata: "variable_metadata"
-  schema: "public"
-
 # Spatial and temporal parameters
-region_of_interest: './gedidb/tests/data/test_geometry.geojson'
-start_date: '2018-01-01'
-end_date: '2025-01-01'
+region_of_interest: ''
+start_date: '2020-01-01'
+end_date: '2020-12-31'
 
-# Data directory for downloading and processing
-data_dir: './data'
+# database parameters
+tiledb:
+  storage_type: 'local'
+  local_path: ''     # TileDB URI for storing data
+  overwrite: true                                  # Whether to overwrite existing arrays
+  temporal_tiling: "weekly"
+  chunk_size: 25
+  time_range:                                      # Global time range for data
+    start_time: "2018-01"
+    end_time: "2030-12-31"
+  spatial_range:                                   # Global spatial range (bounding box)
+    lat_min: -56.0
+    lat_max: 56.0
+    lon_min: -180.0
+    lon_max: 180.0
+  dimensions: ['latitude', 'longitude', 'time']
+  consolidation_settings:
+   fragment_size: 200_000_000_000 # 100GB fragment size
+   memory_budget: "150000000000"  # 150GB total memory budget
+   memory_budget_var: "50000000000"  # 50GB for variable-sized attributes
+  cell_order: "hilbert"
+  capacity: 100000
+
+# Data directory for downloading GEDI data
+data_dir: ''
 
 # Configuration for accessing NASA's Earthdata Search API to query granule data.
 earth_data_info:
- credentials:
-   username: 'your_username'
-   password: 'your_password'
  CMR_URL: "https://cmr.earthdata.nasa.gov/search/granules.json"
  CMR_PRODUCT_IDS:
    GediProduct.L2A: 'C2142771958-LPCLOUD'
    GediProduct.L2B: 'C2142776747-LPCLOUD'
    GediProduct.L4A: 'C2237824918-ORNL_CLOUD'
    GediProduct.L4C: 'C3049900163-ORNL_CLOUD'
- METADATA_INFORMATION:
-   L2A: 'https://lpdaac.usgs.gov/products/gedi02_av002/'
-   L2B: 'https://lpdaac.usgs.gov/products/gedi02_bv002/'
-   L4A: 'https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density.html'
-   L4C: 'https://daac.ornl.gov/GEDI/guides/GEDI_L4C_WSCI.html'
 
 # Variables list for each GEDI level product - SDS_Name is science dataset name the native h5 file retrieved from the NASA API
 level_2a:
   variables:
     shot_number:
       SDS_Name: "shot_number"
+      description: "Unique shot number for each beam"
+      units: "adimensional"
+      dtype: "uint64"
+      valid_range: "N/A"
+      product_level: 'L2A'
+
     beam_type:
       SDS_Name: "beam_type"
+      description: "Type of beam used"
+      units: "adimensional"
+      dtype: "U10"
+      valid_range: "0 to 12"
+      product_level: 'L2A'
+
     beam_name:
       SDS_Name: "name"
-    delta_time:
-      SDS_Name: "delta_time"
-    sensitivity_a0:
+      description: "Name of the beam"
+      units: "adimensional"
+      dtype: "U10"
+      valid_range: "0 to 12"
+      product_level: 'L2A'
+
+    sensitivity:
       SDS_Name: "sensitivity"
+      description: "Maxmimum canopy cover that can be penetrated"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0, 1"
+      product_level: 'L2A'
+
     sensitivity_a1:
       SDS_Name: "geolocation/sensitivity_a1"
+      description: "Geolocation sensitivity factor A1"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0, 1"
+      product_level: 'L2A'
+
     sensitivity_a2:
       SDS_Name: "geolocation/sensitivity_a2"
-    sensitivity_a3:
-      SDS_Name: "geolocation/sensitivity_a3"
-    sensitivity_a4:
-      SDS_Name: "geolocation/sensitivity_a4"
-    sensitivity_a5:
-      SDS_Name: "geolocation/sensitivity_a5"
-    sensitivity_a6:
-      SDS_Name: "geolocation/sensitivity_a6"
-    quality_flag:
-      SDS_Name: "quality_flag"
+      description: "Geolocation sensitivity factor A2"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0, 1"
+      product_level: 'L2A'
+
     degrade_flag:
       SDS_Name: "degrade_flag"
+      description: "Flag indicating degraded state of pointing and/or positioning information"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 99"
+      product_level: 'L2A'
+
+    leaf_off_flag:
+      SDS_Name: "land_cover_data/leaf_off_flag"
+      description: "GEDI 1 km EASE 2.0 grid flag"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 1"
+      product_level: 'L2A'
+
+    leaf_off_doy:
+      SDS_Name: "land_cover_data/leaf_off_doy"
+      description: "GEDI 1 km EASE 2.0 grid leaf-off start day-of-year"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "1 to 365"
+      product_level: 'L2A'
+
+    leaf_on_cycle:
+      SDS_Name: "land_cover_data/leaf_on_cycle"
+      description: "Flag that indicates the vegetation growing cycle for leaf-on observations"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "1 to 2"
+      product_level: 'L2A'
+
+    leaf_on_doy :
+      SDS_Name: "land_cover_data/leaf_on_doy"
+      description: "GEDI 1 km EASE 2.0 grid leaf-on start day-of-year"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "1 to 365"
+      product_level: 'L2A'
+
+    landsat_treecover :
+      SDS_Name: "land_cover_data/landsat_treecover"
+      description: "Tree cover in the year 2010, defined as canopy closure for all vegetation taller than 5 m in height as a percentage per output grid cell"
+      units: "Percent"
+      dtype: "float32"
+      valid_range: "0 to 100"
+      product_level: 'L2A'
+
+    modis_treecover :
+      SDS_Name: "land_cover_data/modis_treecover"
+      description: "Percent tree cover from MODIS MOD44B V6 data"
+      units: "Percent"
+      dtype: "float32"
+      valid_range: "0 to 100"
+      product_level: 'L2A'
+
+    modis_treecover_sd :
+      SDS_Name: "land_cover_data/modis_treecover_sd"
+      description: "Percent tree cover standard deviation from MODIS MOD44B V6 data"
+      units: "Percent"
+      dtype: "float32"
+      valid_range: "0 to 100"
+      product_level: 'L2A'
+
+    modis_nonvegetated :
+      SDS_Name: "land_cover_data/modis_nonvegetated"
+      description: "Percent non-vegetated from MODIS MOD44B V6 data"
+      units: "Percent"
+      dtype: "float32"
+      valid_range: "0 to 100"
+      product_level: 'L2A'
+
+    modis_nonvegetated_sd :
+      SDS_Name: "land_cover_data/modis_nonvegetated_sd"
+      description: "Percent non-vegetated standard deviation from MODIS MOD44B V6 data"
+      units: "Percent"
+      dtype: "float32"
+      valid_range: "0 to 100"
+      product_level: 'L2A'
+
     solar_elevation:
       SDS_Name: "solar_elevation"
+      description: "Solar elevation angle at the time of the shot"
+      units: "Degrees"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2A'
+
     solar_azimuth:
       SDS_Name: "solar_azimuth"
+      description: "Solar azimuth angle at the time of the shot"
+      units: "Degrees"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2A'
+
     energy_total:
       SDS_Name: "energy_total"
-    surface_flag:
-      SDS_Name: "surface_flag"
+      description: "Total energy detected in the waveform"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "-5000 to 5000000"
+      product_level: 'L2A'
+
     digital_elevation_model:
       SDS_Name: "digital_elevation_model"
+      description: "TanDEM-X elevation at GEDI footprint location"
+      units: "Meters"
+      dtype: "float32"
+      valid_range: "-962.0, 10038.0"
+      product_level: 'L2A'
+
     digital_elevation_model_srtm:
       SDS_Name: "digital_elevation_model_srtm"
-    selected_algorithm:
-      SDS_Name: "selected_algorithm"
-    selected_mode:
-      SDS_Name: "selected_mode"
-    lon_lowestmode:
-      SDS_Name: "lon_lowestmode"
-    longitude_bin0_error:
-      SDS_Name: "longitude_bin0_error"
-    lat_lowestmode:
-      SDS_Name: "lat_lowestmode"
-    latitude_bin0_error:
-      SDS_Name: "latitude_bin0_error"
+      description: "STRM elevation at GEDI footprint location"
+      units: "Meters"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2A'
+
     elev_lowestmode:
       SDS_Name: "elev_lowestmode"
-    elevation_bin0_error:
-      SDS_Name: "elevation_bin0_error"
-    lon_highestreturn:
-      SDS_Name: "lon_highestreturn"
-    lat_highestreturn:
-      SDS_Name: "lat_highestreturn"
-    elev_highestreturn:
-      SDS_Name: "elev_highestreturn"
+      description: "Elevation of center of lowest mode relative to reference ellipsoid"
+      units: "Meters"
+      dtype: "float32"
+      valid_range: "-1000.0 to 25000.0"
+      product_level: 'L2A'
+
+    num_detectedmodes:
+      SDS_Name: "num_detectedmodes"
+      description: "Number of detected modes in rxwaveform"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 20"
+      product_level: 'L2A'
+
+    quality_flag:
+      SDS_Name: "quality_flag"
+      description: "Flag simplifying selection of most useful data"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0, 1"
+      product_level: 'L2A'
+
     rh:
       SDS_Name: "rh"
+      is_profile: True
+      profile_length: 101
+      description: "Relative height metrics at 1% interval"
+      units: "Meters"
+      dtype: "float32"
+      valid_range: "-213 to 213"
+      product_level: 'L2A'
+
+    selected_algorithm:
+      SDS_Name: "selected_algorithm"
+      description: "Identifier of algorithm selected as identifying the lowest non-noise mode"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "1 to 6"
+      product_level: 'L2A'
+
+    surface_flag:
+      SDS_Name: "surface_flag"
+      description: "Identifier of algorithm selected as identifying the lowest non-noise mode"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 1"
+      product_level: 'L2A'
+
+    elev_highestreturn_a1:
+      SDS_Name: "geolocation/elev_highestreturn_a1"
+      description: "Elevation of the highest return detected using algorithm 1, relative to reference ellipsoid"
+      units: "Meters"
+      dtype: "float32"
+      valid_range: "-1000 to 25000"
+      product_level: 'L2A'
+
+    elev_highestreturn_a2:
+      SDS_Name: "geolocation/elev_highestreturn_a2"
+      description: "Elevation of the highest return detected using algorithm 2, relative to reference ellipsoid"
+      units: "Meters"
+      dtype: "float32"
+      valid_range: "-1000 to 25000"
+      product_level: 'L2A'
+
+    stale_return_flag:
+      SDS_Name: "geolocation/stale_return_flag"
+      description: "Flag indicating return signal above detection threshold was not detected"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 1"
+      product_level: 'L2A'
+
+    landsat_water_persistence:
+      SDS_Name: "land_cover_data/landsat_water_persistence"
+      description: "Percent UMD GLAD Landsat observations with classified surface water"
+      units: "Percent"
+      dtype: "uint8"
+      valid_range: "0 to 100"
+      product_level: 'L2A'
+
+    urban_proportion:
+      SDS_Name: "land_cover_data/urban_proportion"
+      description: "The percentage proportion of land area within a focal area surrounding each shot that is urban land cover."
+      units: "Percent"
+      dtype: "uint8"
+      valid_range: "0 to 100"
+      product_level: 'L2A'
+
+    pft_class:
+      SDS_Name: "land_cover_data/pft_class"
+      description: "GEDI 1 km EASE 2.0 grid Plant Functional Type (PFT)"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 11"
+      product_level: 'L2A'
+
+    region_class:
+      SDS_Name: "land_cover_data/region_class"
+      description: "GEDI 1 km EASE 2.0 grid world continental regions "
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 7"
+      product_level: 'L2A'
+
+    rx_maxamp:
+      SDS_Name: "rx_assess/rx_maxamp"
+      description: "Maximum amplitude of rxwaveform relative to mean noise level"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2A'
+
+    sd_corrected:
+      SDS_Name: "rx_assess/sd_corrected"
+      description: "Noise standard deviation, corrected for odd/even digitizer bin errors based on pre-launch calibrations"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0 to 20"
+      product_level: 'L2A'
+
+    rx_algrunflag:
+      SDS_Name: "rx_processing_a2/rx_algrunflag"
+      description: "Flag indicating signal was detected and algorithm ran successfully"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0 to 1"
+      product_level: 'L2A'
+
+    zcross:
+      SDS_Name: "rx_processing_a2/zcross"
+      description: "Sample number of center of lowest mode above noise level"
+      units: "Nanoseconds"
+      dtype: "float32"
+      valid_range: "0 to 1420"
+      product_level: 'L2A'
+
+    toploc:
+      SDS_Name: "rx_processing_a2/toploc"
+      description: "Sample number of highest detected return"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0 to 1420"
+      product_level: 'L2A'
 
 level_2b:
   variables:
     shot_number:
       SDS_Name: "shot_number"
-    beam_type:
-      SDS_Name: "beam_type"
-    beam_name:
-      SDS_Name: "name"
-    delta_time:
-      SDS_Name: "geolocation/delta_time"
+      description: "Unique shot identifier"
+      units: "adimensional"
+      dtype: "float64"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     algorithmrun_flag:
       SDS_Name: "algorithmrun_flag"
+      description: "The L2B algorithm run flag"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
     l2a_quality_flag:
       SDS_Name: "l2a_quality_flag"
+      description: "L2A quality flag"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
     l2b_quality_flag:
       SDS_Name: "l2b_quality_flag"
-    sensitivity:
-      SDS_Name: "sensitivity"
-    degrade_flag:
-      SDS_Name: "geolocation/degrade_flag"
+      description: "L2B quality flag"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
     stale_return_flag:
       SDS_Name: "stale_return_flag"
-    surface_flag:
-      SDS_Name: "surface_flag"
-    solar_elevation:
-      SDS_Name: "geolocation/solar_elevation"
-    solar_azimuth:
-      SDS_Name: "geolocation/solar_azimuth"
+      description: "Flag indicating return signal above detection threshold was not detected"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
     cover:
       SDS_Name: "cover"
+      description: "Total canopy cover"
+      units: "Percent"
+      dtype: "float32"
+      valid_range: "0 to 1"
+      product_level: 'L2B'
+
     cover_z:
       SDS_Name: "cover_z"
+      is_profile: true
+      profile_length: 30
+      description: "Cumulative canopy cover vertical profile"
+      units: "Percent"
+      dtype: "float32"
+      valid_range: "0 to 1"
+      product_level: 'L2B'
+
     fhd_normal:
       SDS_Name: "fhd_normal"
-    num_detectedmodes:
-      SDS_Name: "num_detectedmodes"
+      description: "Foliage Height Diversity"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     omega:
       SDS_Name: "omega"
+      description: "Foliage Clumping Index"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
     pai:
       SDS_Name: "pai"
+      description: "Total Plant Area Index"
+      units: "m²/m²"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     pai_z:
       SDS_Name: "pai_z"
+      is_profile: true
+      profile_length: 30
+      description: "Plant Area Index profile"
+      units: "m²/m²"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     pavd_z:
       SDS_Name: "pavd_z"
+      is_profile: true
+      profile_length: 30
+      description: "Plant Area Volume Density profile"
+      units: "m²/m³"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     pgap_theta:
       SDS_Name: "pgap_theta"
+      description: "Total Gap Probability (theta)"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
     pgap_theta_error:
       SDS_Name: "pgap_theta_error"
-    rg: 
+      description: "Total Pgap (theta) error"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
+    rg:
       SDS_Name: "rg"
+      description: "Integral of the ground component in the RX waveform"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     rh100:
       SDS_Name: "rh100"
+      description: "Height above ground of the received waveform signal start"
+      units: "cm"
+      dtype: "int16"
+      valid_range: "-21300 to 21300"
+      product_level: 'L2B'
+
     rhog:
       SDS_Name: "rhog"
+      description: "Volumetric scattering coefficient (rho) of the ground"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     rhog_error:
       SDS_Name: "rhog_error"
+      description: "Rho (ground) error"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     rhov:
       SDS_Name: "rhov"
+      description: "Volumetric scattering coefficient (rho) of the canopy"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     rhov_error:
       SDS_Name: "rhov_error"
+      description: "Rho (canopy) error"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     rossg:
       SDS_Name: "rossg"
+      description: "Ross-G function"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "0, 1"
+      product_level: 'L2B'
+
     rv:
       SDS_Name: "rv"
+      description: "Integral of the vegetation component in the RX waveform"
+      units: "adimensional"
+      dtype: "float32"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     rx_range_highestreturn:
       SDS_Name: "rx_range_highestreturn"
-    digital_elevation_model:
-      SDS_Name: "geolocation/digital_elevation_model"
-    leaf_off_flag:
-      SDS_Name: "land_cover_data/leaf_off_flag"
-    leaf_on_doy:
-      SDS_Name: "land_cover_data/leaf_on_doy"
-    leaf_on_cycle:
-      SDS_Name: "land_cover_data/leaf_on_cycle"
-    water_persistence:
-      SDS_Name: "land_cover_data/landsat_water_persistence"
-    urban_proportion:
-      SDS_Name: "land_cover_data/urban_proportion"
-    modis_nonvegetated:
-      SDS_Name: "land_cover_data/modis_nonvegetated"
-    modis_treecover:
-      SDS_Name: "land_cover_data/modis_treecover"
-    pft_class:
-      SDS_Name: "land_cover_data/pft_class"
-    region_class:
-      SDS_Name: "land_cover_data/region_class"
+      description: "Range to signal start"
+      units: "Meters"
+      dtype: "float64"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     selected_l2a_algorithm:
       SDS_Name: "selected_l2a_algorithm"
+      description: "Selected L2A algorithm setting"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "1 to 6"
+      product_level: 'L2B'
+
     selected_rg_algorithm:
       SDS_Name: "selected_rg_algorithm"
+      description: "Selected R (ground) algorithm"
+      units: "adimensional"
+      dtype: "uint8"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
     dz:
       SDS_Name: "ancillary/dz"
-    lon_highestreturn:
-      SDS_Name: "geolocation/lon_highestreturn"
-    lon_lowestmode:
-      SDS_Name: "geolocation/lon_lowestmode"
-    longitude_bin0:
-      SDS_Name: "geolocation/longitude_bin0"
-    longitude_bin0_error:
-      SDS_Name: "geolocation/longitude_bin0_error"
-    lat_highestreturn:
-      SDS_Name: "geolocation/lat_highestreturn"
-    lat_lowestmode:
-      SDS_Name: "geolocation/lat_lowestmode"
-    latitude_bin0:
-      SDS_Name: "geolocation/latitude_bin0"
-    latitude_bin0_error:
-      SDS_Name: "geolocation/latitude_bin0_error"
-    elev_highestreturn:
-      SDS_Name: "geolocation/elev_highestreturn"
-    elev_lowestmode:
-      SDS_Name: "geolocation/elev_lowestmode"
-    elevation_bin0:
-      SDS_Name: "geolocation/elevation_bin0"
-    elevation_bin0_error:
-      SDS_Name: "geolocation/elevation_bin0_error"
-    waveform_count:
-      SDS_Name: "rx_sample_count"
-    waveform_start:
-      SDS_Name: "rx_sample_start_index"
-    master_frac:
-      SDS_Name: "master_frac"
-    master_int:
-      SDS_Name: "master_int"
-  
+      description: "Vertical step size of foliage profile"
+      units: "Meters"
+      dtype: "float64"
+      valid_range: "N/A"
+      product_level: 'L2B'
+
 level_4a:
   variables:
     shot_number:
       SDS_Name: "shot_number"
-    beam_type:
-      SDS_Name: "beam_type"
-    beam_name:
-      SDS_Name: "name"
-    delta_time:
-      SDS_Name: "delta_time"
-    sensitivity_a0:
-      SDS_Name: "sensitivity"
-    sensitivity_a1:
-      SDS_Name: "geolocation/sensitivity_a1"
-    sensitivity_a2:
-      SDS_Name: "geolocation/sensitivity_a2"
-    sensitivity_a3:
-      SDS_Name: "geolocation/sensitivity_a3"
-    sensitivity_a4:
-      SDS_Name: "geolocation/sensitivity_a4"
-    sensitivity_a5:
-      SDS_Name: "geolocation/sensitivity_a5"
-    sensitivity_a6:
-      SDS_Name: "geolocation/sensitivity_a6"
-    sensitivity_a10:
-      SDS_Name: "geolocation/sensitivity_a10"
-    degrade_flag:
-      SDS_Name: "degrade_flag"
-    algorithm_run_flag:
-      SDS_Name: "algorithm_run_flag"
-    solar_elevation:
-      SDS_Name: "solar_elevation"
-    solar_azimuth:
-      SDS_Name: "solar_elevation"
-    surface_flag:
-      SDS_Name: "surface_flag"
+      description: "Unique identifier for each shot"
+      units: "adimensional"
+      dtype: "float64"
+      product_level: 'L4A'
+
     l2_quality_flag:
       SDS_Name: "l2_quality_flag"
+      description: "Flag identifying the most useful L2 data for biomass predictions"
+      units: "adimensional"
+      dtype: "uint8"
+      product_level: 'L4A'
+
     l4_quality_flag:
       SDS_Name: "l4_quality_flag"
+      description: "Flag simplifying selection of most useful biomass predictions"
+      units: "adimensional"
+      dtype: "uint8"
+      product_level: 'L4A'
+
     predictor_limit_flag:
       SDS_Name: "predictor_limit_flag"
+      description: "Prediction stratum identifier (0=in bounds, 1=lower bound, 2=upper bound)"
+      units: "adimensional"
+      dtype: "uint8"
+      product_level: 'L4A'
+
     response_limit_flag:
       SDS_Name: "response_limit_flag"
-    selected_algorithm:
-      SDS_Name: "selected_algorithm"
-    selected_mode:
-      SDS_Name: "selected_mode"
-    elev_lowestmode:
-      SDS_Name: "elev_lowestmode"
-    lat_lowestmode:
-      SDS_Name: "lat_lowestmode"
-    lon_lowestmode:
-      SDS_Name: "lon_lowestmode"
+      description: "Prediction value outside bounds of training data (0=in bounds, 1=lower bound, 2=upper bound)"
+      units: "adimensional"
+      dtype: "uint8"
+      product_level: 'L4A'
+
     agbd:
       SDS_Name: "agbd"
+      description: "Aboveground biomass density"
+      units: "Mg/ha"
+      dtype: "float32"
+      product_level: 'L4A'
+
     agbd_pi_lower:
       SDS_Name: "agbd_pi_lower"
+      description: "Lower prediction interval for aboveground biomass density"
+      units: "Mg/ha"
+      dtype: "float32"
+      product_level: 'L4A'
+
     agbd_pi_upper:
       SDS_Name: "agbd_pi_upper"
+      description: "Upper prediction interval for aboveground biomass density"
+      units: "Mg/ha"
+      dtype: "float32"
+      product_level: 'L4A'
+
     agbd_se:
       SDS_Name: "agbd_se"
+      description: "Standard error of aboveground biomass density"
+      units: "Mg/ha"
+      dtype: "float32"
+      product_level: 'L4A'
+
     agbd_t:
       SDS_Name: "agbd_t"
+      description: "Model prediction in fit units"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4A'
+
     agbd_t_se:
       SDS_Name: "agbd_t_se"
-    pft_class:
-      SDS_Name: "land_cover_data/pft_class"
-    region_class:
-      SDS_Name: "land_cover_data/region_class"
-    urban_proportion:
-      SDS_Name: "land_cover_data/urban_proportion"
-    landsat_water_persistence:
-      SDS_Name: "land_cover_data/landsat_water_persistence"
-    leaf_on_doy:
-      SDS_Name: "land_cover_data/leaf_on_doy"
-    leaf_on_cycle:
-      SDS_Name: "land_cover_data/leaf_on_cycle"
+      description: "Model prediction standard error in fit units"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4A'
+
     predict_stratum:
       SDS_Name: "predict_stratum"
+      description: "Prediction stratum name for the 1 km cell"
+      units: "adimensional"
+      dtype: "U20"
+      product_level: 'L4A'
 
 level_4c:
   variables:
     shot_number:
       SDS_Name: "shot_number"
-    beam_type:
-      SDS_Name: "beam_type"
-    beam_name:
-      SDS_Name: "name"
-    delta_time:
-      SDS_Name: "delta_time"
-    sensitivity_a0:
-      SDS_Name: "sensitivity"
-    sensitivity_a1:
-      SDS_Name: "geolocation/sensitivity_a1"
-    sensitivity_a2:
-      SDS_Name: "geolocation/sensitivity_a2"
-    sensitivity_a3:
-      SDS_Name: "geolocation/sensitivity_a3"
-    sensitivity_a4:
-      SDS_Name: "geolocation/sensitivity_a4"
-    sensitivity_a5:
-      SDS_Name: "geolocation/sensitivity_a5"
-    sensitivity_a6:
-      SDS_Name: "geolocation/sensitivity_a6"
-    sensitivity_a10:
-      SDS_Name: "geolocation/sensitivity_a10"
-    degrade_flag:
-      SDS_Name: "degrade_flag"
-    algorithm_run_flag:
-      SDS_Name: "algorithm_run_flag"
-    solar_elevation:
-      SDS_Name: "solar_elevation"
-    solar_azimuth:
-      SDS_Name: "solar_elevation"
-    surface_flag:
-      SDS_Name: "surface_flag"
-    l2_quality_flag:
-      SDS_Name: "l2_quality_flag"
-    selected_algorithm:
-      SDS_Name: "selected_algorithm"
-    elev_lowestmode:
-      SDS_Name: "elev_lowestmode"
-    lat_lowestmode:
-      SDS_Name: "lat_lowestmode"
-    lon_lowestmode:
-      SDS_Name: "lon_lowestmode"
+      description: "Unique identifier for each shot"
+      units: "adimensional"
+      dtype: "uint64"
+      product_level: 'L4C'
+
     wsci:
       SDS_Name: "wsci"
+      description: "Waveform Structural Complexity Index"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
     wsci_pi_lower:
       SDS_Name: "wsci_pi_lower"
+      description: "Waveform Structural Complexity Index lower prediction interval"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
     wsci_pi_upper:
       SDS_Name: "wsci_pi_upper"
-    wsci_quality_flag: 
+      description: "Waveform Structural Complexity Index upper prediction interval"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
+    wsci_quality_flag:
       SDS_Name: "wsci_quality_flag"
-    wsci_xy: 
+      description: "Waveform Structural Complexity Index quality flag"
+      units: "adimensional"
+      dtype: "uint8"
+      product_level: 'L4C'
+
+    wsci_xy:
       SDS_Name: "wsci_xy"
-    wsci_xy_pi_lower: 
+      description: "Horizontal Structural Complexity"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
+    wsci_xy_pi_lower:
       SDS_Name: "wsci_xy_pi_lower"
-    wsci_xy_pi_upper: 
+      description: "Horizontal Structural Complexity lower prediction interval"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
+    wsci_xy_pi_upper:
       SDS_Name: "wsci_xy_pi_upper"
-    pft_class:
-      SDS_Name: "land_cover_data/pft_class"
-    region_class:
-      SDS_Name: "land_cover_data/region_class"
-    urban_proportion:
-      SDS_Name: "land_cover_data/urban_proportion"
-    landsat_water_persistence:
-      SDS_Name: "land_cover_data/landsat_water_persistence"
-    leaf_on_doy:
-      SDS_Name: "land_cover_data/leaf_on_doy"
-    leaf_on_cycle:
-      SDS_Name: "land_cover_data/leaf_on_cycle"
+      description: "Horizontal Structural Complexity upper prediction interval"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
+    wsci_z:
+      SDS_Name: "wsci_z"
+      description: "Vertical Structural Complexity"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
+    wsci_z_pi_lower:
+      SDS_Name: "wsci_z_pi_lower"
+      description: "Vertical Structural Complexity lower prediction interval"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'
+
+    wsci_z_pi_upper:
+      SDS_Name: "wsci_z_pi_upper"
+      description: "Vertical Structural Complexity upper prediction interval"
+      units: "adimensional"
+      dtype: "float32"
+      product_level: 'L4C'

@@ -9,26 +9,26 @@ Required dependencies
 To use gediDB, please ensure the following dependencies are installed:
 
 - Python >= 3.12
-- `numpy <https://numpy.org/>`__ >= 2.0
+- `numpy <https://numpy.org/>`__ >= 2.0.1
 - `packaging <https://packaging.pypa.io/en/latest/>`__ >= 23.1
-- `pandas <https://pandas.pydata.org/>`__ >= 2.2
+- `pandas <https://pandas.pydata.org/>`__ >= 2.2.2
 - `pyarrow <https://arrow.apache.org/>`__ >= 17.0
-- `geopandas <https://geopandas.org/>`__ >= 1.0
-- `SQLAlchemy <https://www.sqlalchemy.org/>`__ >= 2.0
-- `GeoAlchemy2 <https://geoalchemy-2.readthedocs.io/en/latest/>`__ >= 0.15
+- `geopandas <https://geopandas.org/>`__ >= 1.0.1
 - `h5py <https://www.h5py.org/>`__ >= 3.11
 - `psycopg2 <https://www.psycopg.org/>`__ >= 2.9
 - `xarray <https://xarray.pydata.org/>`__ >= 2024.7.0
-- `retry <https://github.com/invl/retry>`__ >= 0.9
+- `retry <https://github.com/invl/retry>`__ >= 0.9.2
 - `dask <https://dask.org/>`__ >= 2024.8.2
 - `distributed <https://distributed.dask.org/>`__ >= 2024.8.2
+- `tiledb <https://pypi.org/project/tiledb/>` >= 0.33
+- `scipy <https://scipy.org/> >= 1.14.1`
+- `boto3 <https://pypi.org/project/boto3/>` >= 1.35.49
 
 Optional dependencies
 ---------------------
 
 For additional functionality, consider installing these optional dependencies:
 
-- **PostGIS**: Provides geospatial functions in **PostgreSQL**
 - **matplotlib** and **seaborn**: For enhanced data visualization
 - **netCDF4**: For working with netCDF data formats
 

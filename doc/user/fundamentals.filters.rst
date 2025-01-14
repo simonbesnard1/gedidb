@@ -19,7 +19,7 @@ Filtering and product merging
 
 The filters are applied sequentially to each data product (L2A, L2B, L4A, and L4C) as they are merged. This ensures that only data meeting high-quality standards across products is retained in the final dataset. The merging process uses `shot_number` as the key to join each product’s data into a cohesive GeoDataFrame.
 
-Each product’s data is automatically filtered by the respective beam class (`L2ABeam`, `L2BBeam`, and `L4ABeam`) to meet quality standards before merging. The merging employs an **inner join** on `shot_number`, so only records with matches across all required products are included in the final dataset. If a `shot_number` is missing in any product, that record is excluded, ensuring high data integrity and consistency in the output.
+Each product’s data is automatically filtered by the respective beam class (`L2ABeam` and `L2BBeam`) to meet quality standards before merging. The merging employs an **inner join** on `shot_number`, so only records with matches across all required products are included in the final dataset. If a `shot_number` is missing in any product, that record is excluded, ensuring high data integrity and consistency in the output.
 
 
 L2A Product Quality Filtering
@@ -39,21 +39,5 @@ L2B Product Quality Filtering
 
 For Level 2B data, the `L2BBeam` class applies the following filters:
 
- - **`l2a_quality_flag`**: Ensures data has `l2a_quality_flag` set to 1.
- - **`l2b_quality_flag`**: Keeps data where `l2b_quality_flag` is 1.
- - **`sensitivity`**: Includes data with `sensitivity` between 0.9 and 1.0.
- - **`rh100`**: Retains data where `rh100` values are between 0 and 1200.
  - **`water_persistence`**: Keeps data with `landsat_water_persistence` below 10.
  - **`urban_proportion`**: Excludes data where `urban_proportion` exceeds 50.
-
-L4A Product Quality Filtering
------------------------------
-
-In Level 4A data, the `L4ABeam` class uses the following filters for precise biomass estimates:
-
- - **`l2_quality_flag`**: Filters for data with `l2_quality_flag` set to 1.
- - **`sensitivity_a0`**: Includes data with `sensitivity` between 0.9 and 1.0.
- - **`sensitivity_a2`**: Retains data where `sensitivity_a2` is between 0.9 and 1.0.
- - **`pft_sensitivity_filter`**: Applies different `sensitivity_a2` thresholds based on `pft_class`. For **tropical evergreen broadleaf forests** (`pft_class == 2`), `sensitivity_a2` must be greater than 0.98. For other `pft_class` values, `sensitivity_a2` must exceed 0.95.
-
-
