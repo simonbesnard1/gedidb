@@ -1,10 +1,7 @@
 API Reference
 =============
 
-nrt.data package
-----------------
-
-.. automodule:: gedidb.providers
+.. automodule:: api/
    :members:
    :undoc-members:
    :show-inheritance:

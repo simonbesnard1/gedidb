@@ -67,7 +67,7 @@ gediDB Documentation
 
         +++
 
-        .. button-ref:: user/api/modules
+        .. button-ref:: user/api
             :expand:
             :color: primary
             :click-parent:
