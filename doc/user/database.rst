@@ -43,61 +43,61 @@ The following is an example of the code provided in the `data_config.yml` file:
       cell_order: "hilbert"
       capacity: 100000
 
-### Explanation of Configuration Fields
+***Explanation of Configuration Fields***
 
-1. **`storage_type`**:
+1. **storage_type**:
    Specifies where the TileDB arrays will be stored. Options:
    - `local`: Arrays will be stored on the local filesystem.
    - `s3`: Arrays will be stored on AWS S3, requiring additional configuration by the user.
 
-2. **`local_path`**:
+2. **local_path**:
    Defines the URI for storing the data when using local storage. Leave it blank or specify a valid directory path.
 
-3. **`overwrite`**:
+3. **overwrite**:
    A Boolean flag indicating whether to overwrite existing arrays when creating new ones.
 
-4. **`temporal_tiling`**:
+4. **temporal_tiling**:
    Specifies the granularity for time-based tiling:
    - `daily`: Tiles are created for daily intervals.
    - `weekly`: Tiles are created for weekly intervals.
 
-5. **`chunk_size`**:
+5. **chunk_size**:
    Defines the size of spatial chunks (in degrees) for tiling. Adjusting this can affect query performance and storage efficiency.
 
-6. **`time_range`**:
+6. **time_range**:
    Sets the global time range for the data:
    - `start_time`: Start of the time range (e.g., "2018-01").
    - `end_time`: End of the time range (e.g., "2030-12-31").
 
-7. **`spatial_range`**:
+7. **spatial_range**:
    Specifies the spatial bounding box for the tileDB:
    - `lat_min` and `lat_max`: Minimum and maximum latitude values.
    - `lon_min` and `lon_max`: Minimum and maximum longitude values.
 
-8. **`dimensions`**:
+8. **dimensions**:
    Lists the dimensions for the TileDB array. Common dimensions include `latitude`, `longitude`, and `time`.
 
-9. **`consolidation_settings`**:
+9. **consolidation_settings**:
    Configures the settings for consolidating fragments in TileDB arrays:
    - `fragment_size`: Maximum size (in bytes) of a fragment. Example: `200_000_000_000` equals 200GB.
    - `memory_budget`: Total memory budget for consolidation (in bytes). Example: `150000000000` equals 150GB.
    - `memory_budget_var`: Memory allocated for variable-sized attributes (in bytes). Example: `50000000000` equals 50GB.
-   For detailed information, see the [TileDB Consolidation Documentation](https://docs.tiledb.com/main/background/internal-mechanics/consolidation).
+   For detailed information, see the `TileDB Consolidation Documentation <https://docs.tiledb.com/main/background/internal-mechanics/consolidation>`_.
 
-10. **`cell_order`**:
+10. **cell_order**:
     Determines the order of cells in the array. The `hilbert` order is commonly used for optimal spatial locality.
-    Learn more about cell ordering in the [TileDB Cell Order Documentation](https://documentation.cloud.tiledb.com/academy/structure/arrays/foundation/key-concepts/storage/data-layout/#sparse-arrays).
+    Learn more about cell ordering in the `TileDB Cell Order Documentation <https://documentation.cloud.tiledb.com/academy/structure/arrays/foundation/key-concepts/storage/data-layout/#sparse-arrays>`_.
 
 
-11. **`capacity`**:
+11. **capacity**:
     Specifies the number of cells to store per tile. Affects performance and storage efficiency.
 
 ---
 
-### Additional Resources
+***Additional Resources***
 
 For more detailed information about specific configuration settings (e.g., consolidation settings), refer to the official TileDB documentation:
-[TileDB Docs](https://docs.tiledb.com), or [TileDB Academy](https://documentation.cloud.tiledb.com/academy/home/)
+`TileDB Docs <https://docs.tiledb.com>`_, or `TileDB Academy <https://documentation.cloud.tiledb.com/academy/home/>`_.
 
 .. note::
 
