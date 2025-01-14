@@ -17,6 +17,7 @@ from dask.distributed import Client, LocalCluster
 import concurrent.futures
 import pandas as pd
 from typing import Optional
+import traceback
 
 
 from gedidb.utils.constants import GediProduct
@@ -31,7 +32,7 @@ logging.basicConfig(
 )
 logging.getLogger("distributed").setLevel(logging.WARNING)
 logging.getLogger("tornado").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 class GEDIProcessor:
@@ -48,10 +49,28 @@ class GEDIProcessor:
         n_workers: int = None,
         memory_limit: str = "8GB",
         geometry: Optional[gpd.GeoDataFrame] = None,
+        log_dir: Optional[str] = None,
+        
     ):
         """
         Initialize the GEDIProcessor with configuration files and prepare the necessary components.
         """
+        # Set up logging to file if log_dir is provided
+        if log_dir:
+            # Ensure the log directory exists
+            os.makedirs(log_dir, exist_ok=True)
+            log_file = os.path.join(log_dir, f"gediprocessor_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+            
+            # Create a FileHandler and set its level and format
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+            file_handler.setFormatter(formatter)
+            
+            # Add the FileHandler to the logger
+            if not any(isinstance(h, logging.FileHandler) for h in logger.handlers):
+                logger.addHandler(file_handler)
+        
         # Initialize Dask client
         self.n_workers = n_workers
         self.dask_client = dask_client or self._initialize_dask_client(
@@ -152,29 +171,35 @@ class GEDIProcessor:
         consolidation_type : str, default='spatial'
             Type of consolidation to perform ('default' or 'spatial').
         """
+        try:
 
-        # Download and filter CMR data
-        cmr_data = self._download_cmr_data()
-        unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
-
-        if not unprocessed_cmr_data:
-            logger.info("All requested granules are already processed.")
+            # Download and filter CMR data
+            cmr_data = self._download_cmr_data()
+            unprocessed_cmr_data = self._filter_unprocessed_granules(cmr_data)
+    
+            if not unprocessed_cmr_data:
+                logger.info("All requested granules are already processed.")
+                if consolidate:
+                    self.database_writer.consolidate_fragments(
+                        consolidation_type=consolidation_type, n_workers=self.n_workers
+                    )
+                return
+    
+            # Process unprocessed granules
+            logger.info("Starting GEDI granules processing...")
+            self._process_granules(unprocessed_cmr_data)
+    
+            # Consolidate fragments if required
             if consolidate:
                 self.database_writer.consolidate_fragments(
                     consolidation_type=consolidation_type, n_workers=self.n_workers
                 )
-            return
-
-        # Process unprocessed granules
-        logger.info("Starting GEDI granules processing...")
-        self._process_granules(unprocessed_cmr_data)
-
-        # Consolidate fragments if required
-        if consolidate:
-            self.database_writer.consolidate_fragments(
-                consolidation_type=consolidation_type, n_workers=self.n_workers
-            )
-        logger.info("GEDI granule processing completed successfully.")
+            logger.info("GEDI granule processing completed successfully.")
+        except Exception as e:
+            # Log the exception with traceback
+            logger.error("An error occurred: %s", e)
+            logger.error("Traceback: %s", traceback.format_exc())
+            raise 
 
     def _download_cmr_data(self) -> pd.DataFrame:
         """Download the CMR metadata for the specified date range and region."""
@@ -250,15 +275,9 @@ class GEDIProcessor:
                 quadrants = self.database_writer.spatial_chunking(
                     concatenated_df, chunk_size=self.data_info["tiledb"]["chunk_size"]
                 )
-
-                with concurrent.futures.ThreadPoolExecutor(
-                    max_workers=self.n_workers
-                ) as executor:
-                    futures = [
-                        executor.submit(self.database_writer.write_granule, data)
-                        for _, data in quadrants.items()
-                    ]
-                    concurrent.futures.wait(futures)
+                
+                for _, data in quadrants.items():
+                    self.database_writer.write_granule(data)
 
             # Mark all granules as processed
             for granule_id in granule_ids:
