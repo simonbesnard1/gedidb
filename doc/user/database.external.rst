@@ -7,20 +7,20 @@
 External Resources
 ####################
 
-For more detailed guidance on setting up a spatial database using [tile]DB, the following resources provide valuable information and tutorials. These links will help you deepen your understanding of spatial databases and ensure optimal configuration for working with gediDB.
+For more detailed guidance on setting up a spatial database using tileDB, the following resources provide valuable information and tutorials. These links will help you deepen your understanding of spatial databases and ensure optimal configuration for working with gediDB.
 
-Official [tile]DB documentation
+Official tileDB documentation
 #############################################
 
-- The official documentation for [tile]DB provides comprehensive details about setting up, managing, and querying databases. It's a great reference for understanding database management.
+- The official documentation for tileDB provides comprehensive details about setting up, managing, and querying databases. It's a great reference for understanding database management.
 
-  - `[tile]DB Documentation <https://docs.tiledb.com/main/>`_
+  - `tileDB Documentation <https://docs.tiledb.com/main/>`_
 
 Community support
 #################
 
-- **Official forum**: For troubleshooting and support, the [tile]DB community is very active on the official forum. You can search for specific issues or ask questions related to database management and geospatial queries.
+- **Official forum**: For troubleshooting and support, the tileDB community is very active on the official forum. You can search for specific issues or ask questions related to database management and geospatial queries.
 
-  - `[tile]DB forum <https://forum.tiledb.com/>`_
+  - `tileDB forum <https://forum.tiledb.com/>`_
 
-These resources will help you navigate the setup and management of your [tile]DB database, ensuring smooth integration with gediDB for processing and querying GEDI data.
+These resources will help you navigate the setup and management of your tileDB database, ensuring smooth integration with gediDB for processing and querying GEDI data.

@@ -3,7 +3,7 @@
 Overview: Why gediDB?
 =====================
 
-GediDB is a scalable Python package built to simplify working with **GEDI (Global Ecosystem Dynamics Investigation)** data. It offers intuitive modules for processing, querying, and analyzing GEDI data stored in **[tile]DB databases**.
+GediDB is a scalable Python package built to simplify working with **GEDI (Global Ecosystem Dynamics Investigation)** data. It offers intuitive modules for processing, querying, and analyzing GEDI data stored in **tileDB databases**.
 
 The motivation behind gediDB
 ----------------------------
@@ -24,7 +24,7 @@ By overcoming GEDI’s high dimensionality and spatial complexities, gediDB offe
  - **Efficient, region-specific querying**: Quickly filter data by regions, variables, and time intervals for targeted analysis.
 ..
     [comment] What do we write here?
- - **Advanced geospatial querying**: Harness **[tile]DB** for spatially enabled data retrieval within specified boundaries.
+ - **Advanced geospatial querying**: Harness **tileDB** for spatially enabled data retrieval within specified boundaries.
  - **Distributed processing**: Leverage **Dask** to parallelize and scale data processing, ensuring large-scale GEDI datasets are handled efficiently.
  - **Unified GEDI products**: Easily combine data from multiple GEDI levels (e.g., Levels 2A, 2B, and 4A) into a single dataset, enabling more comprehensive analysis.
 
@@ -46,7 +46,7 @@ GediDB's two primary modules facilitate data processing and access:
 
 1. :py:class:`gedidb.GEDIDProcessor`: This component manages data processing tasks, ensuring efficient handling and integrity across large GEDI datasets.
 
-2. :py:class:`gedidb.GEDIProvider`: The high-level module for querying GEDI data stored in [tile]DB. It retrieves data as **Pandas** DataFrames or **xarray** Datasets, enabling users to specify variables, apply spatial filters, and set time ranges.
+2. :py:class:`gedidb.GEDIProvider`: The high-level module for querying GEDI data stored in tileDB. It retrieves data as **Pandas** DataFrames or **xarray** Datasets, enabling users to specify variables, apply spatial filters, and set time ranges.
 
 These modules provide structured access to GEDI data, preserving relationships and metadata between datasets for comprehensive analysis.
 

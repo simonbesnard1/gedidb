@@ -95,7 +95,7 @@ Download an example `test.geojson` file here:
 
 :download:`Download test.geojson <../_static/test_files/test.geojson>`
 
-**[tile]DB Configuration**
+**tileDB Configuration**
 
 The `data_config.yml` file also includes settings for configuring the database connection. These settings include:
 

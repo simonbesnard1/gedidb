@@ -14,7 +14,7 @@ Please use the following citation when referencing gediDB in your work:
 What are the main features of gediDB?
 -------------------------------------
 
-GediDB is a [tile]DB-based tool designed to manage, query, and analyze large-scale GEDI data. Its main features include:
+GediDB is a tileDB-based tool designed to manage, query, and analyze large-scale GEDI data. Its main features include:
 
 - Efficient storage and querying of GEDI shot data with geospatial capabilities.
 - Automated data loading and processing with support for GEDI L2A, L2B, L4A, and L4C products.

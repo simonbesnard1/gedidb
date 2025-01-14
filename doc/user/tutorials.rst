@@ -21,7 +21,7 @@ These tutorials are structured as Jupyter notebooks, providing interactive guide
    - Configure essential settings in the `data_config.yml` file.
    - Download and preprocess GEDI granules for multiple products (L2A, L2B, L4A, and L4C).
    - Apply quality filters and merge data across products.
-   - Store processed data in a [tile]DB database.
+   - Store processed data in a tileDB database.
 
    This tutorial guides users step-by-step through the initialization, downloading, and storage process. By the end, users will have set up a database ready for analysis with structured, high-quality GEDI data.
 

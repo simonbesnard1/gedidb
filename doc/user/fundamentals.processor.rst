@@ -4,7 +4,7 @@
 Data Processing
 ###############
 
-The :py:class:`gedidb.GEDIProcessor` class in gediDB manages the entire workflow of downloading, processing, and storing GEDI data in either a local or s3-based [tile]DB. This section outlines the key functions of :py:class:`gedidb.GEDIProcessor`, example usage, core functions, and customization options for efficient GEDI data handling.
+The :py:class:`gedidb.GEDIProcessor` class in gediDB manages the entire workflow of downloading, processing, and storing GEDI data in either a local or s3-based tileDB. This section outlines the key functions of :py:class:`gedidb.GEDIProcessor`, example usage, core functions, and customization options for efficient GEDI data handling.
 
 Overview of GEDIProcessor workflow
 ----------------------------------
@@ -42,7 +42,7 @@ The ``compute()`` method of :py:class:`gedidb.GEDIProcessor` initiates the follo
 1. **Setup and initialization**:
 
    - The `GEDIProcessor` is initialized with the `data_config.yml` file for parameters like spatial and temporal boundaries, product details, and filtering criteria.
-   - Database tables are created based on the parameters in `data_config.yml`, ensuring that the [tile]DB required for granule storage is in place and properly configured.
+   - Database tables are created based on the parameters in `data_config.yml`, ensuring that the tileDB required for granule storage is in place and properly configured.
    - Paths are set up for storing granules and a Dask cluster is initialized for parallel processing based on the specified `n_workers`.
 
 2. **Granule downloading**:
@@ -58,7 +58,7 @@ The ``compute()`` method of :py:class:`gedidb.GEDIProcessor` initiates the follo
 
 4. **Database writing**:
 
-   - Processed data is stored in either a local or s3-based [tile]DB database across different fragments.
+   - Processed data is stored in either a local or s3-based tileDB database across different fragments.
    - The processed data is split up into spatial chunks defined in the `data_config.yml` file, and each chunk is stored in a separate fragment in the database.
    - Metadata is added to the database to facilitate easy querying and retrieval of data.
    - After processing all granules, the database is optimized for efficient querying and data retrieval by consolidation. The consolidation plan can be defined in the `data_config.yml` file.
