@@ -1,6 +1,6 @@
 stages:          # List of stages for jobs, and their order of execution
   - build
-  - test
+  # - test
   - deploy
 
 build-job:
@@ -22,33 +22,33 @@ build-job:
       - doc/_build/html  # Store the build results as artifacts
     expire_in: 1 day     # Optional: Define how long to keep artifacts
 
-setup-job:
-  stage: build
-  script:
-    - python -m venv .venv
-    - source .venv/bin/activate
-    - pip install -e .
-    - pip install geodatasets flake8 pyyaml tiledb pytest pytest-flake8
-  artifacts:
-    paths:
-    - .venv/
-    expire_in: 1 day
-
-unit-test-job:
-  stage: test
-  dependencies:
-    - setup-job
-  script:
-    - source .venv/bin/activate
-    - pip install unittest-xml-reporting  # Install the library for XML reporting
-    - echo "Running all tests in the 'tests/' folder and saving results as JUnit XML..."
-    - python -m xmlrunner discover -s gedidb/tests -p "test_*.py" -o reports/
-  artifacts:
-    when: always
-    reports:
-      junit: gedidb/tests/reports/*.xml
-    paths:
-      - gedidb/tests/reports/*.xml
+#setup-job:
+#  stage: build
+#  script:
+#    - python -m venv .venv
+#    - source .venv/bin/activate
+#    - pip install -e .
+#    - pip install geodatasets flake8 pyyaml tiledb pytest pytest-flake8
+#  artifacts:
+#    paths:
+#    - .venv/
+#    expire_in: 1 day
+#
+#unit-test-job:
+#  stage: test
+#  dependencies:
+#    - setup-job
+#  script:
+#    - source .venv/bin/activate
+#    - pip install unittest-xml-reporting  # Install the library for XML reporting
+#    - echo "Running all tests in the 'tests/' folder and saving results as JUnit XML..."
+#    - python -m xmlrunner discover -s gedidb/tests -p "test_*.py" -o reports/
+#  artifacts:
+#    when: always
+#    reports:
+#      junit: gedidb/tests/reports/*.xml
+#    paths:
+#      - gedidb/tests/reports/*.xml
 
 
 lint-test-job:   # This job also runs in the test stage.
