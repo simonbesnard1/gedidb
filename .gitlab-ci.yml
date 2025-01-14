@@ -15,6 +15,7 @@ build-job:
     - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
     - conda activate gedidb-docs  # Activate the environment
     # Build the documentation
+    - sphinx-apidoc -o doc/user/api gedidb
     - sphinx-build -b html doc/ doc/_build/html
   artifacts:
     paths:
