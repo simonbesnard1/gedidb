@@ -5,6 +5,7 @@ API Reference
    :toctree: api/
 
     gedidb.core
+    gedidb.core.gedidatabase
     gedidb.downloader
     gedidb.granule
     gedidb.provider
