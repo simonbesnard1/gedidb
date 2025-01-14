@@ -23,6 +23,6 @@ To get started, follow the detailed steps provided in the following sections:
 
 .. note::
 
-   Familiarity with [tile]DB is recommended. If you are new to database management, see the external resources section for additional learning materials.
+   Familiarity with tileDB is recommended. If you are new to database management, see the external resources section for additional learning materials.
 
 ---
