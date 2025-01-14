@@ -13,7 +13,6 @@ Customizing the `data_config.yml` and `db_scheme.sql` files allows you to:
 
 - **Include new variables** or **exclude unnecessary ones** as data needs change.
 - **Adjust spatial or temporal filters** to refine the region of interest.
-- **Optimize the database schema** to store additional data types or improve query efficiency.
 
 Customizing the data configuration file
 ---------------------------------------
@@ -30,10 +29,17 @@ To add a new variable (e.g., "sensitivity") to the `L2A` product, open `data_con
       variables:
         shot_number:
           SDS_Name: "shot_number"
+          ...
         beam_type:
           SDS_Name: "beam_type"
-        sensitivity:
-          SDS_Name: "sensitivity"  # New variable added here
+          ...
+        sensitivity:                            # New variable added
+          SDS_Name: "sensitivity"
+          description: "Maxmimum canopy cover that can be penetrated"
+          units: "adimensional"
+          dtype: "float32"
+          valid_range: "0, 1"
+          product_level: 'L2A'
 
 This configuration adds `sensitivity` to the variables processed from the `L2A` GEDI product.
 
@@ -44,8 +50,8 @@ To change the region or time range for data extraction, update the `data_config.
 .. code-block:: yaml
 
     region_of_interest: './path/to/new_region.geojson'  # Updated spatial area
-    start_date: '2020-01-01'  # Updated start date
-    end_date: '2023-01-01'    # Updated end date
+    start_date: '2020-01-01'                            # Updated start date
+    end_date: '2023-01-01'                              # Updated end date
 
 Ensure that `region_of_interest` points to a valid `.geojson` file with the desired geographic boundaries.
 
