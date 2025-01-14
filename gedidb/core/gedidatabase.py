@@ -61,22 +61,33 @@ class GEDIDatabase:
         if storage_type == "s3":
             # S3 TileDB context with consolidation settings
             self.tiledb_config = tiledb.Config(
-                {  # Timeout settings
+                {  
+                    # S3-specific configurations (if using S3)
+                    "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
+                    "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
+                    "vfs.s3.endpoint_override": config["tiledb"]["url"],
+                    "vfs.s3.region": "eu-central-1",
+                    
+                    # S3 writting settings
                     "sm.vfs.s3.connect_timeout_ms": config["tiledb"][
-                        "s3_timeout_settings"
+                        "s3_settings"
                     ].get("connect_timeout_ms", "10800"),
                     "sm.vfs.s3.request_timeout_ms": config["tiledb"][
-                        "s3_timeout_settings"
+                        "s3_settings"
                     ].get("request_timeout_ms", "3000"),
                     "sm.vfs.s3.connect_max_tries": config["tiledb"][
-                        "s3_timeout_settings"
+                        "s3_settings"
                     ].get("connect_max_tries", "5"),
-                    "vfs.s3.backoff_scale": "2.0",  # Exponential backoff multiplier
-                    "vfs.s3.backoff_max_ms": "120000",  # Maximum backoff time of 120 seconds
-                    # Multipart upload settings
+                    "vfs.s3.backoff_scale":  config["tiledb"][
+                        "s3_settings"
+                    ].get("backoff_scale", "2.0"),  # Exponential backoff multiplier
+                    "vfs.s3.backoff_max_ms": config["tiledb"][
+                        "s3_settings"
+                    ].get("backoff_max_ms", "120000"),  # Maximum backoff time of 120 seconds
                     "vfs.s3.multipart_part_size": config["tiledb"][
-                        "s3_timeout_settings"
+                        "s3_settings"
                     ].get("multipart_part_size", "52428800"),  # 50 MB
+                    
                     # Memory budget settings
                     "sm.memory_budget": config["tiledb"]["consolidation_settings"].get(
                         "memory_budget", "5000000000"
@@ -84,11 +95,7 @@ class GEDIDatabase:
                     "sm.memory_budget_var": config["tiledb"][
                         "consolidation_settings"
                     ].get("memory_budget_var", "2000000000"),
-                    # S3-specific configurations (if using S3)
-                    "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
-                    "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
-                    "vfs.s3.endpoint_override": config["tiledb"]["url"],
-                    "vfs.s3.region": "eu-central-1",
+                    
                 }
             )
         elif storage_type == "local":
