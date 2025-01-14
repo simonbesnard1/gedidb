@@ -17,7 +17,7 @@ from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
-from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
+from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException, ChunkedEncodingError
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -159,104 +159,57 @@ class H5FileDownloader:
     def __init__(self, download_path: str = "."):
         self.download_path = pathlib.Path(download_path)
 
-    @retry(
-        (ValueError, TypeError, HTTPError, ConnectionError, Timeout, RequestException),
-        tries=10,
-        delay=5,
-        backoff=3,
-    )
-    def download(
-        self, granule_key: str, url: str, product: str
-    ) -> Tuple[str, Tuple[str, Optional[str]]]:
+    @retry((ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException), tries=10, delay=5, backoff=3)
+    def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
         Download an HDF5 file for a specific granule and product with resume support.
 
-        Parameters
-        ----------
-        granule_key : str
-            Granule ID.
-        url : str
-            URL to download the HDF5 file from.
-        product : str
-            GEDI product.
-
-        Returns
-        -------
-        Tuple[str, Tuple[str, Optional[str]]]
-            Tuple containing the granule ID and a tuple of product name and file path.
+        :param granule_key: Granule ID.
+        :param url: URL to download the HDF5 file from.
+        :param product: GEDI product.
+        :return: Tuple containing the granule ID and a tuple of product name and file path.
         """
-        h5file_path = (
-            pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
-        )
+        h5file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
         os.makedirs(h5file_path.parent, exist_ok=True)
 
+        # Check local file size if already partially downloaded
         downloaded_size = h5file_path.stat().st_size if h5file_path.exists() else 0
-        headers = {"Range": f"bytes={downloaded_size}-"} if downloaded_size > 0 else {}
-        total_size = None
 
+        # Attempt to retrieve total file size with a small GET request
+        headers = {'Range': 'bytes=0-1'}
         try:
-            # Fetch total file size
-            partial_response = requests.get(
-                url, headers={"Range": "bytes=0-1"}, stream=True, timeout=(30, 60)
-            )
-            partial_response.raise_for_status()
+            partial_response = requests.get(url, headers=headers, stream=True, timeout=30)
+            if 'Content-Range' in partial_response.headers:
+                total_size = int(partial_response.headers['Content-Range'].split('/')[-1])
 
-            if "Content-Range" in partial_response.headers:
-                total_size = int(
-                    partial_response.headers["Content-Range"].split("/")[-1]
-                )
-
+                # Check if the file is already fully downloaded
                 if downloaded_size == total_size:
                     return granule_key, (product.value, str(h5file_path))
 
-                if downloaded_size > total_size:
-                    logger.warning(
-                        f"Corrupted file detected: {h5file_path}. Deleting and starting fresh."
-                    )
-                    h5file_path.unlink()
-                    downloaded_size = 0
-                    headers = {}
+                # Adjust Range header to resume download from downloaded_size
+                headers['Range'] = f'bytes={downloaded_size}-'
             else:
-                headers = {}
+                headers = {}  # Remove Range if size cannot be determined
 
-        except RequestException as e:
-            logger.warning(
-                f"Failed to fetch file size for {url}: {e}. Proceeding with full download."
-            )
-            if h5file_path.exists():
-                h5file_path.unlink()
-            headers = {}
+        except requests.RequestException:
+            headers = {}  # Proceed with a full download if size check fails
 
-        # Download the file
         try:
-            with requests.get(
-                url, headers=headers, stream=True, timeout=(30, 60)
-            ) as response:
-                response.raise_for_status()
-                mode = "ab" if downloaded_size > 0 else "wb"
-                with open(h5file_path, mode) as f:
-                    for chunk in response.iter_content(
-                        chunk_size=1024 * 1024
-                    ):  # 1 MB chunks
+            with requests.get(url, headers=headers, stream=True, timeout=30) as r:
+                # Handle partial content (206) or full content (200)
+                r.raise_for_status()
+
+                # Open file in append mode to resume download if needed
+                with open(h5file_path, 'ab') as f:
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):
                         if chunk:
                             f.write(chunk)
-                            downloaded_size += len(chunk)
-
-            # Verify download size
-            if total_size and downloaded_size != total_size:
-                logger.error(
-                    f"Downloaded file size mismatch: {downloaded_size} != {total_size}. Deleting file."
-                )
-                h5file_path.unlink()
-                raise ValueError("File size mismatch after download.")
 
             return granule_key, (product.value, str(h5file_path))
 
-        except RequestException as e:
-            logger.error(f"Download failed for {url}: {e}")
-            if h5file_path.exists():
-                h5file_path.unlink()
+        except (HTTPError, ConnectionError, ChunkedEncodingError):
             raise
+
         except Exception as e:
-            logger.error(f"Unexpected error during download: {e}")
-            return granule_key, (product.value, None)
+            logger.error(f"Download failed after all retries for {url}: {e}")
+            return granule_key, (product.value, None)  # Return None if all retries fail

@@ -78,7 +78,7 @@ class GEDIDatabase:
                     "sm.vfs.s3.connect_max_tries": config["tiledb"][
                         "s3_settings"
                     ].get("connect_max_tries", "5"),
-                    "vfs.s3.backoff_scale":  config["tiledb"][
+                    "vfs.s3.backoff_scale": config["tiledb"][
                         "s3_settings"
                     ].get("backoff_scale", "2.0"),  # Exponential backoff multiplier
                     "vfs.s3.backoff_max_ms": config["tiledb"][
