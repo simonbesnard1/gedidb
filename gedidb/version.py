@@ -27,5 +27,5 @@
 # limitations under the License.
 """Version module for gedidb."""
 
-__version__ = '2.0.0'
-__versionalias__ = '2024-09-24'
+__version__ = "2.0.0"
+__versionalias__ = "2024-09-24"

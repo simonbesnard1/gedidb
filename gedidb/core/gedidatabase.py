@@ -13,10 +13,13 @@ import numpy as np
 import logging
 from typing import Dict, Any, List, Optional
 import os
-from retry import retry
 import concurrent.futures
+from retry import retry
 
-from gedidb.utils.geo_processing import _datetime_to_timestamp_days, convert_to_days_since_epoch
+from gedidb.utils.geo_processing import (
+    _datetime_to_timestamp_days,
+    convert_to_days_since_epoch,
+)
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 
 
@@ -41,48 +44,79 @@ class GEDIDatabase:
             Configuration dictionary.
         """
         self.config = config
-        storage_type = config['tiledb'].get('storage_type', 'local').lower()
+        storage_type = config["tiledb"].get("storage_type", "local").lower()
 
         # Set array URIs based on storage type
-        if storage_type == 's3':
-            bucket = config['tiledb']['s3_bucket']
-            self.array_uri = os.path.join(f"s3://{bucket}", 'array_uri')
-        elif storage_type == 'local':
-            base_path = config['tiledb'].get('local_path', './')
-            self.array_uri = os.path.join(base_path, 'array_uri')
+        if storage_type == "s3":
+            bucket = config["tiledb"]["s3_bucket"]
+            self.array_uri = os.path.join(f"s3://{bucket}", "array_uri")
+        elif storage_type == "local":
+            base_path = config["tiledb"].get("local_path", "./")
+            self.array_uri = os.path.join(base_path, "array_uri")
 
-        self.overwrite = config['tiledb'].get('overwrite', False)
+        self.overwrite = config["tiledb"].get("overwrite", False)
         self.variables_config = self._load_variables_config(config)
 
         # Set up TileDB context based on storage type
-        if storage_type == 's3':
+        if storage_type == "s3":
             # S3 TileDB context with consolidation settings
-            self.tiledb_config = tiledb.Config({  # Timeout settings
-                                                "sm.vfs.s3.connect_timeout_ms": config['tiledb']['s3_timeout_settings'].get('connect_timeout_ms', "10800"),
-                                                "sm.vfs.s3.request_timeout_ms": config['tiledb']['s3_timeout_settings'].get('request_timeout_ms', "3000"),
-                                                "sm.vfs.s3.connect_max_tries": config['tiledb']['s3_timeout_settings'].get('connect_max_tries', "5"),
-
-                                                # Memory budget settings
-                                                "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
-                                                "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
-
-                                                # S3-specific configurations (if using S3)
-                                                "vfs.s3.aws_access_key_id": credentials['AccessKeyId'],
-                                                "vfs.s3.aws_secret_access_key": credentials['SecretAccessKey'],
-                                                "vfs.s3.endpoint_override": config['tiledb']['url'],
-                                                "vfs.s3.region": 'eu-central-1',
-                                            })
-        elif storage_type == 'local':
+            self.tiledb_config = tiledb.Config(
+                {  
+                    # S3-specific configurations (if using S3)
+                    "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
+                    "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
+                    "vfs.s3.endpoint_override": config["tiledb"]["url"],
+                    "vfs.s3.region": "eu-central-1",
+                    
+                    # S3 writting settings
+                    "sm.vfs.s3.connect_timeout_ms": config["tiledb"][
+                        "s3_settings"
+                    ].get("connect_timeout_ms", "10800"),
+                    "sm.vfs.s3.request_timeout_ms": config["tiledb"][
+                        "s3_settings"
+                    ].get("request_timeout_ms", "3000"),
+                    "sm.vfs.s3.connect_max_tries": config["tiledb"][
+                        "s3_settings"
+                    ].get("connect_max_tries", "5"),
+                    "vfs.s3.backoff_scale": config["tiledb"][
+                        "s3_settings"
+                    ].get("backoff_scale", "2.0"),  # Exponential backoff multiplier
+                    "vfs.s3.backoff_max_ms": config["tiledb"][
+                        "s3_settings"
+                    ].get("backoff_max_ms", "120000"),  # Maximum backoff time of 120 seconds
+                    "vfs.s3.multipart_part_size": config["tiledb"][
+                        "s3_settings"
+                    ].get("multipart_part_size", "52428800"),  # 50 MB
+                    
+                    # Memory budget settings
+                    "sm.memory_budget": config["tiledb"]["consolidation_settings"].get(
+                        "memory_budget", "5000000000"
+                    ),
+                    "sm.memory_budget_var": config["tiledb"][
+                        "consolidation_settings"
+                    ].get("memory_budget_var", "2000000000"),
+                    
+                }
+            )
+        elif storage_type == "local":
             # Local TileDB context with consolidation settings
-            self.tiledb_config = tiledb.Config({
-                                                # Memory budget settings
-                                                "sm.memory_budget": config['tiledb']['consolidation_settings'].get('memory_budget', "5000000000"),
-                                                "sm.memory_budget_var": config['tiledb']['consolidation_settings'].get('memory_budget_var', "2000000000"),
-                                            })
+            self.tiledb_config = tiledb.Config(
+                {
+                    # Memory budget settings
+                    "sm.memory_budget": config["tiledb"]["consolidation_settings"].get(
+                        "memory_budget", "5000000000"
+                    ),
+                    "sm.memory_budget_var": config["tiledb"][
+                        "consolidation_settings"
+                    ].get("memory_budget_var", "2000000000"),
+                }
+            )
 
         self.ctx = tiledb.Ctx(self.tiledb_config)
 
-    def spatial_chunking(self, dataset: pd.DataFrame, chunk_size: float = 10) -> Dict[tuple, pd.DataFrame]:
+    def spatial_chunking(
+        self, dataset: pd.DataFrame, chunk_size: float = 10
+    ) -> Dict[tuple, pd.DataFrame]:
         """
         Splits a dataset into spatial chunks (quadrants) based on latitude and longitude.
 
@@ -106,7 +140,7 @@ class GEDIDatabase:
             If the dataset does not contain 'latitude' or 'longitude' columns.
         """
         # Validate input columns
-        required_columns = {'latitude', 'longitude'}
+        required_columns = {"latitude", "longitude"}
         missing_columns = required_columns - set(dataset.columns)
         if missing_columns:
             raise ValueError(f"Dataset must contain columns: {missing_columns}")
@@ -117,14 +151,18 @@ class GEDIDatabase:
 
         # Compute quadrant indices for grouping
         try:
-            lat_quadrants = np.floor_divide(dataset['latitude'], chunk_size).astype(int)
-            lon_quadrants = np.floor_divide(dataset['longitude'], chunk_size).astype(int)
+            lat_quadrants = np.floor_divide(dataset["latitude"], chunk_size).astype(int)
+            lon_quadrants = np.floor_divide(dataset["longitude"], chunk_size).astype(
+                int
+            )
         except KeyError as e:
             raise ValueError(f"Dataset is missing required column: {e}")
 
         # Group and create chunks
         quadrants = {}
-        for (lat_idx, lon_idx), group in dataset.groupby([lat_quadrants, lon_quadrants]):
+        for (lat_idx, lon_idx), group in dataset.groupby(
+            [lat_quadrants, lon_quadrants]
+        ):
             lat_min = lat_idx * chunk_size
             lat_max = lat_min + chunk_size
             lon_min = lon_idx * chunk_size
@@ -134,8 +172,9 @@ class GEDIDatabase:
 
         return quadrants
 
-
-    def consolidate_fragments(self, consolidation_type: str = 'default', n_workers: int = 1) -> None:
+    def consolidate_fragments(
+        self, consolidation_type: str = "default", n_workers: int = 1
+    ) -> None:
         """
         Consolidate fragments, metadata, and commit logs for the array to optimize storage and access.
 
@@ -153,17 +192,23 @@ class GEDIDatabase:
         TileDBError:
             If consolidation or vacuum operations fail.
         """
-        if consolidation_type not in {'default', 'spatial'}:
-            raise ValueError(f"Invalid consolidation_type: {consolidation_type}. Choose 'default' or 'spatial'.")
+        if consolidation_type not in {"default", "spatial"}:
+            raise ValueError(
+                f"Invalid consolidation_type: {consolidation_type}. Choose 'default' or 'spatial'."
+            )
 
-        logger.info(f"Starting consolidation process for array: {self.array_uri} (type: {consolidation_type})")
+        logger.info(
+            f"Starting consolidation process for array: {self.array_uri} (type: {consolidation_type})"
+        )
 
         try:
             # Consolidate fragments based on type
-            if consolidation_type == 'default':
+            if consolidation_type == "default":
                 cons_plan = self._generate_default_consolidation_plan()
-            elif consolidation_type == 'spatial':
-                cons_plan = SpatialConsolidationPlanner.compute(self.array_uri, self.ctx)
+            elif consolidation_type == "spatial":
+                cons_plan = SpatialConsolidationPlanner.compute(
+                    self.array_uri, self.ctx
+                )
 
             # Perform parallel consolidation
             self._execute_consolidation(cons_plan, n_workers)
@@ -181,8 +226,10 @@ class GEDIDatabase:
 
     def _generate_default_consolidation_plan(self):
         """Generate a default consolidation plan for fragments."""
-        with tiledb.open(self.array_uri, 'r', ctx=self.ctx) as array_:
-            fragment_size = self.config['tiledb']['consolidation_settings'].get('fragment_size', 100_000_000)
+        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array_:
+            fragment_size = self.config["tiledb"]["consolidation_settings"].get(
+                "fragment_size", 100_000_000
+            )
             return tiledb.ConsolidationPlan(self.ctx, array_, fragment_size)
 
     def _execute_consolidation(self, cons_plan, n_workers: int):
@@ -200,7 +247,6 @@ class GEDIDatabase:
             logger.warning("No consolidation plan generated. Skipping consolidation.")
             return
 
-        logger.info(f"Executing consolidation tasks with {n_workers} workers.")
         with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
             futures = [
                 executor.submit(
@@ -208,7 +254,7 @@ class GEDIDatabase:
                     self.array_uri,
                     ctx=self.ctx,
                     config=self.tiledb_config,
-                    fragment_uris=plan_['fragment_uris']
+                    fragment_uris=plan_["fragment_uris"],
                 )
                 for plan_ in cons_plan
             ]
@@ -226,7 +272,6 @@ class GEDIDatabase:
         mode : str
             The consolidation mode (e.g., 'array_meta', 'fragment_meta', 'commits').
         """
-        logger.info(f"Consolidating and vacuuming {mode} for array: {self.array_uri}")
         self.tiledb_config["sm.consolidation.mode"] = mode
         self.tiledb_config["sm.vacuum.mode"] = mode
         tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
@@ -241,10 +286,8 @@ class GEDIDatabase:
         mode : str
             The vacuum mode (e.g., 'fragments', 'array_meta').
         """
-        logger.info(f"Vacuuming {mode} for array: {self.array_uri}")
         self.tiledb_config["sm.vacuum.mode"] = mode
         tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-
 
     def _create_arrays(self) -> None:
         """Define and create TileDB arrays based on configuration."""
@@ -282,7 +325,7 @@ class GEDIDatabase:
                 attrs=attributes,
                 sparse=True,
                 capacity=self.config.get("tiledb", {}).get("capacity", 10000),
-                cell_order=self.config.get("tiledb", {}).get("cell_order", 'hilbert'),
+                cell_order=self.config.get("tiledb", {}).get("cell_order", "hilbert"),
             )
             tiledb.Array.create(uri, schema, ctx=self.ctx)
             logger.info(f"Successfully created TileDB array at {uri}")
@@ -313,17 +356,36 @@ class GEDIDatabase:
 
         # Validate ranges
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
-            raise ValueError("Spatial and temporal ranges must be fully specified in the configuration.")
+            raise ValueError(
+                "Spatial and temporal ranges must be fully specified in the configuration."
+            )
         if lat_min >= lat_max or lon_min >= lon_max:
-            raise ValueError("Invalid spatial range: lat_min must be less than lat_max and lon_min less than lon_max.")
+            raise ValueError(
+                "Invalid spatial range: lat_min must be less than lat_max and lon_min less than lon_max."
+            )
         if time_min >= time_max:
             raise ValueError("Invalid time range: time_min must be less than time_max.")
 
         # Define dimensions
         dimensions = [
-            tiledb.Dim("latitude", domain=(lat_min, lat_max), tile=self.config.get("tiledb", {}).get("latitude_tile", 1), dtype="float64"),
-            tiledb.Dim("longitude", domain=(lon_min, lon_max), tile=self.config.get("tiledb", {}).get("longitude_tile", 1), dtype="float64"),
-            tiledb.Dim("time", domain=(time_min, time_max), tile=self.config.get("tiledb", {}).get("time_tile", 1825), dtype="int64"),
+            tiledb.Dim(
+                "latitude",
+                domain=(lat_min, lat_max),
+                tile=self.config.get("tiledb", {}).get("latitude_tile", 1),
+                dtype="float64",
+            ),
+            tiledb.Dim(
+                "longitude",
+                domain=(lon_min, lon_max),
+                tile=self.config.get("tiledb", {}).get("longitude_tile", 1),
+                dtype="float64",
+            ),
+            tiledb.Dim(
+                "time",
+                domain=(time_min, time_max),
+                tile=self.config.get("tiledb", {}).get("time_tile", 1825),
+                dtype="int64",
+            ),
         ]
 
         return tiledb.Domain(*dimensions)
@@ -343,20 +405,24 @@ class GEDIDatabase:
         """
         attributes = []
         if not self.variables_config:
-            raise ValueError("Variable configuration is missing. Cannot create attributes.")
+            raise ValueError(
+                "Variable configuration is missing. Cannot create attributes."
+            )
 
         # Add scalar variables
         for var_name, var_info in self.variables_config.items():
-            if not var_info.get('is_profile', False):
+            if not var_info.get("is_profile", False):
                 attributes.append(tiledb.Attr(name=var_name, dtype=var_info["dtype"]))
 
         # Add profile variables
         for var_name, var_info in self.variables_config.items():
-            if var_info.get('is_profile', False):
-                profile_length = var_info.get('profile_length', 1)
+            if var_info.get("is_profile", False):
+                profile_length = var_info.get("profile_length", 1)
                 for i in range(profile_length):
                     attr_name = f"{var_name}_{i + 1}"
-                    attributes.append(tiledb.Attr(name=attr_name, dtype=var_info["dtype"]))
+                    attributes.append(
+                        tiledb.Attr(name=attr_name, dtype=var_info["dtype"])
+                    )
 
         # Add timestamp attribute
         attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
@@ -369,7 +435,9 @@ class GEDIDatabase:
         and other relevant information. This metadata is pulled from the configuration.
         """
         if not self.variables_config:
-            logger.warning("No variables configuration found. Skipping metadata addition.")
+            logger.warning(
+                "No variables configuration found. Skipping metadata addition."
+            )
             return
 
         try:
@@ -378,7 +446,9 @@ class GEDIDatabase:
                     # Extract metadata attributes with defaults
                     metadata = {
                         "units": var_info.get("units", "unknown"),
-                        "description": var_info.get("description", "No description available"),
+                        "description": var_info.get(
+                            "description", "No description available"
+                        ),
                         "dtype": var_info.get("dtype", "unknown"),
                         "product_level": var_info.get("product_level", "unknown"),
                     }
@@ -388,15 +458,32 @@ class GEDIDatabase:
                         array.meta[f"{var_name}.{key}"] = value
 
                     # Add profile-specific metadata
-                    if var_info.get('is_profile', False):
-                        array.meta[f"{var_name}.profile_length"] = var_info.get("profile_length", 0)
+                    if var_info.get("is_profile", False):
+                        array.meta[f"{var_name}.profile_length"] = var_info.get(
+                            "profile_length", 0
+                        )
 
-                    logger.debug(f"Metadata added for variable: {var_name}")
         except tiledb.TileDBError as e:
             logger.error(f"Error adding metadata to TileDB array: {e}")
             raise
 
-    @retry(tiledb.cc.TileDBError, tries=10, delay=5, backoff=3)
+    @retry((tiledb.cc.TileDBError, ConnectionError), tries=10, delay=5, backoff=3, logger=logger)
+    def _write_to_tiledb(self, coords, data):
+        """
+        Write data to the TileDB array with retry logic.
+
+        Parameters:
+        ----------
+        coords : dict
+            Coordinates for the TileDB array dimensions.
+        data : dict
+            Variable data to write to the TileDB array.
+        """
+        with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+            dim_names = [dim.name for dim in array.schema.domain]
+            dims = tuple(coords[dim_name] for dim_name in dim_names)
+            array[dims] = data
+
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays.
@@ -411,24 +498,21 @@ class GEDIDatabase:
         ValueError
             If required dimension data or critical variables are missing.
         """
-        # Validate granule data
-        self._validate_granule_data(granule_data)
-
-        # Prepare coordinates (dimensions)
-        coords = self._prepare_coordinates(granule_data)
-
-        # Extract data for scalar and profile variables
-        data = self._extract_variable_data(granule_data)
-
-        # Write to the TileDB array
         try:
-            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
-                dim_names = [dim.name for dim in array.schema.domain]
-                dims = tuple(coords[dim_name] for dim_name in dim_names)
-                array[dims] = data
-            logger.info(f"Successfully wrote granule data to TileDB array: {self.array_uri}")
-        except tiledb.TileDBError as e:
-            logger.error(f"Failed to write granule data to {self.array_uri}: {e}")
+            # Validate granule data
+            self._validate_granule_data(granule_data)
+
+            # Prepare coordinates (dimensions)
+            coords = self._prepare_coordinates(granule_data)
+
+            # Extract data for scalar and profile variables
+            data = self._extract_variable_data(granule_data)
+
+            # Write to the TileDB array
+            self._write_to_tiledb(coords, data)
+
+        except Exception as e:
+            logger.error(f"Failed to process and write granule data: {e}")
             raise
 
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
@@ -446,15 +530,15 @@ class GEDIDatabase:
             If required dimensions or critical variables are missing.
         """
         # Check for required dimensions
-        missing_dims = [dim for dim in self.config["tiledb"]['dimensions'] if dim not in granule_data]
+        missing_dims = [
+            dim
+            for dim in self.config["tiledb"]["dimensions"]
+            if dim not in granule_data
+        ]
         if missing_dims:
-            raise ValueError(f"Granule data is missing required dimensions: {missing_dims}")
-
-        # Check for critical variables
-        missing_vars = [var for var, info in self.variables_config.items() if not info.get('optional', False) and var not in granule_data]
-        if missing_vars:
-            raise ValueError(f"Granule data is missing critical variables: {missing_vars}")
-
+            raise ValueError(
+                f"Granule data is missing required dimensions: {missing_dims}"
+            )
 
     def _prepare_coordinates(self, granule_data: pd.DataFrame) -> Dict[str, np.ndarray]:
         """
@@ -473,12 +557,15 @@ class GEDIDatabase:
         return {
             dim_name: (
                 convert_to_days_since_epoch(granule_data[dim_name].values)
-                if dim_name == 'time' else granule_data[dim_name].values
+                if dim_name == "time"
+                else granule_data[dim_name].values
             )
-            for dim_name in self.config["tiledb"]['dimensions']
+            for dim_name in self.config["tiledb"]["dimensions"]
         }
 
-    def _extract_variable_data(self, granule_data: pd.DataFrame) -> Dict[str, np.ndarray]:
+    def _extract_variable_data(
+        self, granule_data: pd.DataFrame
+    ) -> Dict[str, np.ndarray]:
         """
         Extract scalar and profile variable data from the granule DataFrame.
 
@@ -496,21 +583,23 @@ class GEDIDatabase:
 
         # Process scalar variables
         for var_name, var_info in self.variables_config.items():
-            if not var_info.get('is_profile', False):
+            if not var_info.get("is_profile", False):
                 if var_name in granule_data:
                     data[var_name] = granule_data[var_name].values
 
         # Process profile variables
         for var_name, var_info in self.variables_config.items():
-            if var_info.get('is_profile', False):
-                profile_length = var_info.get('profile_length', 1)
+            if var_info.get("is_profile", False):
+                profile_length = var_info.get("profile_length", 1)
                 for i in range(profile_length):
                     expanded_var_name = f"{var_name}_{i + 1}"
                     if expanded_var_name in granule_data:
                         data[expanded_var_name] = granule_data[expanded_var_name].values
 
         # Add timestamp
-        data['timestamp_ns'] = (pd.to_datetime(granule_data['time']).astype('int64') // 1000).values
+        data["timestamp_ns"] = (
+            pd.to_datetime(granule_data["time"]).astype("int64") // 1000
+        ).values
 
         return data
 
@@ -534,7 +623,11 @@ class GEDIDatabase:
         try:
             # Open scalar array and check metadata for granule statuses
             with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as scalar_array:
-                scalar_metadata = {key: scalar_array.meta[key] for key in scalar_array.meta.keys() if "_status" in key}
+                scalar_metadata = {
+                    key: scalar_array.meta[key]
+                    for key in scalar_array.meta.keys()
+                    if "_status" in key
+                }
 
             # Combine metadata from both arrays and check each granule
             for granule_id in granule_ids:
@@ -562,7 +655,9 @@ class GEDIDatabase:
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as scalar_array:
 
                 scalar_array.meta[f"granule_{granule_key}_status"] = "processed"
-                scalar_array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.utcnow().isoformat()
+                scalar_array.meta[f"granule_{granule_key}_processed_date"] = (
+                    pd.Timestamp.utcnow().isoformat()
+                )
 
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
@@ -579,8 +674,8 @@ class GEDIDatabase:
         """
         # Consolidate all variables from different levels
         variables_config = {}
-        for level in ['level_2a', 'level_2b', 'level_4a', 'level_4c']:
-            level_vars = config.get(level, {}).get('variables', {})
+        for level in ["level_2a", "level_2b", "level_4a", "level_4c"]:
+            level_vars = config.get(level, {}).get("variables", {})
             for var_name, var_info in level_vars.items():
                 variables_config[var_name] = var_info
 

@@ -123,8 +123,11 @@ class TestCase(unittest.TestCase):
 
             # right now we check if the quality filter gets applied, i.e. we get less entries with the parsed data
             # than with the original data
-            self.assertLessEqual(beam_data.loc[beam, "shot_number"], hdf_beam_len,
-                                 "Quality filter returned more data than before")
+            self.assertLessEqual(
+                beam_data.loc[beam, "shot_number"],
+                hdf_beam_len,
+                "Quality filter returned more data than before",
+            )
 
     def test_parse_granule_l4a(self):
         data = parse_h5_file(

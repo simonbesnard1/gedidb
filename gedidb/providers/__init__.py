@@ -9,6 +9,4 @@
 
 from . import tiledb_provider
 
-__all__ = [
-    "tiledb_provider"
-]
+__all__ = ["tiledb_provider"]

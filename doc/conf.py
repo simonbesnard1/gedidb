@@ -23,7 +23,7 @@ import inspect
 from os.path import relpath, dirname
 
 # Minimum version, enforced by sphinx
-needs_sphinx = '4.3'
+needs_sphinx = "4.3"
 
 
 # This is a nasty hack to use platform-agnostic names for types in the
@@ -34,10 +34,12 @@ _name_cache = {}
 
 
 def replace_scalar_type_names():
-    """ Rename numpy types to use the canonical names to make sphinx behave """
+    """Rename numpy types to use the canonical names to make sphinx behave"""
     import ctypes
 
-    Py_ssize_t = ctypes.c_int64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_int32
+    Py_ssize_t = (
+        ctypes.c_int64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_int32
+    )
 
     class PyObject(ctypes.Structure):
         pass
@@ -46,30 +48,44 @@ def replace_scalar_type_names():
         pass
 
     PyObject._fields_ = [
-        ('ob_refcnt', Py_ssize_t),
-        ('ob_type', ctypes.POINTER(PyTypeObject)),
+        ("ob_refcnt", Py_ssize_t),
+        ("ob_type", ctypes.POINTER(PyTypeObject)),
     ]
 
     PyTypeObject._fields_ = [
         # varhead
-        ('ob_base', PyObject),
-        ('ob_size', Py_ssize_t),
+        ("ob_base", PyObject),
+        ("ob_size", Py_ssize_t),
         # declaration
-        ('tp_name', ctypes.c_char_p),
+        ("tp_name", ctypes.c_char_p),
     ]
 
     import numpy
 
     # change the __name__ of the scalar types
     for name in [
-        'byte', 'short', 'intc', 'int_', 'longlong',
-        'ubyte', 'ushort', 'uintc', 'uint', 'ulonglong',
-        'half', 'single', 'double', 'longdouble',
-        'half', 'csingle', 'cdouble', 'clongdouble',
+        "byte",
+        "short",
+        "intc",
+        "int_",
+        "longlong",
+        "ubyte",
+        "ushort",
+        "uintc",
+        "uint",
+        "ulonglong",
+        "half",
+        "single",
+        "double",
+        "longdouble",
+        "half",
+        "csingle",
+        "cdouble",
+        "clongdouble",
     ]:
         typ = getattr(numpy, name)
         c_typ = PyTypeObject.from_address(id(typ))
-        c_typ.tp_name = _name_cache[typ] = b"numpy." + name.encode('utf8')
+        c_typ.tp_name = _name_cache[typ] = b"numpy." + name.encode("utf8")
 
 
 replace_scalar_type_names()
@@ -85,27 +101,27 @@ replace_scalar_type_names()
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 
-sys.path.insert(0, os.path.abspath('../sphinxext'))
+sys.path.insert(0, os.path.abspath("../sphinxext"))
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'numpydoc',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.coverage',
-    'sphinx.ext.doctest',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.graphviz',
-    'sphinx.ext.ifconfig',
-    'matplotlib.sphinxext.plot_directive',
-    'IPython.sphinxext.ipython_console_highlighting',
-    'IPython.sphinxext.ipython_directive',
-    'sphinx.ext.mathjax',
-    'sphinx_copybutton',
-    'sphinx_design',
+    "sphinx.ext.autodoc",
+    "numpydoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.coverage",
+    "sphinx.ext.doctest",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.graphviz",
+    "sphinx.ext.ifconfig",
+    "matplotlib.sphinxext.plot_directive",
+    "IPython.sphinxext.ipython_console_highlighting",
+    "IPython.sphinxext.ipython_directive",
+    "sphinx.ext.mathjax",
+    "sphinx_copybutton",
+    "sphinx_design",
 ]
 
 skippable_extensions = [
-    ('breathe', 'skip generating C/C++ API from comment blocks.'),
+    ("breathe", "skip generating C/C++ API from comment blocks."),
 ]
 for ext, warn in skippable_extensions:
     ext_exist = importlib.util.find_spec(ext) is not None
@@ -115,23 +131,23 @@ for ext, warn in skippable_extensions:
         print(f"Unable to find Sphinx extension '{ext}', {warn}.")
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # The suffix of source filenames.
-source_suffix = '.rst'
+source_suffix = ".rst"
 
 # General substitutions.
-project = 'gediDB'
+project = "gediDB"
 year = datetime.now().year
-copyright = f'2024-{year}, gediDB Developers'
+copyright = f"2024-{year}, gediDB Developers"
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
 #
 
 # The short X.Y version (including .devXXXX, rcX, b1 suffixes if present)
-version = re.sub(r'(\d+\.\d+)\.\d+(.*)', r'\1\2', gedidb.__version__)
-version = re.sub(r'(\.dev\d+).*?$', r'\1', version)
+version = re.sub(r"(\d+\.\d+)\.\d+(.*)", r"\1\2", gedidb.__version__)
+version = re.sub(r"(\.dev\d+).*?$", r"\1", version)
 # The full version, including alpha/beta/rc tags.
 release = gedidb.__version__
 print("%s %s" % (version, release))
@@ -140,7 +156,7 @@ print("%s %s" % (version, release))
 # non-false value, then it is used:
 # today = ''
 # Else, today_fmt is used as the format for a strftime call.
-today_fmt = '%B %d, %Y'
+today_fmt = "%B %d, %Y"
 
 # List of documents that shouldn't be included in the build.
 # unused_docs = []
@@ -177,6 +193,7 @@ class LegacyDirective(Directive):
 
     See also the same implementation in SciPy's conf.py.
     """
+
     has_content = True
     node_class = nodes.admonition
     optional_arguments = 1
@@ -187,43 +204,38 @@ class LegacyDirective(Directive):
         except IndexError:
             # Argument is empty; use default text
             obj = "submodule"
-        text = (f"This {obj} is considered legacy and will no longer receive "
-                "updates. This could also mean it will be removed in future "
-                "NumPy versions.")
+        text = (
+            f"This {obj} is considered legacy and will no longer receive "
+            "updates. This could also mean it will be removed in future "
+            "NumPy versions."
+        )
 
         try:
             self.content[0] = text + " " + self.content[0]
         except IndexError:
             # Content is empty; use the default text
-            source, lineno = self.state_machine.get_source_and_line(
-                self.lineno
-            )
-            self.content.append(
-                text,
-                source=source,
-                offset=lineno
-            )
-        text = '\n'.join(self.content)
+            source, lineno = self.state_machine.get_source_and_line(self.lineno)
+            self.content.append(text, source=source, offset=lineno)
+        text = "\n".join(self.content)
         # Create the admonition node, to be populated by `nested_parse`
         admonition_node = self.node_class(rawsource=text)
         # Set custom title
         title_text = "Legacy"
         textnodes, _ = self.state.inline_text(title_text, self.lineno)
-        title = nodes.title(title_text, '', *textnodes)
+        title = nodes.title(title_text, "", *textnodes)
         # Set up admonition node
         admonition_node += title
         # Select custom class for CSS styling
-        admonition_node['classes'] = ['admonition-legacy']
+        admonition_node["classes"] = ["admonition-legacy"]
         # Parse the directive contents
-        self.state.nested_parse(self.content, self.content_offset,
-                                admonition_node)
+        self.state.nested_parse(self.content, self.content_offset, admonition_node)
         return [admonition_node]
 
 
 def setup(app):
     # add a config value for `ifconfig` directives
-    app.add_config_value('python_version_major', str(sys.version_info.major), 'env')
-    app.add_lexer('NumPyC', NumPyLexer)
+    app.add_config_value("python_version_major", str(sys.version_info.major), "env")
+    app.add_lexer("NumPyC", NumPyLexer)
     app.add_directive("legacy", LegacyDirective)
 
 
@@ -238,15 +250,16 @@ def setup(app):
 # HTML output
 # -----------------------------------------------------------------------------
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = "pydata_sphinx_theme"
 
 # html_favicon = '_static/favicon/favicon.ico'
 
 # Set up the version switcher.  The versions.json is stored in the doc repo.
-if os.environ.get('CIRCLE_JOB', False) and \
-        os.environ.get('CIRCLE_BRANCH', '') != 'main':
+if (
+    os.environ.get("CIRCLE_JOB", False) and os.environ.get("CIRCLE_BRANCH", "") != "main"
+):
     # For PR, name is set to its ref
-    switcher_version = os.environ['CIRCLE_BRANCH']
+    switcher_version = os.environ["CIRCLE_BRANCH"]
 elif ".dev" in version:
     switcher_version = "devdocs"
 else:
@@ -261,29 +274,25 @@ html_theme_options = {
     "collapse_navigation": True,
     "header_links_before_dropdown": 6,
     # Add light/dark mode and documentation version switcher:
-    "navbar_end": [
-        "search-button",
-        "theme-switcher",
-        "navbar-icon-links"
-    ],
+    "navbar_end": ["search-button", "theme-switcher", "navbar-icon-links"],
     "navbar_persistent": [],
 }
 
 html_title = "%s v%s Manual" % (project, version)
-html_static_path = ['_static']
-html_last_updated_fmt = '%b %d, %Y'
+html_static_path = ["_static"]
+html_last_updated_fmt = "%b %d, %Y"
 html_css_files = ["gedidb.css"]
 html_context = {"default_mode": "light"}
 html_use_modindex = True
 html_copy_source = False
 html_domain_indices = False
-html_file_suffix = '.html'
+html_file_suffix = ".html"
 
-htmlhelp_basename = 'gedidb'
+htmlhelp_basename = "gedidb"
 
-if 'sphinx.ext.pngmath' in extensions:
+if "sphinx.ext.pngmath" in extensions:
     pngmath_use_preview = True
-    pngmath_dvipng_args = ['-gamma', '1.5', '-D', '96', '-bg', 'Transparent']
+    pngmath_dvipng_args = ["-gamma", "1.5", "-D", "96", "-bg", "Transparent"]
 
 mathjax_path = "scipy-mathjax/MathJax.js?config=scipy-mathjax"
 
@@ -304,16 +313,14 @@ copybutton_prompt_is_regexp = True
 # latex_font_size = '10pt'
 
 # XeLaTeX for better support of unicode characters
-latex_engine = 'xelatex'
+latex_engine = "xelatex"
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, document class [howto/manual]).
-_stdauthor = 'Written by the gediDB members'
+_stdauthor = "Written by the gediDB members"
 latex_documents = [
-  ('reference/index', 'gedidb-ref.tex', 'NumPy Reference',
-   _stdauthor, 'manual'),
-  ('user/index', 'gedidb-user.tex', 'NumPy User Guide',
-   _stdauthor, 'manual'),
+    ("reference/index", "gedidb-ref.tex", "NumPy Reference", _stdauthor, "manual"),
+    ("user/index", "gedidb-user.tex", "NumPy User Guide", _stdauthor, "manual"),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -324,11 +331,12 @@ latex_documents = [
 # not chapters.
 # latex_use_parts = False
 
-latex_elements = {
-}
+latex_elements = {}
 
 # Additional stuff for the LaTeX preamble.
-latex_elements['preamble'] = r'''
+latex_elements[
+    "preamble"
+] = r"""
 \newfontfamily\FontForChinese{FandolSong-Regular}[Extension=.otf]
 \catcode`琴\active\protected\def琴{{\FontForChinese\string琴}}
 \catcode`春\active\protected\def春{{\FontForChinese\string春}}
@@ -378,7 +386,7 @@ latex_elements['preamble'] = r'''
 % Fix footer/header
 \renewcommand{\chaptermark}[1]{\markboth{\MakeUppercase{\thechapter.\ #1}}{}}
 \renewcommand{\sectionmark}[1]{\markright{\MakeUppercase{\thesection.\ #1}}}
-'''
+"""
 
 # Documents to append as an appendix to all manuals.
 # latex_appendices = []
@@ -392,10 +400,16 @@ latex_use_modindex = False
 # -----------------------------------------------------------------------------
 
 texinfo_documents = [
-  ("index", 'gedidb', 'gediDB Documentation', _stdauthor, 'gedidb',
-   "gediDB: ",
-   'Programming',
-   1),
+    (
+        "index",
+        "gedidb",
+        "gediDB Documentation",
+        _stdauthor,
+        "gedidb",
+        "gediDB: ",
+        "Programming",
+        1,
+    ),
 ]
 
 
@@ -403,18 +417,18 @@ texinfo_documents = [
 # Intersphinx configuration
 # -----------------------------------------------------------------------------
 intersphinx_mapping = {
-    'neps': ('https://numpy.org/neps', None),
-    'python': ('https://docs.python.org/3', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy', None),
-    'matplotlib': ('https://matplotlib.org/stable', None),
-    'imageio': ('https://imageio.readthedocs.io/en/stable', None),
-    'skimage': ('https://scikit-image.org/docs/stable', None),
-    'pandas': ('https://pandas.pydata.org/pandas-docs/stable', None),
-    'scipy-lecture-notes': ('https://scipy-lectures.org', None),
-    'pytest': ('https://docs.pytest.org/en/stable', None),
-    'numpy-tutorials': ('https://numpy.org/numpy-tutorials', None),
-    'numpydoc': ('https://numpydoc.readthedocs.io/en/latest', None),
-    'dlpack': ('https://dmlc.github.io/dlpack/latest', None)
+    "neps": ("https://numpy.org/neps", None),
+    "python": ("https://docs.python.org/3", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy", None),
+    "matplotlib": ("https://matplotlib.org/stable", None),
+    "imageio": ("https://imageio.readthedocs.io/en/stable", None),
+    "skimage": ("https://scikit-image.org/docs/stable", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "scipy-lecture-notes": ("https://scipy-lectures.org", None),
+    "pytest": ("https://docs.pytest.org/en/stable", None),
+    "numpy-tutorials": ("https://numpy.org/numpy-tutorials", None),
+    "numpydoc": ("https://numpydoc.readthedocs.io/en/latest", None),
+    "dlpack": ("https://dmlc.github.io/dlpack/latest", None),
 }
 
 
@@ -423,7 +437,7 @@ intersphinx_mapping = {
 # -----------------------------------------------------------------------------
 
 # If we want to do a phantom import from an XML file for all autodocs
-phantom_import_file = 'dump.xml'
+phantom_import_file = "dump.xml"
 
 # Make numpydoc to generate plots for example sections
 numpydoc_use_plots = True
@@ -459,24 +473,24 @@ import numpy as np
 np.random.seed(0)
 """
 plot_include_source = True
-plot_formats = [('png', 100), 'pdf']
+plot_formats = [("png", 100), "pdf"]
 
 phi = (math.sqrt(5) + 1) / 2
 
 plot_rcparams = {
-    'font.size': 8,
-    'axes.titlesize': 8,
-    'axes.labelsize': 8,
-    'xtick.labelsize': 8,
-    'ytick.labelsize': 8,
-    'legend.fontsize': 8,
-    'figure.figsize': (3 * phi, 3),
-    'figure.subplot.bottom': 0.2,
-    'figure.subplot.left': 0.2,
-    'figure.subplot.right': 0.9,
-    'figure.subplot.top': 0.85,
-    'figure.subplot.wspace': 0.4,
-    'text.usetex': False,
+    "font.size": 8,
+    "axes.titlesize": 8,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+    "figure.figsize": (3 * phi, 3),
+    "figure.subplot.bottom": 0.2,
+    "figure.subplot.left": 0.2,
+    "figure.subplot.right": 0.9,
+    "figure.subplot.top": 0.85,
+    "figure.subplot.wspace": 0.4,
+    "text.usetex": False,
 }
 
 
@@ -485,7 +499,7 @@ plot_rcparams = {
 # -----------------------------------------------------------------------------
 
 
-for name in ['sphinx.ext.linkcode', 'numpydoc.linkcode']:
+for name in ["sphinx.ext.linkcode", "numpydoc.linkcode"]:
     try:
         __import__(name)
         extensions.append(name)
@@ -510,18 +524,18 @@ def linkcode_resolve(domain, info):
     """
     Determine the URL corresponding to Python object
     """
-    if domain != 'py':
+    if domain != "py":
         return None
 
-    modname = info['module']
-    fullname = info['fullname']
+    modname = info["module"]
+    fullname = info["fullname"]
 
     submod = sys.modules.get(modname)
     if submod is None:
         return None
 
     obj = submod
-    for part in fullname.split('.'):
+    for part in fullname.split("."):
         try:
             obj = getattr(obj, part)
         except Exception:
@@ -540,7 +554,7 @@ def linkcode_resolve(domain, info):
     lineno = None
 
     # Make a poor effort at linking C extension types
-    if isinstance(obj, type) and obj.__module__ == 'numpy':
+    if isinstance(obj, type) and obj.__module__ == "numpy":
         fn = _get_c_source_file(obj)
 
     if fn is None:
@@ -568,20 +582,24 @@ def linkcode_resolve(domain, info):
     else:
         linespec = ""
 
-    if 'dev' in gedidb.__version__:
+    if "dev" in gedidb.__version__:
         return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/%s%s" % (
-           fn, linespec)
+            fn,
+            linespec,
+        )
     else:
-        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/v%s/numpy/%s%s" % (
-           gedidb.__version__, fn, linespec)
+        return (
+            "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/v%s/numpy/%s%s"
+            % (gedidb.__version__, fn, linespec)
+        )
 
 
 class NumPyLexer(CLexer):
-    name = 'NUMPYLEXER'
+    name = "NUMPYLEXER"
 
     tokens = {
-        'statements': [
-            (r'@[a-zA-Z_]*@', Comment.Preproc, 'macro'),
+        "statements": [
+            (r"@[a-zA-Z_]*@", Comment.Preproc, "macro"),
             inherit,
         ],
     }
@@ -596,7 +614,7 @@ breathe_default_members = ("members", "undoc-members", "protected-members")
 
 # See https://github.com/breathe-doc/breathe/issues/696
 nitpick_ignore = [
-    ('c:identifier', 'FILE'),
-    ('c:identifier', 'size_t'),
-    ('c:identifier', 'PyHeapTypeObject'),
+    ("c:identifier", "FILE"),
+    ("c:identifier", "size_t"),
+    ("c:identifier", "PyHeapTypeObject"),
 ]

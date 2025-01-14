@@ -30,9 +30,12 @@ class DetailError(Exception):
     Attributes:
         n_coords (int): Number of coordinates in the shape that caused the error.
     """
+
     def __init__(self, n_coords: int):
         self.n_coords = n_coords
-        super().__init__(f"Shape contains {n_coords} coordinates, exceeding the limit of {MAX_CMR_COORDS}.")
+        super().__init__(
+            f"Shape contains {n_coords} coordinates, exceeding the limit of {MAX_CMR_COORDS}."
+        )
 
 
 def _count_coordinates(geom: BaseGeometry) -> int:
@@ -48,6 +51,7 @@ def _count_coordinates(geom: BaseGeometry) -> int:
     if isinstance(geom, MultiPolygon):
         return sum([len(part.exterior.coords) for part in geom.geoms])
     return len(geom.exterior.coords)
+
 
 def check_and_format_shape(
     shp: gpd.GeoDataFrame, simplify: bool = False
@@ -112,12 +116,17 @@ def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
     """
     if isinstance(dt, np.datetime64):
         # Convert datetime64 to days since epoch
-        timestamp = int((dt - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 'D'))
+        timestamp = int(
+            (dt - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "D")
+        )
     else:
         # Parse ISO string and convert to days since epoch
         dt = dateutil.parser.isoparse(dt).replace(tzinfo=dateutil.tz.UTC)  # Ensure UTC
-        timestamp = int(dt.timestamp() // (86400))  # Convert to days (86400 seconds/day)
+        timestamp = int(
+            dt.timestamp() // (86400)
+        )  # Convert to days (86400 seconds/day)
     return timestamp
+
 
 def _timestamp_to_datetime(days: np.ndarray) -> np.ndarray:
     """
@@ -134,9 +143,12 @@ def _timestamp_to_datetime(days: np.ndarray) -> np.ndarray:
         Array of datetime64[D] values in UTC.
     """
     # Convert days since epoch to datetime64 with daily precision
-    return (np.datetime64('1970-01-01', 'D') + days).astype('datetime64[ns]')
+    return (np.datetime64("1970-01-01", "D") + days).astype("datetime64[ns]")
 
-def convert_to_days_since_epoch(timestamps: Union[pd.DatetimeIndex, pd.Series, list]) -> pd.Series:
+
+def convert_to_days_since_epoch(
+    timestamps: Union[pd.DatetimeIndex, pd.Series, list]
+) -> pd.Series:
     """
     Convert nanosecond-precision timestamps to daily timestamps in days since the Unix epoch (1970-01-01).
 
@@ -154,15 +166,17 @@ def convert_to_days_since_epoch(timestamps: Union[pd.DatetimeIndex, pd.Series, l
     timestamps = pd.to_datetime(timestamps, utc=True)
 
     # Define the Unix epoch
-    epoch = pd.Timestamp('1970-01-01', tz='UTC')
+    epoch = pd.Timestamp("1970-01-01", tz="UTC")
 
     # Truncate timestamps to daily resolution and calculate days since epoch
-    days_since_epoch = (timestamps.floor('D') - epoch).days
+    days_since_epoch = (timestamps.floor("D") - epoch).days
 
     return days_since_epoch
 
 
-def _temporal_tiling(unprocessed_cmr_data: dict, time_granularity: str = 'weekly') -> dict:
+def _temporal_tiling(
+    unprocessed_cmr_data: dict, time_granularity: str = "weekly"
+) -> dict:
     """
     Separate the granules into temporal tiles by either daily or weekly.
 
@@ -195,12 +209,12 @@ def _temporal_tiling(unprocessed_cmr_data: dict, time_granularity: str = 'weekly
             url, product, date_str = entry
             start_date = datetime.fromisoformat(date_str.replace("Z", ""))
 
-            if time_granularity == 'weekly':
+            if time_granularity == "weekly":
                 week_start = get_week_start(start_date)
                 year_week = f"{week_start.year}-W{week_start.strftime('%U')}"
                 grouped_data[year_week][granule_id].append((url, product, date_str))
 
-            elif time_granularity == 'daily':
+            elif time_granularity == "daily":
                 day_start = get_day_start(start_date)
                 day_key = day_start.date().isoformat()
                 grouped_data[day_key][granule_id].append((url, product, date_str))
