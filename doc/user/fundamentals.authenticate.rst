@@ -13,19 +13,6 @@ To access GEDI data hosted on NASA’s servers, you need an **Earthdata** accoun
 
 `Create an Earthdata Account <https://urs.earthdata.nasa.gov/>`_
 
-After creating your account, add your credentials (username and password) to gediDB's main configuration file (`data_config.yml`) to enable access. This file consolidates all configuration parameters, including authentication details.
-
-Example configuration for Earthdata credentials:
-
-.. code-block:: yaml
-
-    earth_data_info:
-        credentials:
-            username: 'your_username'
-            password: 'your_password'
-
-Replace `'your_username'` and `'your_password'` with your Earthdata login details.
-
 Storing credentials for authentication
 --------------------------------------
 
@@ -37,11 +24,11 @@ Use the following code snippet to authenticate and store your credentials in the
 
     import gedidb as gdb
 
-    authenticator = gdb.EarthDataAuthenticator('./path/to/data_config.yml')
-    authenticator.authenticate()
-
+    authentificator = gdb.EarthDataAuthenticator()
+    authentificator.authenticate()
+    
 Explanation:
-- :py:class:`gedidb.EarthDataAuthenticator` reads your credentials from `data_config.yml` and verifies them.
+- :py:class:`gedidb.EarthDataAuthenticator` asks for your credentials in the prompt and verifies them.
 - Once authenticated, the credentials are saved in the `.netrc` file for future use, avoiding repeated login prompts.
 
 Successful authentication confirmation
@@ -51,7 +38,7 @@ Upon successful authentication, gediDB logs messages to confirm that your creden
 
 .. code-block:: none
 
-    2024-09-27 15:34:08,253 - INFO - Directory ensured: data/earth_data
+    2024-09-27 15:34:08,253 - INFO - Directory ensured: path/to/directory
     2024-09-27 15:34:08,253 - INFO - No authentication cookies found, fetching Earthdata cookies...
     2024-09-27 15:34:08,253 - INFO - Credentials added to .netrc file.
     2024-09-27 15:34:08,253 - INFO - Earthdata cookies successfully fetched and saved.
@@ -65,6 +52,6 @@ Security considerations
 -----------------------
 
 - **Protecting `.netrc` file permissions**: The `.netrc` file contains sensitive login information. Limit access by setting appropriate file permissions (e.g., `chmod 600 .netrc` on Unix systems).
-- **Avoid sharing sensitive files**: Do not share your `data_config.yml` or `.netrc` file, as they contain your Earthdata credentials.
+- **Avoid sharing sensitive files**: Do not share your `.netrc` file, as they contain your Earthdata credentials.
   
 With authentication configured, you are now ready to download and process GEDI data using gediDB.
