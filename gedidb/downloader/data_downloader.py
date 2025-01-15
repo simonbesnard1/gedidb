@@ -17,8 +17,9 @@ from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
-from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException, ChunkedEncodingError
-
+from requests.exceptions import (
+    HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException
+)
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
 
@@ -150,66 +151,102 @@ class CMRDataDownloader(GEDIDownloader):
 
         return filtered_granules
 
-
 class H5FileDownloader:
     """
-    Downloader for HDF5 files from URLs, with resume and retry support.
+    Downloader for HDF5 files from URLs, with resume and retry support,
+    plus a temporary ".part" approach to ensure data integrity.
     """
 
     def __init__(self, download_path: str = "."):
         self.download_path = pathlib.Path(download_path)
 
-    @retry((ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException), tries=10, delay=5, backoff=3)
+    @retry(
+        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException),
+        tries=10,
+        delay=5,
+        backoff=3
+    )
     def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
-        Download an HDF5 file for a specific granule and product with resume support.
+        Download an HDF5 file for a specific granule and product with resume support
+        using a temporary ".part" file. Renames to ".h5" only upon successful download.
 
         :param granule_key: Granule ID.
         :param url: URL to download the HDF5 file from.
         :param product: GEDI product.
-        :return: Tuple containing the granule ID and a tuple of product name and file path.
+        :return: (granule_key, (product_value, local_filepath or None if download failed))
         """
-        h5file_path = pathlib.Path(self.download_path) / f"{granule_key}/{product.name}.h5"
-        os.makedirs(h5file_path.parent, exist_ok=True)
+        # Paths
+        granule_dir = self.download_path / granule_key
+        final_path = granule_dir / f"{product.name}.h5"       # The final HDF5 file
+        temp_path = granule_dir / f"{product.name}.h5.part"   # Temporary file for partial download
+        os.makedirs(granule_dir, exist_ok=True)
 
-        # Check local file size if already partially downloaded
-        downloaded_size = h5file_path.stat().st_size if h5file_path.exists() else 0
+        # Check if we already have a fully downloaded file:
+        if final_path.exists():
+            logger.info(f"File already exists for {granule_key}, skipping download.")
+            return granule_key, (product.value, str(final_path))
 
-        # Attempt to retrieve total file size with a small GET request
-        headers = {'Range': 'bytes=0-1'}
+        # If we have a partial file from a previous attempt, get its size:
+        downloaded_size = temp_path.stat().st_size if temp_path.exists() else 0
+
+        # Attempt to retrieve total file size with a small GET request (Range=0-1)
+        headers = {"Range": "bytes=0-1"}
+        total_size: Optional[int] = None
+
         try:
             partial_response = requests.get(url, headers=headers, stream=True, timeout=30)
-            if 'Content-Range' in partial_response.headers:
-                total_size = int(partial_response.headers['Content-Range'].split('/')[-1])
-
-                # Check if the file is already fully downloaded
+            if "Content-Range" in partial_response.headers:
+                total_size = int(partial_response.headers["Content-Range"].split("/")[-1])
+                # If partial file already matches the total, rename and skip
                 if downloaded_size == total_size:
-                    return granule_key, (product.value, str(h5file_path))
+                    temp_path.rename(final_path)
+                    return granule_key, (product.value, str(final_path))
 
-                # Adjust Range header to resume download from downloaded_size
-                headers['Range'] = f'bytes={downloaded_size}-'
+                # Otherwise, resume download from downloaded_size
+                headers["Range"] = f"bytes={downloaded_size}-"
             else:
-                headers = {}  # Remove Range if size cannot be determined
+                # Server doesn't support partial range requests
+                headers = {}
+        except requests.RequestException as e:
+            logger.warning(f"Failed to get Content-Range for {granule_key}: {e}. Will download from scratch.")
+            headers = {}  # Fallback to full download if size check fails
 
-        except requests.RequestException:
-            headers = {}  # Proceed with a full download if size check fails
-
+        # Download (or resume) the file to the .part path
         try:
             with requests.get(url, headers=headers, stream=True, timeout=30) as r:
-                # Handle partial content (206) or full content (200)
                 r.raise_for_status()
 
-                # Open file in append mode to resume download if needed
-                with open(h5file_path, 'ab') as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                # Open in append mode if we are resuming, otherwise write mode
+                mode = "ab" if headers.get("Range") else "wb"
+                with open(temp_path, mode) as f:
+                    bytes_downloaded_this_session = 0
+                    chunk_size = 8 * 1024 * 1024  # 8 MB
+
+                    for chunk in r.iter_content(chunk_size=chunk_size):
                         if chunk:
                             f.write(chunk)
+                            bytes_downloaded_this_session += len(chunk)
 
-            return granule_key, (product.value, str(h5file_path))
+            # After writing, validate final size if we know total_size
+            final_downloaded_size = temp_path.stat().st_size
+            if total_size is not None:
+                if final_downloaded_size != total_size:
+                    # The file is not fully downloaded or there's a mismatch
+                    raise ValueError(
+                        f"Final size mismatch for {granule_key}. "
+                        f"Expected {total_size}, got {final_downloaded_size}."
+                    )
 
-        except (HTTPError, ConnectionError, ChunkedEncodingError):
+            # Rename from .part to .h5, indicating a complete file
+            temp_path.rename(final_path)
+            return granule_key, (product.value, str(final_path))
+
+        except (HTTPError, ConnectionError, ChunkedEncodingError) as e:
+            # Will be retried up to 'tries' times by the @retry decorator
+            logger.warning(f"Encountered network error for {granule_key}: {e}. Retrying...")
             raise
 
         except Exception as e:
-            logger.error(f"Download failed after all retries for {url}: {e}")
+            logger.error(f"Download failed after all retries for {granule_key}: {e}")
             return granule_key, (product.value, None)  # Return None if all retries fail

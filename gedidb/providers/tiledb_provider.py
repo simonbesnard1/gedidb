@@ -49,7 +49,6 @@ class TileDBProvider:
     ) -> tiledb.Ctx:
         return tiledb.Ctx(
             {
-                "sm.num_reader_threads": 16,
                 "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                 "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
                 "vfs.s3.endpoint_override": url,
@@ -61,7 +60,6 @@ class TileDBProvider:
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx(
             {
-                "sm.num_reader_threads": 16,
                 "py.init_buffer_bytes": "512000000",  # Increase buffer size
             }
         )
