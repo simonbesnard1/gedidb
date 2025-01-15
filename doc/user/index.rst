@@ -13,6 +13,7 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
    why-gedidb
    installing
    quick-overview
+   api
    faq
    
 .. toctree::

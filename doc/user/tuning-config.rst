@@ -9,7 +9,7 @@ This section provides guidance on modifying the **data configuration file** (`da
 Why customize configuration?
 ----------------------------
 
-Customizing the `data_config.yml` and `db_scheme.sql` files allows you to:
+Customizing the `data_config.yml` file allows you to:
 
 - **Include new variables** or **exclude unnecessary ones** as data needs change.
 - **Adjust spatial or temporal filters** to refine the region of interest.

@@ -24,15 +24,16 @@ This setup initiates the download, processing, and storage of GEDI data in your 
     # Paths to configuration files
     config_file = 'path/to/config_file.yml'
 
-    # Process GEDI data with 4 parallel workers
-    with gdb.GEDIProcessor(config_file, n_workers = 4) as processor:
-        processor.compute()
+    if __name__ == "__main__":
+        # Process GEDI data with 4 parallel workers
+        with gdb.GEDIProcessor(config_file, n_workers = 4) as processor:
+            processor.compute()
 
 In this example, the :py:class:`gedidb.GEDIProcessor` performs:
 
 - **Downloading** GEDI L2A-B and L4A-C products.
 - **Filtering** data by quality.
-- **Storing** the processed data in the database.
+- **Storing** the processed data in the tileDB database.
 
 The ``n_workers=4`` argument directs **Dask** to process four data granules in parallel.
 

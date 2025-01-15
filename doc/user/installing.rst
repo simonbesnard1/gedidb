@@ -20,9 +20,10 @@ To use gediDB, please ensure the following dependencies are installed:
 - `retry <https://github.com/invl/retry>`__ >= 0.9.2
 - `dask <https://dask.org/>`__ >= 2024.8.2
 - `distributed <https://distributed.dask.org/>`__ >= 2024.8.2
-- `tiledb <https://pypi.org/project/tiledb/>` >= 0.33
-- `scipy <https://scipy.org/> >= 1.14.1`
-- `boto3 <https://pypi.org/project/boto3/>` >= 1.35.49
+- `tiledb <https://pypi.org/project/tiledb/>`__  >= 0.33
+- `tiledb <https://pypi.org/project/tiledb/>`__  >= 0.33
+- `scipy <https://scipy.org/>`__ >= 1.14.1
+- `boto3 <https://pypi.org/project/boto3/>`__ >= 1.35.49
 
 Optional dependencies
 ---------------------
