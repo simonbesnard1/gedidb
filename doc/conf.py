@@ -272,7 +272,7 @@ html_theme_options = {
         "image_light": "_static/logos/gediDB_logo.svg",
         "image_dark": "_static/logos/gediDB_logo.svg",
     },
-    "github_url": "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/gedi-toolbox",
+    "github_url": "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/",
     "collapse_navigation": True,
     "header_links_before_dropdown": 6,
     # Add light/dark mode and documentation version switcher:
@@ -591,7 +591,7 @@ def linkcode_resolve(domain, info):
         )
     else:
         return (
-            "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/v%s/numpy/%s%s"
+            "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/v%s/gedidb/%s%s"
             % (gedidb.__version__, fn, linespec)
         )
 
