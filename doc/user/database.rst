@@ -94,7 +94,7 @@ The following is an example of the code provided in the `data_config.yml` file:
 
 ---
 
-***Additional Resources***
+**Additional Resources**
 
 For more detailed information about specific configuration settings (e.g., consolidation settings), refer to the official TileDB documentation:
 `TileDB Docs <https://docs.tiledb.com>`_, or `TileDB Academy <https://documentation.cloud.tiledb.com/academy/home/>`_.

@@ -57,13 +57,15 @@ gediDB Documentation
             Access User Guide
 
     .. grid-item-card::
-        :img-top: /_static/index-images/database.svg
+        :img-top: /_static/index-images/api_reference.svg
         :text-align: center
 
         **API Reference**
         ^^^
 
-        Ready to set up your own GEDI database? This guide walks you through configuring a GEDI database with [tile]DB. Basic knowledge of databases is recommended.
+        The reference guide contains a detailed description of the gediDB API.
+        The reference describes how the methods work and which parameters can
+        be used.
 
         +++
 
@@ -72,7 +74,7 @@ gediDB Documentation
             :color: primary
             :click-parent:
 
-            Start Database Setup
+            Explore API Reference
 
     .. grid-item-card::
         :img-top: /_static/index-images/contributor.svg
@@ -85,7 +87,7 @@ gediDB Documentation
 
         +++
 
-        .. button-ref:: contributing
+        .. button-ref:: user/contributing
             :expand:
             :color: primary
             :click-parent:

@@ -22,8 +22,6 @@ What gediDB enables
 By overcoming GEDI’s high dimensionality and spatial complexities, gediDB offers powerful capabilities that simplify data access and analysis, including:
 
  - **Efficient, region-specific querying**: Quickly filter data by regions, variables, and time intervals for targeted analysis.
-..
-    [comment] What do we write here?
  - **Advanced geospatial querying**: Harness **tileDB** for spatially enabled data retrieval within specified boundaries.
  - **Distributed processing**: Leverage **Dask** to parallelize and scale data processing, ensuring large-scale GEDI datasets are handled efficiently.
  - **Unified GEDI products**: Easily combine data from multiple GEDI levels (e.g., Levels 2A, 2B, and 4A) into a single dataset, enabling more comprehensive analysis.

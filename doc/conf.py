@@ -104,20 +104,22 @@ replace_scalar_type_names()
 sys.path.insert(0, os.path.abspath("../sphinxext"))
 
 extensions = [
+    "sphinxcontrib.mermaid",
     "sphinx.ext.autodoc",
-    "numpydoc",
-    "sphinx.ext.intersphinx",
-    "sphinx.ext.coverage",
-    "sphinx.ext.doctest",
     "sphinx.ext.autosummary",
-    "sphinx.ext.graphviz",
-    "sphinx.ext.ifconfig",
-    "matplotlib.sphinxext.plot_directive",
-    "IPython.sphinxext.ipython_console_highlighting",
-    "IPython.sphinxext.ipython_directive",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
     "sphinx.ext.mathjax",
+    "sphinx.ext.napoleon",
+    "IPython.sphinxext.ipython_directive",
+    "IPython.sphinxext.ipython_console_highlighting",
+    "sphinx_autosummary_accessors",
+    "sphinx.ext.linkcode",
+    "sphinxext.opengraph",
     "sphinx_copybutton",
     "sphinx_design",
+    "sphinx_inline_tabs",
+    "sphinx_remove_toctrees",
 ]
 
 skippable_extensions = [
