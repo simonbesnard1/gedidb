@@ -43,18 +43,42 @@ class GEDIProcessor:
 
     def __init__(
         self,
-        config_file: str,
+        config_file: str= None,
         credentials: Optional[dict] = None,
-        dask_client: Client = None,
-        n_workers: int = None,
+        dask_client: Optional[Client] = None,
+        n_workers: Optional[int] = None,
         memory_limit: str = "8GB",
         geometry: Optional[gpd.GeoDataFrame] = None,
         log_dir: Optional[str] = None,
-        
     ):
-        """
-        Initialize the GEDIProcessor with configuration files and prepare the necessary components.
-        """
+        # Validate config_file
+        if not config_file or not isinstance(config_file, str):
+            raise ValueError("The 'config_file' argument must be a valid, non-empty string pointing to the configuration file.")
+        
+        # Validate credentials
+        if credentials is not None and not isinstance(credentials, dict):
+            raise ValueError("The 'credentials' argument must be a dictionary if provided.")
+        
+        # Validate dask_client
+        if dask_client is not None and not isinstance(dask_client, Client):
+            raise ValueError("The 'dask_client' argument must be an instance of 'dask.distributed.Client' if provided.")
+        
+        # Validate n_workers
+        if n_workers is not None and (not isinstance(n_workers, int) or n_workers <= 0):
+            raise ValueError("The 'n_workers' argument must be a positive integer if provided.")
+        
+        # Validate memory_limit
+        if not memory_limit or not isinstance(memory_limit, str):
+            raise ValueError("The 'memory_limit' argument must be a non-empty string (e.g., '8GB').")
+        
+        # Validate geometry
+        if geometry is not None and not isinstance(geometry, gpd.GeoDataFrame):
+            raise ValueError("The 'geometry' argument must be a 'geopandas.GeoDataFrame' if provided.")
+        
+        # Validate log_dir
+        if log_dir is not None and not isinstance(log_dir, str):
+            raise ValueError("The 'log_dir' argument must be a string if provided.")
+           
         # Set up logging to file if log_dir is provided
         if log_dir:
             # Ensure the log directory exists
