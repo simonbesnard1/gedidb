@@ -1,27 +1,38 @@
 # .coveragerc to control coverage.py
 [run]
-branch = False
+branch = True
 concurrency = multiprocessing
 parallel = True
-omit = */site-packages/*,*/tests/*,*/.eggs/*
+omit = */site-packages/*,*/tests/*,*/.eggs/*,*/build/*,*/dist/*
+data_file = .coverage
+dynamic_context = test_function
 
 [report]
 show_missing = True
+precision = 2
 
 # Regexes for lines to exclude from consideration
 exclude_lines =
-    # Have to re-enable the standard pragma
+    # Standard pragma
     pragma: no cover
 
-    # Don't complain if tests don't hit defensive assertion code:
+    # Defensive assertions
     raise AssertionError
     raise NotImplementedError
 
-    # Don't complain if non-runnable code isn't run:
+    # Non-runnable code
     if 0:
     if __name__ == .__main__.:
+
+    # Logging and debug statements
+    log\.\w+\(.*\)
+    assert False
 
 ignore_errors = True
 
 [html]
 directory = htmlcov
+
+[xml]
+output = coverage.xml
+

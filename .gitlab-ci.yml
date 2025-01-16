@@ -10,12 +10,10 @@ build-job:
     - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
     - bash miniconda.sh -b -p $HOME/miniconda
     - source "$HOME/miniconda/etc/profile.d/conda.sh"
-    - conda activate
     - conda config --set always_yes yes
     - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
     - conda activate gedidb-docs  # Activate the environment
     # Build the documentation
-    - sphinx-apidoc -e -o doc/user/api gedidb -H gediDB -V 2.0.1
     - sphinx-build -b html doc/ doc/_build/html
   artifacts:
     paths:
@@ -31,7 +29,7 @@ setup-job:
     - pip install geodatasets flake8 pytest-flake8 pytest-cov coverage
   artifacts:
     paths:
-    - .venv/
+      - .venv/
     expire_in: 1 day
 
 unit-test-job:
@@ -60,7 +58,7 @@ lint-test-job:   # This job also runs in the test stage.
   script:
     - source .venv/bin/activate
     - echo "Linting code..."
-    - python -m flake8
+    - flake8
 
 pages: 
   stage: deploy
@@ -70,22 +68,17 @@ pages:
   script:
     # Create the public directory
     - rm -rf public
-    - mkdir public
-    - mkdir -p public/doc
-    - mkdir -p public/doc/_static/
+    - mkdir -p public/doc/_static
     - mkdir -p public/coverage
 
     # Copy over the docs
-    - cp doc/index.html public/
     - cp -r doc/_build/html/* public/doc/
 
-     # Copy over the coverage reports
+    # Copy over the coverage reports
     - cp -r htmlcov/* public/coverage/
 
     # Check if everything is working
     - ls -al public
-    - ls -al public/doc
-    - ls -al public/coverage
   artifacts:
     paths:
       - public
