@@ -34,7 +34,7 @@ Learn more about gediDB in its official documentation at
 ## Contributing
 
 You can find information about contributing to gediDB on our
-[Contributing page](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/dev/index.html#devindex).
+[Contributing page](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/user/contributing.html).
 
 ## History
 
