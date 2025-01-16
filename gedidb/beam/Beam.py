@@ -17,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class Beam(h5py.Group):
+class beam_handler(h5py.Group):
     """
     Represents a single beam in a GEDI granule file, inheriting from h5py.Group.
     Provides methods to extract and process the beam data, including filtering, caching, and SQL formatting.

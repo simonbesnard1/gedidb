@@ -11,18 +11,18 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Optional
 
-from gedidb.granule.granule.granule import Granule
-from gedidb.granule.beam.beam import Beam
+from gedidb.granule.Granule import granule_handler
+from gedidb.beam.Beam import beam_handler
 
 
-class L2ABeam(Beam):
+class L2ABeam(beam_handler):
     """
     Represents a Level 2A (L2A) GEDI beam and processes the beam data.
     This class extracts geolocation and elevation data, applies quality filters,
     and returns the filtered beam data as a DataFrame.
     """
 
-    def __init__(self, granule: Granule, beam: str, field_mapping: Dict[str, str]):
+    def __init__(self, granule: granule_handler, beam: str, field_mapping: Dict[str, str]):
         """
         Initialize the L2ABeam class.
 

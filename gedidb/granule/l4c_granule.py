@@ -9,12 +9,12 @@
 
 from typing import Dict
 
-from gedidb.granule.granule.granule import Granule
-from gedidb.granule.beam.l4c_beam import L4CBeam
-from gedidb.granule.beam.beam import Beam
+from gedidb.granule.Granule import granule_handler
+from gedidb.beam.l4c_beam import L4CBeam
+from gedidb.beam.Beam import beam_handler
 
 
-class L4CGranule(Granule):
+class L4CGranule(granule_handler):
     """
     Represents a GEDI Level 4C granule, providing access to its beams and related data.
 
@@ -53,7 +53,7 @@ class L4CGranule(Granule):
                 f"Valid beam names: {self.beam_names}. Ensure the beam exists in the granule."
             )
 
-    def _beam_from_name(self, beam: str) -> Beam:
+    def _beam_from_name(self, beam: str) -> beam_handler:
         """
         Retrieve a specific beam from the granule by name.
 

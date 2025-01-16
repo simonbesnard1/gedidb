@@ -43,6 +43,9 @@ class SpatialConsolidationPlan:
 
 
 class SpatialConsolidationPlanner:
+    """
+    Generate a spatial consolidation plan for a TileDB array.
+    """
     @staticmethod
     def compute(array_uri: str, ctx: tiledb.Ctx) -> SpatialConsolidationPlan:
         """

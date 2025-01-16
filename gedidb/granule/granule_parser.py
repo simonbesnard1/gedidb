@@ -12,11 +12,11 @@ from typing import Optional, Dict
 from pathlib import Path
 
 from gedidb.utils.constants import GediProduct
-from gedidb.granule.granule.granule import Granule
-from gedidb.granule.granule.l2a_granule import L2AGranule
-from gedidb.granule.granule.l2b_granule import L2BGranule
-from gedidb.granule.granule.l4a_granule import L4AGranule
-from gedidb.granule.granule.l4c_granule import L4CGranule
+from gedidb.granule.Granule import granule_handler
+from gedidb.granule.l2a_granule import L2AGranule
+from gedidb.granule.l2b_granule import L2BGranule
+from gedidb.granule.l4a_granule import L4AGranule
+from gedidb.granule.l4c_granule import L4CGranule
 
 
 class GranuleParser:
@@ -41,7 +41,7 @@ class GranuleParser:
         self.variables = None
 
     @staticmethod
-    def parse_granule(granule: Granule) -> pd.DataFrame:
+    def parse_granule(granule: granule_handler) -> pd.DataFrame:
         """
         Parse a single granule and return a GeoDataFrame.
 

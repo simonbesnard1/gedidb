@@ -27,7 +27,7 @@ class GEDIGranule:
     and saving the data to TileDB, as well as querying processed granules from a database.
 
     Attributes:
-    ----------
+    -----------
     download_path : str
         Path where granules are downloaded.
     data_info : dict
@@ -39,7 +39,7 @@ class GEDIGranule:
         Initialize the GEDIGranule class.
 
         Parameters:
-        ----------
+        -----------
         download_path : str
             Path where granules are downloaded.
         data_info : dict
@@ -55,7 +55,7 @@ class GEDIGranule:
         Process a granule by parsing, joining, and saving it to TileDB.
 
         Parameters:
-        ----------
+        -----------
         row : Tuple
             Tuple containing the granule key and product data.
 
@@ -91,7 +91,7 @@ class GEDIGranule:
         Parse granules and return a dictionary of dictionaries of NumPy arrays.
 
         Returns:
-        -------
+        --------
         dict
             Dictionary of dictionaries, each containing NumPy arrays for each product.
         """
@@ -128,7 +128,7 @@ class GEDIGranule:
         Join multiple DataFrames based on shot number. Ensure required products are available.
 
         Returns:
-        -------
+        --------
         pd.DataFrame or None
             Joined DataFrame or None if the required data is missing or if the join fails.
         """

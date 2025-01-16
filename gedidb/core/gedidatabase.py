@@ -39,7 +39,7 @@ class GEDIDatabase:
         Initialize GEDIDatabase with configuration, supporting both S3 and local storage.
 
         Parameters:
-        ----------
+        -----------
         config : dict
             Configuration dictionary.
         """

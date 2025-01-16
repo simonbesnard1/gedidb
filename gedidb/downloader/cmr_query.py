@@ -16,7 +16,7 @@ import pandas as pd
 import logging
 from typing import Optional, List
 
-from gedidb.granule.granule import granule_name
+from gedidb.granule import granule_name
 from gedidb.utils.constants import GediProduct
 
 # Configure logging

@@ -5,4 +5,3 @@
 # SPDX-FileCopyrightText: 2024 Felix Dombrowski
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-#
