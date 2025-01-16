@@ -6,7 +6,3 @@
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
-
-from . import granule_parser, granule, beam
-
-__all__ = ["granule_parser", "granule", "beam"]
