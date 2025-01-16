@@ -35,14 +35,30 @@ class TileDBProvider:
         n_workers: int = 5,
     ):
         self.n_workers = n_workers
-        if storage_type.lower() == "s3":
+
+        # Validate storage_type
+        if not storage_type or not isinstance(storage_type, str):
+            raise ValueError("The 'storage_type' argument must be a non-empty string.")
+
+        storage_type = storage_type.lower()
+
+        if storage_type == "s3":
+            # Validate s3_bucket for S3 storage type
             if not s3_bucket:
-                raise ValueError("s3_bucket must be provided when storage_type is 's3'")
+                raise ValueError("The 's3_bucket' must be provided when 'storage_type' is set to 's3'.")
             self.scalar_array_uri = f"s3://{s3_bucket}/array_uri"
             self.ctx = self._initialize_s3_context(credentials, url, region)
-        else:
+
+        elif storage_type == "local":
+            # Validate local_path for local storage type
+            if not local_path:
+                raise ValueError("The 'local_path' must be provided when 'storage_type' is set to 'local'.")
             self.scalar_array_uri = os.path.join(local_path, "array_uri")
             self.ctx = self._initialize_local_context()
+
+        else:
+            # Raise an error for invalid storage_type
+            raise ValueError(f"Invalid 'storage_type': {storage_type}. Must be 'local' or 's3'.")
 
     def _initialize_s3_context(
         self, credentials: dict, url: str, region: str
