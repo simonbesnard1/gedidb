@@ -12,11 +12,11 @@ from typing import Iterable, Union, List
 import pathlib
 import pandas as pd
 
-from gedidb.granule.beam.beam import Beam
-from gedidb.granule.granule.granule_name import GediNameMetadata, parse_granule_filename
+from gedidb.beam.Beam import beam_handler
+from gedidb.granule.granule_name import GediNameMetadata, parse_granule_filename
 
 
-class Granule(h5py.File):
+class granule_handler(h5py.File):
     """
     Represents a GEDI Granule HDF5 file, providing access to metadata and beams.
 
@@ -108,7 +108,7 @@ class Granule(h5py.File):
         """Get the number of beams in the granule."""
         return len(self.beam_names)
 
-    def beam(self, identifier: Union[str, int]) -> Beam:
+    def beam(self, identifier: Union[str, int]) -> beam_handler:
         """
         Get a Beam object by its name or index.
 
@@ -130,7 +130,7 @@ class Granule(h5py.File):
                 "Identifier must either be the beam index (int) or beam name (str)"
             )
 
-    def _beam_from_index(self, beam_index: int) -> Beam:
+    def _beam_from_index(self, beam_index: int) -> beam_handler:
         """
         Retrieve a Beam object by its index.
 
@@ -147,7 +147,7 @@ class Granule(h5py.File):
             raise ValueError(f"Beam index must be between 0 and {self.n_beams - 1}")
         return self._beam_from_name(self.beam_names[beam_index])
 
-    def _beam_from_name(self, beam_name: str) -> Beam:
+    def _beam_from_name(self, beam_name: str) -> beam_handler:
         """
         Retrieve a Beam object by its name.
 
@@ -162,11 +162,11 @@ class Granule(h5py.File):
         """
         raise NotImplementedError("Subclasses must implement _beam_from_name")
 
-    def iter_beams(self) -> Iterable[Beam]:
+    def iter_beams(self) -> Iterable[beam_handler]:
         """Iterate over all beams in the granule."""
         return (self._beam_from_index(idx) for idx in range(self.n_beams))
 
-    def list_beams(self) -> List[Beam]:
+    def list_beams(self) -> List[beam_handler]:
         """Get a list of all beams in the granule."""
         return list(self.iter_beams())
 

@@ -14,10 +14,10 @@ Top-level functions
    :toctree: generated/
    :recursive:
 
-   core.gedidatabase
-   core.gedigranule
-   core.gediprocessor
-   core.gediprovider
+   GEDIDatabase
+   GEDIGranule
+   GEDIProcessor
+   GEDIProvider
 
 Downloading functions
 =====================
@@ -26,9 +26,9 @@ Downloading functions
    :toctree: generated/
    :recursive:
 
-   downloader.authentication
-   downloader.cmr_query
-   downloader.data_downloader
+   EarthDataAuthenticator
+   CMRQuery
+   GEDIDownloader
 
 Data processing functions
 =========================
@@ -37,18 +37,8 @@ Data processing functions
    :toctree: generated/
    :recursive:
 
-   granule.granule_parser
-   granule.beam.beam
-   granule.beam.l2a_beam
-   granule.beam.l2b_beam
-   granule.beam.l4a_beam
-   granule.beam.l4c_beam
-   granule.granule.granule
-   granule.granule.granule_name
-   granule.granule.l2a_granule
-   granule.granule.l2b_granule
-   granule.granule.l4a_granule
-   granule.granule.l4c_granule
+   granule_handler
+   beam_handler
    
 Data provider functions
 =======================
@@ -57,19 +47,7 @@ Data provider functions
    :toctree: generated/
    :recursive:
 
-   providers.tiledb_provider
-
-Utilities functions
-===================
-
-.. autosummary::
-   :toctree: generated/
-   :recursive:
-
-   utils.constants
-   utils.geo_processing
-   utils.print_versions
-   utils.tiledb_consolidation
+   TileDBProvider
 
    
 

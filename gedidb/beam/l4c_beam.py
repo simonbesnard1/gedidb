@@ -10,11 +10,11 @@
 import numpy as np
 from typing import Dict, Optional
 
-from gedidb.granule.granule.granule import Granule
-from gedidb.granule.beam.beam import Beam
+from gedidb.granule.Granule import granule_handler
+from gedidb.beam.Beam import beam_handler
 
 
-class L4CBeam(Beam):
+class L4CBeam(beam_handler):
     """
     Represents a Level 4C (L4C) GEDI beam and processes the beam data.
     This class extracts geolocation, time, and additional variables from the beam
@@ -22,7 +22,7 @@ class L4CBeam(Beam):
     """
 
     def __init__(
-        self, granule: Granule, beam: str, field_mapping: Dict[str, Dict[str, str]]
+        self, granule: granule_handler, beam: str, field_mapping: Dict[str, Dict[str, str]]
     ):
         """
         Initialize the L4CBeam class.

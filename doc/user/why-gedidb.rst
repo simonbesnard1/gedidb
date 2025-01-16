@@ -1,3 +1,5 @@
+.. currentmodule:: gedidb
+
 .. _whygedidb:
 
 Overview: Why gediDB?
