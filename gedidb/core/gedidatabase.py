@@ -467,7 +467,7 @@ class GEDIDatabase:
             logger.error(f"Error adding metadata to TileDB array: {e}")
             raise
 
-    @retry((tiledb.cc.TileDBError, ConnectionError), tries=10, delay=5, backoff=3, logger=logger)
+    @retry((tiledb.TileDBError, ConnectionError), tries=10, delay=5, backoff=3, logger=logger)
     def _write_to_tiledb(self, coords, data):
         """
         Write data to the TileDB array with retry logic.
