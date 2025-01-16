@@ -15,21 +15,15 @@ try:
 except Exception:
     __version__ = "9999"
 
-
-
 from gedidb.core import (
     gedidatabase,
     gedigranule,
     gediprocessor,
     gediprovider,
 )
-from gedidb.downloader import (
-    authentication,
-    cmr_query,
-    data_downloader,
-)
-from gedidb.granule import granule_parser
+
 from gedidb.providers import tiledb_provider
+
 from gedidb.utils import (
     constants,
     geo_processing,
@@ -37,20 +31,74 @@ from gedidb.utils import (
     tiledb_consolidation,
 )
 
+from gedidb.core.gediprocessor import GEDIProcessor
+from gedidb.core.gedigranule import GEDIGranule
+from gedidb.core.gedidatabase import GEDIDatabase
+from gedidb.core.gediprovider import GEDIProvider
+
+
+from gedidb.downloader import (
+    authentication,
+    cmr_query,
+    data_downloader
+)
+from gedidb.downloader.authentication import EarthDataAuthenticator
+
+from gedidb.granule import (
+    granule_parser
+)
+
+from gedidb.granule.beam import (
+    beam,
+    l2a_beam,
+    l2b_beam,
+    l4a_beam,
+    l4c_beam
+)
+
+from gedidb.granule.granule import (
+    granule,
+    granule_name,
+    l2a_granule,
+    l2b_granule,
+    l4a_granule,
+    l4c_granule
+)
+
+from gedidb.providers.tiledb_provider import TileDBProvider
+
 __all__ = [
     "gedidatabase",
     "gedigranule",
     "gediprocessor",
     "gediprovider",
-    "authentication",
-    "cmr_query",
-    "data_downloader",
     "granule_parser",
     "tiledb_provider",
     "constants",
     "geo_processing",
     "print_versions",
     "tiledb_consolidation",
+    "GEDIProcessor",
+    "GEDIGranule",
+    "GEDIProvider",
+    "GEDIDatabase",
+    "authentication",
+    "cmr_query",
+    "data_downloader",
+    "EarthDataAuthenticator",
+    "granule_parser",
+    "beam",
+    "l2a_beam",
+    "l2b_beam",
+    "l4a_beam",
+    "l4c_beam",
+    "granule",
+    "granule_name",
+    "l2a_granule",
+    "l2b_granule",
+    "l4a_granule",
+    "l4c_granule",
+    "TileDBProvider",   
     "show_versions",
     "__version__",
 ]
