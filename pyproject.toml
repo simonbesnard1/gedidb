@@ -8,7 +8,7 @@ authors = [
     { name = "Felix Dombrowski", email = "felix.dombrowski@uni-potsdam.de" },
     { name = "Amelia Holcomb", email = "amelia.holcomb@gmail.com" }
 ]
-license = { file = "EUPL-1.2" }
+license = { file = "LICENSE" }
 keywords = ["geospatial", "GEDI", "database"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -55,25 +55,41 @@ io = ["netCDF4", "h5netcdf", "scipy", 'pydap; python_version<"3.10"', "zarr<3", 
 viz = ["matplotlib", "seaborn", "nc-time-axis"]
 
 [project.urls]
-"Source Code" = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
+homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
+documentation = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/docs"
+source = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
+tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/issues"
 
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [
-    "setuptools>=42",
-    "setuptools-scm>=7"
-]
+requires = ["setuptools>=61.2", "wheel"]
 
 [tool.setuptools]
-packages = ["gedidb"]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["doc*", "gedidb/tests*"]
 
 [tool.setuptools_scm]
-fallback_version = "9999"
+write_to = "gedidb/_version.py"
+fallback_version = "0.0.1"
+
+[tool.coverage.run]
+omit = [
+  "*/gedidb/tests/*"
+]
+source = ["gedidb"]
 
 [tool.coverage.report]
-exclude_lines = ["pragma: no cover", "if TYPE_CHECKING"]
+# Lines to exclude from coverage reports
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING"
+]
 
 [tool.mypy]
+# General mypy settings
 enable_error_code = ["ignore-without-code", "redundant-self", "redundant-expr"]
 exclude = ["build"]
 files = "gedidb"
@@ -82,30 +98,24 @@ warn_redundant_casts = true
 warn_unused_configs = true
 warn_unused_ignores = true
 
+# Specific overrides for packages
 [[tool.mypy.overrides]]
 check_untyped_defs = true
 packages = [
-    "gedidb.core.gedidatabase",
-    "gedidb.core.gedigranule",
-    "gedidb.core.gediprocessor",
-    "gedidb.core.gediprovider",
-    "gedidb.downloader",
-    "gedidb.granule",
-    "gedidb.providers",
-    "gedidb.tests",
-    "gedidb.utils"
+    "gedidb.tests.*"
 ]
 
 [[tool.mypy.overrides]]
+# Disable `check_untyped_defs` for specific test modules
 check_untyped_defs = false
 module = [
-    "gedidb.tests.test_columns",
+    "gedidb.tests.test_data_config_yml",
     "gedidb.tests.test_gedi_granules",
     "gedidb.tests.test_geospatial_tools",
     "gedidb.tests.test_granule_name",
+    "gedidb.tests.test_local_tiledb",
     "gedidb.tests.test_nasa_cmr_api",
-    "gedidb.tests.test_results",
-    "gedidb.tests.test_write_db"
+    "gedidb.tests.test_provider"
 ]
 
 [[tool.mypy.overrides]]
@@ -147,9 +157,21 @@ ban-relative-imports = "all"
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers"]
 
+log_cli_level = "INFO"
+markers = [
+  "flaky: flaky tests",
+  "network: tests requiring a network connection",
+  "slow: slow tests",
+  "slow_hypothesis: slow hypothesis tests",
+]
+minversion = "7"
+python_files = "test_*.py"
+testpaths = ["gedidb/tests", "properties"]
+
 [tool.aliases]
 test = "pytest"
 
 [tool.repo-review]
-ignore = ["PP308"]
-
+ignore = [
+  "PP308", # This option creates a large amount of log lines.
+]

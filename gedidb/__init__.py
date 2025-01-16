@@ -8,13 +8,6 @@
 #
 
 from importlib.metadata import version as _version
-
-# Import core functionality and classes from internal modules
-from gedidb.core.gediprocessor import GEDIProcessor
-from gedidb.core.gedigranule import GEDIGranule
-from gedidb.core.gedidatabase import GEDIDatabase
-from gedidb.core.gediprovider import GEDIProvider
-from gedidb.downloader.authentication import EarthDataAuthenticator
 from gedidb.utils.print_versions import show_versions
 
 try:
@@ -22,14 +15,42 @@ try:
 except Exception:
     __version__ = "9999"
 
-# Define the public API, so users only see these when importing the package
+
+
+from gedidb.core import (
+    gedidatabase,
+    gedigranule,
+    gediprocessor,
+    gediprovider,
+)
+from gedidb.downloader import (
+    authentication,
+    cmr_query,
+    data_downloader,
+)
+from gedidb.granule import granule_parser
+from gedidb.providers import tiledb_provider
+from gedidb.utils import (
+    constants,
+    geo_processing,
+    print_versions,
+    tiledb_consolidation,
+)
+
 __all__ = [
-    "GEDIProcessor",
-    "GEDIProvider",
-    "GEDIGranule",
-    "GEDIDatabase",
-    "GEDIProcessor",
-    "EarthDataAuthenticator",
+    "gedidatabase",
+    "gedigranule",
+    "gediprocessor",
+    "gediprovider",
+    "authentication",
+    "cmr_query",
+    "data_downloader",
+    "granule_parser",
+    "tiledb_provider",
+    "constants",
+    "geo_processing",
+    "print_versions",
+    "tiledb_consolidation",
     "show_versions",
     "__version__",
 ]
