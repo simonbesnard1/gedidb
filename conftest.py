@@ -51,4 +51,3 @@ def add_standard_imports(doctest_namespace, tmpdir):
         pass
     else:
         dask.config.set({"dataframe.query-planning": True})
-

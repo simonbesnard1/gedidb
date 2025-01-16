@@ -1,25 +1,13 @@
-# Include the README and LICENSE files
+# Include critical files
 include README.md
 include LICENSE
 
-# Include all files in the tests directory
-recursive-include tests *
-
-# Include all files in the docs directory
-recursive-include doc *
+# Include documentation
+recursive-include doc *.rst
 
 # Include the CITATION.cff file
 include CITATION.cff
 
-# Include all YAML and JSON configuration files
-recursive-include *.yml
-recursive-include *.yaml
-recursive-include *.json
-
-# Exclude unnecessary files
-global-exclude __pycache__/*
-global-exclude *.pyc
-global-exclude *.pyo
-global-exclude *.swp
-global-exclude .DS_Store
+# Include all YAML
+include meta.yml
 
