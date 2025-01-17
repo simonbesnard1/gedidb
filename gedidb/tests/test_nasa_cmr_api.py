@@ -37,7 +37,7 @@ class TestNasaCmrApi(unittest.TestCase):
         )  # this is needed to import local files such as the config
 
         return (
-            geometry = gpd.read_file(data_dir / "ne_110m_land.zip")
+            geometry = gpd.read_file(data_dir / "ne_110m_land.zip"),
             dt.datetime(2020, 10, 1),
             dt.datetime(2020, 11, 1),
             self._get_earthdata_from_config(),
