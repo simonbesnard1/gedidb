@@ -44,7 +44,7 @@ Core components of gediDB
 
 GediDB's two primary modules facilitate data processing and access:
 
-1. :py:class:`gedidb.GEDIDProcessor`: This component manages data processing tasks, ensuring efficient handling and integrity across large GEDI datasets.
+1. :py:class:`gedidb.GEDIProcessor`: This component manages data processing tasks, ensuring efficient handling and integrity across large GEDI datasets.
 
 2. :py:class:`gedidb.GEDIProvider`: The high-level module for querying GEDI data stored in tileDB. It retrieves data as **Pandas** DataFrames or **xarray** Datasets, enabling users to specify variables, apply spatial filters, and set time ranges.
 
