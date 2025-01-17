@@ -50,7 +50,9 @@ Write Documentation
 
 gediDB could always use more documentation, whether as part of the
 official gediDB docs, in docstrings, or even on the web in blog posts,
-articles, and such.
+articles, and such.  If something in the docs doesn't make sense to you, 
+updating the relevant section after you figure it out is a great way to 
+ensure it will help the next person.
 
 Submit Feedback
 ~~~~~~~~~~~~~~~
