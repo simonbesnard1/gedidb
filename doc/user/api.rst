@@ -26,21 +26,31 @@ Downloading functions
    :toctree: generated/
    :recursive:
 
+   GEDIDownloader
    EarthDataAuthenticator
    CMRQuery
-   GEDIDownloader
-
-Data processing functions
-=========================
+   
+GEDI data processing functions
+==============================
 
 .. autosummary::
    :toctree: generated/
    :recursive:
 
    granule_handler
+   GranuleParser
+   L2AGranule
+   L2BGranule
+   L4AGranule
+   L4CGranule 
    beam_handler
+   L2ABeam
+   L2BBeam
+   L4ABeam
+   L4CBeam
+   GediNameMetadata
    
-Data provider functions
+TileDB functions
 =======================
 
 .. autosummary::
@@ -48,6 +58,8 @@ Data provider functions
    :recursive:
 
    TileDBProvider
+   SpatialConsolidationPlan
+   SpatialConsolidationPlanner
 
    
 
