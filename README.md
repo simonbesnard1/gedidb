@@ -43,9 +43,9 @@ The development of the gediDB package began during the PhD of Amelia Holcomb, wh
 ## Contact
 
 For any questions or inquiries, please contact:
-- Amelia Holcomb (ah2174@cam.ac.uk)
-- Felix Dombrowski (felix.dombrowski@uni-potsdam.de)
 - Simon Besnard (besnard@gfz.de)
+- Felix Dombrowski (felix.dombrowski@uni-potsdam.de)
+- Amelia Holcomb (ah2174@cam.ac.uk)
 
 ## Acknowledgments
 We acknowledge funding support by the European Union through the [FORWARDS](https://forwards-project.eu/) and [OpenEarthMonitor](https://earthmonitor.org/) projects. We would also like to thank the R2D2 Workshop (March 2024, GFZ Potsdam) for providing the opportunity to meet and discuss GEDI data processing.
