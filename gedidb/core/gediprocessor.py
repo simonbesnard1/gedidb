@@ -18,13 +18,14 @@ import concurrent.futures
 import pandas as pd
 from typing import Optional
 import traceback
-
+from pathlib import Path
 
 from gedidb.utils.constants import GediProduct
 from gedidb.downloader.data_downloader import H5FileDownloader, CMRDataDownloader
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.utils.geo_processing import check_and_format_shape, _temporal_tiling
 from gedidb.core.gedigranule import GEDIGranule
+from gedidb.downloader.authentication import EarthDataAuthenticator
 
 # Configure logging
 logging.basicConfig(
@@ -44,16 +45,30 @@ class GEDIProcessor:
     def __init__(
         self,
         config_file: str= None,
+        earth_data_dir: str=None, 
         credentials: Optional[dict] = None,
         dask_client: Optional[Client] = None,
         n_workers: Optional[int] = None,
         memory_limit: str = "8GB",
         geometry: Optional[gpd.GeoDataFrame] = None,
-        log_dir: Optional[str] = None,
+        log_dir: Optional[str] = None
     ):
+        
         # Validate config_file
         if not config_file or not isinstance(config_file, str):
             raise ValueError("The 'config_file' argument must be a valid, non-empty string pointing to the configuration file.")
+        
+        config_path = Path(config_file)
+        if config_path.suffix.lower() != ".yml":
+            raise ValueError(
+                f"The configuration file must have a '.yml' extension. Provided: {config_file}"
+            )
+        if not config_path.exists():
+            raise FileNotFoundError(f"The configuration file does not exist: {config_file}")
+
+        # Validate Earth data directory
+        if not earth_data_dir or not isinstance(earth_data_dir, str):
+            raise ValueError("The 'earth_data_dir' argument must be a valid, non-empty string pointing to the directory where the Earthdata credentials are storred")
         
         # Validate credentials
         if credentials is not None and not isinstance(credentials, dict):
@@ -95,16 +110,26 @@ class GEDIProcessor:
             if not any(isinstance(h, logging.FileHandler) for h in logger.handlers):
                 logger.addHandler(file_handler)
         
-        # Initialize Dask client
-        self.n_workers = n_workers
-        self.dask_client = dask_client or self._initialize_dask_client(
-            n_workers=self.n_workers, memory_limit=memory_limit
-        )
-
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
         self.credentials = credentials
         self.geometry = geometry  # Optional geometry passed directly
+        
+        # Validate Earthdata credentials directory
+        earth_data_path = Path(earth_data_dir)
+        if not earth_data_path.exists():
+            raise FileNotFoundError(
+                f"The specified Earth data credentials directory '{earth_data_dir}' does not exist. "
+                "Please provide the correct directory or create the credentials using the EarthDataAuthenticator module."
+            )
+
+        # Validate Earthdata credentials in strict mode
+        try:
+            authenticator = EarthDataAuthenticator(earth_data_dir=earth_data_dir, strict=True)
+            authenticator.authenticate()
+        except FileNotFoundError as e:
+            logger.error(e)
+            raise
 
         # Initialize paths, dates, and geometry
         self.load_configuration_data()
@@ -114,6 +139,13 @@ class GEDIProcessor:
 
         # Create the database schema
         self.database_writer._create_arrays()
+        
+        # Initialize Dask client
+        self.n_workers = n_workers
+        self.dask_client = dask_client or self._initialize_dask_client(
+            n_workers=self.n_workers, memory_limit=memory_limit
+        )
+
 
     def _initialize_database_writer(self, credentials: Optional[dict]):
         """

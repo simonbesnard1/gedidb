@@ -5,12 +5,12 @@
 # SPDX-FileCopyrightText: 2024 Felix Dombrowski
 # SPDX-FileCopyrightText: 2024 Amelia Holcomb
 # SPDX-FileCopyrightText: 2024 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-#
 
 import getpass
 import subprocess
 import logging
 from pathlib import Path
+from typing import Optional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -21,97 +21,76 @@ class EarthDataAuthenticator:
     Handles Earthdata authentication by managing .netrc and cookie files for automated login.
     """
 
-    def __init__(self):
+    def __init__(self, earth_data_dir: Optional['str'] = None, strict: bool = False):
         """
-        Prompt the user for credentials and directory to store files.
+        Initialize the authenticator.
+        :param earth_data_dir: Directory to store .netrc and cookies. Defaults to the user's home directory.
+        :param strict: If True, fail if credentials are missing without prompting.
         """
-        self.username = input("Please enter your Earthdata Login username: ")
-        self.password = self._prompt_password()
-        self.earth_data_dir = self._get_storage_directory()
-        self.netrc_file = self.earth_data_dir / ".netrc"
-        self.cookie_file = self.earth_data_dir / ".cookies"
+        self.earth_data_path = Path(earth_data_dir) or Path.home()
+        self.netrc_file = self.earth_data_path / ".netrc"
+        self.cookie_file = self.earth_data_path / ".cookies"
+        self.strict = strict
 
-        logger.info(
-            "Authenticator initialized with storage directory set to %s",
-            self.earth_data_dir,
-        )
+        if strict and not self._credentials_in_netrc():
+            raise FileNotFoundError(
+                f"No Earthdata credentials found in {self.netrc_file}. "
+                "Please create credentials using the EarthDataAuthenticator module."
+            )
 
     def authenticate(self):
         """Main method to manage authentication and cookies."""
         if self.cookie_file.exists():
             logger.info(
-                "Authentication cookie file found at %s. Skipping authentication.",
-                self.cookie_file,
+                "Earthdata authentication file found at %s. Credentials setup.",
+                self.netrc_file,
             )
         else:
-            logger.info("No authentication cookies found; starting authentication.")
-            self._ensure_netrc_credentials()
+            logger.info("No authentication files found; starting Earthdata authentication.")
+            if not self._credentials_in_netrc():
+                if self.strict:
+                    raise FileNotFoundError(
+                        f"No credentials found in {self.netrc_file}. "
+                        "Please create credentials using this module."
+                    )
+                else:
+                    logger.info("Prompting user to create credentials.")
+                    self._prompt_for_credentials()
             self._fetch_earthdata_cookies()
 
+    def _credentials_in_netrc(self) -> bool:
+        """Check if .netrc file contains Earthdata credentials."""
+        try:
+            with self.netrc_file.open("r") as f:
+                return "urs.earthdata.nasa.gov" in f.read()
+        except FileNotFoundError:
+            return False
+
+    def _prompt_for_credentials(self):
+        """Prompt user for credentials and store them in .netrc."""
+        self.username = input("Please enter your Earthdata Login username: ")
+        self.password = self._prompt_password()
+        self._add_netrc_credentials()
+
     def _prompt_password(self) -> str:
-        """Securely prompt for password or fall back if unsupported."""
+        """Securely prompt for password."""
         try:
             return getpass.getpass("Please enter your Earthdata Login password: ")
         except Exception:
             logger.warning("Password input not secure; text will be visible.")
             return input("Please enter your Earthdata Login password (input visible): ")
 
-    def _get_storage_directory(self) -> Path:
-        """Prompt user for storage directory or use default (home directory)."""
-        default_dir = Path.home()
-        user_dir = input(
-            f"Enter directory to store authentication files (default: {default_dir}): "
-        )
-        storage_dir = Path(user_dir) if user_dir else default_dir
-        return self._ensure_directory(storage_dir)
-
-    @staticmethod
-    def _ensure_directory(path: Path) -> Path:
-        """Create directory if it doesn't exist and log the action."""
-        try:
-            path.mkdir(parents=True, exist_ok=True)
-            logger.info("Directory ensured: %s", path)
-        except OSError as e:
-            logger.error("Error creating directory %s: %s", path, e)
-            raise
-        return path
-
-    def _ensure_netrc_credentials(self):
-        """Ensure .netrc file contains required Earthdata login credentials."""
-        if self.netrc_file.exists() and self._credentials_in_netrc():
-            logger.info("Credentials already present in .netrc file.")
-        else:
-            self._add_netrc_credentials()
-
-    def _credentials_in_netrc(self) -> bool:
-        """Check if .netrc file already contains Earthdata credentials."""
-        try:
-            with self.netrc_file.open("r") as f:
-                return "urs.earthdata.nasa.gov" in f.read()
-        except FileNotFoundError:
-            logger.warning(
-                ".netrc file not found at %s; will create a new one.", self.netrc_file
-            )
-            return False
-
     def _add_netrc_credentials(self):
-        """Add Earthdata credentials to .netrc file and set secure permissions."""
+        """Add credentials to .netrc and set secure permissions."""
         try:
             with self.netrc_file.open("a+") as f:
                 f.write(
                     f"\nmachine urs.earthdata.nasa.gov login {self.username} password {self.password}"
                 )
-
-            # Set secure permissions for the file
             self.netrc_file.chmod(0o600)
-            logger.info(
-                "Credentials added to .netrc file with secure permissions at %s.",
-                self.netrc_file,
-            )
+            logger.info("Credentials added to .netrc file.")
         except OSError as e:
-            logger.error(
-                "Error adding credentials to .netrc file at %s: %s", self.netrc_file, e
-            )
+            logger.error(f"Error writing to .netrc: {e}")
             raise
 
     def _fetch_earthdata_cookies(self):
