@@ -64,6 +64,14 @@ from gedidb.granule import (
     l4c_granule
 )
 from gedidb.granule.Granule import granule_handler
+from gedidb.granule.granule_name import GediNameMetadata
+from gedidb.granule.granule_parser import GranuleParser
+from gedidb.granule.l2a_granule import L2AGranule
+from gedidb.granule.l2b_granule import L2BGranule
+from gedidb.granule.l4a_granule import L4AGranule
+from gedidb.granule.l4c_granule import L4CGranule
+
+
 
 from gedidb.beam import (
     Beam,
@@ -74,6 +82,10 @@ from gedidb.beam import (
 )
 
 from gedidb.beam.Beam import beam_handler
+from gedidb.beam.l2a_beam import L2ABeam
+from gedidb.beam.l2b_beam import L2BBeam
+from gedidb.beam.l4a_beam import L4ABeam
+from gedidb.beam.l4c_beam import L4CBeam
 
 
 from gedidb.providers.tiledb_provider import TileDBProvider
@@ -102,15 +114,25 @@ __all__ = [
     "data_downloader",
     "EarthDataAuthenticator",
     "granule_parser",
+    "GranuleParser",
+    "L2AGranule",
+    "L2BGranule",
+    "L4AGranule",
+    "L4CGranule",
     "Beam",
     "beam_handler",
     "l2a_beam",
     "l2b_beam",
     "l4a_beam",
     "l4c_beam",
+    "L2ABeam",
+    "L2BBeam",
+    "L4ABeam",
+    "L4CBeam",
     "granule_name",
     "Granule",
     "granule_handler",
+    "GediNameMetadata",
     "l2a_granule",
     "l2b_granule",
     "l4a_granule",
