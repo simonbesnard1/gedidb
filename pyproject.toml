@@ -4,7 +4,7 @@ version = "2.0.0"
 description = "A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data"
 readme = "README.md"
 authors = [
-    { name = "Simon Besnard", email = "besnard@gfz-potsdam.de" },
+    { name = "Simon Besnard", email = "besnard@gfz.de" },
     { name = "Felix Dombrowski", email = "felix.dombrowski@uni-potsdam.de" },
     { name = "Amelia Holcomb", email = "amelia.holcomb@gmail.com" }
 ]
@@ -16,6 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)"
 ]
 requires-python = ">=3.9"
