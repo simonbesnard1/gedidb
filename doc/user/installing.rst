@@ -15,12 +15,10 @@ To use gediDB, please ensure the following dependencies are installed:
 - `pyarrow <https://arrow.apache.org/>`__ >= 17.0
 - `geopandas <https://geopandas.org/>`__ >= 1.0.1
 - `h5py <https://www.h5py.org/>`__ >= 3.11
-- `psycopg2 <https://www.psycopg.org/>`__ >= 2.9
 - `xarray <https://xarray.pydata.org/>`__ >= 2024.7.0
 - `retry <https://github.com/invl/retry>`__ >= 0.9.2
 - `dask <https://dask.org/>`__ >= 2024.8.2
 - `distributed <https://distributed.dask.org/>`__ >= 2024.8.2
-- `tiledb <https://pypi.org/project/tiledb/>`__  >= 0.33
 - `tiledb <https://pypi.org/project/tiledb/>`__  >= 0.33
 - `scipy <https://scipy.org/>`__ >= 1.14.1
 - `boto3 <https://pypi.org/project/boto3/>`__ >= 1.35.49
@@ -48,7 +46,7 @@ To install gediDB and all required dependencies with **conda** from the **conda-
 
     $ conda install -c conda-forge gedidb
 
-For non-conda installations, first ensure **numpy** and **pandas** are installed, then use **pip** to install gediDB:
+For non-conda installations, use **pip** to install gediDB:
 
 .. code-block:: bash
 

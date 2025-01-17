@@ -14,58 +14,65 @@ Please use the following citation when referencing gediDB in your work:
 What are the main features of gediDB?
 -------------------------------------
 
-GediDB is a tileDB-based tool designed to manage, query, and analyze large-scale GEDI data. Its main features include:
+GediDB is a TileDB-based Python package designed to efficiently manage, query, and analyze large-scale GEDI data. Its main features include:
 
-- Efficient storage and querying of GEDI shot data with geospatial capabilities.
-- Automated data loading and processing with support for GEDI L2A, L2B, L4A, and L4C products.
-- Flexible filtering based on spatial, temporal, and quality parameters.
+- **Efficient data storage**: Stores GEDI data using TileDB arrays, enabling optimized access and scalability.
+- **Geospatial querying**: Provides spatially enabled querying for regions of interest with support for bounding boxes and polygons.
+- **Automated processing**: Facilitates loading, pre-filtering, and processing of GEDI L2A, L2B, L4A, and L4C data products.
+- **Parallelized operations**: Leverages Dask for distributed data processing, enhancing performance on large datasets.
+- **Integration with Python libraries**: Outputs data in formats compatible with pandas, geopandas, and xarray for seamless analysis.
 
 How do I set up the database for GEDI?
-----------------------------------------
+--------------------------------------
 
-The tileDB database is set up automatically in code. If you want to use a local database, no additional steps are required by you.
+The TileDB database is set up automatically using the `gediDB` package. By default, it creates and manages the schema required for GEDI data. If you prefer to use a pre-existing database, ensure that the structure aligns with the schema defined by `gediDB`.
 
 What data products does gediDB support?
 ---------------------------------------
 
 GediDB supports the following GEDI data products:
 
-- **Level 2A**: Contains geolocated waveform data and relative height metrics.
-- **Level 2B**: Includes vegetation canopy cover and vertical profile metrics.
-- **Level 4A**: Provides aboveground biomass density estimates.
-- **Level 4C**: Includes gridded biomass estimates at global scales.
+- **Level 2A**: Geolocated waveform data and relative height metrics.
+- **Level 2B**: Vegetation canopy cover and vertical profile metrics.
+- **Level 4A**: Aboveground biomass density estimates.
+- **Level 4C**: Gridded biomass estimates at global scales.
 
 Can I use the GEDI database on cloud-hosted databases?
 ------------------------------------------------------
 
-Yes, the GEDI database can be deployed on cloud-hosted instances such as AWS S3.
+Yes, the GEDI database can be deployed on cloud-hosted storage systems like AWS S3. Use TileDB’s integration with cloud platforms to store and access GEDI data seamlessly. Refer to the cloud storage documentation in TileDB for setup instructions.
 
-How can I update the GEDI database to a newer version?
-------------------------------------------------------
+Can I add data to my GEDI database?
+-----------------------------------
 
-To update the GEDI database:
-
-1. Backup your database to avoid data loss.
-2. Apply any new schema changes by running the updated `db_scheme.sql`.
-3. Review release notes for any changes that might require modifications to your database setup or data-loading workflows.
+Yes, you can add data to an existing GEDI database using `gediDB`. Simply configure the database with the appropriate schema and use the :py:class:`gedidb.GEDIProcessor` class to process and ingest new data. Make sure to backup your database before making modifications.
 
 How do I write GEDI data into the database?
 -------------------------------------------
 
-You can load GEDI data into a GEDI database by using the :py:class:`gedidb.GEDIProcessor` class provided in the gediDB package. Configure the `data_config.yml` file with your data paths and database details, then run the processor to handle data download, processing, and insertion.
+GEDI data can be written to the database using the :py:class:`gedidb.GEDIProcessor` class. Steps include:
+
+1. Configure the `data_config.yml` file with paths to your GEDI HDF5 files and database settings.
+2. Use the :py:class:`gedidb.GEDIProcessor` to process and insert data into the TileDB database.
+3. Monitor logs for any errors or warnings during processing.
 
 Where can I find more examples for using gediDB?
 ------------------------------------------------
 
-Refer to the :ref:`tutorials` section in the documentation for example notebooks demonstrating how to use :py:class:`gedidb.GEDIProcessor` and  :py:class:`gedidb.GEDIProvider` classes for data processing and querying.
+Refer to the :ref:`tutorials` section of the documentation for detailed examples and notebooks. These include:
+
+- Using :py:class:`gedidb.GEDIProcessor` for data ingestion and processing.
+- Querying GEDI data with :py:class:`gedidb.GEDIProvider`.
+- Combining GEDI data with other geospatial datasets using geopandas and xarray.
 
 How do I contribute to gediDB development?
 ------------------------------------------
 
-We welcome contributions to gediDB! You can contribute by:
+We welcome contributions to gediDB! Here’s how you can help:
 
-- Reporting issues or suggesting features on our GitHub repository.
-- Submitting pull requests for bug fixes, improvements, or new features.
-- Providing documentation or usage examples.
+- **Report issues**: If you encounter bugs or have suggestions, report them on our GitHub issue tracker.
+- **Submit pull requests**: Contribute code for bug fixes, new features, or performance improvements.
+- **Improve documentation**: Help expand the documentation by providing additional examples or clarifications.
 
-For more details, please check the contributing guidelines :ref:`devindex`.
+For detailed contribution guidelines, please check the :ref:`devindex`. Additionally, join discussions on our GitHub repository to engage with the development community.
+

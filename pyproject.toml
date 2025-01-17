@@ -38,7 +38,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-accel = ["scipy", "bottleneck", "numbagg", "flox", "opt_einsum"]
+accel = [
+    "bottleneck",
+    "numbagg",
+    "flox",
+    "opt_einsum",
+    "numba",
+    "cython"
+]
 dev = [
     "hypothesis",
     "mypy",
@@ -49,10 +56,37 @@ dev = [
     "pytest-xdist",
     "pytest-timeout",
     "ruff",
-    "xarray[complete]"
+    "xarray[complete]",
+    "black",
+    "isort"
 ]
-io = ["netCDF4", "h5netcdf", "scipy", 'pydap; python_version<"3.10"', "zarr<3", "fsspec", "cftime", "pooch"]
-viz = ["matplotlib", "seaborn", "nc-time-axis"]
+io = [
+    "netCDF4",
+    "h5netcdf",
+    'pydap; python_version<"3.10"',
+    "zarr<3",
+    "fsspec",
+    "cftime",
+    "pooch",
+    "rasterio",
+    "pyproj"
+]
+viz = [
+    "matplotlib",
+    "seaborn",
+    "nc-time-axis",
+    "plotly",
+    "holoviews"
+]
+ml = [
+    "scikit-learn",
+    "xgboost",
+    "lightgbm"
+]
+debug = [
+    "rich",
+    "loguru"
+]
 
 [project.urls]
 homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
