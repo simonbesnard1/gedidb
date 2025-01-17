@@ -51,8 +51,8 @@ from gedidb.downloader import (
 from gedidb.downloader.authentication import EarthDataAuthenticator
 from gedidb.downloader.cmr_query import CMRQuery
 from gedidb.downloader.data_downloader import GEDIDownloader
-
-
+from gedidb.downloader.data_downloader import H5FileDownloader
+from gedidb.downloader.data_downloader import CMRDataDownloader
 
 from gedidb.granule import (
     granule_parser,
@@ -108,6 +108,8 @@ __all__ = [
     "GEDIProvider",
     "GEDIDatabase",
     "GEDIDownloader",
+    "CMRDataDownloader",
+    "H5FileDownloader",
     "authentication",
     "cmr_query",
     "CMRQuery",

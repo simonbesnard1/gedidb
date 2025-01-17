@@ -24,92 +24,94 @@ Default available variables
 
 The database includes a wide range of variables, covering spatial coordinates, elevation data, vegetation metrics, biomass estimates, and quality flags across multiple GEDI products (L2A, L2B, L4A, L4C). Below is a table of available default variables stored in the database:
 
-.. csv-table::
+.. csv-table:: Variable Descriptions
    :header: "Variable Name", "Description", "Units", "Product"
    :widths: 20, 50, 15, 10
 
-   "agbd", "Aboveground biomass density (Mg/ha)", "Mg/ha", "L4A"
-   "agbd_pi_lower", "Lower prediction interval (see alpha attribute for the level)", "Mg/ha", "L4A"
-   "agbd_pi_upper", "Upper prediction interval (see alpha attribute for the level)", "Mg/ha", "L4A"
-   "agbd_se", "Aboveground biomass density (Mg/ha) prediction standard error", "Mg/ha", "L4A"
-   "agbd_t", "Model prediction in fit units", "-", "L4A"
-   "agbd_t_se", "Model prediction standard error in fit units (needed for calculation of custom prediction intervals)", "-", "L4A"
-   "algorithm_run_flag", "The L4A algorithm is run if this flag is set to 1. This flag selects data that have sufficient waveform fidelity for AGBD estimation.", "-", "L4A"
-   "algorithmrun_flag", "The L2B algorithm is run if this flag is set to 1 indicating data have sufficient waveform fidelity for L2B to run", "N/A", "L2B"
+   "agbd", "Aboveground biomass density", "Mg/ha", "L4A"
+   "agbd_pi_lower", "Lower prediction interval for aboveground biomass density", "Mg/ha", "L4A"
+   "agbd_pi_upper", "Upper prediction interval for aboveground biomass density", "Mg/ha", "L4A"
+   "agbd_se", "Standard error of aboveground biomass density", "Mg/ha", "L4A"
+   "agbd_t", "Model prediction in fit units", "adimensional", "L4A"
+   "agbd_t_se", "Model prediction standard error in fit units", "adimensional", "L4A"
+   "algorithmrun_flag", "The L2B algorithm run flag", "adimensional", "L2B"
+   "beam_name", "Name of the beam", "adimensional", "L2A"
+   "beam_type", "Type of beam used", "adimensional", "L2A"
    "cover", "Total canopy cover", "Percent", "L2B"
    "cover_z", "Cumulative canopy cover vertical profile", "Percent", "L2B"
-   "degrade_flag", "Flag indicating degraded state of pointing and/or positioning information", "N/A", "L2A"
-   "delta_time", "Time delta since Jan 1 00:00 2018", "Seconds", "L2A"
+   "degrade_flag", "Flag indicating degraded state of pointing and/or positioning information", "adimensional", "L2A"
    "digital_elevation_model", "TanDEM-X elevation at GEDI footprint location", "Meters", "L2A"
    "digital_elevation_model_srtm", "STRM elevation at GEDI footprint location", "Meters", "L2A"
    "dz", "Vertical step size of foliage profile", "Meters", "L2B"
-   "elev_highestreturn", "Elevation of highest detected return relative to reference ellipsoid", "Meters", "L2A"
+   "elev_highestreturn_a1", "Elevation of the highest return detected using algorithm 1, relative to reference ellipsoid", "Meters", "L2A"
+   "elev_highestreturn_a2", "Elevation of the highest return detected using algorithm 2, relative to reference ellipsoid", "Meters", "L2A"
    "elev_lowestmode", "Elevation of center of lowest mode relative to reference ellipsoid", "Meters", "L2A"
-   "elevation_bin0", "Elevation of first bin of the pgap_theta_z, interpolated from L1B waveform coordinate", "Meters", "L2B"
-   "elevation_bin0_error", "Error in elevation of bin 0", "Meters", "L2A"
-   "energy_total", "Integrated counts in the return waveform relative to the mean noise level", "Number", "L2A"
-   "fhd_normal", "Foliage Height Diversity", "N/A", "L2B"
-   "l2_quality_flag", "Flag identifying the most useful L2 data for biomass predictions", "-", "L4A"
-   "l2a_quality_flag", "L2A quality flag", "Quality Flag", "L2B"
-   "l2b_quality_flag", "L2B quality flag", "Quality Flag", "L2B"
-   "l4_quality_flag", "Flag simplifying selection of most useful biomass predictions", "-", "L4A"
-   "landsat_water_persistence", "Percent UMD GLAD Landsat observations with classified surface water", "N/A", "L2A"
-   "lat_highestreturn", "Latitude of highest detected return", "Degree", "L2A"
-   "lat_lowestmode", "Latitude of center of lowest mode", "Degree", "L2A"
-   "latitude_bin0", "Latitude of first bin of the pgap_theta_z, interpolated from L1B waveform coordinate", "Degree", "L2B"
-   "latitude_bin0_error", "Error in latitude of bin 0", "Degree", "L2A"
-   "leaf_off_flag", "GEDI 1 km EASE 2.0 grid flag", "N/A", "L2A"
-   "leaf_on_cycle", "Flag that indicates the vegetation growing cycle for leaf-on observations", "N/A", "L2A"
-   "leaf_on_doy", "GEDI 1 km EASE 2.0 grid leaf-on start day-of-year", "N/A", "L2A"
-   "lon_highestreturn", "Longitude of highest detected return", "Degree", "L2A"
-   "lon_lowestmode", "Longitude of center of lowest mode", "Degree", "L2A"
-   "longitude_bin0", "Longitude of first bin of the pgap_theta_z, interpolated from L1B waveform coordinate", "Degree", "L2B"
-   "longitude_bin0_error", "Error on longitude_bin0", "Degree", "L2A"
-   "master_frac", "Master time, fractional part", "Seconds", "L2A"
-   "master_int", "Master time, integer part", "Seconds", "L2A"
+   "energy_total", "Total energy detected in the waveform", "adimensional", "L2A"
+   "fhd_normal", "Foliage Height Diversity", "adimensional", "L2B"
+   "l2_quality_flag", "Flag identifying the most useful L2 data for biomass predictions", "adimensional", "L4A"
+   "l2a_quality_flag", "L2A quality flag", "adimensional", "L2B"
+   "l2b_quality_flag", "L2B quality flag", "adimensional", "L2B"
+   "l4_quality_flag", "Flag simplifying selection of most useful biomass predictions", "adimensional", "L4A"
+   "landsat_treecover", "Tree cover in the year 2010, defined as canopy closure for all vegetation taller than 5 m in height as a percentage per output grid cell", "Percent", "L2A"
+   "landsat_water_persistence", "Percent UMD GLAD Landsat observations with classified surface water", "Percent", "L2A"
+   "leaf_off_doy", "GEDI 1 km EASE 2.0 grid leaf-off start day-of-year", "adimensional", "L2A"
+   "leaf_off_flag", "GEDI 1 km EASE 2.0 grid flag", "adimensional", "L2A"
+   "leaf_on_cycle", "Flag that indicates the vegetation growing cycle for leaf-on observations", "adimensional", "L2A"
+   "leaf_on_doy", "GEDI 1 km EASE 2.0 grid leaf-on start day-of-year", "adimensional", "L2A"
    "modis_nonvegetated", "Percent non-vegetated from MODIS MOD44B V6 data", "Percent", "L2A"
+   "modis_nonvegetated_sd", "Percent non-vegetated standard deviation from MODIS MOD44B V6 data", "Percent", "L2A"
    "modis_treecover", "Percent tree cover from MODIS MOD44B V6 data", "Percent", "L2A"
-   "num_detectedmodes", "Number of detected modes in rxwaveform", "N/A", "L2A"
-   "omega", "Foliage Clumping Index", "N/A", "L2B"
+   "modis_treecover_sd", "Percent tree cover standard deviation from MODIS MOD44B V6 data", "Percent", "L2A"
+   "num_detectedmodes", "Number of detected modes in rxwaveform", "adimensional", "L2A"
+   "omega", "Foliage Clumping Index", "adimensional", "L2B"
    "pai", "Total Plant Area Index", "m²/m²", "L2B"
    "pai_z", "Plant Area Index profile", "m²/m²", "L2B"
    "pavd_z", "Plant Area Volume Density profile", "m²/m³", "L2B"
-   "pft_class", "GEDI 1 km EASE 2.0 grid Plant Functional Type (PFT)", "N/A", "L2A"
-   "pgap_theta", "Total Gap Probability (theta)", "N/A", "L2B"
-   "pgap_theta_error", "Total Pgap (theta) error", "N/A", "L2B"
-   "predict_stratum", "Character ID of the prediction stratum name for the 1 km cell", "-", "L4A"
-   "predictor_limit_flag", "Prediction stratum identifier. Predictor value is outside the bounds of the training data (0=in bounds; 1=lower bound; 2=upper bound)", "-", "L4A"
-   "quality_flag", "Flag simplifying selection of most useful data", "Quality Flag", "L2A"
-   "region_class", "GEDI 1 km EASE 2.0 grid world continental regions", "N/A", "L2A"
-   "response_limit_flag", "Prediction value is outside the bounds of the training data (0=in bounds; 1=lower bound; 2=upper bound)", "-", "L4A"
-   "rg", "Integral of the ground component in the RX waveform for the selected L2A processing version", "Number", "L2B"
+   "pft_class", "GEDI 1 km EASE 2.0 grid Plant Functional Type (PFT)", "adimensional", "L2A"
+   "pgap_theta", "Total Gap Probability (theta)", "adimensional", "L2B"
+   "pgap_theta_error", "Total Pgap (theta) error", "adimensional", "L2B"
+   "predict_stratum", "Prediction stratum name for the 1 km cell", "adimensional", "L4A"
+   "predictor_limit_flag", "Prediction stratum identifier (0=in bounds, 1=lower bound, 2=upper bound)", "adimensional", "L4A"
+   "quality_flag", "Flag simplifying selection of most useful data", "adimensional", "L2A"
+   "region_class", "GEDI 1 km EASE 2.0 grid world continental regions ", "adimensional", "L2A"
+   "response_limit_flag", "Prediction value outside bounds of training data (0=in bounds, 1=lower bound, 2=upper bound)", "adimensional", "L4A"
+   "rg", "Integral of the ground component in the RX waveform", "adimensional", "L2B"
    "rh", "Relative height metrics at 1% interval", "Meters", "L2A"
-   "rh100", "Height above ground of the received waveform signal start (rh[101] from L2A)", "cm", "L2B"
-   "rhog", "Volumetric scattering coefficient (rho) of the ground", "Number", "L2B"
-   "rhog_error", "Rho (ground) error", "Number", "L2B"
-   "rhov", "Volumetric scattering coefficient (rho) of the canopy", "Number", "L2B"
-   "rhov_error", "Rho (canopy) error", "Number", "L2B"
-   "rossg", "Ross-G function", "N/A", "L2B"
-   "rv", "Integral of the vegetation component in the RX waveform for the selected L2A processing version", "Number", "L2B"
+   "rh100", "Height above ground of the received waveform signal start", "cm", "L2B"
+   "rhog", "Volumetric scattering coefficient (rho) of the ground", "adimensional", "L2B"
+   "rhog_error", "Rho (ground) error", "adimensional", "L2B"
+   "rhov", "Volumetric scattering coefficient (rho) of the canopy", "adimensional", "L2B"
+   "rhov_error", "Rho (canopy) error", "adimensional", "L2B"
+   "rossg", "Ross-G function", "adimensional", "L2B"
+   "rv", "Integral of the vegetation component in the RX waveform", "adimensional", "L2B"
+   "rx_algrunflag", "Flag indicating signal was detected and algorithm ran successfully", "adimensional", "L2A"
+   "rx_maxamp", "Maximum amplitude of rxwaveform relative to mean noise level", "adimensional", "L2A"
    "rx_range_highestreturn", "Range to signal start", "Meters", "L2B"
-   "selected_algorithm", "Identifier of algorithm selected as identifying the lowest non-noise mode", "N/A", "L2A"
-   "selected_l2a_algorithm", "Selected L2A algorithm setting", "N/A", "L2B"
-   "selected_mode", "Identifier of mode selected as lowest non-noise mode", "N/A", "L2A"
-   "selected_rg_algorithm", "Selected R (ground) algorithm", "N/A", "L2B"
-   "sensitivity", "Maximum canopy cover that can be penetrated", "N/A", "L2A"
-   "shot_number", "Shot number", "N/A", "L2A"
-   "solar_azimuth", "Solar azimuth", "N/A", "L2A"
-   "solar_elevation", "Solar elevation", "N/A", "L2A"
-   "stale_return_flag", "Flag indicating return signal above detection threshold was not detected", "Class Flag", "L2A"
-   "surface_flag", "Indicates elev_lowestmode is within 300 m of DEM or MSS", "N/A", "L2A"
-   "urban_proportion", "The percentage proportion of land area within a focal area surrounding each shot that is urban land cover.", "Select Units", "L2A"
-   "wsci", "Waveform Structural Complexity Index", "FLOAT32MT", "L4C"
-   "wsci_pi_lower", "Waveform Structural Complexity Index lower prediction interval", "FLOAT32MT", "L4C"
-   "wsci_pi_upper", "Waveform Structural Complexity Index upper prediction interval", "FLOAT32MT", "L4C"
-   "wsci_quality_flag", "WSCI quality flag", "UINT8MT", "L4C"
-   "wsci_xy", "Horizontal Structural Complexity", "FLOAT32MT", "L4C"
-   "wsci_xy_pi_lower", "Horizontal Structural Complexity lower prediction interval", "FLOAT32MT", "L4C"
-   "wsci_xy_pi_upper", "Horizontal Structural Complexity upper prediction interval", "FLOAT32MT", "L4C"
+   "sd_corrected", "Noise standard deviation, corrected for odd/even digitizer bin errors based on pre-launch calibrations", "adimensional", "L2A"
+   "selected_algorithm", "Identifier of algorithm selected as identifying the lowest non-noise mode", "adimensional", "L2A"
+   "selected_l2a_algorithm", "Selected L2A algorithm setting", "adimensional", "L2B"
+   "selected_rg_algorithm", "Selected R (ground) algorithm", "adimensional", "L2B"
+   "sensitivity", "Maxmimum canopy cover that can be penetrated", "adimensional", "L2A"
+   "sensitivity_a1", "Geolocation sensitivity factor A1", "adimensional", "L2A"
+   "sensitivity_a2", "Geolocation sensitivity factor A2", "adimensional", "L2A"
+   "shot_number", "Unique identifier for each shot", "adimensional", "L4C"
+   "solar_azimuth", "Solar azimuth angle at the time of the shot", "Degrees", "L2A"
+   "solar_elevation", "Solar elevation angle at the time of the shot", "Degrees", "L2A"
+   "stale_return_flag", "Flag indicating return signal above detection threshold was not detected", "adimensional", "L2B"
+   "surface_flag", "Identifier of algorithm selected as identifying the lowest non-noise mode", "adimensional", "L2A"
+   "toploc", "Sample number of highest detected return", "adimensional", "L2A"
+   "urban_proportion", "The percentage proportion of land area within a focal area surrounding each shot that is urban land cover.", "Percent", "L2A"
+   "wsci", "Waveform Structural Complexity Index", "adimensional", "L4C"
+   "wsci_pi_lower", "Waveform Structural Complexity Index lower prediction interval", "adimensional", "L4C"
+   "wsci_pi_upper", "Waveform Structural Complexity Index upper prediction interval", "adimensional", "L4C"
+   "wsci_quality_flag", "Waveform Structural Complexity Index quality flag", "adimensional", "L4C"
+   "wsci_xy", "Horizontal Structural Complexity", "adimensional", "L4C"
+   "wsci_xy_pi_lower", "Horizontal Structural Complexity lower prediction interval", "adimensional", "L4C"
+   "wsci_xy_pi_upper", "Horizontal Structural Complexity upper prediction interval", "adimensional", "L4C"
+   "wsci_z", "Vertical Structural Complexity", "adimensional", "L4C"
+   "wsci_z_pi_lower", "Vertical Structural Complexity lower prediction interval", "adimensional", "L4C"
+   "wsci_z_pi_upper", "Vertical Structural Complexity upper prediction interval", "adimensional", "L4C"
+   "zcross", "Sample number of center of lowest mode above noise level", "Nanoseconds", "L2A"
 
 Retrieving GEDI data with the GEDI provider
 -------------------------------------------
@@ -128,7 +130,8 @@ Basic query example
     region_of_interest = gpd.read_file('./data/geojson/BR-Sa1.geojson')
 
     # Instantiate the GEDIProvider
-    provider = gdb.GEDIProvider()
+    provider = gdb.GEDIProvider(storage_type='local', 
+                                local_path= "/path/to/your/database")
 
     # Define the columns to query and additional parameters
     variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
@@ -146,7 +149,7 @@ Parameters for ``get_data()``
  - **geometry**: (Optional) GeoPandas geometry for spatial filtering.
  - **start_time**: (Optional) Start date for temporal filtering (format: "YYYY-MM-DD").
  - **end_time**: (Optional) End date for temporal filtering (format: "YYYY-MM-DD").
- - **return_type**: Specifies the format of the returned data, either :py:class:`xarray.Dataset` or :py:class:`pandas.DataFrame` (default: "xarray").
+ - **return_type**: Specifies the format of the returned data, either :py:class:`xarray.Dataset` ("xarray"). or :py:class:`pandas.DataFrame` ("dataframe") - The default is "xarray".
  - **query_type**: (Optional) Type of query to execute, either "nearest" or "bounding_box", in case of nearest, a point has to be provided as well (default: "bounding_box").
  - **point**: (Optional) Reference point for nearest query, required if `query_type` is "nearest" (format: Tuple[longitude, latitude]).
  - **num_shots**: (Optional) Number of shots to retrieve if the `query_type` is "nearest" (default: 10).
@@ -171,7 +174,9 @@ In the following example, we define specific quality filters for the **sensitivi
     import gedidb as gdb
 
     # Instantiate the GEDIProvider
-    provider = gdb.GEDIProvider()
+    provider = gdb.GEDIProvider(storage_type='local', 
+                                local_path= "/path/to/your/database")
+
 
     # Load region of interest
     region_of_interest = gpd.read_file('./data/geojson/BR-Sa1.geojson')
@@ -221,5 +226,24 @@ The dataset includes multiple dimensions and variables:
 - **Dimensions**: `shot_number` (unique ID for each shot) and `profile_points` (vertical profile points).
 - **Coordinates**: Metadata such as  `time`, `latitude`, and `longitude`, describing each shot's spatial and temporal context.
 - **Data Variables**: Core variables like `rh` (relative height) and `agbd` (Aboveground biomass density) for ecological analysis.
+
+Below is an example of how the dataset looks in the :py:class:`pandas.DataFrame` format:
+
+.. code-block:: python
+
+                 latitude  longitude       time  ...  rh_99     rh_100     rh_101
+    0       -1.044146 -56.475181 2020-06-07  ...  25.59  26.040001  26.570000
+    1       -1.138822 -56.375156 2020-06-07  ...  15.30  15.680000  16.280001
+    2       -1.138396 -56.375457 2020-06-07  ...  14.48  14.740000  15.080000
+    3       -1.189413 -56.366139 2020-06-07  ...  16.48  16.809999  17.219999
+    4       -1.188570 -56.366732 2020-06-07  ...   9.97  10.200000  10.500000
+              ...        ...        ...  ...    ...        ...        ...
+    660797 -14.849312 -46.408216 2020-06-07  ...   2.42   2.760000   3.580000
+    660798 -14.848904 -46.408533 2020-06-07  ...   4.14   4.970000   6.650000
+    660799 -14.848492 -46.408853 2020-06-07  ...   6.53   7.920000   9.790000
+    660800 -14.847665 -46.409496 2020-06-07  ...   4.97   6.500000   8.740000
+    660801 -14.848078 -46.409175 2020-06-07  ...   6.09   7.170000   8.850000
+
+    [660802 rows x 106 columns]
 
 ---

@@ -27,7 +27,7 @@ class EarthDataAuthenticator:
         :param earth_data_dir: Directory to store .netrc and cookies. Defaults to the user's home directory.
         :param strict: If True, fail if credentials are missing without prompting.
         """
-        self.earth_data_path = Path(earth_data_dir) or Path.home()
+        self.earth_data_path = Path(earth_data_dir) if earth_data_dir else Path.home()
         self.netrc_file = self.earth_data_path / ".netrc"
         self.cookie_file = self.earth_data_path / ".cookies"
         self.strict = strict

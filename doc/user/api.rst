@@ -27,6 +27,8 @@ Downloading functions
    :recursive:
 
    GEDIDownloader
+   CMRDataDownloader
+   H5FileDownloader
    EarthDataAuthenticator
    CMRQuery
    

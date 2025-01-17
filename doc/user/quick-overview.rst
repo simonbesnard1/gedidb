@@ -24,10 +24,18 @@ This setup initiates the download, processing, and storage of GEDI data in your 
     # Paths to configuration files
     config_file = 'path/to/config_file.yml'
 
+    n_workers = 4
+
     if __name__ == "__main__":
-        # Process GEDI data with 4 parallel workers
-        with gdb.GEDIProcessor(config_file, n_workers = 4) as processor:
-            processor.compute()
+
+        # Initialize the GEDIProcessor and compute
+        with gdb.GEDIProcessor(
+            config_file=config_file,
+            earth_data_dir= '/path/to/earthdata_credential/folder',
+            n_workers=n_workers,
+        ) as processor:
+            processor.compute(consolidate=True)
+
 
 In this example, the :py:class:`gedidb.GEDIProcessor` performs:
 
@@ -35,7 +43,7 @@ In this example, the :py:class:`gedidb.GEDIProcessor` performs:
 - **Filtering** data by quality.
 - **Storing** the processed data in the tileDB database.
 
-The ``n_workers=4`` argument directs **Dask** to process four data granules in parallel.
+The ``n_workers=4`` argument directs **Dask** to process four data granules in parallel, while the four GEDI produc are also concurrently processed.
 
 Querying GEDI Data
 ------------------
@@ -45,21 +53,32 @@ Once the data is processed and stored, use :py:class:`gedidb.GEDIProvider` to qu
 Example query using :py:class:`gedidb.GEDIProvider`:
 
 .. code-block:: python
+    
+    import geopandas as gpd
+    import gedidb as gdb
 
     # Create GEDIProvider instance
-    provider = gdb.GEDIProvider()
+    provider = gdb.GEDIProvider(storage_type='local', 
+                                local_path= "path/to/your/database/")
 
-    # Define variables to query
-    variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
+    # Load region of interest
+    region_of_interest = gpd.read_file('./data/geojson/BR-Sa1.geojson')
 
-    # Query data with filters
-    dataset = provider.get_data(variables = variables,
-                                geometry = None,
-                                start_time = "2018-01-01",
-                                end_time = "2023-12-31",
-                                return_type = 'xarray')
+    # Define the columns to query and additional parameters
+    vars_selected = ["agbd", 'rh']
+    
+    # Profile the provider's `get_data` function
+    gedi_data = provider.get_data(
+        variables=vars_selected,
+        query_type="bounding_box",
+        geometry=region_of_interest,
+        start_time="2018-01-01",
+        end_time="2024-07-25",
+        return_type='xarray'
+    )
 
-This ``provider.get_data()`` function allows you to:
+
+This :py:class:`provider.get_data()` function allows you to:
 
 - **Select specific columns** (e.g., `wsci_z_pi_lower`, `wsci_z_pi_upper`).
 - **Apply spatial and temporal filters** using `geometry`, `start_time`, and `end_time`.

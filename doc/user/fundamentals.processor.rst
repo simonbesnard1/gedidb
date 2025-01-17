@@ -37,23 +37,24 @@ Below is a quick example of using the :py:class:`gedidb.GEDIProcessor` in a work
 Processing workflow
 -------------------
 
-The ``compute()`` method of :py:class:`gedidb.GEDIProcessor` initiates the following workflow, using configuration settings defined in `data_config.yml`:
+The :py:class:`compute()` method of :py:class:`gedidb.GEDIProcessor` initiates the following workflow, using configuration settings defined in `data_config.yml`:
 
 1. **Setup and initialization**:
 
-   - The `GEDIProcessor` is initialized with the `data_config.yml` file for parameters like spatial and temporal boundaries, product details, and filtering criteria.
+   - The :py:class:`gedidb.GEDIProcessor` is initialized with the `data_config.yml` file for parameters like spatial and temporal boundaries, product details, and filtering criteria.
    - Database tables are created based on the parameters in `data_config.yml`, ensuring that the tileDB required for granule storage is in place and properly configured.
    - Paths are set up for storing granules and a Dask cluster is initialized for parallel processing based on the specified `n_workers`.
 
 2. **Granule downloading**:
 
-   - The `H5FileDownloader` class downloads `.h5` granule files for the GEDI products (L2A, L2B, L4A, L4C) within the spatial and temporal boundaries specified in `data_config.yml`.
+   - The :py:class:`gedidb.CMRDataDownloader` class handles granule querying and ensures that all required products (e.g., L2A, L2B, L4A, L4C) are included for each granule ID. 
+   - The :py:class:`gedidb.H5FileDownloader` class downloads `.h5` granule files for the GEDI products (L2A, L2B, L4A, L4C) within the spatial and temporal boundaries specified in `data_config.yml`.
    - Granules are stored in a designated directory for further processing.
 
 3. **Data processing**:
 
    - The granule downloading as well as the processing is done in parallel using Dask, each future is processing data of a temporal tile defined in the `data_config.yml`.
-   - Each granule is parsed and processed by the `GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied.
+   - Each granule is parsed and processed by the :py:class:`gedidb.GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied.
    - Data from different products is merged using shot numbers as the primary key, resulting in a unified dataset per granule.
 
 4. **Database writing**:

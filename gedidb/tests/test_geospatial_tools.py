@@ -11,13 +11,14 @@
 
 import math
 import unittest
+from pathlib import Path
 
 import geopandas as gpd
-import geodatasets
 from gedidb.utils import geo_processing as gt
 
 from shapely import MultiPolygon, Polygon
 
+data_dir = Path(__file__).parent / "data"
 
 class TestGeospatialTools(unittest.TestCase):
     def _make_polygon(self, lat: float, lng: float, radius: float) -> Polygon:
@@ -77,7 +78,7 @@ class TestGeospatialTools(unittest.TestCase):
     def test_too_many_points_simplify(self):
         # cheat a little bit and lower the max points threshold
         gt.MAX_CMR_COORDS = 100
-        geometry = gpd.read_file(geodatasets.get_path("naturalearth.land"))
+        geometry = gpd.read_file(data_dir / "ne_110m_land.zip")
         # This row has 559 coordinates
         geometry = geometry.iloc[[7]]
         checked = gt.check_and_format_shape(geometry, simplify=True)

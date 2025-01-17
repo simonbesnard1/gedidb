@@ -127,12 +127,6 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
 3. The pull request should work for Python 3.6, 3.7, 3.8 and 3.9. Check
-   https://git.gfz-potsdam.de/fernlab/products/data-portal/s2downloader/-/merge_requests
+   https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/-/merge_requests
    and make sure that the tests pass for all supported Python versions.
 
-Tips
-----
-
-To run a subset of tests::
-
-$ pytest tests.test_gedidb

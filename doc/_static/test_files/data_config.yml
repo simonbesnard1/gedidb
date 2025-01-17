@@ -1,12 +1,12 @@
 # Spatial and temporal parameters
-region_of_interest: ''
+region_of_interest: './path/to/file.geojson'
 start_date: '2020-01-01'
 end_date: '2020-12-31'
 
 # database parameters
 tiledb:
   storage_type: 'local'
-  local_path: ''     # TileDB URI for storing data
+  local_path: 'path/to/your/database'     # TileDB URI for storing data
   overwrite: true                                  # Whether to overwrite existing arrays
   temporal_tiling: "weekly"
   chunk_size: 25
@@ -27,7 +27,7 @@ tiledb:
   capacity: 100000
 
 # Data directory for downloading GEDI data
-data_dir: ''
+data_dir: 'path/to/your/downloading/folder'
 
 # Configuration for accessing NASA's Earthdata Search API to query granule data.
 earth_data_info:
