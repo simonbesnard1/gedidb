@@ -17,6 +17,7 @@ endpoints, which can break our code.
 
 import os
 import yaml
+from pathlib import Path
 
 from gedidb.downloader import cmr_query
 from gedidb.utils import constants
@@ -24,8 +25,9 @@ from gedidb.utils import constants
 import unittest
 import geopandas as gpd
 import datetime as dt
-import geodatasets
 
+
+data_dir = Path(__file__).parent / "data"
 
 class TestNasaCmrApi(unittest.TestCase):
 
@@ -35,7 +37,7 @@ class TestNasaCmrApi(unittest.TestCase):
         )  # this is needed to import local files such as the config
 
         return (
-            gpd.read_file(geodatasets.get_path("naturalearth.land")).iloc[[50]],
+            geometry = gpd.read_file(data_dir / "ne_110m_land.zip")
             dt.datetime(2020, 10, 1),
             dt.datetime(2020, 11, 1),
             self._get_earthdata_from_config(),
