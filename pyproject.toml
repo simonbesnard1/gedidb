@@ -1,6 +1,6 @@
 [project]
 name = "gedidb"
-version = "2.0.0"
+dynamic = ["version"]
 description = "A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data"
 readme = "README.md"
 authors = [
@@ -100,7 +100,9 @@ tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/issues
 
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools>=61.2", "wheel"]
+requires = ["setuptools>=64",
+            "wheel",
+            "setuptools-scm>=8"]
 
 [tool.setuptools]
 include-package-data = false
@@ -110,8 +112,7 @@ where = ["."]
 exclude = ["doc*", "gedidb/tests*"]
 
 [tool.setuptools_scm]
-write_to = "gedidb/_version.py"
-fallback_version = "0.0.1"
+fallback_version = "9999"
 
 [tool.coverage.run]
 omit = [

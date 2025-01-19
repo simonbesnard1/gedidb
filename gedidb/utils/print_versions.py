@@ -108,6 +108,7 @@ def show_versions(file=sys.stdout):
         ("numpy", lambda mod: mod.__version__),
         ("h5py", lambda mod: mod.__version__),
         ("xarray", lambda mod: mod.__version__),
+        ("tiledb", lambda mod: mod.__version__),
         # gedidb optionals
         ("netCDF4", lambda mod: mod.__version__),
         ("dask", lambda mod: mod.__version__),
