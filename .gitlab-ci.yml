@@ -40,7 +40,7 @@ unit-test-job:
     - source .venv/bin/activate
     - echo "Running tests with coverage..."
     - pytest --cov=gedidb --cov-report html:htmlcov --cov-report=term --cov-report=xml:coverage.xml --junitxml=reports/junit.xml gedidb/tests
-  coverage: '/^Total\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+\.\d+%)/'
+  coverage: '/TOTAL.*?(\d+\.\d+%)$/'
   artifacts:
     when: always
     reports:
