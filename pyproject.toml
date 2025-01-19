@@ -1,3 +1,11 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=64",
+    "wheel",
+    "setuptools-scm>=8"
+]
+
 [project]
 name = "gedidb"
 dynamic = ["version"]
@@ -40,6 +48,12 @@ dependencies = [
     "mypy",
     "numpydoc"
 ]
+
+[project.urls]
+homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
+documentation = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/docs"
+source = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
+tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/issues"
 
 [project.optional-dependencies]
 accel = [
@@ -92,21 +106,6 @@ debug = [
     "loguru"
 ]
 
-[project.urls]
-homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
-documentation = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/docs"
-source = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
-tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/issues"
-
-[build-system]
-build-backend = "setuptools.build_meta"
-requires = ["setuptools>=64",
-            "wheel",
-            "setuptools-scm>=8"]
-
-[tool.setuptools]
-include-package-data = false
-
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["doc*", "gedidb/tests*"]
@@ -114,105 +113,5 @@ exclude = ["doc*", "gedidb/tests*"]
 [tool.setuptools_scm]
 version_scheme = "post-release"
 local_scheme = "dirty-tag"
-#write_to = "gedidb/_version.py"
 
-[tool.coverage.run]
-omit = [
-  "*/gedidb/tests/*"
-]
-source = ["gedidb"]
 
-[tool.coverage.report]
-# Lines to exclude from coverage reports
-exclude_lines = [
-    "pragma: no cover",
-    "if TYPE_CHECKING"
-]
-
-[tool.mypy]
-# General mypy settings
-enable_error_code = ["ignore-without-code", "redundant-self", "redundant-expr"]
-exclude = ["build"]
-files = "gedidb"
-show_error_context = true
-warn_redundant_casts = true
-warn_unused_configs = true
-warn_unused_ignores = true
-
-# Specific overrides for packages
-[[tool.mypy.overrides]]
-check_untyped_defs = true
-packages = [
-    "gedidb.tests.*"
-]
-
-[[tool.mypy.overrides]]
-# Disable `check_untyped_defs` for specific test modules
-check_untyped_defs = false
-module = [
-    "gedidb.tests.test_data_config_yml",
-    "gedidb.tests.test_gedi_granules",
-    "gedidb.tests.test_geospatial_tools",
-    "gedidb.tests.test_granule_name",
-    "gedidb.tests.test_local_tiledb",
-    "gedidb.tests.test_nasa_cmr_api",
-    "gedidb.tests.test_provider"
-]
-
-[[tool.mypy.overrides]]
-warnings = [
-    "warn_unused_ignores = true",
-    "strict_concatenate = true",
-    "strict_equality = true",
-    "check_untyped_defs = true",
-    "disallow_any_generics = true",
-    "disallow_subclassing_any = true",
-    "disallow_untyped_decorators = true",
-    "disallow_incomplete_defs = true",
-    "disallow_untyped_calls = true",
-    "disallow_untyped_defs = true",
-    "no_implicit_reexport = true",
-    "warn_return_any = true"
-]
-
-[tool.ruff]
-extend-exclude = [
-    "doc",
-    "_typed_ops.pyi"
-]
-
-[tool.ruff.lint]
-extend-safe-fixes = ["TID252"]
-extend-ignore = ["E402", "E501", "E731", "UP007"]
-extend-select = ["F", "E", "W", "TID", "I", "UP"]
-
-[tool.ruff.lint.per-file-ignores]
-"asv_bench/**" = ["TID252"]
-
-[tool.ruff.lint.isort]
-known-first-party = ["gedidb"]
-
-[tool.ruff.lint.flake8-tidy-imports]
-ban-relative-imports = "all"
-
-[tool.pytest.ini_options]
-addopts = ["--strict-config", "--strict-markers"]
-
-log_cli_level = "INFO"
-markers = [
-  "flaky: flaky tests",
-  "network: tests requiring a network connection",
-  "slow: slow tests",
-  "slow_hypothesis: slow hypothesis tests",
-]
-minversion = "7"
-python_files = "test_*.py"
-testpaths = ["gedidb/tests", "properties"]
-
-[tool.aliases]
-test = "pytest"
-
-[tool.repo-review]
-ignore = [
-  "PP308", # This option creates a large amount of log lines.
-]
