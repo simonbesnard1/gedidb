@@ -113,4 +113,5 @@ exclude = ["doc*", "gedidb/tests*"]
 [tool.setuptools_scm]
 local_scheme = "dirty-tag"
 write_to = "gedidb/_version.py"
+fallback_version = "9999"
 
