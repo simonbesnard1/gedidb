@@ -21,6 +21,7 @@ from pygments.lexer import inherit
 from pygments.token import Comment
 import inspect
 from os.path import relpath, dirname
+from importlib.metadata import version as version_
 
 # Minimum version, enforced by sphinx
 needs_sphinx = "4.3"
@@ -141,18 +142,8 @@ source_suffix = ".rst"
 # General substitutions.
 project = "gediDB"
 year = datetime.now().year
-copyright = f"2024-{year}, gediDB Developers"
-
-# The default replacements for |version| and |release|, also used in various
-# other places throughout the built documents.
-#
-
-# The short X.Y version (including .devXXXX, rcX, b1 suffixes if present)
-version = re.sub(r"(\d+\.\d+)\.\d+(.*)", r"\1\2", gedidb.__version__)
-version = re.sub(r"(\.dev\d+).*?$", r"\1", version)
-# The full version, including alpha/beta/rc tags.
-release = gedidb.__version__
-print("%s %s" % (version, release))
+copyright = f"2025-{year}, gediDB Developers"
+release = version_('gedidb')
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -262,10 +253,10 @@ if (
 ):
     # For PR, name is set to its ref
     switcher_version = os.environ["CIRCLE_BRANCH"]
-elif ".dev" in version:
+elif ".dev" in release:
     switcher_version = "devdocs"
 else:
-    switcher_version = f"{version}"
+    switcher_version = f"{release}"
 
 html_theme_options = {
     "logo": {
@@ -280,7 +271,7 @@ html_theme_options = {
     "navbar_persistent": [],
 }
 
-html_title = "%s v%s Manual" % (project, version)
+html_title = "%s v%s Manual" % (project, release)
 html_static_path = ["_static"]
 html_last_updated_fmt = "%b %d, %Y"
 html_css_files = ["gedidb.css"]
