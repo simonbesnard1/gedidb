@@ -113,7 +113,7 @@ exclude = ["doc*", "gedidb/tests*"]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
-local_scheme = "dirty-tag"
+local_scheme = "no-local-version"
 write_to = "gedidb/_version.py"
 
 [tool.coverage.run]
