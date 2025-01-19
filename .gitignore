@@ -114,3 +114,6 @@ LICENSE
 /testing
 .idea
 /scripts/
+
+# Sphinx doc
+_build/
