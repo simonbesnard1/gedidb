@@ -40,31 +40,46 @@ class EarthDataAuthenticator:
 
     def authenticate(self):
         """Main method to manage authentication and cookies."""
-        if self.cookie_file.exists():
-            logger.info(
-                "Earthdata authentication file found at %s. Credentials setup.",
-                self.netrc_file,
-            )
+        if not self._credentials_in_netrc():
+            logger.info("EarthData authentication setup incomplete; starting setup.")
+            if self.strict:
+                raise FileNotFoundError(
+                    f"EarthData authentication files missing or incomplete. Please check {self.netrc_file} and {self.cookie_file}."
+                )
+            else:
+                logger.info("Prompting user for credentials.")
+                self._prompt_for_credentials()
+                self._fetch_earthdata_cookies()
         else:
-            logger.info("No authentication files found; starting Earthdata authentication.")
-            if not self._credentials_in_netrc():
-                if self.strict:
-                    raise FileNotFoundError(
-                        f"No credentials found in {self.netrc_file}. "
-                        "Please create credentials using this module."
-                    )
-                else:
-                    logger.info("Prompting user to create credentials.")
-                    self._prompt_for_credentials()
-            self._fetch_earthdata_cookies()
+            logger.info("EarthData authentication setup is complete.")
 
     def _credentials_in_netrc(self) -> bool:
-        """Check if .netrc file contains Earthdata credentials."""
+        """Check if .netrc file contains Earthdata credentials and cookie file is valid."""
         try:
+            # Check if .netrc file exists and contains Earthdata credentials
+            if not self.netrc_file.exists():
+                logger.warning(f"Missing .netrc file at {self.netrc_file}.")
+                return False
+            
             with self.netrc_file.open("r") as f:
-                return "urs.earthdata.nasa.gov" in f.read()
-        except FileNotFoundError:
+                if "urs.earthdata.nasa.gov" not in f.read():
+                    logger.warning(f"No Earthdata credentials found in {self.netrc_file}.")
+                    return False
+            
+            # Check if cookie file exists and is non-empty
+            if not self.cookie_file.exists():
+                logger.warning(f"Missing cookie file at {self.cookie_file}.")
+                return False
+            
+            if self.cookie_file.stat().st_size == 0:
+                logger.warning(f"Cookie file at {self.cookie_file} is empty.")
+                return False
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error checking EarthData authentication files: {e}")
             return False
+
 
     def _prompt_for_credentials(self):
         """Prompt user for credentials and store them in .netrc."""
