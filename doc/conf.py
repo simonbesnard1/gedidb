@@ -8,91 +8,15 @@
 import os
 import sys
 import importlib
+import re
 
-import numpy
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from datetime import datetime
-import gedidb
-import math
-from pygments.lexers import CLexer
-from pygments.lexer import inherit
-from pygments.token import Comment
 import inspect
-from os.path import relpath, dirname
-from importlib.metadata import version as version_
 
 # Minimum version, enforced by sphinx
 needs_sphinx = "4.3"
-
-
-# This is a nasty hack to use platform-agnostic names for types in the
-# documentation.
-
-# must be kept alive to hold the patched names
-_name_cache = {}
-
-
-def replace_scalar_type_names():
-    """Rename numpy types to use the canonical names to make sphinx behave"""
-    import ctypes
-
-    Py_ssize_t = (
-        ctypes.c_int64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_int32
-    )
-
-    class PyObject(ctypes.Structure):
-        pass
-
-    class PyTypeObject(ctypes.Structure):
-        pass
-
-    PyObject._fields_ = [
-        ("ob_refcnt", Py_ssize_t),
-        ("ob_type", ctypes.POINTER(PyTypeObject)),
-    ]
-
-    PyTypeObject._fields_ = [
-        # varhead
-        ("ob_base", PyObject),
-        ("ob_size", Py_ssize_t),
-        # declaration
-        ("tp_name", ctypes.c_char_p),
-    ]
-
-    import numpy
-
-    # change the __name__ of the scalar types
-    for name in [
-        "byte",
-        "short",
-        "intc",
-        "int_",
-        "longlong",
-        "ubyte",
-        "ushort",
-        "uintc",
-        "uint",
-        "ulonglong",
-        "half",
-        "single",
-        "double",
-        "longdouble",
-        "half",
-        "csingle",
-        "cdouble",
-        "clongdouble",
-    ]:
-        typ = getattr(numpy, name)
-        c_typ = PyTypeObject.from_address(id(typ))
-        c_typ.tp_name = _name_cache[typ] = b"numpy." + name.encode("utf8")
-
-
-replace_scalar_type_names()
-
-
-# As of NumPy 1.25, a deprecation of `str`/`bytes` attributes happens.
-# For some reasons, the doc build accesses these, so ignore them.
 
 # -----------------------------------------------------------------------------
 # General configuration
@@ -142,7 +66,12 @@ source_suffix = ".rst"
 project = "gediDB"
 year = datetime.now().year
 copyright = f"2025-{year}, gediDB Developers"
-release = version_('gedidb')
+
+import gedidb
+version = re.sub(r'(\d+\.\d+)\.\d+(.*)', r'\1\2', gedidb.__version__)
+version = re.sub(r'(\.dev\d+).*?$', r'\1', version)
+# The full version, including alpha/beta/rc tags.
+release = gedidb.__version__
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -185,7 +114,6 @@ class LegacyDirective(Directive):
 
     See also the same implementation in SciPy's conf.py.
     """
-
     has_content = True
     node_class = nodes.admonition
     optional_arguments = 1
@@ -196,40 +124,43 @@ class LegacyDirective(Directive):
         except IndexError:
             # Argument is empty; use default text
             obj = "submodule"
-        text = (
-            f"This {obj} is considered legacy and will no longer receive "
-            "updates. This could also mean it will be removed in future "
-            "NumPy versions."
-        )
+        text = (f"This {obj} is considered legacy and will no longer receive "
+                "updates. This could also mean it will be removed in future "
+                "gediDB versions.")
 
         try:
             self.content[0] = text + " " + self.content[0]
         except IndexError:
             # Content is empty; use the default text
-            source, lineno = self.state_machine.get_source_and_line(self.lineno)
-            self.content.append(text, source=source, offset=lineno)
-        text = "\n".join(self.content)
+            source, lineno = self.state_machine.get_source_and_line(
+                self.lineno
+            )
+            self.content.append(
+                text,
+                source=source,
+                offset=lineno
+            )
+        text = '\n'.join(self.content)
         # Create the admonition node, to be populated by `nested_parse`
         admonition_node = self.node_class(rawsource=text)
         # Set custom title
         title_text = "Legacy"
         textnodes, _ = self.state.inline_text(title_text, self.lineno)
-        title = nodes.title(title_text, "", *textnodes)
+        title = nodes.title(title_text, '', *textnodes)
         # Set up admonition node
         admonition_node += title
         # Select custom class for CSS styling
-        admonition_node["classes"] = ["admonition-legacy"]
+        admonition_node['classes'] = ['admonition-legacy']
         # Parse the directive contents
-        self.state.nested_parse(self.content, self.content_offset, admonition_node)
+        self.state.nested_parse(self.content, self.content_offset,
+                                admonition_node)
         return [admonition_node]
 
 
 def setup(app):
     # add a config value for `ifconfig` directives
-    app.add_config_value("python_version_major", str(sys.version_info.major), "env")
-    app.add_lexer("NumPyC", NumPyLexer)
+    app.add_config_value('python_version_major', str(sys.version_info.major), 'env')
     app.add_directive("legacy", LegacyDirective)
-
 
 # While these objects do have type `module`, the names are aliases for modules
 # elsewhere. Sphinx does not support referring to modules by an aliases name,
@@ -244,33 +175,26 @@ def setup(app):
 
 html_theme = "pydata_sphinx_theme"
 
-# html_favicon = '_static/favicon/favicon.ico'
-
-# Set up the version switcher.  The versions.json is stored in the doc repo.
-if (
-    os.environ.get("CIRCLE_JOB", False) and os.environ.get("CIRCLE_BRANCH", "") != "main"
-):
-    # For PR, name is set to its ref
-    switcher_version = os.environ["CIRCLE_BRANCH"]
-elif ".dev" in release:
-    switcher_version = "devdocs"
-else:
-    switcher_version = f"{release}"
-
 html_theme_options = {
     "logo": {
         "image_light": "_static/logos/gediDB_logo.svg",
         "image_dark": "_static/logos/gediDB_logo.svg",
     },
-    "github_url": "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/",
+    "gitlab_url": "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/",
     "collapse_navigation": True,
+    
     "header_links_before_dropdown": 6,
     # Add light/dark mode and documentation version switcher:
-    "navbar_end": ["search-button", "theme-switcher", "navbar-icon-links"],
+    "navbar_end": [
+        "search-button",
+        "theme-switcher",
+        "navbar-icon-links"
+    ],
     "navbar_persistent": [],
 }
 
-html_title = "%s v%s Manual" % (project, release)
+
+html_title = "%s v%s Manual" % (project, version)
 html_static_path = ["_static"]
 html_last_updated_fmt = "%b %d, %Y"
 html_css_files = ["gedidb.css"]
@@ -280,7 +204,7 @@ html_copy_source = False
 html_domain_indices = False
 html_file_suffix = ".html"
 
-htmlhelp_basename = "gedidb"
+htmlhelp_basename = "gedidbdoc"
 
 if "sphinx.ext.pngmath" in extensions:
     pngmath_use_preview = True
@@ -311,8 +235,8 @@ latex_engine = "xelatex"
 # (source start file, target name, title, author, document class [howto/manual]).
 _stdauthor = "Written by the gediDB members"
 latex_documents = [
-    ("reference/index", "gedidb-ref.tex", "NumPy Reference", _stdauthor, "manual"),
-    ("user/index", "gedidb-user.tex", "NumPy User Guide", _stdauthor, "manual"),
+    ("reference/index", "gedidb-ref.tex", "gediDB Reference", _stdauthor, "manual"),
+    ("user/index", "gedidb-user.tex", "gediDB User Guide", _stdauthor, "manual"),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -391,17 +315,15 @@ latex_use_modindex = False
 # Texinfo output
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+# Texinfo output
+# -----------------------------------------------------------------------------
+
 texinfo_documents = [
-    (
-        "index",
-        "gedidb",
-        "gediDB Documentation",
-        _stdauthor,
-        "gedidb",
-        "gediDB: ",
-        "Programming",
-        1,
-    ),
+  ("index", 'gedidb', 'gediDB Documentation', _stdauthor, 'gediDB',
+   "gediDB: A toolbox for processing and providing Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data",
+   'Programming',
+   1),
 ]
 
 
@@ -425,7 +347,7 @@ intersphinx_mapping = {
 
 
 # -----------------------------------------------------------------------------
-# NumPy extensions
+# gediDB extensions
 # -----------------------------------------------------------------------------
 
 # If we want to do a phantom import from an XML file for all autodocs
@@ -456,42 +378,12 @@ coverage_c_path = []
 coverage_c_regexes = {}
 coverage_ignore_c_items = {}
 
-
-# -----------------------------------------------------------------------------
-# Plots
-# -----------------------------------------------------------------------------
-plot_pre_code = """
-import numpy as np
-np.random.seed(0)
-"""
-plot_include_source = True
-plot_formats = [("png", 100), "pdf"]
-
-phi = (math.sqrt(5) + 1) / 2
-
-plot_rcparams = {
-    "font.size": 8,
-    "axes.titlesize": 8,
-    "axes.labelsize": 8,
-    "xtick.labelsize": 8,
-    "ytick.labelsize": 8,
-    "legend.fontsize": 8,
-    "figure.figsize": (3 * phi, 3),
-    "figure.subplot.bottom": 0.2,
-    "figure.subplot.left": 0.2,
-    "figure.subplot.right": 0.9,
-    "figure.subplot.top": 0.85,
-    "figure.subplot.wspace": 0.4,
-    "text.usetex": False,
-}
-
-
 # -----------------------------------------------------------------------------
 # Source code links
 # -----------------------------------------------------------------------------
 
 
-for name in ["sphinx.ext.linkcode", "numpydoc.linkcode"]:
+for name in ["sphinx.ext.linkcode", "gedidbdoc.linkcode"]:
     try:
         __import__(name)
         extensions.append(name)
@@ -503,15 +395,16 @@ else:
 
 
 def _get_c_source_file(obj):
-    if issubclass(obj, numpy.generic):
+    if issubclass(obj, gedidb.generic):
         return r"_core/src/multiarray/scalartypes.c.src"
-    elif obj is numpy.ndarray:
+    elif obj is gedidb.ndarray:
         return r"_core/src/multiarray/arrayobject.c"
     else:
         # todo: come up with a better way to generate these
         return None
 
 
+# based on numpy doc/source/conf.py
 def linkcode_resolve(domain, info):
     """
     Determine the URL corresponding to Python object
@@ -530,77 +423,46 @@ def linkcode_resolve(domain, info):
     for part in fullname.split("."):
         try:
             obj = getattr(obj, part)
-        except Exception:
+        except AttributeError:
             return None
 
-    # strip decorators, which would resolve to the source of the decorator
-    # possibly an upstream bug in getsourcefile, bpo-1764286
     try:
-        unwrap = inspect.unwrap
-    except AttributeError:
-        pass
-    else:
-        obj = unwrap(obj)
+        fn = inspect.getsourcefile(inspect.unwrap(obj))
+    except TypeError:
+        fn = None
+    if not fn:
+        return None
 
-    fn = None
-    lineno = None
-
-    # Make a poor effort at linking C extension types
-    if isinstance(obj, type) and obj.__module__ == "numpy":
-        fn = _get_c_source_file(obj)
-
-    if fn is None:
-        try:
-            fn = inspect.getsourcefile(obj)
-        except Exception:
-            fn = None
-        if not fn:
-            return None
-
-        # Ignore re-exports as their source files are not within the numpy repo
-        module = inspect.getmodule(obj)
-        if module is not None and not module.__name__.startswith("numpy"):
-            return None
-
-        try:
-            source, lineno = inspect.getsourcelines(obj)
-        except Exception:
-            lineno = None
-
-        fn = relpath(fn, start=dirname(numpy.__file__))
+    try:
+        source, lineno = inspect.getsourcelines(obj)
+    except OSError:
+        lineno = None
 
     if lineno:
-        linespec = "#L%d-L%d" % (lineno, lineno + len(source) - 1)
+        linespec = f"#L{lineno}-L{lineno + len(source) - 1}"
     else:
         linespec = ""
 
-    if "dev" in gedidb.__version__:
-        return "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/%s%s" % (
-            fn,
-            linespec,
-        )
+    fn = os.path.relpath(fn, start=os.path.dirname(gedidb.__file__))
+
+    if "+" in gedidb.__version__:
+        return f"https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/{fn}{linespec}"
     else:
         return (
-            "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/v%s/gedidb/%s%s"
-            % (gedidb.__version__, fn, linespec)
+            f"https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/blob/"
+            f"v{gedidb.__version__}/gedidb/{fn}{linespec}"
         )
 
 
-class NumPyLexer(CLexer):
-    name = "NUMPYLEXER"
-
-    tokens = {
-        "statements": [
-            (r"@[a-zA-Z_]*@", Comment.Preproc, "macro"),
-            inherit,
-        ],
-    }
-
+def html_page_context(app, pagename, templatename, context, doctree):
+    # Disable edit button for docstring generated pages
+    if "generated" in pagename:
+        context["theme_use_edit_page_button"] = False
 
 # -----------------------------------------------------------------------------
 # Breathe & Doxygen
 # -----------------------------------------------------------------------------
-breathe_projects = dict(numpy=os.path.join("..", "build", "doxygen", "xml"))
+breathe_projects = dict(gedidb=os.path.join("..", "build", "doxygen", "xml"))
 breathe_default_project = "gedidb"
 breathe_default_members = ("members", "undoc-members", "protected-members")
 
