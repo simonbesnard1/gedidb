@@ -9,6 +9,7 @@ import os
 import sys
 import importlib
 import re
+import gedidb
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
@@ -67,7 +68,6 @@ project = "gediDB"
 year = datetime.now().year
 copyright = f"2025-{year}, gediDB Developers"
 
-import gedidb
 version = re.sub(r'(\d+\.\d+)\.\d+(.*)', r'\1\2', gedidb.__version__)
 version = re.sub(r'(\.dev\d+).*?$', r'\1', version)
 # The full version, including alpha/beta/rc tags.
@@ -173,8 +173,8 @@ def setup(app):
 # HTML output
 # -----------------------------------------------------------------------------
 
-html_theme = "pydata_sphinx_theme"
 
+html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "logo": {
         "image_light": "_static/logos/gediDB_logo.svg",
@@ -462,6 +462,8 @@ def html_page_context(app, pagename, templatename, context, doctree):
 # -----------------------------------------------------------------------------
 # Breathe & Doxygen
 # -----------------------------------------------------------------------------
+
+
 breathe_projects = dict(gedidb=os.path.join("..", "build", "doxygen", "xml"))
 breathe_default_project = "gedidb"
 breathe_default_members = ("members", "undoc-members", "protected-members")
