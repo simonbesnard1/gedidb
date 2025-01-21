@@ -12,11 +12,10 @@ import logging
 import yaml
 import geopandas as gpd
 from datetime import datetime
-import dask
-from dask.distributed import Client, LocalCluster
 import concurrent.futures
+from dask.distributed import Client
 import pandas as pd
-from typing import Optional
+from typing import Optional, Union
 import traceback
 from pathlib import Path
 
@@ -44,15 +43,34 @@ class GEDIProcessor:
 
     def __init__(
         self,
+        geometry: Union[gpd.GeoDataFrame, str] = None,
+        start_date: str = None,
+        end_date: str = None,
         config_file: str= None,
         earth_data_dir: str=None, 
         credentials: Optional[dict] = None,
-        dask_client: Optional[Client] = None,
-        n_workers: Optional[int] = None,
-        memory_limit: str = "8GB",
-        geometry: Optional[gpd.GeoDataFrame] = None,
+        parallel_engine: Optional[object] = None,
         log_dir: Optional[str] = None
     ):
+        """
+       Initializes the GEDIProcessor.
+
+       Parameters:
+       -----------
+       config_file : str
+           Path to the configuration YAML file.
+       earth_data_dir : str
+           Directory containing EarthData credentials.
+       credentials : dict, optional
+           Credentials for accessing the database.
+       parallel_engine : object, optional
+           A parallelization engine such as `dask.distributed.Client` or
+           `concurrent.futures.Executor`. Defaults to single-threaded.
+       geometry : geopandas.GeoDataFrame, optional
+           Geometry defining the region of interest.
+       log_dir : str, optional
+           Directory to store logs.
+       """
         
         # Validate config_file
         if not config_file or not isinstance(config_file, str):
@@ -74,26 +92,33 @@ class GEDIProcessor:
         if credentials is not None and not isinstance(credentials, dict):
             raise ValueError("The 'credentials' argument must be a dictionary if provided.")
         
-        # Validate dask_client
-        if dask_client is not None and not isinstance(dask_client, Client):
-            raise ValueError("The 'dask_client' argument must be an instance of 'dask.distributed.Client' if provided.")
-        
-        # Validate n_workers
-        if n_workers is not None and (not isinstance(n_workers, int) or n_workers <= 0):
-            raise ValueError("The 'n_workers' argument must be a positive integer if provided.")
-        
-        # Validate memory_limit
-        if not memory_limit or not isinstance(memory_limit, str):
-            raise ValueError("The 'memory_limit' argument must be a non-empty string (e.g., '8GB').")
-        
-        # Validate geometry
-        if geometry is not None and not isinstance(geometry, gpd.GeoDataFrame):
-            raise ValueError("The 'geometry' argument must be a 'geopandas.GeoDataFrame' if provided.")
+        # Validate parallel_engine
+        if parallel_engine is not None and not (
+            isinstance(parallel_engine, concurrent.futures.Executor) or
+            isinstance(parallel_engine, Client)
+        ):
+            raise ValueError(
+                "The 'parallel_engine' argument must be either a 'concurrent.futures.Executor', "
+                "'dask.distributed.Client', or None."
+            )
         
         # Validate log_dir
         if log_dir is not None and not isinstance(log_dir, str):
             raise ValueError("The 'log_dir' argument must be a string if provided.")
-           
+            
+        # Validate geometry
+        if geometry is None:
+            raise ValueError("The 'geometry' parameter must be provided.")
+        self.geom = self._validate_and_load_geometry(geometry)
+
+        # Validate and parse dates
+        if not start_date or not end_date:
+            raise ValueError("Both 'start_date' and 'end_date' must be provided.")
+        self.start_date = self._validate_and_parse_date(start_date, "start_date")
+        self.end_date = self._validate_and_parse_date(end_date, "end_date")
+        if self.start_date > self.end_date:
+            raise ValueError("'start_date' must be earlier than or equal to 'end_date'.")
+            
         # Set up logging to file if log_dir is provided
         if log_dir:
             # Ensure the log directory exists
@@ -113,7 +138,6 @@ class GEDIProcessor:
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
         self.credentials = credentials
-        self.geometry = geometry  # Optional geometry passed directly
         
         # Validate Earthdata credentials directory
         earth_data_path = Path(earth_data_dir)
@@ -131,8 +155,10 @@ class GEDIProcessor:
             logger.error(e)
             raise
 
-        # Initialize paths, dates, and geometry
-        self.load_configuration_data()
+        # Initialize download_path
+        self.download_path = self._ensure_directory(
+            os.path.join(self.data_info["data_dir"], "download")
+        )
 
         # Initialize database writer
         self.database_writer = self._initialize_database_writer(credentials)
@@ -140,12 +166,54 @@ class GEDIProcessor:
         # Create the database schema
         self.database_writer._create_arrays()
         
-        # Initialize Dask client
-        self.n_workers = n_workers
-        self.dask_client = dask_client or self._initialize_dask_client(
-            n_workers=self.n_workers, memory_limit=memory_limit
-        )
+        # Set the parallel engine
+        self.parallel_engine = self._initialize_parallel_engine(parallel_engine)
 
+    def _validate_and_load_geometry(self, geometry: object) -> gpd.GeoDataFrame:
+        """
+        Validates and loads the geometry from a file or GeoDataFrame.
+
+        Parameters:
+        ----------
+        geometry : str or geopandas.GeoDataFrame
+            Path to a GeoJSON file or a GeoDataFrame.
+
+        Returns:
+        --------
+        geopandas.GeoDataFrame
+            A validated and formatted GeoDataFrame.
+        """
+        if isinstance(geometry, gpd.GeoDataFrame):
+            return check_and_format_shape(geometry, simplify=True)
+        elif isinstance(geometry, str):
+            if not os.path.exists(geometry):
+                raise FileNotFoundError(f"Region file not found: {geometry}")
+            gdf = gpd.read_file(geometry)
+            return check_and_format_shape(gdf, simplify=True)
+        else:
+            raise ValueError("Geometry must be a GeoDataFrame or a valid GeoJSON file path.")
+
+    @staticmethod
+    def _validate_and_parse_date(date_str: str, date_type: str) -> datetime:
+        """
+        Validates and parses a date string.
+
+        Parameters:
+        ----------
+        date_str : str
+            Date string in 'YYYY-MM-DD' format.
+        date_type : str
+            Type of the date being validated (e.g., 'start_date', 'end_date').
+
+        Returns:
+        --------
+        datetime
+            Parsed datetime object.
+        """
+        try:
+            return datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"Invalid format for {date_type}. Expected 'YYYY-MM-DD'.")
 
     def _initialize_database_writer(self, credentials: Optional[dict]):
         """
@@ -153,56 +221,26 @@ class GEDIProcessor:
         """
         return GEDIDatabase(config=self.data_info, credentials=credentials)
 
-    def _initialize_dask_client(
-        self, n_workers: int = None, memory_limit: str = "8GB"
-    ) -> Client:
-        """Initialize and return a Dask client with a LocalCluster and adaptive scaling."""
-
-        # Set Dask memory spill and memory limits via configuration
-        dask.config.set(
-            {
-                "distributed.worker.memory.target": 0.6,  # Spill to disk at 60% memory usage
-                "distributed.worker.memory.spill": 0.7,  # More aggressive spilling at 70%
-                "distributed.worker.memory.pause": 0.8,  # Pause new task scheduling at 80%
-                "distributed.worker.memory.terminate": 0.9,  # Terminate worker if memory exceeds 90%
-            }
-        )
-
-        # Setup a LocalCluster with better memory management configurations
-        cluster = LocalCluster(
-            n_workers=n_workers,
-            threads_per_worker=1,
-            processes=True,
-            memory_limit=memory_limit,
-            dashboard_address=None,
-        )
-
-        # Initialize the Dask client with the cluster
-        client = Client(cluster)
-        logger.info(f"Dask dashboard available at {client.dashboard_link}")
-
-        return client
-
-    def load_configuration_data(self):
-        """Set up paths, dates, and geometry from configuration or direct input."""
-        self.download_path = self._ensure_directory(
-            os.path.join(self.data_info["data_dir"], "download")
-        )
-
-        if self.geometry is not None:
-            # Use provided geometry
-            self.geom = check_and_format_shape(self.geometry, simplify=True)
-        else:
-            # Load geometry from the configuration file
-            region_file = self.data_info.get("region_of_interest")
-            if not os.path.exists(region_file):
-                raise FileNotFoundError(f"Region file not found: {region_file}")
-            initial_geom = gpd.read_file(region_file)
-            self.geom = check_and_format_shape(initial_geom, simplify=True)
-
-        # Parse start and end dates
-        self.start_date = datetime.strptime(self.data_info["start_date"], "%Y-%m-%d")
-        self.end_date = datetime.strptime(self.data_info["end_date"], "%Y-%m-%d")
+    def _initialize_parallel_engine(self, parallel_engine: Optional[object]):
+        """
+        Initialize the parallel engine.
+    
+        Parameters:
+        ----------
+        parallel_engine : object, optional
+            User-specified parallelization engine.
+    
+        Returns:
+        --------
+        object
+            The initialized parallel engine. Defaults to single-threaded execution if no engine is provided.
+        """
+        if parallel_engine:
+            logger.info("Using user-provided parallel engine.")
+            return parallel_engine
+    
+        logger.info("No parallel engine provided. Defaulting to single-threaded execution.")
+        return concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     @staticmethod
     def _ensure_directory(path: str) -> str:
@@ -237,7 +275,7 @@ class GEDIProcessor:
                 logger.info("All requested granules are already processed.")
                 if consolidate:
                     self.database_writer.consolidate_fragments(
-                        consolidation_type=consolidation_type, n_workers=self.n_workers
+                        consolidation_type=consolidation_type, n_workers=os.cpu_count()
                     )
                 return
     
@@ -248,7 +286,7 @@ class GEDIProcessor:
             # Consolidate fragments if required
             if consolidate:
                 self.database_writer.consolidate_fragments(
-                    consolidation_type=consolidation_type, n_workers=self.n_workers
+                    consolidation_type=consolidation_type, n_workers=os.cpu_count()
                 )
             logger.info("GEDI granule processing completed successfully.")
         except Exception as e:
@@ -292,49 +330,63 @@ class GEDIProcessor:
 
     def _process_granules(self, unprocessed_cmr_data: dict):
         """
-        Process unprocessed granules in parallel using Dask, including writing to the database.
+        Process unprocessed granules in parallel using the selected parallelization engine.
         """
-        client = self.dask_client
-
         # Add temporal tiling for unprocessed granules
         unprocessed_temporal_cmr_data = _temporal_tiling(
             unprocessed_cmr_data, self.data_info["tiledb"]["temporal_tiling"]
         )
-
+    
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
             futures = []
-            granule_ids = []
-
-            for granule_id, product_info in granules.items():
-                # Submit granule processing task
-                future = client.submit(
-                    GEDIProcessor.process_single_granule,
-                    granule_id,
-                    product_info,
-                    self.data_info,
-                    self.download_path,
+            granule_ids = list(granules.keys())
+    
+            if isinstance(self.parallel_engine, concurrent.futures.Executor):
+                # Use concurrent.futures
+                with self.parallel_engine as executor:
+                    futures = [
+                        executor.submit(
+                            GEDIProcessor.process_single_granule,
+                            granule_id,
+                            product_info,
+                            self.data_info,
+                            self.download_path,
+                        )
+                        for granule_id, product_info in granules.items()
+                    ]
+                    results = [future.result() for future in futures]
+            elif isinstance(self.parallel_engine, Client):
+                # Assume Dask client
+                futures = [
+                    self.parallel_engine.submit(
+                        GEDIProcessor.process_single_granule,
+                        granule_id,
+                        product_info,
+                        self.data_info,
+                        self.download_path,
+                    )
+                    for granule_id, product_info in granules.items()
+                ]
+                results = self.parallel_engine.gather(futures)
+            else:
+                raise ValueError(
+                    "Unsupported parallel engine. Provide a 'concurrent.futures.Executor' or 'dask.distributed.Client'."
                 )
-                futures.append(future)
-                granule_ids.append(granule_id)  # Track granule IDs for marking later
-
-            # Gather processed granule data
-            granule_data = client.gather(futures)
-
+    
             # Collect valid data for writing
-            valid_dataframes = [gdf for _, gdf in granule_data if gdf is not None]
-
+            valid_dataframes = [gdf for _, gdf in results if gdf is not None]
+    
             # Proceed only if there is valid data
             if valid_dataframes:
                 concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-
+    
                 # Sort data into quadrants for spatial processing
                 quadrants = self.database_writer.spatial_chunking(
                     concatenated_df, chunk_size=self.data_info["tiledb"]["chunk_size"]
                 )
-                
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_workers) as executor:
-                    futures = [executor.submit(self.database_writer.write_granule, data) for _, data in quadrants.items()]
-                    concurrent.futures.wait(futures)
+    
+                for _, data in quadrants.items():
+                    self.database_writer.write_granule(data)
 
             # Mark all granules as processed
             for granule_id in granule_ids:
@@ -343,37 +395,57 @@ class GEDIProcessor:
     @staticmethod
     def process_single_granule(granule_id, product_info, data_info, download_path):
         """
-        Processes a single granule by downloading, processing, and writing to the database.
+        Processes a single granule by downloading and processing sequentially.
+    
+        Parameters:
+        ----------
+        granule_id : str
+            ID of the granule to process.
+        product_info : list
+            List of tuples containing URL, product type, and additional information for the granule.
+        data_info : dict
+            Dictionary containing configuration and metadata.
+        download_path : str
+            Path to the directory where downloaded files are stored.
+    
+        Returns:
+        --------
+        tuple
+            A tuple containing the granule ID and the processed granule data.
         """
-
-        # Download products
+        # Initialize the downloader
         downloader = H5FileDownloader(download_path)
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=len(product_info)
-        ) as executor:
-            futures = [
-                executor.submit(
-                    downloader.download, granule_id, url, GediProduct(product)
-                )
-                for url, product, _ in product_info
-            ]
-            download_results = [f.result() for f in futures]
-
+        
+        # Sequentially download each product
+        download_results = []
+        for url, product, _ in product_info:
+            result = downloader.download(granule_id, url, GediProduct(product))
+            download_results.append(result)
+            
         # Process granule
         granule_processor = GEDIGranule(download_path, data_info)
         return granule_processor.process_granule(download_results)
 
     def close(self):
-        """Close the Dask client and cluster."""
-        if self.dask_client:
-            self.dask_client.close()
-            self.dask_client = None
+        """Close the parallelization engine if applicable."""
+        if isinstance(self.parallel_engine, Client):
+            # Close Dask client if it's the engine
+            self.parallel_engine.close()
+            self.parallel_engine = None
             logger.info("Dask client and cluster have been closed.")
-
+        elif isinstance(self.parallel_engine, concurrent.futures.Executor):
+            # Shutdown concurrent.futures executor if used
+            self.parallel_engine.shutdown(wait=True)
+            self.parallel_engine = None
+            logger.info("ThreadPoolExecutor has been shut down.")
+        else:
+            logger.info("No parallel engine to close.")
+    
     def __enter__(self):
         """Enter the runtime context related to this object."""
         return self
-
+    
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the runtime context and close resources."""
         self.close()
+
