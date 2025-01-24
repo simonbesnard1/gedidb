@@ -1,14 +1,14 @@
 <p align="center">
-<a href="https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git">
+<a href="https://git.gfz-potsdam.de/global-land-monitoring/gedidb.git">
     <img src="doc/_static/logos/gediDB_logo.svg" alt="Master" height="120px" hspace="0px" vspace="30px" align="left">
   </a>
 </p>
 
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
-[![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/pipelines)
-[![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/coverage/)
-[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/)
+[![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/pipelines)
+[![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/coverage/)
+[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/doc/)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/gedidb.svg?label=PyPI%20downloads)](
 https://pypi.org/project/gedidb/)
@@ -34,12 +34,12 @@ https://anaconda.org/conda-forge/gedidb)
 ## Documentation
 
 Learn more about gediDB in its official documentation at
-<https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/>.
+<https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/doc/>.
 
 ## Contributing
 
 You can find information about contributing to gediDB on our
-[Contributing page](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/user/contributing.html).
+[Contributing page](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/doc/user/contributing.html).
 
 ## History
 
