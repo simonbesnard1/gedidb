@@ -73,4 +73,3 @@ with gdb.GEDIProcessor(
 ) as processor:
     # Run the GEDIProcessor to process granules and consolidate fragments
     processor.compute(consolidate=True)
-
