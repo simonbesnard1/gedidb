@@ -29,24 +29,16 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "pandas",
-    "geopandas",
-    "pyarrow",
-    "h5py",
-    "numpy",
-    "dask-jobqueue",
-    "xarray",
-    "Cartopy",
-    "retry",
+    "boto3",
     "dask",
     "distributed",
-    "bokeh",
-    "boto3",
+    "geopandas",
+    "h5py",
+    "numpy",
+    "pandas",
+    "retry",
     "tiledb",
-    "scipy",
-    "pytest",
-    "mypy",
-    "numpydoc"
+    "xarray"
 ]
 
 [project.urls]
@@ -62,7 +54,8 @@ accel = [
     "flox",
     "opt_einsum",
     "numba",
-    "cython"
+    "cython",
+    "scipy"
 ]
 dev = [
     "hypothesis",
@@ -82,7 +75,7 @@ io = [
     "netCDF4",
     "h5netcdf",
     'pydap; python_version<"3.10"',
-    "zarr<3",
+    "zarr",
     "fsspec",
     "cftime",
     "pooch",
@@ -90,21 +83,18 @@ io = [
     "pyproj"
 ]
 viz = [
+    "cartopy",
     "matplotlib",
     "seaborn",
     "nc-time-axis",
     "plotly",
     "holoviews"
 ]
-ml = [
-    "scikit-learn",
-    "xgboost",
-    "lightgbm"
-]
 debug = [
     "rich",
     "loguru"
 ]
+
 
 [tool.setuptools.packages.find]
 where = ["."]
