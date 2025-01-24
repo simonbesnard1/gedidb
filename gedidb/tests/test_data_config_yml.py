@@ -6,7 +6,6 @@
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 import unittest
-from datetime import datetime
 
 import yaml
 import os
