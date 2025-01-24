@@ -131,7 +131,7 @@ Section 2: Nearest Shot Query
 Section 3: Data Format Options
 -----------------------------------------------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-112
+.. GENERATED FROM PYTHON SOURCE LINES 95-111
 
 .. code-block:: Python
 
@@ -151,7 +151,6 @@ Section 3: Data Format Options
     # Print the retrieved `pandas.DataFrame`
     print("Retrieved data as a pandas.DataFrame:")
     print(data_dataframe)
-
 
 
 .. _sphx_glr_download_auto_examples_data_provider.py:
