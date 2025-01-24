@@ -9,7 +9,7 @@
 [![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/pipelines)
 [![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/coverage/)
 [![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedi-toolbox/doc/)
-[![Available on pypi](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
+[![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/gedidb.svg?label=PyPI%20downloads)](
 https://pypi.org/project/gedidb/)
 [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/gedidb.svg?label=Conda%20downloads)](
