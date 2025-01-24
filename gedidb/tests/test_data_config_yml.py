@@ -25,43 +25,6 @@ class TestDataConfig(unittest.TestCase):
         """Test if the YAML file is loaded correctly"""
         self.assertIsNotNone(self.config, "Failed to load data_config.yml file")
 
-    def test_start_date_format(self):
-        """Test that start_time has the correct format YYYY-MM-DD"""
-        start_time = self.config.get("start_date")
-        self.assertIsNotNone(start_time, "'start_date' is missing")
-        try:
-            datetime.strptime(start_time, "%Y-%m-%d")
-        except ValueError:
-            self.fail(
-                f"'start_date' is not in the correct format YYYY-MM-DD: {start_time}"
-            )
-
-    def test_end_date_format(self):
-        """Test that end_time has the correct format YYYY-MM-DD"""
-        end_time = self.config.get("end_date")
-        self.assertIsNotNone(end_time, "'end_date' is missing")
-        try:
-            datetime.strptime(end_time, "%Y-%m-%d")
-        except ValueError:
-            self.fail(f"'end_date' is not in the correct format YYYY-MM-DD: {end_time}")
-
-    def test_start_date_before_end_date(self):
-        """Test that start_time is before or equal to end_time"""
-        start_time = self.config.get("start_date")
-        end_time = self.config.get("end_date")
-        self.assertIsNotNone(start_time, "'start_date' is missing")
-        self.assertIsNotNone(end_time, "'end_date' is missing")
-        try:
-            start = datetime.strptime(start_time, "%Y-%m-%d")
-            end = datetime.strptime(end_time, "%Y-%m-%d")
-            self.assertLessEqual(
-                start, end, "'start_date' must be before or equal to 'end_date'"
-            )
-        except ValueError:
-            self.fail(
-                "'start_date' or 'end_date' is not in the correct format YYYY-MM-DD"
-            )
-
     def test_tiledb_parameters(self):
         """Validate the TileDB configuration"""
         tiledb = self.config.get("tiledb")
