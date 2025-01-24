@@ -38,6 +38,7 @@ dependencies = [
     "pandas",
     "requests",
     "retry",
+    "scipy",
     "tiledb",
     "xarray"
 ]
@@ -55,8 +56,7 @@ accel = [
     "flox",
     "opt_einsum",
     "numba",
-    "cython",
-    "scipy"
+    "cython"
 ]
 dev = [
     "hypothesis",
