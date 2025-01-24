@@ -39,7 +39,7 @@ We will:
 2. Initialize different parallel engines (Dask and concurrent futures).
 3. Run the GEDIProcessor to process granules and consolidate fragments.
 
-.. GENERATED FROM PYTHON SOURCE LINES 24-77
+.. GENERATED FROM PYTHON SOURCE LINES 24-76
 
 .. code-block:: Python
 
@@ -95,7 +95,6 @@ We will:
     ) as processor:
         # Run the GEDIProcessor to process granules and consolidate fragments
         processor.compute(consolidate=True)
-
 
 
 .. _sphx_glr_download_auto_examples_data_processor.py:
