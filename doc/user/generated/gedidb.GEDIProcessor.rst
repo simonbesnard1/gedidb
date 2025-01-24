@@ -16,7 +16,6 @@
       ~GEDIProcessor.__init__
       ~GEDIProcessor.close
       ~GEDIProcessor.compute
-      ~GEDIProcessor.load_configuration_data
       ~GEDIProcessor.process_single_granule
    
    

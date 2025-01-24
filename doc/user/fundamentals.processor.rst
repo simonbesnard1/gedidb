@@ -26,12 +26,16 @@ Below is a quick example of using the :py:class:`gedidb.GEDIProcessor` in a work
    import gedidb as gdb
 
    config_file = 'path/to/config_file.yml'
+   geometry = 'path/to/test.geojson'
 
-   if __name__ == '__main__':
-
-       # Initialize the GEDIProcessor and compute
-       with gdb.GEDIProcessor(config_file, n_workers = 4) as processor:
-           processor.compute()
+   
+    # Initialize the GEDIProcessor and compute
+    with gdb.GEDIProcessor(
+         config_file, geometry=geometry,
+         start_date='2020-01-01',
+         end_date='2020-12-31',   
+         earth_data_dir= '/path/to/earthdata_credential/folder',
+         ) as processor: processor.compute()
 
 
 Processing workflow
@@ -43,7 +47,7 @@ The :py:class:`compute()` method of :py:class:`gedidb.GEDIProcessor` initiates t
 
    - The :py:class:`gedidb.GEDIProcessor` is initialized with the `data_config.yml` file for parameters like spatial and temporal boundaries, product details, and filtering criteria.
    - Database tables are created based on the parameters in `data_config.yml`, ensuring that the tileDB required for granule storage is in place and properly configured.
-   - Paths are set up for storing granules and a Dask cluster is initialized for parallel processing based on the specified `n_workers`.
+   - Paths are set up for storing granules.
 
 2. **Granule downloading**:
 
@@ -53,7 +57,7 @@ The :py:class:`compute()` method of :py:class:`gedidb.GEDIProcessor` initiates t
 
 3. **Data processing**:
 
-   - The granule downloading as well as the processing is done in parallel using Dask, each future is processing data of a temporal tile defined in the `data_config.yml`.
+   - The granule downloading as well as the processing is done in parallel, each future is processing data of a temporal tile defined in the `data_config.yml`.
    - Each granule is parsed and processed by the :py:class:`gedidb.GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied.
    - Data from different products is merged using shot numbers as the primary key, resulting in a unified dataset per granule.
 
@@ -71,8 +75,6 @@ The :py:class:`gedidb.GEDIProcessor` class is highly configurable, allowing you 
 
 - **`data_config.yml`**: Modify this file to specify:
 
-  - Spatial extent (region of interest)
-  - Time range (start and end dates)
   - Database configuration details
   - Variables list for each GEDI product (L2A, L2B, L4A, L4C)
   
@@ -81,4 +83,4 @@ The :py:class:`gedidb.GEDIProcessor` class is highly configurable, allowing you 
 Performance considerations
 --------------------------
 
-Using Dask for parallel processing enables gediDB to scale efficiently, particularly when working with large datasets. However, ensure that your system has sufficient memory for handling multiple workers and large `.h5` files. Adjust the `n_workers` parameter as needed to match your system’s capabilities.
+Using parallel engines (e.g., Dask) for parallel processing enables gediDB to scale efficiently, particularly when working with large datasets. However, ensure that your system has sufficient memory for handling multiple workers and large `.h5` files. 

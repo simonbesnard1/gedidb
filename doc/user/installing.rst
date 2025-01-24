@@ -3,71 +3,83 @@
 Installation
 ============
 
-Required dependencies
----------------------
+Dependencies
+------------
 
-To use gediDB, please ensure the following dependencies are installed:
+gediDB requires Python >= 3.9 and the following dependencies. These are resolved automatically when installing via **pip** or **conda**:
 
-- Python >= 3.12
-- `numpy <https://numpy.org/>`__ >= 2.0.1
-- `packaging <https://packaging.pypa.io/en/latest/>`__ >= 23.1
-- `pandas <https://pandas.pydata.org/>`__ >= 2.2.2
-- `pyarrow <https://arrow.apache.org/>`__ >= 17.0
-- `geopandas <https://geopandas.org/>`__ >= 1.0.1
-- `h5py <https://www.h5py.org/>`__ >= 3.11
-- `xarray <https://xarray.pydata.org/>`__ >= 2024.7.0
-- `retry <https://github.com/invl/retry>`__ >= 0.9.2
-- `dask <https://dask.org/>`__ >= 2024.8.2
-- `distributed <https://distributed.dask.org/>`__ >= 2024.8.2
-- `tiledb <https://pypi.org/project/tiledb/>`__  >= 0.33
-- `scipy <https://scipy.org/>`__ >= 1.14.1
-- `boto3 <https://pypi.org/project/boto3/>`__ >= 1.35.49
++------------+-----------------+-----------------------------------------------------------+
+| Dependency | Minimum Version | Link                                                      |
++============+=================+===========================================================+
+| numpy      | 2.0.1           | https://numpy.org/                                        |
++------------+-----------------+-----------------------------------------------------------+
+| pandas     | 2.2.2           | https://pandas.pydata.org/                                |
++------------+-----------------+-----------------------------------------------------------+
+| geopandas  | 1.0.1           | https://geopandas.org/                                    |
++------------+-----------------+-----------------------------------------------------------+
+| h5py       | 3.11            | https://www.h5py.org/                                     |
++------------+-----------------+-----------------------------------------------------------+
+| xarray     | 2024.7.0        | https://xarray.pydata.org/                                |
++------------+-----------------+-----------------------------------------------------------+
+| retry      | 0.9.2           | https://github.com/invl/retry                             |
++------------+-----------------+-----------------------------------------------------------+
+| dask       | 2024.8.2        | https://dask.org/                                         |
++------------+-----------------+-----------------------------------------------------------+
+| distributed| 2024.8.2        | https://distributed.dask.org/                             |
++------------+-----------------+-----------------------------------------------------------+
+| tiledb     | 0.33            | https://pypi.org/project/tiledb/                          |
++------------+-----------------+-----------------------------------------------------------+
+| boto3      | 1.35.49         | https://pypi.org/project/boto3/                           |
++------------+-----------------+-----------------------------------------------------------+
 
-Optional dependencies
----------------------
+Optional Dependencies
+----------------------
 
-For additional functionality, consider installing these optional dependencies:
+For additional functionality, the following optional dependencies are available:
 
-- **matplotlib** and **seaborn**: For enhanced data visualization
-- **netCDF4**: For working with netCDF data formats
++-------------+-----------------------------------------------------------+
+| Dependency  | Purpose                                                   |
++=============+===========================================================+
+| matplotlib  | Enhanced data visualization                               |
++-------------+-----------------------------------------------------------+
+| seaborn     | Statistical data visualization                            |
++-------------+-----------------------------------------------------------+
+| netCDF4     | Support for netCDF data formats                           |
++-------------+-----------------------------------------------------------+
 
-.. note::
+To install optional dependencies, use **pip** with the extras syntax (e.g., `pip install gedidb[full]`).
 
-   Optional dependencies can be installed via *extras* using **pip**. See the instructions below on how to install these via **pip** or **conda**.
-
-Installation instructions
+Installation Instructions
 -------------------------
 
-GediDB is a pure Python package, though some dependencies may have complex installations. We recommend using **conda** for the most straightforward setup.
+gediDB is a pure Python package, but we recommend using **conda** for simpler dependency management.
 
-To install gediDB and all required dependencies with **conda** from the **conda-forge** channel, use:
+Install via **conda** from the conda-forge channel:
 
 .. code-block:: bash
 
     $ conda install -c conda-forge gedidb
 
-For non-conda installations, use **pip** to install gediDB:
+Install via **pip**:
 
 .. code-block:: bash
 
-    $ python -m pip install gedidb
+    $ pip install gedidb
 
-To include optional dependencies, specify them using **pip** extras. For example:
+To include optional dependencies:
 
 .. code-block:: bash
 
-    $ python -m pip install gedidb[full]
+    $ pip install gedidb[full]
 
-This command installs additional dependencies listed in the `pyproject.toml` file under `[project.optional-dependencies]`.
-
-Development versions
+Development Versions
 --------------------
 
-For the latest development version of gediDB, install directly from the **GitLab** repository:
+To install the latest development version from GitLab:
 
 .. code-block:: bash
 
-    $ python -m pip install git+https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git
+    $ pip install git+https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git
 
 Testing
 -------
@@ -76,7 +88,7 @@ To run tests after installing gediDB, first install **pytest**:
 
 .. code-block:: bash
 
-    $ python -m pip install pytest
+    $ pip install pytest
 
 Navigate to the root directory of the gediDB repository, then run:
 

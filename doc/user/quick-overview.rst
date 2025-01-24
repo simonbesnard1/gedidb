@@ -11,6 +11,7 @@ Start by importing the **gedidb** package:
 .. code-block:: python
 
     import gedidb as gdb
+    import concurrent.futures
 
 Processing GEDI Data
 --------------------
@@ -23,18 +24,21 @@ This setup initiates the download, processing, and storage of GEDI data in your 
 
     # Paths to configuration files
     config_file = 'path/to/config_file.yml'
+    geometry = 'path/to/test.geojson'
 
-    n_workers = 4
+    # Initialize a parallel engine
+    concurrent_engine= concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
-    if __name__ == "__main__":
-
-        # Initialize the GEDIProcessor and compute
-        with gdb.GEDIProcessor(
-            config_file=config_file,
-            earth_data_dir= '/path/to/earthdata_credential/folder',
-            n_workers=n_workers,
-        ) as processor:
-            processor.compute(consolidate=True)
+    # Initialize the GEDIProcessor and compute
+    with gdb.GEDIProcessor(
+        config_file=config_file,
+        geometry=geometry,
+        start_date='2020-01-01',
+        end_date='2020-12-31',   
+        earth_data_dir= '/path/to/earthdata_credential/folder',
+        parallel_engine=concurrent_engine, 
+    ) as processor:
+        processor.compute(consolidate=True)
 
 
 In this example, the :py:class:`gedidb.GEDIProcessor` performs:
@@ -42,8 +46,6 @@ In this example, the :py:class:`gedidb.GEDIProcessor` performs:
 - **Downloading** GEDI L2A-B and L4A-C products.
 - **Filtering** data by quality.
 - **Storing** the processed data in the tileDB database.
-
-The ``n_workers=4`` argument directs **Dask** to process four data granules in parallel, while the four GEDI produc are also concurrently processed.
 
 Querying GEDI Data
 ------------------
@@ -76,7 +78,6 @@ Example query using :py:class:`gedidb.GEDIProvider`:
         end_time="2024-07-25",
         return_type='xarray'
     )
-
 
 This :py:class:`provider.get_data()` function allows you to:
 

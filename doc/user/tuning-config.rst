@@ -12,7 +12,6 @@ Why customize configuration?
 Customizing the `data_config.yml` file allows you to:
 
 - **Include new variables** or **exclude unnecessary ones** as data needs change.
-- **Adjust spatial or temporal filters** to refine the region of interest.
 
 Customizing the data configuration file
 ---------------------------------------
@@ -42,17 +41,5 @@ To add a new variable (e.g., "sensitivity") to the `L2A` product, open `data_con
           product_level: 'L2A'
 
 This configuration adds `sensitivity` to the variables processed from the `L2A` GEDI product.
-
-**Example: Modifying spatial or temporal filters**
-
-To change the region or time range for data extraction, update the `data_config.yml` file as follows:
-
-.. code-block:: yaml
-
-    region_of_interest: './path/to/new_region.geojson'  # Updated spatial area
-    start_date: '2020-01-01'                            # Updated start date
-    end_date: '2023-01-01'                              # Updated end date
-
-Ensure that `region_of_interest` points to a valid `.geojson` file with the desired geographic boundaries.
 
 By customizing these configuration files, you can adapt gediDB to handle a wide range of data needs while ensuring data consistency and efficiency.

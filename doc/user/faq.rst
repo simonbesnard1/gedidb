@@ -19,7 +19,7 @@ GediDB is a TileDB-based Python package designed to efficiently manage, query, a
 - **Efficient data storage**: Stores GEDI data using TileDB arrays, enabling optimized access and scalability.
 - **Geospatial querying**: Provides spatially enabled querying for regions of interest with support for bounding boxes and polygons.
 - **Automated processing**: Facilitates loading, pre-filtering, and processing of GEDI L2A, L2B, L4A, and L4C data products.
-- **Parallelized operations**: Leverages Dask for distributed data processing, enhancing performance on large datasets.
+- **Parallelized operations**: Leverages parallel engines (e.g., Dask) for distributed data processing, enhancing performance on large datasets.
 - **Integration with Python libraries**: Outputs data in formats compatible with pandas, geopandas, and xarray for seamless analysis.
 
 How do I set up the database for GEDI?
@@ -55,15 +55,6 @@ GEDI data can be written to the database using the :py:class:`gedidb.GEDIProcess
 1. Configure the `data_config.yml` file with paths to your GEDI HDF5 files and database settings.
 2. Use the :py:class:`gedidb.GEDIProcessor` to process and insert data into the TileDB database.
 3. Monitor logs for any errors or warnings during processing.
-
-Where can I find more examples for using gediDB?
-------------------------------------------------
-
-Refer to the :ref:`tutorials` section of the documentation for detailed examples and notebooks. These include:
-
-- Using :py:class:`gedidb.GEDIProcessor` for data ingestion and processing.
-- Querying GEDI data with :py:class:`gedidb.GEDIProvider`.
-- Combining GEDI data with other geospatial datasets using geopandas and xarray.
 
 How do I contribute to gediDB development?
 ------------------------------------------
