@@ -1,27 +1,22 @@
-# Spatial and temporal parameters
-region_of_interest: './path/to/file.geojson'
-start_date: '2020-01-01'
-end_date: '2020-12-31'
-
 # database parameters
 tiledb:
   storage_type: 'local'
   local_path: 'path/to/your/database'     # TileDB URI for storing data
-  overwrite: true                                  # Whether to overwrite existing arrays
+  overwrite: true                         # Whether to overwrite existing arrays
   temporal_tiling: "weekly"
   chunk_size: 25
-  time_range:                                      # Global time range for data
+  time_range:                             # Global time range for data
     start_time: "2018-01"
     end_time: "2030-12-31"
-  spatial_range:                                   # Global spatial range (bounding box)
+  spatial_range:                          # Global spatial range (bounding box)
     lat_min: -56.0
     lat_max: 56.0
     lon_min: -180.0
     lon_max: 180.0
   dimensions: ['latitude', 'longitude', 'time']
   consolidation_settings:
-   fragment_size: 200_000_000_000 # 100GB fragment size
-   memory_budget: "150000000000"  # 150GB total memory budget
+   fragment_size: 200_000_000_000    # 100GB fragment size
+   memory_budget: "150000000000"     # 150GB total memory budget
    memory_budget_var: "50000000000"  # 50GB for variable-sized attributes
   cell_order: "hilbert"
   capacity: 100000

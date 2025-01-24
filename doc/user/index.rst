@@ -21,7 +21,6 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
    :maxdepth: 1
 
    fundamentals   
-   tutorials
 
 .. toctree::
    :caption: Advanced Usage

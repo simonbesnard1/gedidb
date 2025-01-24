@@ -8,8 +8,10 @@ gediDB Documentation
    :maxdepth: 1
    :hidden:
 
-   User Guide <user/index>
    Installation <user/installing>
+   User Guide <user/index>
+   API Reference <user/api>
+   Examples <auto_examples/index>
    Database Setup <user/database>
    Development <user/contributing>
 

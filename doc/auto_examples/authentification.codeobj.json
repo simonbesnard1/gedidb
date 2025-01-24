@@ -1,0 +1,20 @@
+{
+ "EarthDataAuthenticator": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "gedidb.downloader.authentication",
+   "module_short": "gedidb.downloader.authentication",
+   "name": "EarthDataAuthenticator"
+  }
+ ],
+ "Path.home": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pathlib.Path",
+   "module_short": "pathlib.Path",
+   "name": "home"
+  }
+ ]
+}

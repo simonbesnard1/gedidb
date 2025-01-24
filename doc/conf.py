@@ -45,7 +45,16 @@ extensions = [
     "sphinx_design",
     "sphinx_inline_tabs",
     "sphinx_remove_toctrees",
+    "sphinx_gallery.gen_gallery"
+
 ]
+
+# Gallery configuration
+sphinx_gallery_conf = {
+     'filename_pattern': '/plot_',
+     'examples_dirs': 'gallery',   # path to your example scripts
+     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+}
 
 skippable_extensions = [
     ("breathe", "skip generating C/C++ API from comment blocks."),
@@ -66,7 +75,7 @@ source_suffix = ".rst"
 # General substitutions.
 project = "gediDB"
 year = datetime.now().year
-copyright = f"2025-{year}, gediDB Developers"
+copyright = f"2024-{year}, gediDB Developers"
 
 version = re.sub(r'(\d+\.\d+)\.\d+(.*)', r'\1\2', gedidb.__version__)
 version = re.sub(r'(\.dev\d+).*?$', r'\1', version)
@@ -78,6 +87,7 @@ release = gedidb.__version__
 # today = ''
 # Else, today_fmt is used as the format for a strftime call.
 today_fmt = "%B %d, %Y"
+html_last_updated_fmt = today_fmt
 
 # List of documents that shouldn't be included in the build.
 # unused_docs = []
@@ -89,9 +99,7 @@ default_role = "autolink"
 # for source files.
 exclude_dirs = []
 
-exclude_patterns = []
-if sys.version_info[:2] >= (3, 12):
-    exclude_patterns += ["reference/distutils.rst"]
+exclude_patterns = ['gallery/README.rst']
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 add_function_parentheses = False
@@ -173,7 +181,9 @@ def setup(app):
 # HTML output
 # -----------------------------------------------------------------------------
 
-
+# Set up the version switcher.  The versions.json is stored in the doc repo.
+# Determine the version to display in the switcher
+    
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "logo": {
@@ -184,13 +194,13 @@ html_theme_options = {
     "collapse_navigation": True,
     
     "header_links_before_dropdown": 6,
-    # Add light/dark mode and documentation version switcher:
     "navbar_end": [
         "search-button",
         "theme-switcher",
         "navbar-icon-links"
     ],
     "navbar_persistent": [],
+    "show_version_warning_banner": True,
 }
 
 
@@ -198,7 +208,7 @@ html_title = "%s v%s Manual" % (project, version)
 html_static_path = ["_static"]
 html_last_updated_fmt = "%b %d, %Y"
 html_css_files = ["gedidb.css"]
-html_context = {"default_mode": "light"}
+html_context = {"default_mode": "dark"}
 html_use_modindex = True
 html_copy_source = False
 html_domain_indices = False

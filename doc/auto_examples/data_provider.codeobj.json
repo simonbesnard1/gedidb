@@ -1,0 +1,20 @@
+{
+ "GEDIProvider": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "gedidb.providers.gedi_provider",
+   "module_short": "gedidb.providers.gedi_provider",
+   "name": "GEDIProvider"
+  }
+ ],
+ "gpd.read_file": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "geopandas",
+   "module_short": "geopandas",
+   "name": "read_file"
+  }
+ ]
+}

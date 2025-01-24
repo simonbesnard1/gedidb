@@ -25,7 +25,7 @@ By overcoming GEDI’s high dimensionality and spatial complexities, gediDB offe
 
  - **Efficient, region-specific querying**: Quickly filter data by regions, variables, and time intervals for targeted analysis.
  - **Advanced geospatial querying**: Harness **tileDB** for spatially enabled data retrieval within specified boundaries.
- - **Distributed processing**: Leverage **Dask** to parallelize and scale data processing, ensuring large-scale GEDI datasets are handled efficiently.
+ - **Distributed processing**: Leverage parallel engines to parallelize and scale data processing, ensuring large-scale GEDI datasets are handled efficiently.
  - **Unified GEDI products**: Easily combine data from multiple GEDI levels (i.e., Levels 2A, 2B, 4A and 4C) into a single dataset, enabling more comprehensive analysis.
 
 By abstracting the complexity of raw GEDI HDF5 files, gediDB helps researchers to focus on their scientific objectives without data management bottlenecks.

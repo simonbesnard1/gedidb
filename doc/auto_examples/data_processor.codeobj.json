@@ -1,0 +1,38 @@
+{
+ "Client": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "dask.distributed",
+   "module_short": "dask.distributed",
+   "name": "Client"
+  }
+ ],
+ "LocalCluster": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "dask.distributed",
+   "module_short": "dask.distributed",
+   "name": "LocalCluster"
+  }
+ ],
+ "concurrent.futures.ThreadPoolExecutor": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "concurrent.futures",
+   "module_short": "concurrent.futures",
+   "name": "ThreadPoolExecutor"
+  }
+ ],
+ "gdb.GEDIProcessor": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "gedidb",
+   "module_short": "gedidb",
+   "name": "GEDIProcessor"
+  }
+ ]
+}
