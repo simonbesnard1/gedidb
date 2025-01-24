@@ -13,5 +13,5 @@ title: "gediDB"
 abstract: "A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data."
 license: "EUPL-1.2"
 doi: "https://doi.org/10.5281/zenodo.13885229"
-repository-code: "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
+repository-code: "https://git.gfz-potsdam.de/global-land-monitoring/gedidb"
 
