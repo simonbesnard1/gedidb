@@ -14,6 +14,7 @@ import logging
 from typing import Dict, Any, List, Optional
 import os
 import concurrent.futures
+from dask.distributed import Client
 from retry import retry
 
 from gedidb.utils.geo_processing import (
@@ -173,18 +174,21 @@ class GEDIDatabase:
         return quadrants
 
     def consolidate_fragments(
-        self, consolidation_type: str = "default", n_workers: int = 1
+        self,
+        consolidation_type: str = "default",
+        parallel_engine: Optional[object] = None,
     ) -> None:
         """
         Consolidate fragments, metadata, and commit logs for the array to optimize storage and access.
-
+    
         Parameters:
         ----------
         consolidation_type : str, default='default'
             Type of consolidation to perform. Options: 'default', 'spatial'.
-        n_workers : int, default=1
-            Number of workers for parallel consolidation.
-
+        parallel_engine : object, optional
+            Parallelization engine such as `concurrent.futures.Executor` or
+            `dask.distributed.Client`. Defaults to single-threaded execution.
+    
         Raises:
         -------
         ValueError:
@@ -196,33 +200,34 @@ class GEDIDatabase:
             raise ValueError(
                 f"Invalid consolidation_type: {consolidation_type}. Choose 'default' or 'spatial'."
             )
-
+    
         logger.info(
             f"Starting consolidation process for array: {self.array_uri} (type: {consolidation_type})"
         )
-
+    
         try:
-            # Consolidate fragments based on type
+            # Generate the consolidation plan based on type
             if consolidation_type == "default":
                 cons_plan = self._generate_default_consolidation_plan()
             elif consolidation_type == "spatial":
                 cons_plan = SpatialConsolidationPlanner.compute(
                     self.array_uri, self.ctx
                 )
-
-            # Perform parallel consolidation
-            self._execute_consolidation(cons_plan, n_workers)
-
+    
+            # Perform consolidation using the provided parallel engine
+            self._execute_consolidation(cons_plan, parallel_engine)
+    
             # Consolidate and vacuum metadata, fragment metadata, and commit logs
             self._consolidate_and_vacuum("array_meta")
             self._consolidate_and_vacuum("fragment_meta")
             self._consolidate_and_vacuum("commits")
-
+    
             logger.info(f"Consolidation complete for array: {self.array_uri}")
-
+    
         except tiledb.TileDBError as e:
             logger.error(f"Error during consolidation of {self.array_uri}: {e}")
             raise
+
 
     def _generate_default_consolidation_plan(self):
         """Generate a default consolidation plan for fragments."""
@@ -232,24 +237,26 @@ class GEDIDatabase:
             )
             return tiledb.ConsolidationPlan(self.ctx, array_, fragment_size)
 
-    def _execute_consolidation(self, cons_plan, n_workers: int):
+    def _execute_consolidation(self, cons_plan, parallel_engine: Optional[object] = None):
         """
-        Execute the consolidation tasks in parallel.
-
+        Execute the consolidation tasks using the specified parallel engine.
+    
         Parameters:
         ----------
         cons_plan : List[Dict]
             Consolidation plan generated for the array.
-        n_workers : int
-            Number of workers for parallel execution.
+        parallel_engine : object, optional
+            Parallelization engine such as `concurrent.futures.Executor` or
+            `dask.distributed.Client`. Defaults to single-threaded execution.
         """
         if not cons_plan:
             logger.warning("No consolidation plan generated. Skipping consolidation.")
             return
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as executor:
+    
+        if isinstance(parallel_engine, concurrent.futures.Executor):
+            # Use the provided concurrent.futures.Executor
             futures = [
-                executor.submit(
+                parallel_engine.submit(
                     tiledb.consolidate,
                     self.array_uri,
                     ctx=self.ctx,
@@ -259,7 +266,29 @@ class GEDIDatabase:
                 for plan_ in cons_plan
             ]
             concurrent.futures.wait(futures)
-
+        elif isinstance(parallel_engine, Client):
+            # Use Dask client if provided
+            futures = [
+                parallel_engine.submit(
+                    tiledb.consolidate,
+                    self.array_uri,
+                    ctx=self.ctx,
+                    config=self.tiledb_config,
+                    fragment_uris=plan_["fragment_uris"],
+                )
+                for plan_ in cons_plan
+            ]
+            parallel_engine.gather(futures)
+        else:
+            # Default to single-threaded execution
+            for plan_ in cons_plan:
+                tiledb.consolidate(
+                    self.array_uri,
+                    ctx=self.ctx,
+                    config=self.tiledb_config,
+                    fragment_uris=plan_["fragment_uris"],
+                )
+    
         # Vacuum fragments after consolidation
         self._vacuum("fragments")
 

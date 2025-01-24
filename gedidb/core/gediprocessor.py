@@ -275,7 +275,7 @@ class GEDIProcessor:
                 logger.info("All requested granules are already processed.")
                 if consolidate:
                     self.database_writer.consolidate_fragments(
-                        consolidation_type=consolidation_type, n_workers=os.cpu_count()
+                        consolidation_type=consolidation_type, parallel_engine=None
                     )
                 return
     
@@ -286,7 +286,7 @@ class GEDIProcessor:
             # Consolidate fragments if required
             if consolidate:
                 self.database_writer.consolidate_fragments(
-                    consolidation_type=consolidation_type, n_workers=os.cpu_count()
+                    consolidation_type=consolidation_type, parallel_engine=None
                 )
             logger.info("GEDI granule processing completed successfully.")
         except Exception as e:
