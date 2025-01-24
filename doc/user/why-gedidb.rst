@@ -30,6 +30,18 @@ By overcoming GEDI’s high dimensionality and spatial complexities, gediDB offe
 
 By abstracting the complexity of raw GEDI HDF5 files, gediDB helps researchers to focus on their scientific objectives without data management bottlenecks.
 
+What does processing mean in gediDB?
+------------------------------------
+
+Processing within gediDB involves the following steps:
+
+ - **Data Transformation**: Conversion of raw HDF5 granules into TileDB arrays for efficient storage and querying.
+ - **Spatial and Temporal Restructuring**: Reorganizing the data from orbit-based granules into a spatially and temporally indexed format to facilitate region-specific and time-based analyses.
+ - **Filtering**: Applying user-defined filters, such as quality flags or exclusion criteria, to reduce data size and focus on relevant observations.
+ - **Metadata Enhancement**: Adding metadata that improves dataset usability, such as variable descriptions and dataset provenance information.
+ 
+It is important to note that gediDB maintains the scientific integrity of the original GEDI measurements. No temporal aggregation, spatial binning, or correction factors are applied unless explicitly requested by the user.
+
 GEDI data structure and gediDB’s solution
 -----------------------------------------
 
@@ -44,7 +56,9 @@ Core components of gediDB
 
 GediDB's two primary modules facilitate data processing and access:
 
-1. :py:class:`gedidb.GEDIProcessor`: This component manages data processing tasks, ensuring efficient handling and integrity across large GEDI datasets.
+1. :py:class:`gedidb.GEDIProcessor`: This component manages data processing tasks, ensuring efficient handling and integrity across large GEDI datasets. It includes features for:
+   - Transforming orbit-based HDF5 data into spatially and temporally indexed TileDB arrays.
+   - Filtering and validating data during processing.
 
 2. :py:class:`gedidb.GEDIProvider`: The high-level module for querying GEDI data stored in **tileDB** arrays. It retrieves data as **Pandas** DataFrames or **xarray** Datasets, enabling users to specify variables, apply spatial filters, and set time ranges.
 
