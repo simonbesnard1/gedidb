@@ -18,13 +18,13 @@ https://anaconda.org/conda-forge/gedidb)
 
 **gediDB** is an open-source Python package designed to streamline the processing, analysis, and management of GEDI L2A-B and L4A-C data. This toolbox enables efficient and flexible data querying and management of large GEDI datasets stored with [TileDB](https://tiledb.com/), a high-performance, multi-dimensional array database.
 
-**gediDB** integrates key functionalities such as structured data querying, multi-dimensional data processing, and metadata management. With built-in support for Dask, the toolbox ensures scalability for large datasets, allowing efficient parallel processing on local machines or clusters.
+**gediDB** integrates key functionalities such as structured data querying, multi-dimensional data processing, and metadata management. With built-in support for parallel engines (e.g. Dask), the toolbox ensures scalability for large datasets, allowing efficient parallel processing on local machines or clusters.
 
 ## Key Features of gediDB
 
 - **TileDB-Based Storage**: GEDI data is stored and managed in TileDB arrays, providing efficient, scalable, multi-dimensional data storage, enabling fast and flexible access to large volumes of data.
 - **Flexible Data Querying**: Easily query GEDI data across spatial, temporal, and variable dimensions. Access data within bounding boxes, or retrieve the nearest shots to a specific location, using intuitive filtering options for precision.
-- **Parallel Processing with Dask**: Process large GEDI datasets in parallel with Dask, enabling concurrent downloading, processing, and TileDB insertion of GEDI products. The number of concurrent processes can be easily controlled based on available system resources.
+- **Parallel Processing**: Process large GEDI datasets in parallel, enabling concurrent downloading, processing, and TileDB insertion of GEDI products. The number of concurrent processes can be easily controlled based on available system resources.
 - **Metadata-Driven**: Maintain and manage metadata for each dataset, ensuring that important contextual information like units, descriptions, and source details are stored and accessible.
 - **Geospatial Data Management**: Integrate seamlessly with tileDB to enable spatial queries, transformations, and geospatial analyses.
 
