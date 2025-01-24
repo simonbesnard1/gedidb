@@ -44,10 +44,10 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
-documentation = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/docs"
-source = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox"
-tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox/issues"
+homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb"
+documentation = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb/docs"
+source = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb"
+tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb/issues"
 
 [project.optional-dependencies]
 accel = [
