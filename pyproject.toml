@@ -36,6 +36,7 @@ dependencies = [
     "h5py",
     "numpy",
     "pandas",
+    "requests",
     "retry",
     "tiledb",
     "xarray"
