@@ -108,4 +108,3 @@ data_dataframe = provider.get_data(
 # Print the retrieved `pandas.DataFrame`
 print("Retrieved data as a pandas.DataFrame:")
 print(data_dataframe)
-

@@ -94,8 +94,7 @@ class GEDIProcessor:
         
         # Validate parallel_engine
         if parallel_engine is not None and not (
-            isinstance(parallel_engine, concurrent.futures.Executor) or
-            isinstance(parallel_engine, Client)
+            isinstance(parallel_engine, concurrent.futures.Executor) or isinstance(parallel_engine, Client)
         ):
             raise ValueError(
                 "The 'parallel_engine' argument must be either a 'concurrent.futures.Executor', "
@@ -448,4 +447,3 @@ class GEDIProcessor:
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the runtime context and close resources."""
         self.close()
-
