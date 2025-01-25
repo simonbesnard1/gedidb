@@ -42,6 +42,14 @@ Processing within gediDB involves the following steps:
  
 It is important to note that gediDB maintains the scientific integrity of the original GEDI measurements. No temporal aggregation, spatial binning, or correction factors are applied unless explicitly requested by the user.
 
+.. figure:: /_static/images/GEDIDB_FLOWCHART.png
+   :alt: A visual overview of gediDB
+   :align: center
+   :width: 100%
+
+   **Figure 1**: A schematic representation of the gediDB data workflow.
+
+
 GEDI data structure and gediDB’s solution
 -----------------------------------------
 
