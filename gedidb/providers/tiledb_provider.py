@@ -61,17 +61,23 @@ class TileDBProvider:
             raise ValueError(f"Invalid 'storage_type': {storage_type}. Must be 'local' or 's3'.")
 
     def _initialize_s3_context(
-        self, credentials: dict, url: str, region: str
+        self, credentials: Optional[dict], url: str, region: str
     ) -> tiledb.Ctx:
-        return tiledb.Ctx(
-            {
-                "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
-                "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
-                "vfs.s3.endpoint_override": url,
-                "vfs.s3.region": region,
-                "py.init_buffer_bytes": "512000000",  # Increase buffer size
-            }
-        )
+        config = {
+            "vfs.s3.endpoint_override": url,
+            "vfs.s3.region": region,
+            "py.init_buffer_bytes": "512000000",  # Increase buffer size
+        }
+        
+        # Add credentials if provided
+        if credentials:
+            config.update({
+                "vfs.s3.aws_access_key_id": credentials.get("AccessKeyId", ""),
+                "vfs.s3.aws_secret_access_key": credentials.get("SecretAccessKey", "")
+            })
+        
+        return tiledb.Ctx(config)
+
 
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx(
