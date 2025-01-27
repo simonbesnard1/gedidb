@@ -83,7 +83,7 @@ To install the latest development version from GitLab:
 
 .. code-block:: bash
 
-    $ pip install git+https://git.gfz-potsdam.de/global-land-monitoring/gedi-toolbox.git
+    $ pip install git+https://git.gfz-potsdam.de/global-land-monitoring/gedidb.git
 
 Testing
 -------
