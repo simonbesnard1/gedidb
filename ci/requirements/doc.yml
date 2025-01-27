@@ -34,7 +34,7 @@ dependencies:
   - sphinx-remove-toctrees
   - sphinxext-opengraph
   - sphinxext-rediraffe
-  - sphinx_gallery
+  - sphinx-gallery
   - pip:
       - sphinxcontrib-mermaid
       # relative to this file. Needs to be editable to be accepted.
