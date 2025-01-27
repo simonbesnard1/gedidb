@@ -14,10 +14,10 @@ build-job:
     - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
     - conda activate gedidb-docs  # Activate the environment
     # Build the documentation
-    - sphinx-build -b html doc/ public  # Output directly to public for GitLab Pages
+    - sphinx-build -b html doc/ doc/_build/html
   artifacts:
     paths:
-      - public  # Store the build results as artifacts
+      - doc/_build/html  # Store the build results as artifacts
     expire_in: 1 day     # Optional: Define how long to keep artifacts
 
 setup-job:
@@ -66,11 +66,15 @@ pages:
     - build-job
     - unit-test-job
   script:
-    # Ensure public directory is clean
+    # Clean and prepare the public directory
     - rm -rf public
+    - mkdir -p public
+
+    # Move the built documentation into the /doc subdirectory of public
+    - cp -r doc/_build/html/* public/
 
     # Check if everything is in the correct directory
-    - ls -al public
+    - ls -al public/
   artifacts:
     paths:
       - public
