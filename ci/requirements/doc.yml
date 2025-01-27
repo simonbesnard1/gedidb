@@ -1,4 +1,4 @@
-name: gedidb-docs
+name: gedidb-doc
 channels:
   # Don't change to pkgs/main, as it causes random timeouts in readthedocs
   - conda-forge
