@@ -9,7 +9,7 @@ How should I cite gediDB?
 
 Please use the following citation when referencing gediDB in your work:
 
-> Besnard, S., Dombrowski, F., & Holcomb, A. (2024). gediDB (2.0). Zenodo. https://doi.org/10.5281/zenodo.13885229
+> Besnard, S., Dombrowski, F., & Holcomb, A. (2025). gediDB (2025.2.0). Zenodo. https://doi.org/10.5281/zenodo.13885229
 
 What are the main features of gediDB?
 -------------------------------------
