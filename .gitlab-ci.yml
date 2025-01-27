@@ -66,19 +66,15 @@ pages:
     - build-job
     - unit-test-job
   script:
-    # Create the public directory
+    # Clean and prepare the public directory
     - rm -rf public
-    - mkdir -p public/doc/_static
-    - mkdir -p public/coverage
+    - mkdir -p public/doc
 
-    # Copy over the docs
+    # Move the built documentation into the /doc subdirectory of public
     - cp -r doc/_build/html/* public/doc/
 
-    # Copy over the coverage reports
-    - cp -r htmlcov/* public/coverage/
-
-    # Check if everything is working
-    - ls -al public
+    # Check if everything is in the correct directory
+    - ls -al public/doc
   artifacts:
     paths:
       - public
