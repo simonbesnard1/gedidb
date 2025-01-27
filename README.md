@@ -8,7 +8,7 @@
 
 [![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/pipelines)
 [![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/coverage/)
-[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/doc/)
+[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/gedidb.svg?label=PyPI%20downloads)](
 https://pypi.org/project/gedidb/)
@@ -34,12 +34,12 @@ https://anaconda.org/conda-forge/gedidb)
 ## Documentation
 
 Learn more about gediDB in its official documentation at
-<https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/doc/>.
+<https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/>.
 
 ## Contributing
 
 You can find information about contributing to gediDB on our
-[Contributing page](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/doc/user/contributing.html).
+[Contributing page](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/user/contributing.html).
 
 ## History
 
