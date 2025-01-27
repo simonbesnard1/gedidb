@@ -13,7 +13,6 @@ build-job:
     - conda config --set always_yes yes
     - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
     - conda activate gedidb-docs  # Activate the environment
-    - pip install sphinx_gallery
     # Build the documentation
     - sphinx-build -b html doc/ doc/_build/html
   artifacts:

@@ -1,4 +1,4 @@
-name: gedidb-doc
+name: gedidb-docs
 channels:
   # Don't change to pkgs/main, as it causes random timeouts in readthedocs
   - conda-forge
@@ -34,6 +34,7 @@ dependencies:
   - sphinx-remove-toctrees
   - sphinxext-opengraph
   - sphinxext-rediraffe
+  - sphinx_gallery
   - pip:
       - sphinxcontrib-mermaid
       # relative to this file. Needs to be editable to be accepted.
