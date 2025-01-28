@@ -24,6 +24,7 @@ setup-job:
   stage: build
   script:
     - git fetch --tags  # Ensure tags are available
+    - git describe --tags  # Debugging step
     - python -m venv .venv
     - source .venv/bin/activate
     - pip install --no-cache-dir -e .
