@@ -1,6 +1,5 @@
 name: gedidb-docs
 channels:
-  # Don't change to pkgs/main, as it causes random timeouts in readthedocs
   - conda-forge
   - nodefaults
 dependencies:
@@ -9,19 +8,13 @@ dependencies:
   - cfgrib
   - kerchunk
   - hypothesis>=6.75.8
-  - ipykernel
-  - ipywidgets  # silence nbsphinx warning
-  - ipython
-  - jupyter_client
   - matplotlib-base
   - nbsphinx
   - packaging>=21.3
   - pooch
-  - pip
-  - pre-commit
   - pyarrow
   - pyproj
-  - psycopg2-binary  # Add this to ensure binary is used
+  - psycopg2
   - setuptools
   - sparse
   - sphinx-autosummary-accessors
@@ -29,13 +22,13 @@ dependencies:
   - sphinx-copybutton
   - sphinx-design
   - sphinx-inline-tabs
-  - sphinx>=5.0,<7.0 # https://github.com/executablebooks/sphinx-book-theme/issues/749
+  - sphinx>=5.0,<7.0
   - sphinxcontrib-srclinks
   - sphinx-remove-toctrees
   - sphinxext-opengraph
   - sphinxext-rediraffe
   - sphinx-gallery
+  - pip
   - pip:
       - sphinxcontrib-mermaid
-      # relative to this file. Needs to be editable to be accepted.
       - -e ../..

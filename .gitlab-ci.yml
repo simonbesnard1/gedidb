@@ -6,19 +6,30 @@ stages:          # List of stages for jobs, and their order of execution
 build-job:
   stage: build
   script:
-    # Install conda (if not already installed on the runner)
-    - wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-    - bash miniconda.sh -b -p $HOME/miniconda
+    # Install conda only if not already installed
+    - if [ ! -d "$HOME/miniconda" ]; then
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh &&
+        bash miniconda.sh -b -p $HOME/miniconda;
+      fi
     - source "$HOME/miniconda/etc/profile.d/conda.sh"
     - conda config --set always_yes yes
-    - conda env create -f ci/requirements/doc.yml  # Use your doc.yml to create the environment
-    - conda activate gedidb-docs  # Activate the environment
+    - conda update -n base -c defaults conda  # Update conda to avoid bugs
+    - conda clean --all --yes  # Clean cache
+    # Create or update the conda environment
+    - conda env update --file ci/requirements/doc.yml --name gedidb-docs || conda env create --file ci/requirements/doc.yml
+    - source $HOME/miniconda/bin/activate gedidb-docs  # Activate the environment
+    # Reinstall local gediDB in editable mode
+    - pip uninstall gedidb -y  # Remove any existing version
+    - pip install --force-reinstall -e .  # Install the local version
+    # Debug the installed version
+    - python -c "import gedidb; print(gedidb.__version__)"
     # Build the documentation
-    - sphinx-build -b html doc/ doc/_build/html
+    - sphinx-build -W -b html doc/ doc/_build/html
   artifacts:
     paths:
       - doc/_build/html  # Store the build results as artifacts
     expire_in: 1 day     # Optional: Define how long to keep artifacts
+
 
 setup-job:
   stage: build
