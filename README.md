@@ -45,6 +45,14 @@ You can find information about contributing to gediDB on our
 
 The development of the gediDB package began during the PhD of Amelia Holcomb, who initially created part of this toolset to analyze and manage GEDI data for her research. Recognizing the potential of her work to benefit the broader scientific community, the [Global Land Monitoring](https://www.gfz-potsdam.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring) team collaborated with Amelia in March 2024 to expand and optimize her code, transforming it into a scalable and versatile Python package named gediDB. This collaboration refined the toolbox to handle large-scale datasets with TileDB, integrate parallel processing, and incorporate a robust querying and metadata management system. Today, gediDB is designed to help researchers in ecological and environmental sciences by making GEDI data processing more efficient and accessible.
 
+## About the authors
+
+Simon Besnard, a senior researcher in the Global Land Monitoring Group at GFZ Helmholtz Centre Potsdam, studies terrestrial ecosystems' dynamics and their feedback on environmental conditions. He specializes in developing methods to analyze large EO and climate datasets to understand ecosystem functioning in a changing climate. His current research focuses on forest structure changes over the past decade and their links to the carbon cycle. 
+
+Felix Dombrowski is a Bachelor’s student in Computer Science at the University of Potsdam and a research intern in the Global Land Monitoring Group at GFZ Helmholtz Centre Potsdam. At GFZ, his work has focused on developing toolboxes to process Earth Observation data efficiently.
+
+Amelia Holcomb is a PhD candidate in Computer Science at the University of Cambridge, researching remote sensing and machine learning to study carbon sequestration and forest regrowth. Previously, she worked as a site reliability engineer at Google on Bigtable. She holds an MMath from the University of Waterloo and a B.A. in Mathematics from Yale.
+
 ## Contact
 
 For any questions or inquiries, please contact:
