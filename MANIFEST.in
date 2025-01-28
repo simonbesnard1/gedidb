@@ -2,12 +2,15 @@
 include README.md
 include LICENSE
 
-# Include documentation
-recursive-include doc *.rst
-
 # Include the CITATION.cff file
 include CITATION.cff
 
-# Include all YAML
-include meta.yml
+# Exclude test
+exclude gedidb/tests/*
+exclude gedidb/tests/**/*.*
+
+# Exclude scripts
+exclude scripts
+
+
 
