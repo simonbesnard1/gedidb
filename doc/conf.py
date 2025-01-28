@@ -8,13 +8,13 @@
 import os
 import sys
 import importlib
-import re
 import gedidb
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from datetime import datetime
 import inspect
+from importlib.metadata import version as version_
 
 # Minimum version, enforced by sphinx
 needs_sphinx = "4.3"
@@ -77,10 +77,8 @@ project = "gediDB"
 year = datetime.now().year
 copyright = f"2024-{year}, gediDB Developers"
 
-version = re.sub(r'(\d+\.\d+)\.\d+(.*)', r'\1\2', gedidb.__version__)
-version = re.sub(r'(\.dev\d+).*?$', r'\1', version)
 # The full version, including alpha/beta/rc tags.
-release = gedidb.__version__
+version = version_("gedidb")
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
