@@ -31,5 +31,6 @@ dependencies:
   - sphinx-gallery
   - pip
   - pip:
+      - ipython
       - sphinxcontrib-mermaid
       - -e ../..
