@@ -118,6 +118,5 @@ where = ["."]
 exclude = ["gedidb/tests*", "gedidb/tests/*", "gedidb/tests/**/*", "scripts*"]
 
 [tool.setuptools_scm]
-local_scheme = "dirty-tag"
 fallback_version = "9999"
 
