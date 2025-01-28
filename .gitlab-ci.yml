@@ -18,9 +18,6 @@ build-job:
     # Create or update the conda environment
     - conda env update --file ci/requirements/doc.yml --name gedidb-docs || conda env create --file ci/requirements/doc.yml
     - source $HOME/miniconda/bin/activate gedidb-docs  # Activate the environment
-    # Reinstall local gediDB in editable mode
-    - pip uninstall gedidb -y  # Remove any existing version
-    - pip install --force-reinstall -e .  # Install the local version
     # Debug the installed version
     - python -c "import gedidb; print(gedidb.__version__)"
     # Build the documentation
