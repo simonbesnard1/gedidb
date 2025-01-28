@@ -17,6 +17,7 @@ dependencies:
   - psycopg2
   - setuptools
   - sparse
+  - breathe
   - sphinx-autosummary-accessors
   - sphinx-book-theme<=1.0.1
   - sphinx-copybutton
