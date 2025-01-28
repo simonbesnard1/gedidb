@@ -20,7 +20,8 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
    :caption: Fundamentals
    :maxdepth: 1
 
-   fundamentals   
+   fundamentals
+   tiledb_database   
 
 .. toctree::
    :caption: Advanced Usage

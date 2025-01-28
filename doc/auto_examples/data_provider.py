@@ -18,7 +18,7 @@ Before running this example:
 """
 
 import geopandas as gpd
-from gedidb.providers.gedi_provider import GEDIProvider
+import gedidb as gdb
 
 # Configure the TileDB storage backend
 storage_type = "local"  # Options: "local" or "s3"
@@ -26,7 +26,7 @@ local_path = "/path/to/processed/gedi/data"
 s3_bucket = None  # Only required if using "s3"
 
 # Initialize the GEDIProvider
-provider = GEDIProvider(
+provider = gdb.GEDIProvider(
     storage_type=storage_type,
     local_path=local_path,
     s3_bucket=s3_bucket,

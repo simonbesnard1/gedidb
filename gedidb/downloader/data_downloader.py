@@ -184,7 +184,6 @@ class H5FileDownloader:
 
         # Check if we already have a fully downloaded file:
         if final_path.exists():
-            logger.info(f"File already exists for {granule_key}, skipping download.")
             return granule_key, (product.value, str(final_path))
 
         # If we have a partial file from a previous attempt, get its size:

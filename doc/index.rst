@@ -10,9 +10,9 @@ gediDB Documentation
 
    Installation <user/installing>
    User Guide <user/index>
+   GEDI Global Database <user/tiledb_database>
    API Reference <user/api>
    Examples <auto_examples/index>
-   Database Setup <user/database>
    Development <user/contributing>
 
 **Version**: |version|
