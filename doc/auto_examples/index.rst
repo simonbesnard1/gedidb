@@ -12,6 +12,23 @@ Gallery
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to retrieve the list of variables stored in a TileDB array using the GEDIProvider class from the gedidb package. The output is a pandas.DataFrame containing variable names, descriptions, and metadata.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_get_variable_list_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_get_variable_list.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Retrieve List of Variables in TileDB Array</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to authenticate with the NASA EarthData API using the EarthDataAuthenticator class. The authentication process involves managing netrc and cookie files to ensure seamless automated login.">
 
 .. only:: html
@@ -71,6 +88,7 @@ Gallery
 .. toctree::
    :hidden:
 
+   /auto_examples/get_variable_list
    /auto_examples/authentification
    /auto_examples/data_processor
    /auto_examples/data_provider

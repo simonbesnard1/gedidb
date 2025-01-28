@@ -3,7 +3,7 @@ tiledb:
   storage_type: 'local'
   local_path: 'path/to/your/database'     # TileDB URI for storing data
   overwrite: true                         # Whether to overwrite existing arrays
-  temporal_tiling: "weekly"
+  temporal_batching: "weekly"
   chunk_size: 25
   time_range:                             # Global time range for data
     start_time: "2018-01"

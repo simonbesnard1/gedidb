@@ -23,7 +23,7 @@ The following is an example of the code provided in the `data_config.yml` file:
       storage_type: 'local'                             # either local or s3
       local_path: ''                                    # TileDB URI for storing data
       overwrite: true                                   # Whether to overwrite existing arrays
-      temporal_tiling: "weekly"                         # either daily or weekly
+      temporal_batching: "weekly"                       # either daily or weekly
       chunk_size: 25                                    # chunk siz ein degrees for spatial chunks
       time_range:                                       # Global time range for data
         start_time: "2018-01"                           # Global start time for data
@@ -56,11 +56,12 @@ The following is an example of the code provided in the `data_config.yml` file:
 3. **overwrite**:
    A Boolean flag indicating whether to overwrite existing arrays when creating new ones.
 
-4. **temporal_tiling**:
-   Specifies the granularity for time-based tiling:
+4. **temporal_batching**:
+   Specifies the granularity for time-based batching:
 
-   - `daily`: Tiles are created for daily intervals.
-   - `weekly`: Tiles are created for weekly intervals.
+   - `daily`: Batches are created for daily intervals.
+   - `weekly`: Batches are created for weekly intervals.
+   - If not provided all the granules will be processed in one batch
 
 5. **chunk_size**:
    Defines the size of spatial chunks (in degrees) for tiling. Adjusting this can affect query performance and storage efficiency.

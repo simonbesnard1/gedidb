@@ -331,11 +331,22 @@ class GEDIProcessor:
         """
         Process unprocessed granules in parallel using the selected parallelization engine.
         """
-        # Add temporal tiling for unprocessed granules
-        unprocessed_temporal_cmr_data = _temporal_tiling(
-            unprocessed_cmr_data, self.data_info["tiledb"]["temporal_tiling"]
-        )
-    
+        # Check the temporal tiling configuration
+        temporal_batching = self.data_info["tiledb"].get("temporal_batching", None)
+        
+        if temporal_batching == "daily" or temporal_batching == "weekly":
+            # Apply temporal tiling based on the specified configuration
+            unprocessed_temporal_cmr_data = _temporal_tiling(unprocessed_cmr_data, temporal_batching)
+        elif temporal_batching is None:
+            # No tiling, process all granules as a single batch
+            unprocessed_temporal_cmr_data = {"all": unprocessed_cmr_data}
+        else:
+            # Raise an error for invalid temporal tiling options
+            raise ValueError(
+                f"Invalid temporal batching option: '{temporal_batching}'. "
+                "It must be one of ['daily', 'weekly', None]."
+            )
+
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
             futures = []
             granule_ids = list(granules.keys())

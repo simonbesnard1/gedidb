@@ -7,14 +7,5 @@
    "module_short": "gedidb",
    "name": "GEDIProvider"
   }
- ],
- "gpd.read_file": [
-  {
-   "is_class": false,
-   "is_explicit": false,
-   "module": "geopandas",
-   "module_short": "geopandas",
-   "name": "read_file"
-  }
  ]
 }
