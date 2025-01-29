@@ -24,7 +24,7 @@ from gedidb.utils.constants import GediProduct
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.CRITICAL)
 
 class GEDIDownloader:
     """
