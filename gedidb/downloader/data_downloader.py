@@ -30,6 +30,7 @@ class WarningFilter(logging.Filter):
     def filter(self, record):
         return record.levelno != logging.WARNING  # Exclude only WARNING logs
 
+
 # Apply the filter
 logger.addFilter(WarningFilter())
 
