@@ -27,15 +27,20 @@ Below is a quick example of using the :py:class:`gedidb.GEDIProcessor` in a work
 
    config_file = 'path/to/config_file.yml'
    geometry = 'path/to/test.geojson'
-
    
-    # Initialize the GEDIProcessor and compute
-    with gdb.GEDIProcessor(
-         config_file, geometry=geometry,
-         start_date='2020-01-01',
-         end_date='2020-12-31',   
-         earth_data_dir= '/path/to/earthdata_credential/folder',
-         ) as processor: processor.compute()
+   # Initialize the GEDIProcessor and compute
+   concurrent_engine= concurrent.futures.ThreadPoolExecutor(max_workers=10)
+
+   # Initialize the GEDIProcessor and compute
+   with gdb.GEDIProcessor(
+       config_file=config_file,
+       geometry=geometry,
+       start_date='2020-01-01',
+       end_date='2020-12-31',   
+       earth_data_dir= ''/path/to/earthdata_credential_folder',
+       parallel_engine=concurrent_engine, 
+   ) as processor:
+       processor.compute(consolidate=True)
 
 
 Processing workflow
@@ -52,12 +57,12 @@ The :py:class:`compute()` method of :py:class:`gedidb.GEDIProcessor` initiates t
 2. **Granule downloading**:
 
    - The :py:class:`gedidb.CMRDataDownloader` class handles granule querying and ensures that all required products (e.g., L2A, L2B, L4A, L4C) are included for each granule ID. 
-   - The :py:class:`gedidb.H5FileDownloader` class downloads `.h5` granule files for the GEDI products (L2A, L2B, L4A, L4C) within the spatial and temporal boundaries specified in `data_config.yml`.
+   - The :py:class:`gedidb.H5FileDownloader` class downloads `.h5` granule files for the GEDI products (L2A, L2B, L4A, L4C) within the spatial and temporal boundaries specified in `data_config.yml`. Each product for one granule are downloaded sequentially. 
    - Granules are stored in a designated directory for further processing.
 
 3. **Data processing**:
 
-   - The granule downloading as well as the processing is done in parallel, each future is processing data of a temporal tile defined in the `data_config.yml`.
+   - The granule downloading as well as the processing is done in parallel, each future is processing data of a temporal tile defined in the `data_config.yml`. The number of workers from the `parallel_engine` define how many granules are processed at the same time.  
    - Each granule is parsed and processed by the :py:class:`gedidb.GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied.
    - Data from different products is merged using shot numbers as the primary key, resulting in a unified dataset per granule.
 

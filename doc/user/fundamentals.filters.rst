@@ -7,7 +7,7 @@
 Quality Filtering
 #################
 
-This guide details the quality filtering applied to GEDI Level 2A (L2A), Level 2B (L2B), and Level 4A (L4A) data in the gediDB package. Each data product uses specific filters to ensure only high-quality data is processed, enhancing data reliability in analysis. The default quality filtering is based on the `data processing pipelines <https://docs.google.com/document/d/1XmcoV8-k-8C_Tmh-CJ4sYvlvOqkbiXP1Kah_KrCkMqU/edit>`_ developed by Patrick Burns, Chris Hakkenberg, and Scott Goetz, and should be appropriately credited. Please cite the paper data `Repeat GEDI footprints measure the effects of tropical forest disturbances <https://www.sciencedirect.com/science/article/pii/S0034425724001925?via%3Dihub#f0035>`_ if you end up using the default filters.
+This guide details the quality filtering applied to GEDI Level 2A (L2A), Level 2B (L2B), and Level 4A (L4A) data in the gediDB package. Each data product uses specific filters to ensure only high-quality data is processed, enhancing data reliability in analysis.
 
 Overview
 --------
