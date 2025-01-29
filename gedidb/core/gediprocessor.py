@@ -34,7 +34,6 @@ logging.getLogger("distributed").setLevel(logging.WARNING)
 logging.getLogger("tornado").setLevel(logging.WARNING)
 logger = logging.getLogger()
 
-
 class GEDIProcessor:
     """
     GEDIProcessor class is responsible for processing GEDI granules, handling metadata,
