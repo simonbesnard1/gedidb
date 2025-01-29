@@ -14,8 +14,6 @@
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/gedidb.svg?label=PyPI%20downloads)](
 https://pypi.org/project/gedidb/)
-[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/gedidb.svg?label=Conda%20downloads)](
-https://anaconda.org/conda-forge/gedidb)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885229)
 
 **gediDB** is an open-source Python package designed to streamline the processing, analysis, and management of GEDI L2A-B and L4A-C data. This toolbox enables efficient and flexible data querying and management of large GEDI datasets stored with [TileDB](https://tiledb.com/), a high-performance, multi-dimensional array database.

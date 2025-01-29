@@ -6,7 +6,7 @@ Installation
 Dependencies
 ------------
 
-gediDB requires Python >= 3.10 and the following dependencies. These are resolved automatically when installing via **pip** or **conda**:
+gediDB requires Python >= 3.10 and the following dependencies. These are resolved automatically when installing via **pip**:
 
 +------------+-----------------+--------------------------------------------+
 | Dependency | Minimum Version | Link                                       |
@@ -56,14 +56,6 @@ To install optional dependencies, use **pip** with the extras syntax (e.g., `pip
 
 Installation Instructions
 -------------------------
-
-gediDB is a pure Python package, but we recommend using **conda** for simpler dependency management.
-
-Install via **conda** from the conda-forge channel:
-
-.. code-block:: bash
-
-    $ conda install -c conda-forge gedidb
 
 Install via **pip**:
 
