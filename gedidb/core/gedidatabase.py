@@ -26,8 +26,6 @@ from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 # Configure the logger
 logger = logging.getLogger(__name__)
 logging.getLogger("botocore").setLevel(logging.WARNING)
-logger.setLevel(logging.ERROR)
-
 
 class GEDIDatabase:
     """

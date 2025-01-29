@@ -60,6 +60,7 @@ class CMRDataDownloader(GEDIDownloader):
         tries=10,
         delay=5,
         backoff=3,
+        logger=logger
     )
     def download(self) -> dict:
         """
@@ -163,7 +164,8 @@ class H5FileDownloader:
         (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException),
         tries=10,
         delay=5,
-        backoff=3
+        backoff=3,
+        logger=logger
     )
     def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
