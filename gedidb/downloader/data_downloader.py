@@ -24,7 +24,14 @@ from gedidb.utils.constants import GediProduct
 
 # Configure logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.CRITICAL)
+
+# Create a filter to suppress WARNING messages
+class WarningFilter(logging.Filter):
+    def filter(self, record):
+        return record.levelno != logging.WARNING  # Exclude only WARNING logs
+
+# Apply the filter
+logger.addFilter(WarningFilter())
 
 class GEDIDownloader:
     """
@@ -123,7 +130,7 @@ class CMRDataDownloader(GEDIDownloader):
         logger.info(
             f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB)."
         )
-
+        
         return filtered_cmr_dict
 
     def _filter_granules_with_all_products(self, granules: dict) -> dict:
@@ -193,7 +200,7 @@ class H5FileDownloader:
         # Attempt to retrieve total file size with a small GET request (Range=0-1)
         headers = {"Range": "bytes=0-1"}
         total_size: Optional[int] = None
-
+            
         try:
             partial_response = requests.get(url, headers=headers, stream=True, timeout=30)
             if "Content-Range" in partial_response.headers:
