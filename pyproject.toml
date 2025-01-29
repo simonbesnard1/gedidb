@@ -44,7 +44,7 @@ dependencies = [
 
 [project.urls]
 homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb"
-documentation = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb/docs"
+documentation = "https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/"
 source = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb"
 tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb/issues"
 
