@@ -56,22 +56,54 @@ The :py:class:`compute()` method of :py:class:`gedidb.GEDIProcessor` initiates t
 
 2. **Granule downloading**:
 
-   - The :py:class:`gedidb.CMRDataDownloader` class handles granule querying and ensures that all required products (e.g., L2A, L2B, L4A, L4C) are included for each granule ID. 
-   - The :py:class:`gedidb.H5FileDownloader` class downloads `.h5` granule files for the GEDI products (L2A, L2B, L4A, L4C) within the spatial and temporal boundaries specified in `data_config.yml`. Each product for one granule are downloaded sequentially. 
-   - Granules are stored in a designated directory for further processing.
+   The granule downloading process consists of two main components:
+
+   - **CMR Data Querying**: The :py:class:`gedidb.CMRDataDownloader` class queries NASA's CMR service for GEDI granules within the specified spatial and temporal bounds. It retrieves granule metadata and ensures that all required products (L2A, L2B, L4A, L4C) are consistently available for each granule ID. A retry mechanism is implemented to handle inconsistencies across products.
+   - **Granule File Downloading**: The :py:class:`gedidb.H5FileDownloader` class downloads `.h5` granule files using a robust, resumable process. It supports partial downloads with a temporary `.part` file and only renames files to `.h5` upon successful completion. The class also handles network failures and retries failed downloads to ensure reliability.
+
+   Granules are stored in structured directories, with each granule ID having separate subdirectories containing its corresponding GEDI product files.
 
 3. **Data processing**:
 
-   - The granule downloading as well as the processing is done in parallel, each future is processing data of a temporal tile defined in the `data_config.yml`. The number of workers from the `parallel_engine` define how many granules are processed at the same time.  
-   - Each granule is parsed and processed by the :py:class:`gedidb.GEDIGranule` class, which applies quality filtering based on flags like sensitivity and degrade status. See :ref:`fundamentals-filters` for more details on the different filters applied.
-   - Data from different products is merged using shot numbers as the primary key, resulting in a unified dataset per granule.
+   The processing pipeline efficiently handles GEDI granules by downloading, parsing, filtering, and merging data in parallel.
+
+   - **Parallel Processing**:
+
+     - Both granule downloading and processing are performed concurrently.
+     - Each worker processes data for a **temporal tile** as defined in `data_config.yml`.
+     - The number of workers is controlled by the `parallel_engine` setting, determining how many granules are processed simultaneously.
+
+   - **Granule Parsing & Quality Filtering**:
+
+     - Each granule is parsed and processed by the :py:class:`gedidb.GEDIGranule` class.
+     - Quality filtering is applied using flags such as **sensitivity** and **degrade status**.
+     - For more details on filtering criteria, refer to :ref:`fundamentals-filters`.
+
+   - **Data Merging & Structuring**:
+
+     - GEDI products (L2A, L2B, L4A, L4C) are merged using **shot numbers** as the primary key.
+     - The merging process ensures that only granules containing all required products are retained.
+     - The resulting unified dataset is prepared for writing to **TileDB**.
+
 
 4. **Database writing**:
 
-   - Processed data is stored in either a local or s3-based tileDB database across different fragments.
-   - The processed data is split up into spatial chunks defined in the `data_config.yml` file, and each chunk is stored in a separate fragment in the database.
-   - Metadata is added to the database to facilitate easy querying and retrieval of data.
-   - After processing all granules, the database is optimized for efficient querying and data retrieval by consolidation. The consolidation plan can be defined in the `data_config.yml` file.
+   The processed GEDI data is written to a **TileDB database**, ensuring efficient storage and retrieval.
+
+   - **Data Storage**: Processed data is stored in either a local or S3-based TileDB database, distributed across different fragments.
+   - **Spatial Chunking**: The data is partitioned into spatial chunks as defined in `data_config.yml`, with each chunk stored in a separate fragment.
+   - **Writing Process**:
+     
+     - **Validation**: The :py:meth:`_validate_granule_data` method ensures required dimensions and critical variables are present before writing.
+     - **Coordinate Preparation**: The :py:meth:`_prepare_coordinates` method extracts dimension data (e.g., time, latitude, longitude).
+     - **Variable Extraction**: The :py:meth:`_extract_variable_data` method separates scalar and profile variables for structured storage.
+     - **TileDB Writing**: The :py:meth:`_write_to_tiledb` method writes data with a retry mechanism to handle potential failures.
+
+   - **Metadata & Optimization**:
+
+     - Metadata is stored alongside the data to support efficient querying.
+     - After all granules are processed, the database undergoes **consolidation** to optimize query performance. The consolidation strategy can be configured in `data_config.yml`.
+
 
 Advanced customization options
 ------------------------------
