@@ -9,11 +9,26 @@ TileDB Global Database for GEDI Data
 
 Overview
 --------
-The publicly available TileDB global database, managed by the `Global Land Monitoring group <https://www.gfz.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring>`_ at GFZ-Potsdam, stores all processed GEDI version 2 data with a robust and scalable architecture. All granules for the products L2A, L2B, L4A, and L4C have been ingested into the database. The data is stored in a Ceph object storage managed by the GFZ data center, with a current size of approximately 20TB. It enables efficient spatial, temporal, and attribute-based queries. This page provides an overview of the database setup, configuration, and access methods using the `gediDB` package.
 
+The publicly available TileDB global database, managed by the `Global Land Monitoring group <https://www.gfz.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring>`_ at GFZ-Potsdam, stores all processed GEDI version 2 data with a robust and scalable architecture. All granules for the products L2A, L2B, L4A, and L4C have been ingested into the database. The data is stored in a **Ceph object storage** managed by the GFZ data center, with a current size of approximately **20TB**. It enables efficient spatial, temporal, and attribute-based queries. This page provides an overview of the database setup, configuration, and access methods using the `gediDB` package.
+
+Ceph Object Storage Configuration
+---------------------------------
+
+The TileDB global database utilizes a Ceph object storage backend to efficiently manage and distribute GEDI data. Below are the key characteristics of the Ceph bucket:
+
+- **Bucket Name:** ``dog.gedidb.gedi-l2-l4-v002``  
+- **Access Endpoint:** ``https://s3.gfz-potsdam.de``  
+- **Region:** ``eu-central-1``  
+- **Total Storage Used:** ~20TB  
+- **Access Control:** Public  
+- **Query Support:** Optimized for spatial and temporal queries  
+
+For users accessing the database programmatically, interactions with the Ceph bucket are abstracted by the `gediDB` package, which retrieves data seamlessly from TileDB. Advanced users with direct access to the Ceph storage layer may utilize **S3-compatible tools** (such as ``aws s3api`` or ``rclone``) to interact with the data.
 
 TileDB Database Configuration
 -----------------------------
+
 The database configuration defines key parameters for data storage, tiling, and query efficiency. A critical aspect of the database is the application of spatial consolidation, where fragments belonging to the same 10x10-degree spatial windows are consolidated together. This strategy significantly enhances query performance by reducing the number of fragments accessed during spatial queries.
 
 Below is the structure of the configuration file used to build the TileDB database:
@@ -53,6 +68,9 @@ The configuration file contains:
 - **Time Range**: Defines the global temporal coverage.
 - **Spatial Range**: Sets the global bounding box for latitude and longitude.
 - **S3 Settings**: Configures connection and request parameters for S3.
+
+.. note::
+   The current database architecture is somewhat experimental, and different approaches may be more suitable to improve the speed of spatial and temporal queries. Users are encouraged to provide feedback and suggestions for optimizing the tileDB database configuration.
 
 
 List of the available variables
