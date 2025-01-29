@@ -1,9 +1,10 @@
 <p align="center">
 <a href="https://git.gfz-potsdam.de/global-land-monitoring/gedidb.git">
     <img src="https://git.gfz-potsdam.de/global-land-monitoring/gedidb/-/raw/main/doc/_static/logos/gediDB_logo.svg" 
-         alt="gediDB Logo" height="120px">
+         alt="gediDB Logo" height="120px" hspace="0px" vspace="30px" align="left">
 </a>
 </p>
+
 
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
