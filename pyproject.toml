@@ -71,7 +71,7 @@ dev = [
     "isort"
 ]
 io = [
-    ""boto3",
+    "boto3",
     "netCDF4",
     "h5netcdf",
     'pydap; python_version<"3.10"',
