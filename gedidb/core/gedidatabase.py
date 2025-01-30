@@ -513,13 +513,14 @@ class GEDIDatabase:
 
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
-        Write the parsed GEDI granule data to the global TileDB arrays.
-
+        Write the parsed GEDI granule data to the global TileDB arrays,
+        filtering out shots that are outside the spatial domain.
+    
         Parameters:
         ----------
         granule_data : pd.DataFrame
             DataFrame containing the granule data, with variable names matching the configuration.
-
+    
         Raises:
         -------
         ValueError
@@ -528,20 +529,34 @@ class GEDIDatabase:
         try:
             # Validate granule data
             self._validate_granule_data(granule_data)
-
+    
+            # Get spatial domain from config
+            min_lon, max_lon, min_lat, max_lat = self._get_tiledb_spatial_domain()
+    
+            # Filter out shots outside the TileDB spatial domain
+            filtered_data = granule_data[
+                (granule_data["longitude"] >= min_lon) & 
+                (granule_data["longitude"] <= max_lon) &
+                (granule_data["latitude"]  >= min_lat) & 
+                (granule_data["latitude"]  <= max_lat)
+            ]
+    
+            if filtered_data.empty:
+                return  # Skip writing if no valid data
+    
             # Prepare coordinates (dimensions)
-            coords = self._prepare_coordinates(granule_data)
-
+            coords = self._prepare_coordinates(filtered_data)
+    
             # Extract data for scalar and profile variables
-            data = self._extract_variable_data(granule_data)
-
+            data = self._extract_variable_data(filtered_data)
+    
             # Write to the TileDB array
             self._write_to_tiledb(coords, data)
-
+    
         except Exception as e:
             logger.error(f"Failed to process and write granule data: {e}")
             raise
-
+                
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
         """
         Validate the granule data to ensure it meets the requirements for writing.
@@ -707,3 +722,19 @@ class GEDIDatabase:
                 variables_config[var_name] = var_info
 
         return variables_config
+    
+    def _get_tiledb_spatial_domain(self):
+        """
+        Retrieve the spatial domain (bounding box) from the configuration file.
+    
+        Returns:
+        -------
+        Tuple[float, float, float, float]
+            (min_longitude, max_longitude, min_latitude, max_latitude)
+        """
+
+        spatial_config = self.config["tiledb"]["spatial_range"]
+        min_lat, max_lat = spatial_config["lat_min"], spatial_config["lat_max"]
+        min_lon, max_lon = spatial_config["lon_min"], spatial_config["lon_max"]
+    
+        return min_lon, max_lon, min_lat, max_lat
