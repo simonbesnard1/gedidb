@@ -12,6 +12,7 @@
 [![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/coverage/)
 [![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
+[![PyPI Downloads](https://static.pepy.tech/badge/gedidb)](https://pepy.tech/projects/gedidb)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885229)
 
 **gediDB** is an open-source Python package designed to streamline the processing, analysis, and management of GEDI L2A-B and L4A-C data. This toolbox enables efficient and flexible data querying and management of large GEDI datasets stored with [TileDB](https://tiledb.com/), a high-performance, multi-dimensional array database.
