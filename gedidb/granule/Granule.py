@@ -31,11 +31,33 @@ class granule_handler(h5py.File):
         Args:
             file_path (pathlib.Path): Path to the HDF5 granule file.
         """
-        super().__init__(file_path, "r")
         self.file_path = file_path
-        self.beam_names = [name for name in self.keys() if name.startswith("BEAM")]
         self._parsed_filename_metadata = None
 
+        try:
+            super().__init__(file_path, "r")
+            self.beam_names = [name for name in self.keys() if name.startswith("BEAM")]
+        except Exception as e:
+            self.close()  # Ensure cleanup on failure
+            raise RuntimeError(f"Failed to open granule {file_path}: {e}")
+
+    def close(self):
+        """Close the granule file safely."""
+        if self.id.valid:  # Ensure the file is still open before closing
+            super().close()
+
+    def __del__(self):
+        """Ensure the file is closed when the object is deleted."""
+        self.close()  
+
+    def __enter__(self):
+        """Support usage with `with` statements."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Ensure the file is closed when exiting a `with` block."""
+        self.close()
+    
     @property
     def filename_metadata(self) -> GediNameMetadata:
         """
@@ -168,10 +190,6 @@ class granule_handler(h5py.File):
     def list_beams(self) -> List[beam_handler]:
         """Get a list of all beams in the granule."""
         return list(self.iter_beams())
-
-    def close(self) -> None:
-        """Close the granule file."""
-        super().close()
 
     def __repr__(self) -> str:
         """Return a string representation of the granule."""
