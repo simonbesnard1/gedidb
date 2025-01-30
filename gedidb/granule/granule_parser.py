@@ -83,8 +83,8 @@ class L2AGranuleParser(GranuleParser):
         self.variables = self.data_info.get("level_2a", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
-        granule = L2AGranule(self.file, self.variables)
-        return self.parse_granule(granule)
+        with L2AGranule(self.file, self.variables) as granule:
+            return self.parse_granule(granule)
 
 
 class L2BGranuleParser(GranuleParser):
@@ -95,8 +95,8 @@ class L2BGranuleParser(GranuleParser):
         self.variables = self.data_info.get("level_2b", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
-        granule = L2BGranule(self.file, self.variables)
-        return self.parse_granule(granule)
+        with L2BGranule(self.file, self.variables) as granule:
+            return self.parse_granule(granule)
 
 
 class L4AGranuleParser(GranuleParser):
@@ -107,8 +107,8 @@ class L4AGranuleParser(GranuleParser):
         self.variables = self.data_info.get("level_4a", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
-        granule = L4AGranule(self.file, self.variables)
-        return self.parse_granule(granule)
+        with L4AGranule(self.file, self.variables) as granule:
+            return self.parse_granule(granule)
 
 
 class L4CGranuleParser(GranuleParser):
@@ -119,9 +119,9 @@ class L4CGranuleParser(GranuleParser):
         self.variables = self.data_info.get("level_4c", {}).get("variables", [])
 
     def parse(self) -> pd.DataFrame:
-        granule = L4CGranule(self.file, self.variables)
-        return self.parse_granule(granule)
-
+        with L4CGranule(self.file, self.variables) as granule:
+            return self.parse_granule(granule)
+        
 
 def parse_h5_file(
     file: str, product: GediProduct, data_info: Optional[Dict] = None
