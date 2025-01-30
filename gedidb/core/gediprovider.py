@@ -145,7 +145,6 @@ class GEDIProvider(TileDBProvider):
         lon_max, lat_max = point[0] + radius, point[1] + radius
 
         scalar_data_subset, profile_vars = self._query_array(
-            self.scalar_array_uri,
             scalar_vars,
             lat_min,
             lat_max,
@@ -224,8 +223,7 @@ class GEDIProvider(TileDBProvider):
             geometry = check_and_format_shape(geometry, simplify=True)
             lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
         else:
-            lat_min, lat_max = -56.0, 56.0
-            lon_min, lon_max = -180.0, 180.0
+            lon_min, lon_max, lat_min, lat_max = self._get_tiledb_spatial_domain()
 
         if start_time:
             start_time = np.datetime64(start_time)
@@ -244,7 +242,6 @@ class GEDIProvider(TileDBProvider):
 
         # Query tileDB array within the specified bounds and time range
         scalar_data = self._query_array(
-            self.scalar_array_uri,
             scalar_vars,
             lat_min,
             lat_max,
