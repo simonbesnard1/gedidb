@@ -534,12 +534,7 @@ class GEDIDatabase:
             min_lon, max_lon, min_lat, max_lat = self._get_tiledb_spatial_domain()
     
             # Filter out shots outside the TileDB spatial domain
-            filtered_data = granule_data[
-                (granule_data["longitude"] >= min_lon) & 
-                (granule_data["longitude"] <= max_lon) &
-                (granule_data["latitude"]  >= min_lat) & 
-                (granule_data["latitude"]  <= max_lat)
-            ]
+            filtered_data = granule_data[(granule_data["longitude"] >= min_lon) & (granule_data["longitude"] <= max_lon) & (granule_data["latitude"] >= min_lat) & (granule_data["latitude"] <= max_lat)]
     
             if filtered_data.empty:
                 return  # Skip writing if no valid data
