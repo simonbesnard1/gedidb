@@ -90,7 +90,7 @@ class GEDIProvider(TileDBProvider):
         variables: List[str],
         point: Tuple[float, float],
         num_shots: int,
-        radius: float = 0.1,
+        radius: float,
         start_time: Optional[np.datetime64] = None,
         end_time: Optional[np.datetime64] = None,
         **quality_filters,
@@ -110,7 +110,7 @@ class GEDIProvider(TileDBProvider):
             Longitude and latitude coordinates representing the reference point for the nearest-shot search.
         num_shots : int
             The maximum number of nearest shots to retrieve.
-        radius : float, optional, default=0.1
+        radius : float, optional
             Radius around the reference point (in degrees) within which to limit the search.
         start_time : np.datetime64, optional
             Start time for filtering data within a specific temporal range.
@@ -199,7 +199,7 @@ class GEDIProvider(TileDBProvider):
         geometry : geopandas.GeoDataFrame, optional
             A spatial geometry defining the bounding box for data filtering.
             If provided, the bounding box is extracted from the geometry's total bounds.
-            If `None`, the entire global range is used.
+            If `None`, an error is raised to prevent querying the entire dataset.
         start_time : str, optional
             Start time for filtering data within a specific temporal range. Expected format is ISO 8601 (e.g., '2020-01-01').
         end_time : str, optional
@@ -219,12 +219,15 @@ class GEDIProvider(TileDBProvider):
         - Quality filters are applied as boolean masks to the queried data arrays, supporting compound expressions.
         """
 
-        if geometry is not None:
-            geometry = check_and_format_shape(geometry, simplify=True)
-            lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
-        else:
-            lon_min, lon_max, lat_min, lat_max = self._get_tiledb_spatial_domain()
+        if geometry is None:
+            raise ValueError(
+                "A valid geometry (GeoDataFrame) must be provided to limit the query. "
+                "Querying the entire dataset without a spatial filter is not allowed."
+            )
 
+        geometry = check_and_format_shape(geometry, simplify=True)
+        lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
+        
         if start_time:
             start_time = np.datetime64(start_time)
             start_timestamp = _datetime_to_timestamp_days(start_time)
@@ -316,7 +319,7 @@ class GEDIProvider(TileDBProvider):
         - Ensure the TileDB context (`self.ctx`) and array URIs are correctly configured before calling this function.
         """
 
-        if query_type == "nearest" and point:
+        if query_type == "nearest":
             scalar_data, profile_vars = self.query_nearest_shots(
                 variables,
                 point,
@@ -332,7 +335,7 @@ class GEDIProvider(TileDBProvider):
             )
         else:
             raise ValueError(
-                "Invali query_type. Must be either 'nearest' or 'bounding_box'."
+                "Invalid query_type. Must be either 'nearest' or 'bounding_box'."
             )
 
         if not scalar_data:
