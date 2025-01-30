@@ -1,0 +1,38 @@
+{
+ "gdb.GEDIProcessor": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "gedidb",
+   "module_short": "gedidb",
+   "name": "GEDIProcessor"
+  }
+ ],
+ "json.load": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "json",
+   "module_short": "json",
+   "name": "load"
+  }
+ ],
+ "yaml.dump": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "yaml",
+   "module_short": "yaml",
+   "name": "dump"
+  }
+ ],
+ "yaml.safe_load": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "yaml",
+   "module_short": "yaml",
+   "name": "safe_load"
+  }
+ ]
+}

@@ -63,6 +63,23 @@ Gallery
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to create a regional TileDB array for the Amazon  by modifying the data_config.yml file to adjust the spatial range based on  a bounding box extracted from a GeoJSON file.">
+
+.. only:: html
+
+  .. image:: /auto_examples/images/thumb/sphx_glr_regional_tileDBdatabase_thumb.png
+    :alt:
+
+  :ref:`sphx_glr_auto_examples_regional_tileDBdatabase.py`
+
+.. raw:: html
+
+      <div class="sphx-glr-thumbnail-title">Creating a Regional TileDB Array for the Amazon</div>
+    </div>
+
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the GEDIProvider class to query and retrieve GEDI data stored in TileDB arrays. We will:">
 
 .. only:: html
@@ -91,6 +108,7 @@ Gallery
    /auto_examples/get_variable_list
    /auto_examples/authentification
    /auto_examples/data_processor
+   /auto_examples/regional_tileDBdatabase
    /auto_examples/data_provider
 
 
