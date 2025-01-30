@@ -16,9 +16,8 @@ from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
-from requests.exceptions import (
-    HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException
-)
+from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, RequestException
+import time
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
 
@@ -169,7 +168,7 @@ class H5FileDownloader:
         self.download_path = pathlib.Path(download_path)
 
     @retry(
-        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException),
+        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError, RequestException),
         tries=10,
         delay=5,
         backoff=3,
@@ -250,7 +249,11 @@ class H5FileDownloader:
             temp_path.rename(final_path)
             return granule_key, (product.value, str(final_path))
 
-        except (HTTPError, ConnectionError, ChunkedEncodingError) as e:
+        except (HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError) as e:
+            if isinstance(e, OSError) and e.errno == 24:  # Too many open files
+                logger.warning(f"File descriptor limit exceeded while downloading {granule_key}: {e}. Retrying after a delay...")
+                time.sleep(5)  # Short delay before retrying
+
             # Will be retried up to 'tries' times by the @retry decorator
             logger.warning(f"Encountered network error for {granule_key}: {e}. Retrying...")
             raise
