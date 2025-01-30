@@ -114,7 +114,6 @@ class TileDBProvider:
 
     def _query_array(
         self,
-        array_uri: str,
         variables: List[str],
         lat_min: float,
         lat_max: float,
@@ -128,7 +127,7 @@ class TileDBProvider:
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
         """
         try:
-            with tiledb.open(array_uri, mode="r", ctx=self.ctx) as array:
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
                 attr_list = []
                 profile_vars = {}
 
@@ -164,5 +163,21 @@ class TileDBProvider:
 
                 return data, profile_vars
         except Exception as e:
-            logger.error(f"Error querying TileDB array '{array_uri}': {e}")
+            logger.error(f"Error querying TileDB array '{self.scalar_array_uri}': {e}")
             raise
+            
+    def _get_tiledb_spatial_domain(self):
+        """
+        Retrieve the spatial domain (bounding box) from the TileDB array schema.
+    
+        Returns:
+        -------
+        Tuple[float, float, float, float]
+            (min_longitude, max_longitude, min_latitude, max_latitude)
+        """
+        with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
+            domain = array.schema.domain
+            min_lon, max_lon = domain.dim(1).domain  # Longitude dimension
+            min_lat, max_lat = domain.dim(0).domain  # Latitude dimension
+    
+        return min_lon, max_lon, min_lat, max_lat
