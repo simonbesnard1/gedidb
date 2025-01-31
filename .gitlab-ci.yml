@@ -1,11 +1,38 @@
 stages:
+  - build
   - setup
   - test
-  - build
   - deploy
 
 # ----------------------
-# 1. Setup Job (Uses venv)
+# 1. Documentation Build Job (Uses Conda)
+# ----------------------
+build-job:
+  stage: build
+  script:
+    # Install conda only if not already installed
+    - if [ ! -d "$HOME/miniconda" ]; then
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh &&
+        bash miniconda.sh -b -p $HOME/miniconda;
+      fi
+    - source "$HOME/miniconda/etc/profile.d/conda.sh"
+    - conda config --set always_yes yes
+    - conda update -n base -c defaults conda  # Update conda to avoid bugs
+    - conda clean --all --yes  # Clean cache
+    # Create or update the conda environment
+    - conda env update --file ci/requirements/doc.yml --name gedidb-docs || conda env create --file ci/requirements/doc.yml
+    - source $HOME/miniconda/bin/activate gedidb-docs  # Activate the environment
+    # Debug the installed version
+    - python -c "import gedidb; print(gedidb.__version__)"
+    # Build the documentation
+    - sphinx-build -W -b html doc/ doc/_build/html
+  artifacts:
+    paths:
+      - doc/_build/html  # Store the build results as artifacts
+    expire_in: 1 day     # Optional: Define how long to keep artifacts
+
+# ----------------------
+# 2. Setup Job (Uses venv)
 # ----------------------
 setup-job:
   stage: setup
@@ -42,8 +69,7 @@ unit-test-job:
         path: coverage.xml
     paths:
       - htmlcov/
-      - reports/
-      - coverage.xml
+      - report.html
 
 # ----------------------
 # 3. Lint Test Job (Uses venv)
@@ -53,33 +79,6 @@ lint-test-job:
   script:
     - source .venv/bin/activate
     - flake8
-
-# ----------------------
-# 4. Documentation Build Job (Uses Conda)
-# ----------------------
-build-job:
-  stage: build
-  script:
-    # Install conda only if not already installed
-    - if [ ! -d "$HOME/miniconda" ]; then
-        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh &&
-        bash miniconda.sh -b -p $HOME/miniconda;
-      fi
-    - source "$HOME/miniconda/etc/profile.d/conda.sh"
-    - conda config --set always_yes yes
-    - conda update -n base -c defaults conda  # Update conda to avoid bugs
-    - conda clean --all --yes  # Clean cache
-    # Create or update the conda environment
-    - conda env update --file ci/requirements/doc.yml --name gedidb-docs || conda env create --file ci/requirements/doc.yml
-    - source $HOME/miniconda/bin/activate gedidb-docs  # Activate the environment
-    # Debug the installed version
-    - python -c "import gedidb; print(gedidb.__version__)"
-    # Build the documentation
-    - sphinx-build -W -b html doc/ doc/_build/html
-  artifacts:
-    paths:
-      - doc/_build/html  # Store the build results as artifacts
-    expire_in: 1 day     # Optional: Define how long to keep artifacts
  
 # ----------------------
 # 5. Deployment Job (Only Runs on Tags)
@@ -90,10 +89,32 @@ pages:
     - build-job
     - unit-test-job
   script:
+    # Clean and prepare the public directory
     - rm -rf public
     - mkdir -p public
+    - mkdir -p public/doc
+    - mkdir -p public/doc/_static/
+    - mkdir -p public/coverage
+    - mkdir -p public/test_reports
+
+    # Move the built documentation into the /doc subdirectory of public
     - cp -r doc/_build/html/* public/
+
+    # Check if everything is in the correct directory
     - ls -al public/
+    
+    # Copy over the coverage reports
+    - cp -r htmlcov/* public/coverage/
+
+    # Copy over the test reports
+    - cp report.html public/test_reports/
+
+    # Check if everything is working great
+    - ls -al public
+    - ls -al public/doc
+    - ls -al public/coverage
+    - ls -al public/test_reports
+
   artifacts:
     paths:
       - public
