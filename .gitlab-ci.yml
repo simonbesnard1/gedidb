@@ -10,18 +10,22 @@ stages:
 conda-setup-job:
   stage: setup
   script:
-    - if [ ! -d "$HOME/miniconda" ]; then
+    - echo "Installing Miniconda..."
+    - if [ ! -d "/opt/miniconda" ]; then
         wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh &&
-        bash miniconda.sh -b -p $HOME/miniconda;
+        bash miniconda.sh -b -p /opt/miniconda;
       fi
-    - source "$HOME/miniconda/etc/profile.d/conda.sh"
+    - echo "Checking Miniconda installation..."
+    - ls -al /opt/miniconda
+    - source /opt/miniconda/etc/profile.d/conda.sh || echo "Conda script not found!"
+    - conda --version || echo "Conda not installed properly!"
     - conda config --set always_yes yes
     - conda update -n base -c defaults conda
     - conda clean --all --yes
     - conda env update --file ci/requirements/doc.yml --name gedidb-docs || conda env create --file ci/requirements/doc.yml
   artifacts:
     paths:
-      - $HOME/miniconda/
+      - /opt/miniconda  # Store Miniconda for other jobs
     expire_in: 1 day
 
 # ----------------------
@@ -50,8 +54,10 @@ build-job:
   dependencies:
     - conda-setup-job  # Ensures Conda environment is set up before running
   script:
-    - source "$HOME/miniconda/etc/profile.d/conda.sh"
-    - source $HOME/miniconda/bin/activate gedidb-docs
+    - echo "Restoring Miniconda from artifacts..."
+    - ls -al /opt/miniconda || echo "Miniconda not found!"
+    - source /opt/miniconda/etc/profile.d/conda.sh
+    - conda activate gedidb-docs
     - python -c "import gedidb; print(gedidb.__version__)"
     - sphinx-build -W -b html doc/ doc/_build/html
   artifacts:
