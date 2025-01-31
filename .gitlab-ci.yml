@@ -5,10 +5,6 @@ stages:
   - deploy
 
 # ----------------------
-# 1. Conda Setup Job
-# ----------------------
-
-# ----------------------
 # 2. Setup Job (Uses venv)
 # ----------------------
 setup-job:
@@ -58,6 +54,31 @@ lint-test-job:
     - source .venv/bin/activate
     - flake8
 
+
+# ----------------------
+# 1. Conda Setup Job
+# ----------------------
+conda-setup-job:
+  stage: setup
+  script:
+    - echo "Installing Miniconda..."
+    - if [ ! -d "/opt/miniconda" ]; then
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh &&
+        bash miniconda.sh -b -p /opt/miniconda;
+      fi
+    - echo "Checking Miniconda installation..."
+    - ls -al /opt/miniconda
+    - source /opt/miniconda/etc/profile.d/conda.sh || echo "Conda script not found!"
+    - conda --version || echo "Conda not installed properly!"
+    - conda config --set always_yes yes
+    - conda update -n base -c defaults conda
+    - conda clean --all --yes
+    - conda env update --file ci/requirements/doc.yml --name gedidb-docs || conda env create --file ci/requirements/doc.yml
+  artifacts:
+    paths:
+      - /opt/miniconda  # Store Miniconda for other jobs
+    expire_in: 1 day
+    
 # ----------------------
 # 5. Documentation Build Job (Uses Conda)
 # ----------------------
