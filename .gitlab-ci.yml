@@ -106,14 +106,10 @@ pages:
     # Copy over the coverage reports
     - cp -r htmlcov/* public/coverage/
 
-    # Copy over the test reports
-    - cp report.html public/test_reports/
-
     # Check if everything is working great
     - ls -al public
     - ls -al public/doc
     - ls -al public/coverage
-    - ls -al public/test_reports
 
   artifacts:
     paths:
