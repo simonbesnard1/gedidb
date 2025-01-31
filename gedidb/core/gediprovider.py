@@ -318,6 +318,23 @@ class GEDIProvider(TileDBProvider):
         - The `query_type` parameter determines the querying mode (bounding box or nearest shot).
         - Ensure the TileDB context (`self.ctx`) and array URIs are correctly configured before calling this function.
         """
+        # Ensure query_type is valid
+        if query_type not in {"bounding_box", "nearest"}:
+            raise ValueError(f"Invalid query_type '{query_type}'. Must be 'bounding_box' or 'nearest'.")
+    
+        # Validation for bounding_box queries
+        if query_type == "bounding_box":
+            if geometry is None or not isinstance(geometry, gpd.GeoDataFrame):
+                raise ValueError("For 'bounding_box' queries, a valid GeoDataFrame must be provided as 'geometry'.")
+    
+        # Validation for nearest queries
+        elif query_type == "nearest":
+            if point is None or not (isinstance(point, tuple) and len(point) == 2):
+                raise ValueError("For 'nearest' queries, 'point' must be a (longitude, latitude) tuple.")
+            if num_shots is None or num_shots <= 0:
+                raise ValueError("For 'nearest' queries, 'num_shots' must be a positive integer.")
+            if radius is None or radius <= 0:
+                raise ValueError("For 'nearest' queries, 'radius' must be a positive float.")
 
         if query_type == "nearest":
             scalar_data, profile_vars = self.query_nearest_shots(
