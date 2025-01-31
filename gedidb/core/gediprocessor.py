@@ -345,11 +345,10 @@ class GEDIProcessor:
                 f"Invalid temporal batching option: '{temporal_batching}'. "
                 "It must be one of ['daily', 'weekly', None]."
             )
-
+            
         for timeframe, granules in unprocessed_temporal_cmr_data.items():
             futures = []
-            granule_ids = list(granules.keys())
-    
+            
             if isinstance(self.parallel_engine, concurrent.futures.Executor):
                 # Use concurrent.futures
                 with self.parallel_engine as executor:
@@ -384,7 +383,7 @@ class GEDIProcessor:
     
             # Collect valid data for writing
             valid_dataframes = [gdf for _, gdf in results if gdf is not None]
-    
+            
             # Proceed only if there is valid data
             if valid_dataframes:
                 concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
@@ -397,7 +396,8 @@ class GEDIProcessor:
                 for _, data in quadrants.items():
                     self.database_writer.write_granule(data)
 
-            # Mark all granules as processed
+            # Mark granules successfully downloaded and processed as done
+            granule_ids = [ids_ for ids_, _ in results if ids_ is not None]
             for granule_id in granule_ids:
                 self.database_writer.mark_granule_as_processed(granule_id)
 
