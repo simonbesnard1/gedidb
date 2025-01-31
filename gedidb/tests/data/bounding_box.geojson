@@ -1,0 +1,38 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            9.329960494393424,
+                            6.196893781016448
+                        ],
+                        [
+                            9.43713854346958,
+                            6.196893781016448
+                        ],
+                        [
+                            9.43713854346958,
+                            6.346551301623062
+                        ],
+                        [
+                            9.329960494393424,
+                            6.346551301623062
+                        ],
+                        [
+                            9.329960494393424,
+                            6.196893781016448
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "description": "Bounding box around provided coordinates"
+            }
+        }
+    ]
+}
