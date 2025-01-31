@@ -65,7 +65,12 @@ class GEDIGranule:
         """
         granule_key = row[0][0]
         granules = [item[1] for item in row]
+        missing_product = [level for level, data in granules if data is None]
 
+        if missing_product:
+            logger.warning(f"Granule {granule_key}: Missing HDF5 files()) for levels: {missing_product}")
+            return None, None
+        
         try:
             gdf_dict = self.parse_granules(granules, granule_key)
             if not gdf_dict:
@@ -81,7 +86,7 @@ class GEDIGranule:
             return granule_key, gdf
         except Exception as e:
             logger.error(f"Granule {granule_key}: Processing failed with error: {e}")
-            return granule_key, None
+            return None, None
 
     def parse_granules(
         self, granules: List[Tuple[str, str]], granule_key: str
@@ -96,9 +101,9 @@ class GEDIGranule:
         """
         data_dict = {}
         granule_dir = os.path.join(self.download_path, granule_key)
-
+        
         try:
-            for product, file in filter(lambda x: x[1] is not None, granules):
+            for product, file in granules:
                 data = granule_parser.parse_h5_file(
                     file, product, data_info=self.data_info
                 )
