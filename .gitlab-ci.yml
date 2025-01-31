@@ -80,9 +80,7 @@ build-job:
     paths:
       - doc/_build/html  # Store the build results as artifacts
     expire_in: 1 day     # Optional: Define how long to keep artifacts
-  rules:
-    - if: '$CI_COMMIT_TAG'  # Run only when a tag is pushed
-
+ 
 # ----------------------
 # 5. Deployment Job (Only Runs on Tags)
 # ----------------------
@@ -100,5 +98,8 @@ pages:
     paths:
       - public
     expire_in: 30 days
-  rules:
-    - if: '$CI_COMMIT_TAG'  # Run only when a tag is pushed
+  only:
+    - documentation
+    - main
+    - staging
+
