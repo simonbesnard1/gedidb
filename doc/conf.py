@@ -183,7 +183,7 @@ def setup(app):
 # Set up the version switcher.  The versions.json is stored in the doc repo.
 # Determine the version to display in the switcher
     
-z    
+    
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "logo": {
