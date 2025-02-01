@@ -12,12 +12,13 @@ import requests
 from datetime import datetime
 import geopandas as gpd
 from typing import Tuple, Optional
-from retry import retry
 import logging
 from collections import defaultdict
 from urllib3.exceptions import NewConnectionError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, RequestException
 import time
+
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
 
@@ -63,11 +64,10 @@ class CMRDataDownloader(GEDIDownloader):
         self.earth_data_info = earth_data_info
 
     @retry(
-        (ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError),
-        tries=10,
-        delay=5,
-        backoff=3,
-        logger=logger
+        retry=retry_if_exception_type(((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError))),
+        stop=stop_after_attempt(10),
+        wait=wait_exponential(multiplier=1, min=5, max=60),
+        reraise=True
     )
     def download(self) -> dict:
         """
@@ -168,96 +168,83 @@ class H5FileDownloader:
         self.download_path = pathlib.Path(download_path)
 
     @retry(
-        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError, RequestException),
-        tries=10,
-        delay=5,
-        backoff=3,
-        logger=logger
+        retry=retry_if_exception_type((ValueError, HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError, RequestException)),
+        stop=stop_after_attempt(10),
+        wait=wait_exponential(multiplier=1, min=5, max=60),
+        reraise=True
     )
-    def download(self, granule_key: str, url: str, product: GediProduct) -> Tuple[str, Tuple[str, Optional[str]]]:
+    def download(self, granule_key: str, url: str, product: str) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
         Download an HDF5 file for a specific granule and product with resume support
         using a temporary ".part" file. Renames to ".h5" only upon successful download.
-
-        :param granule_key: Granule ID.
-        :param url: URL to download the HDF5 file from.
-        :param product: GEDI product.
-        :return: (granule_key, (product_value, local_filepath or None if download failed))
         """
         # Paths
         granule_dir = self.download_path / granule_key
-        final_path = granule_dir / f"{product.name}.h5"       # The final HDF5 file
-        temp_path = granule_dir / f"{product.name}.h5.part"   # Temporary file for partial download
+        final_path = granule_dir / f"{product.name}.h5"
+        temp_path = granule_dir / f"{product.name}.h5.part"
         os.makedirs(granule_dir, exist_ok=True)
 
-        # Check if we already have a fully downloaded file:
+        # Check if file already exists
         if final_path.exists():
             return granule_key, (product.value, str(final_path))
 
-        # If we have a partial file from a previous attempt, get its size:
+        # Get the size of partially downloaded file
         downloaded_size = temp_path.stat().st_size if temp_path.exists() else 0
 
         # Attempt to retrieve total file size with a small GET request (Range=0-1)
         headers = {"Range": "bytes=0-1"}
         total_size: Optional[int] = None
-            
+
         try:
             partial_response = requests.get(url, headers=headers, stream=True, timeout=30)
+            partial_response.raise_for_status()  # Ensure HTTP errors are caught
             if "Content-Range" in partial_response.headers:
                 total_size = int(partial_response.headers["Content-Range"].split("/")[-1])
-                # If partial file already matches the total, rename and skip
                 if downloaded_size == total_size:
                     temp_path.rename(final_path)
                     return granule_key, (product.value, str(final_path))
-
-                # Otherwise, resume download from downloaded_size
                 headers["Range"] = f"bytes={downloaded_size}-"
             else:
-                # Server doesn't support partial range requests
-                headers = {}
+                headers = {}  # Server doesn't support Range requests
         except requests.RequestException as e:
-            logger.warning(f"Failed to get Content-Range for {granule_key}: {e}. Will download from scratch.")
-            headers = {}  # Fallback to full download if size check fails
+            raise ValueError(f"Failed to get Content-Range: {e}.")
 
         # Download (or resume) the file to the .part path
         try:
             with requests.get(url, headers=headers, stream=True, timeout=30) as r:
+                if r.status_code == 416:  # Handle "Requested Range Not Satisfiable"
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    raise ValueError("Invalid byte range.")
+
                 r.raise_for_status()
 
-                # Open in append mode if we are resuming, otherwise write mode
                 mode = "ab" if headers.get("Range") else "wb"
                 with open(temp_path, mode) as f:
-                    bytes_downloaded_this_session = 0
-                    chunk_size = 8 * 1024 * 1024  # 8 MB
-
-                    for chunk in r.iter_content(chunk_size=chunk_size):
+                    for chunk in r.iter_content(chunk_size=8 * 1024 * 1024):  # 8 MB chunks
                         if chunk:
                             f.write(chunk)
-                            bytes_downloaded_this_session += len(chunk)
 
-            # After writing, validate final size if we know total_size
+            # Validate final size
             final_downloaded_size = temp_path.stat().st_size
-            if total_size is not None:
-                if final_downloaded_size != total_size:
-                    # The file is not fully downloaded or there's a mismatch
-                    raise ValueError(
-                        f"Final size mismatch for {granule_key}. "
-                        f"Expected {total_size}, got {final_downloaded_size}."
-                    )
+            if total_size is not None and final_downloaded_size != total_size:
+                temp_path.unlink(missing_ok=True)  # Clean up corrupt file
+                raise ValueError("Final size mismatch. Triggering retry...")
 
-            # Rename from .part to .h5, indicating a complete file
+            # Rename to final name upon successful download
             temp_path.rename(final_path)
             return granule_key, (product.value, str(final_path))
 
-        except (HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError) as e:
-            if isinstance(e, OSError) and e.errno == 24:  # Too many open files
-                logger.warning(f"File descriptor limit exceeded while downloading {granule_key}: {e}. Retrying after a delay...")
-                time.sleep(5)  # Short delay before retrying
-
-            # Will be retried up to 'tries' times by the @retry decorator
-            logger.warning(f"Encountered network error for {granule_key}: {e}. Retrying...")
-            raise
+        except (HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError, ValueError) as e:
+            if isinstance(e, OSError) and e.errno == 24:
+                logger.error(f"Too many open files for {product.name} of the granule {granule_key}: {e}. Retrying...")
+                time.sleep(5)
+        
+            logger.error(f"Error encountered for {product.name} of the granule {granule_key}: {e}. Retrying...")
+            raise  # This is what triggers the retry
 
         except Exception as e:
-            logger.error(f"Download failed after all retries for {granule_key}: {e}")
-            return granule_key, (product.value, None)  # Return None if all retries fail
+            logger.error(f"Download failed after all retries for {product.name} of the granule {granule_key}: {e}")
+            if temp_path.exists():
+                temp_path.unlink()
+            return granule_key, (product.value, None)

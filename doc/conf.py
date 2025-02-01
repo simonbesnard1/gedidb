@@ -4,6 +4,8 @@
 # SPDX-FileCopyrightText: 2025 Felix Dombrowski
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
+#
+
 import os
 import sys
 import importlib
@@ -181,7 +183,7 @@ def setup(app):
 # Set up the version switcher.  The versions.json is stored in the doc repo.
 # Determine the version to display in the switcher
     
-    
+z    
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "logo": {
