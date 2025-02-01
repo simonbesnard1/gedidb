@@ -346,12 +346,10 @@ class GEDIProcessor:
                 "It must be one of ['daily', 'weekly', None]."
             )
             
-        for timeframe, granules in unprocessed_temporal_cmr_data.items():
-            futures = []
-            
-            if isinstance(self.parallel_engine, concurrent.futures.Executor):
-                # Use concurrent.futures
-                with self.parallel_engine as executor:
+        if isinstance(self.parallel_engine, concurrent.futures.Executor):
+            # Create the executor once
+            with self.parallel_engine as executor:
+                for timeframe, granules in unprocessed_temporal_cmr_data.items():
                     futures = [
                         executor.submit(
                             GEDIProcessor.process_single_granule,
@@ -363,7 +361,26 @@ class GEDIProcessor:
                         for granule_id, product_info in granules.items()
                     ]
                     results = [future.result() for future in futures]
-            elif isinstance(self.parallel_engine, Client):
+        
+                    # Collect valid data for writing
+                    valid_dataframes = [gdf for _, gdf in results if gdf is not None]
+        
+                    if valid_dataframes:
+                        concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
+                        quadrants = self.database_writer.spatial_chunking(
+                            concatenated_df, chunk_size=self.data_info["tiledb"]["chunk_size"]
+                        )
+                        for _, data in quadrants.items():
+                            self.database_writer.write_granule(data)
+                    
+                    # Collect processed granules
+                    granule_ids = [ids_ for ids_, _ in results if ids_ is not None]
+                    for granule_id in granule_ids:
+                        self.database_writer.mark_granule_as_processed(granule_id)
+
+        elif isinstance(self.parallel_engine, Client):
+            for timeframe, granules in unprocessed_temporal_cmr_data.items():
+
                 # Assume Dask client
                 futures = [
                     self.parallel_engine.submit(
@@ -376,30 +393,26 @@ class GEDIProcessor:
                     for granule_id, product_info in granules.items()
                 ]
                 results = self.parallel_engine.gather(futures)
-            else:
-                raise ValueError(
-                    "Unsupported parallel engine. Provide a 'concurrent.futures.Executor' or 'dask.distributed.Client'."
-                )
+                
+                # Collect valid data for writing
+                valid_dataframes = [gdf for _, gdf in results if gdf is not None]
     
-            # Collect valid data for writing
-            valid_dataframes = [gdf for _, gdf in results if gdf is not None]
-            
-            # Proceed only if there is valid data
-            if valid_dataframes:
-                concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-    
-                # Sort data into quadrants for spatial processing
-                quadrants = self.database_writer.spatial_chunking(
-                    concatenated_df, chunk_size=self.data_info["tiledb"]["chunk_size"]
-                )
-    
-                for _, data in quadrants.items():
-                    self.database_writer.write_granule(data)
-
-            # Mark granules successfully downloaded and processed as done
-            granule_ids = [ids_ for ids_, _ in results if ids_ is not None]
-            for granule_id in granule_ids:
-                self.database_writer.mark_granule_as_processed(granule_id)
+                if valid_dataframes:
+                    concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
+                    quadrants = self.database_writer.spatial_chunking(
+                        concatenated_df, chunk_size=self.data_info["tiledb"]["chunk_size"]
+                    )
+                    for _, data in quadrants.items():
+                        self.database_writer.write_granule(data)
+                
+                # Collect processed granules
+                granule_ids = [ids_ for ids_, _ in results if ids_ is not None]
+                for granule_id in granule_ids:
+                    self.database_writer.mark_granule_as_processed(granule_id)
+        else:
+            raise ValueError(
+                "Unsupported parallel engine. Provide a 'concurrent.futures.Executor' or 'dask.distributed.Client'."
+            )
 
     @staticmethod
     def process_single_granule(granule_id, product_info, data_info, download_path):
