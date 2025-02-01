@@ -169,6 +169,7 @@ class H5FileDownloader:
 
     def __init__(self, download_path: str = "."):
         self.download_path = pathlib.Path(download_path)
+        
     @retry(
         (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException, OSError),
         tries=10,
