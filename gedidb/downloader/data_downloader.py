@@ -14,9 +14,11 @@ import geopandas as gpd
 from typing import Tuple, Optional
 import logging
 from collections import defaultdict
+from retry import retry
 from urllib3.exceptions import NewConnectionError
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from requests.exceptions import HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, RequestException
+from requests.exceptions import (
+    HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException, ReadTimeout, 
+)
 import time
 
 from gedidb.downloader.cmr_query import GranuleQuery
@@ -64,10 +66,11 @@ class CMRDataDownloader(GEDIDownloader):
         self.earth_data_info = earth_data_info
 
     @retry(
-        retry=retry_if_exception_type(((ValueError, TypeError, HTTPError, ConnectionError, NewConnectionError))),
-        stop=stop_after_attempt(10),
-        wait=wait_exponential(multiplier=1, min=5, max=60),
-        reraise=True
+        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException, NewConnectionError),
+        tries=10,
+        delay=5,
+        backoff=3,
+        logger=logger
     )
     def download(self) -> dict:
         """
@@ -166,12 +169,12 @@ class H5FileDownloader:
 
     def __init__(self, download_path: str = "."):
         self.download_path = pathlib.Path(download_path)
-
     @retry(
-        retry=retry_if_exception_type((ValueError, HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError, RequestException)),
-        stop=stop_after_attempt(10),
-        wait=wait_exponential(multiplier=1, min=5, max=60),
-        reraise=True
+        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException, OSError),
+        tries=10,
+        delay=5,
+        backoff=3,
+        logger=logger
     )
     def download(self, granule_key: str, url: str, product: str) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
