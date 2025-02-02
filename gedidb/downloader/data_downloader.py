@@ -233,7 +233,7 @@ class H5FileDownloader:
             final_downloaded_size = temp_path.stat().st_size
             if total_size is not None and final_downloaded_size != total_size:
                 temp_path.unlink(missing_ok=True)  # Clean up corrupt file
-                raise ValueError("Final size mismatch. Triggering retry...")
+                raise ValueError("Downloaded final size mismatch with expected size")
 
             # Rename to final name upon successful download
             temp_path.rename(final_path)
