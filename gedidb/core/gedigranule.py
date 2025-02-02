@@ -68,7 +68,7 @@ class GEDIGranule:
         missing_product = [level for level, data in granules if data is None]
 
         if missing_product:
-            logger.warning(f"Granule {granule_key}: Missing HDF5 files()) for levels: {missing_product}")
+            logger.warning(f"Granule {granule_key} was not processed: Missing HDF5 file(s) for levels: {missing_product}")
             return None, None
         
         try:
@@ -85,7 +85,7 @@ class GEDIGranule:
 
             return granule_key, gdf
         except Exception as e:
-            logger.error(f"Granule {granule_key}: Processing failed with error: {e}")
+            logger.error(f"Granule {granule_key} was not processed: Processing failed with error: {e}")
             return None, None
 
     def parse_granules(
