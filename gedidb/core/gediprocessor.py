@@ -370,7 +370,7 @@ class GEDIProcessor:
                         quadrants = self.database_writer.spatial_chunking(
                             concatenated_df, chunk_size=self.data_info["tiledb"]["chunk_size"]
                         )
-                        for _, data in quadrants.items():
+                        for data in quadrants.values():
                             self.database_writer.write_granule(data)
                     
                     # Collect processed granules
@@ -402,7 +402,7 @@ class GEDIProcessor:
                     quadrants = self.database_writer.spatial_chunking(
                         concatenated_df, chunk_size=self.data_info["tiledb"]["chunk_size"]
                     )
-                    for _, data in quadrants.items():
+                    for data in quadrants.values():
                         self.database_writer.write_granule(data)
                 
                 # Collect processed granules
