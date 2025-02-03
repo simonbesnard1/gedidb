@@ -170,6 +170,7 @@ class GEDIDatabase:
 
         return quadrants
 
+    @retry((tiledb.TileDBError, ConnectionError), tries=10, delay=5, backoff=3, logger=logger)
     def consolidate_fragments(
         self,
         consolidation_type: str = "default",
