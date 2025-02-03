@@ -14,7 +14,7 @@ Working with GEDI data in its raw HDF5 format can be challenging due to:
 
  - **Complex data structure**: GEDI files are organized by orbit, making it inefficient for users interested in specific regions.
  - **High redundancy**: Users often need only a few metrics from across different products for each footprint, yet each HDF5 file contains extensive redundant information, leading to excessive disk and network load.
- - **Filter challenges**: The GEDI research community has identified common initial filters that reduce data size by up to 30%, yet these filters are not reflected in the raw HDF5 files.
+ - **Filter challenges**: When working with raw GEDI HDF5 files, researchers encounter a large volume of data, including many low-quality shots that are not suitable for scientific analysis. Although the raw HDF5 files contain various quality-related flags and variables, these filters are not pre-applied.
 
 GediDB was designed to address these issues by providing an efficient, pre-filtered **tileDB** database system that combines GEDI L2A+B and L4A+C products.
 
