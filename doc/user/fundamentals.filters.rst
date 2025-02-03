@@ -23,6 +23,7 @@ Filtering and Product Merging
 The filters are applied **sequentially** to each data product (L2A and L2B) before merging. This ensures that only data meeting high-quality standards across products is retained in the final dataset. The merging process uses `shot_number` as the key to join each product’s data into a cohesive DataFrame.
 
 Key points:
+
 - **Product-Specific Filtering:** Each product’s data is automatically filtered using the respective beam class (`L2ABeam` and `L2BBeam`).
 - **Merging Logic:** An **inner join** on `shot_number` ensures that only records present in both L2A and L2B (after filtering) are included.
 - **Data Integrity:** Records missing in any product after filtering are excluded, maintaining consistency and reliability in the final dataset.
