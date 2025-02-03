@@ -526,6 +526,8 @@ class GEDIDatabase:
             If required dimension data or critical variables are missing.
         """
         try:
+            granule_data = granule_data.drop_duplicates(subset=['latitude', 'longitude', 'time'])
+                
             # Validate granule data
             self._validate_granule_data(granule_data)
     
