@@ -6,7 +6,7 @@ tiledb:
   temporal_batching: "weekly"
   chunk_size: 25
   time_range:                             # Global time range for data
-    start_time: "2018-01"
+    start_time: "2018-01-01"
     end_time: "2030-12-31"
   spatial_range:                          # Global spatial range (bounding box)
     lat_min: -56.0
