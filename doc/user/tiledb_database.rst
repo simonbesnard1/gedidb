@@ -72,6 +72,14 @@ The configuration file contains:
 .. note::
    The current database architecture is somewhat experimental, and different approaches may be more suitable to improve the speed of spatial and temporal queries. Users are encouraged to provide feedback and suggestions for optimizing the tileDB database configuration.
 
+.. figure:: /_static/images/tileDB_fragment_structure.png
+   :alt:  Data structure of the tileDB array
+   :align: center
+   :width: 100%
+
+   **Figure 2**: The data structure in the TileDB Global Database for GEDI Data.
+
+
 
 List of the available variables
 -------------------------------
