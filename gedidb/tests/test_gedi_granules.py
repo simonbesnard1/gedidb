@@ -103,6 +103,9 @@ class TestCase(unittest.TestCase):
                 "lon_lowestmode": {
                     "SDS_Name": "lon_lowestmode",
                 },
+                "wsci": {
+                    "SDS_Name": "wsci",
+                },
             },
         },
     }
@@ -166,12 +169,12 @@ class TestCase(unittest.TestCase):
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]
-        # agbd = data_orig["BEAM1000"]["agbd"][idx]
+        wsci = data_orig["BEAM1000"]["wsci"][idx]
 
         row = data.loc[data["shot_number"] == shot_number]
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
         self.assertEqual(row["lon_lowestmode"].values[0], lon)
-        # self.assertEqual(row["agbd"].values[0], agbd)
+        self.assertEqual(row["wsci"].values[0], wsci)
 
     def test_parse_granule_l2b(self):
         data = parse_h5_file(
@@ -181,7 +184,7 @@ class TestCase(unittest.TestCase):
         )
         data_orig = h5py.File(L2B_NAME, "r")
         # TODO: idx needs to correspond to a shot_number which won't be initially quality filtered
-        idx = 1646
+        idx = 800
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["geolocation"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["geolocation"]["lon_lowestmode"][idx]
@@ -201,7 +204,7 @@ class TestCase(unittest.TestCase):
         self._generic_test_parse_granule(L2A_NAME, data)
         # Some of the data is correct
         data_orig = h5py.File(L2A_NAME, "r")
-        idx = 10000
+        idx = 999
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]

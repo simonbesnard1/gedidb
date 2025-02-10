@@ -52,19 +52,18 @@ class TestGeospatialTools(unittest.TestCase):
             _ = gt.check_and_format_shape(geometry)
 
     def test_multi_polygon_shapes(self):
-    	polygon1 = self._make_polygon(10.0, 10.0, 0.3)
-    	polygon2 = self._make_polygon(12.0, 12.0, 0.4)
+        polygon1 = self._make_polygon(10.0, 10.0, 0.3)
+        polygon2 = self._make_polygon(12.0, 12.0, 0.4)
     
-    	# Ensure the polygons are valid
-    	assert polygon1.is_valid, "polygon1 is not valid"
-    	assert polygon2.is_valid, "polygon2 is not valid"
+        # Ensure the polygons are valid
+        assert polygon1.is_valid, "polygon1 is not valid"
+        assert polygon2.is_valid, "polygon2 is not valid"
     
-    	# Wrap each polygon in a tuple as required by MultiPolygon
-    	multipolygon = MultiPolygon([(polygon1, ), (polygon2, )])
-    	geometry = gpd.GeoSeries([multipolygon])
-    
-    	checked = gt.check_and_format_shape(geometry)
-    	self.assertIsNotNone(checked)
+        # Wrap each polygon in a tuple as required by MultiPolygon
+        multipolygon = MultiPolygon([(polygon1, ), (polygon2, )])
+        geometry = gpd.GeoSeries([multipolygon])
+        checked = gt.check_and_format_shape(geometry)
+        self.assertIsNotNone(checked)
 
     def test_too_many_points_dont_simplify(self):
         points = []

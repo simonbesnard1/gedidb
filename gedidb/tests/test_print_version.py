@@ -1,4 +1,3 @@
-import pytest
 from unittest import mock
 from io import StringIO
 import sys
@@ -84,4 +83,3 @@ def test_show_versions_with_module_errors():
     finally:
         # Restore original modules
         sys.modules.update(original_modules)
-
