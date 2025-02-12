@@ -12,8 +12,6 @@ However, if we don't run this test, they tend to silently disable old API
 endpoints, which can break our code.
 """
 
-# === UPDATED ===
-
 import os
 import yaml
 from pathlib import Path
@@ -77,3 +75,6 @@ class TestNasaCmrApi(unittest.TestCase):
         )
         granules = cmr.query_granules()
         self.assertGreater(len(granules), 0)
+
+
+suite = unittest.TestLoader().loadTestsFromTestCase(TestNasaCmrApi)
