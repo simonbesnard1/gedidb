@@ -21,19 +21,6 @@ env:
   FORCE_COLOR: 3  # Enables colored output
 
 jobs:
-  detect-ci-trigger:
-    name: Detect CI Trigger
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - uses: gedidb-contrib/ci-trigger@v1
-        id: detect-trigger
-        with:
-          keyword: "[skip-ci]"
-    outputs:
-      triggered: ${{ steps.detect-trigger.outputs.trigger-found }}
 
   test:
     name: ${{ matrix.os }} | py${{ matrix.python-version }}
