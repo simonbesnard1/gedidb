@@ -1,6 +1,6 @@
 <p align="center">
-<a href="https://git.gfz-potsdam.de/global-land-monitoring/gedidb.git">
-    <img src="https://git.gfz-potsdam.de/global-land-monitoring/gedidb/-/raw/main/doc/_static/logos/gediDB_logo.svg" 
+<a href="https://github.com/simonbesnard1/gedidb.git">
+    <img src="ttps://github.com/simonbesnard1/gedidb/-/raw/main/doc/_static/logos/gediDB_logo.svg" 
          alt="gediDB Logo" height="120px" hspace="0px" vspace="30px" align="left">
 </a>
 </p>
@@ -10,7 +10,7 @@
 
 [![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/pipelines)
 [![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/coverage/)
-[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/)
+[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://gedidb.readthedocs.io/en/latest/)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://static.pepy.tech/badge/gedidb)](https://pepy.tech/projects/gedidb)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885228)
@@ -33,12 +33,12 @@
 ## Documentation
 
 Learn more about gediDB in its official documentation at
-<https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/>.
+<https://gedidb.readthedocs.io/en/latest/>.
 
 ## Contributing
 
 You can find information about contributing to gediDB on our
-[Contributing page](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/user/contributing.html).
+[Contributing page](https://gedidb.readthedocs.io/en/latest/user/contributing.html).
 
 ## History
 

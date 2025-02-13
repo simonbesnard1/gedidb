@@ -190,7 +190,7 @@ html_theme_options = {
         "image_light": "_static/logos/gediDB_logo.svg",
         "image_dark": "_static/logos/gediDB_logo.svg",
     },
-    "gitlab_url": "https://git.gfz-potsdam.de/global-land-monitoring/gedidb/",
+    "gitlab_url": "https://github.com/simonbesnard1/gedidb",
     "collapse_navigation": True,
     
     "header_links_before_dropdown": 6,
@@ -456,10 +456,10 @@ def linkcode_resolve(domain, info):
     fn = os.path.relpath(fn, start=os.path.dirname(gedidb.__file__))
 
     if "+" in gedidb.__version__:
-        return f"https://git.gfz-potsdam.de/global-land-monitoring/gedidb/{fn}{linespec}"
+        return f"https://github.com/simonbesnard1/gedidb/{fn}{linespec}"
     else:
         return (
-            f"https://git.gfz-potsdam.de/global-land-monitoring/gedidb/blob/"
+            f"https://github.com/simonbesnard1/gedidb/blob/"
             f"v{gedidb.__version__}/gedidb/{fn}{linespec}"
         )
 
