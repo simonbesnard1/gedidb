@@ -1,6 +1,6 @@
 <p align="center">
 <a href="https://github.com/simonbesnard1/gedidb.git">
-    <img src="ttps://github.com/simonbesnard1/gedidb/-/raw/main/doc/_static/logos/gediDB_logo.svg" 
+    <img src="https://github.com/simonbesnard1/gedidb/blob/main/doc/_static/logos/gediDB_logo.svg" 
          alt="gediDB Logo" height="120px" hspace="0px" vspace="30px" align="left">
 </a>
 </p>
@@ -8,7 +8,7 @@
 
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
-[![Pipelines](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/pipeline.svg)](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/pipelines)
+[![Pipelines](https://github.com/pydata/gedidb/workflows/CI/badge.svg?branch=main)](https://github.com/pydata/xarray/actions?query=workflow%3ACI)
 [![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/coverage/)
 [![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://gedidb.readthedocs.io/en/latest/)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
