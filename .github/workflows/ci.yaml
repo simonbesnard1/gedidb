@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Miniconda
         run: |
@@ -36,7 +36,7 @@ jobs:
           sphinx-build -W -b html doc/ doc/_build/html
 
       - name: Upload Documentation Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: documentation
           path: doc/_build/html
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Python Virtual Environment
         run: |
@@ -59,7 +59,7 @@ jobs:
           python -c "import gedidb; print(gedidb.__version__)"
 
       - name: Upload Virtual Environment
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-env
           path: .venv
@@ -72,10 +72,10 @@ jobs:
     needs: setup  # Run only after setup completes
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download Virtual Environment
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: python-env
           path: .venv
@@ -86,7 +86,7 @@ jobs:
           pytest --cov=gedidb --cov-report html:htmlcov --cov-report=term --cov-report=xml:coverage.xml --junitxml=reports/junit.xml gedidb/tests
 
       - name: Upload Coverage Reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: htmlcov/
@@ -99,10 +99,10 @@ jobs:
     needs: setup
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download Virtual Environment
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: python-env
           path: .venv
@@ -121,16 +121,16 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download Documentation Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: documentation
           path: doc/_build/html
 
       - name: Download Coverage Reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: coverage
           path: htmlcov/
@@ -154,7 +154,7 @@ jobs:
         run: echo "Deployment script would go here"
 
       - name: Upload Deployment Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: deployment
           path: public
