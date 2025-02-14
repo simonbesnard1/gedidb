@@ -55,17 +55,29 @@ jobs:
           create-args: >-
             python=3.10
 
-      - name: Install gedidb
+      - name: Activate Conda & Install gedidb
+        shell: bash -l {0}
         run: |
+          micromamba activate gedidb-tests
           python -m pip install --no-deps -e .
 
-      - name: Version info
+      - name: Check Installed Packages
+        shell: bash -l {0}
         run: |
-          python gedidb/utils/print_versions.py
+          micromamba activate gedidb-tests
+          python -c "import pkg_resources; print([d.project_name for d in pkg_resources.working_set])"
 
-      - name: Import gedidb
+      - name: Verify gedidb Import
+        shell: bash -l {0}
         run: |
+          micromamba activate gedidb-tests
           python -c "import gedidb"
+
+      - name: Version info
+        shell: bash -l {0}
+        run: |
+          micromamba activate gedidb-tests
+          python gedidb/utils/print_versions.py
 
       - name: Restore cached hypothesis directory
         uses: actions/cache@v4
@@ -76,7 +88,9 @@ jobs:
           save-always: true
 
       - name: Run tests
+        shell: bash -l {0}
         run: |
+          micromamba activate gedidb-tests
           python -m pytest -n 4 --timeout 180 \
           --cov=gedidb --cov-report=xml --junitxml=pytest.xml
 
