@@ -22,7 +22,9 @@ class beam_handler(h5py.Group):
     Provides methods to extract and process the beam data, including filtering, caching, and SQL formatting.
     """
 
-    def __init__(self, granule: h5py.File, beam: str, field_mapping: Dict[str, str]):
+    def __init__(
+        self, granule: h5py.File, beam: str, field_mapping: Dict[str, str]
+    ):
         """
         Initialize the Beam class.
 
@@ -40,7 +42,8 @@ class beam_handler(h5py.Group):
 
     @staticmethod
     def apply_filter(
-        data: Dict[str, np.ndarray], filters: Optional[Dict[str, Callable]] = None
+        data: Dict[str, np.ndarray],
+        filters: Optional[Dict[str, Callable]] = None,
     ) -> np.ndarray:
         """
         Apply a set of filters to the beam data.
@@ -113,7 +116,10 @@ class beam_handler(h5py.Group):
             for key, value in data.items():
                 if isinstance(value, np.ndarray) and value.ndim > 1:
                     flattened_data.update(
-                        {f"{key}_{i + 1}": value[:, i] for i in range(value.shape[1])}
+                        {
+                            f"{key}_{i + 1}": value[:, i]
+                            for i in range(value.shape[1])
+                        }
                     )
                 else:
                     flattened_data[key] = value

@@ -213,4 +213,5 @@ class TestCase(unittest.TestCase):
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
         self.assertEqual(row["lon_lowestmode"].values[0], lon)
 
+
 suite = unittest.TestLoader().loadTestsFromTestCase(TestCase)

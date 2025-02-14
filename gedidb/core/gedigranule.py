@@ -68,9 +68,11 @@ class GEDIGranule:
         missing_product = [level for level, data in granules if data is None]
 
         if missing_product:
-            logger.warning(f"Granule {granule_key} was not processed: Missing HDF5 file(s) for levels: {missing_product}")
+            logger.warning(
+                f"Granule {granule_key} was not processed: Missing HDF5 file(s) for levels: {missing_product}"
+            )
             return None, None
-        
+
         try:
             gdf_dict = self.parse_granules(granules, granule_key)
             if not gdf_dict:
@@ -85,7 +87,9 @@ class GEDIGranule:
 
             return granule_key, gdf
         except Exception as e:
-            logger.error(f"Granule {granule_key} was not processed: Processing failed with error: {e}")
+            logger.error(
+                f"Granule {granule_key} was not processed: Processing failed with error: {e}"
+            )
             return None, None
 
     def parse_granules(
@@ -101,7 +105,7 @@ class GEDIGranule:
         """
         data_dict = {}
         granule_dir = os.path.join(self.download_path, granule_key)
-        
+
         try:
             for product, file in granules:
                 data = granule_parser.parse_h5_file(
@@ -146,7 +150,10 @@ class GEDIGranule:
         try:
             # Validate required products
             for product in required_products:
-                if product.value not in df_dict or df_dict[product.value].empty:
+                if (
+                    product.value not in df_dict
+                    or df_dict[product.value].empty
+                ):
                     return None
 
             # Start joining with the L2A product
@@ -161,10 +168,14 @@ class GEDIGranule:
                 )
 
             # Drop duplicate columns with suffixes
-            suffixes = [f"_{product.value}" for product in required_products[1:]]
+            suffixes = [
+                f"_{product.value}" for product in required_products[1:]
+            ]
             df = df.loc[:, ~df.columns.str.endswith(tuple(suffixes))]
 
             return df if not df.empty else None
         except Exception as e:
-            logger.error(f"Granule {granule_key}: Error while joining DataFrames: {e}")
+            logger.error(
+                f"Granule {granule_key}: Error while joining DataFrames: {e}"
+            )
             return None

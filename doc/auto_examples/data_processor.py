@@ -28,15 +28,15 @@ from dask.distributed import Client, LocalCluster
 import concurrent.futures
 
 # Configuration file path
-config_file = '/path/to/data_config.yml'
+config_file = "/path/to/data_config.yml"
 
 # Paths to GeoJSON region and EarthData credentials
-geojson_path = '/path/to/test.geojson'
-earth_data_dir = '/path/to/EarthData_credentials'
+geojson_path = "/path/to/test.geojson"
+earth_data_dir = "/path/to/EarthData_credentials"
 
 # Define the start and end date for processing
-start_date = '2020-01-01'
-end_date = '2020-12-31'
+start_date = "2020-01-01"
+end_date = "2020-12-31"
 
 # Option 1: Using a ThreadPoolExecutor (concurrent.futures)
 # ---------------------------------------------------------
@@ -54,14 +54,14 @@ cluster = LocalCluster(
     n_workers=5,
     threads_per_worker=1,
     processes=True,
-    memory_limit='8GB',
+    memory_limit="8GB",
     dashboard_address=None,
 )
 dask_client = Client(cluster)
 
 # Initialize the GEDIProcessor with the chosen parallel engine
 # ------------------------------------------------------------
-# Here, we demonstrate usage with `concurrent.futures.ThreadPoolExecutor`. 
+# Here, we demonstrate usage with `concurrent.futures.ThreadPoolExecutor`.
 # You can replace `parallel_engine=concurrent_engine` with `parallel_engine=dask_client` to use Dask instead.
 with gdb.GEDIProcessor(
     config_file=config_file,

@@ -32,9 +32,22 @@ class L4AGranule(granule_handler):
             file_path (str): Path to the GEDI Level 4A granule file (HDF5 format).
             field_mapping (Dict[str, str]): Dictionary containing the mapping of product variables to data fields.
         """
-        super().__init__(file_path)
-        self.file_path = file_path
-        self.field_mapping = field_mapping
+        self.field_mapping = (
+            field_mapping  # Initialize early to avoid missing attributes
+        )
+
+        try:
+            super().__init__(file_path)  # Call parent constructor
+            if not self._is_open:
+                raise RuntimeError(
+                    f"Failed to initialize L4CGranule: {file_path} could not be opened."
+                )
+        except Exception as e:
+            print(f"Error initializing L4CGranule for {file_path}: {e}")
+            self.file_path = (
+                file_path  # Ensure this is always set to avoid AttributeError
+            )
+            self._is_open = False  # Mark as not open
 
     def validate_beam_name(self, beam: str) -> None:
         """
@@ -46,6 +59,11 @@ class L4AGranule(granule_handler):
         Raises:
             ValueError: If the specified beam name is not found in the granule.
         """
+        if not self._is_open:
+            raise RuntimeError(
+                f"Cannot validate beams; granule file '{self.file_path}' is not open."
+            )
+
         if beam not in self.beam_names:
             raise ValueError(
                 f"Invalid beam name '{beam}' in file '{self.file_path}'. "

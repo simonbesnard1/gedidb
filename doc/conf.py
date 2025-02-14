@@ -46,15 +46,14 @@ extensions = [
     "sphinx_design",
     "sphinx_inline_tabs",
     "sphinx_remove_toctrees",
-    "sphinx_gallery.gen_gallery"
-
+    "sphinx_gallery.gen_gallery",
 ]
 
 # Gallery configuration
 sphinx_gallery_conf = {
-     'filename_pattern': '/plot_',
-     'examples_dirs': 'gallery',   # path to your example scripts
-     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+    "filename_pattern": "/plot_",
+    "examples_dirs": "gallery",  # path to your example scripts
+    "gallery_dirs": "auto_examples",  # path to where to save gallery generated output
 }
 
 skippable_extensions = [
@@ -98,7 +97,7 @@ default_role = "autolink"
 # for source files.
 exclude_dirs = []
 
-exclude_patterns = ['gallery/README.rst']
+exclude_patterns = ["gallery/README.rst"]
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 add_function_parentheses = False
@@ -121,6 +120,7 @@ class LegacyDirective(Directive):
 
     See also the same implementation in SciPy's conf.py.
     """
+
     has_content = True
     node_class = nodes.admonition
     optional_arguments = 1
@@ -131,9 +131,11 @@ class LegacyDirective(Directive):
         except IndexError:
             # Argument is empty; use default text
             obj = "submodule"
-        text = (f"This {obj} is considered legacy and will no longer receive "
-                "updates. This could also mean it will be removed in future "
-                "gediDB versions.")
+        text = (
+            f"This {obj} is considered legacy and will no longer receive "
+            "updates. This could also mean it will be removed in future "
+            "gediDB versions."
+        )
 
         try:
             self.content[0] = text + " " + self.content[0]
@@ -142,32 +144,32 @@ class LegacyDirective(Directive):
             source, lineno = self.state_machine.get_source_and_line(
                 self.lineno
             )
-            self.content.append(
-                text,
-                source=source,
-                offset=lineno
-            )
-        text = '\n'.join(self.content)
+            self.content.append(text, source=source, offset=lineno)
+        text = "\n".join(self.content)
         # Create the admonition node, to be populated by `nested_parse`
         admonition_node = self.node_class(rawsource=text)
         # Set custom title
         title_text = "Legacy"
         textnodes, _ = self.state.inline_text(title_text, self.lineno)
-        title = nodes.title(title_text, '', *textnodes)
+        title = nodes.title(title_text, "", *textnodes)
         # Set up admonition node
         admonition_node += title
         # Select custom class for CSS styling
-        admonition_node['classes'] = ['admonition-legacy']
+        admonition_node["classes"] = ["admonition-legacy"]
         # Parse the directive contents
-        self.state.nested_parse(self.content, self.content_offset,
-                                admonition_node)
+        self.state.nested_parse(
+            self.content, self.content_offset, admonition_node
+        )
         return [admonition_node]
 
 
 def setup(app):
     # add a config value for `ifconfig` directives
-    app.add_config_value('python_version_major', str(sys.version_info.major), 'env')
+    app.add_config_value(
+        "python_version_major", str(sys.version_info.major), "env"
+    )
     app.add_directive("legacy", LegacyDirective)
+
 
 # While these objects do have type `module`, the names are aliases for modules
 # elsewhere. Sphinx does not support referring to modules by an aliases name,
@@ -182,8 +184,8 @@ def setup(app):
 
 # Set up the version switcher.  The versions.json is stored in the doc repo.
 # Determine the version to display in the switcher
-    
-    
+
+
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "logo": {
@@ -192,13 +194,8 @@ html_theme_options = {
     },
     "gitlab_url": "https://github.com/simonbesnard1/gedidb",
     "collapse_navigation": True,
-    
     "header_links_before_dropdown": 6,
-    "navbar_end": [
-        "search-button",
-        "theme-switcher",
-        "navbar-icon-links"
-    ],
+    "navbar_end": ["search-button", "theme-switcher", "navbar-icon-links"],
     "navbar_persistent": [],
     "show_version_warning_banner": True,
 }
@@ -226,7 +223,9 @@ plot_html_show_formats = False
 plot_html_show_source_link = False
 
 # sphinx-copybutton configurations
-copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
+copybutton_prompt_text = (
+    r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
+)
 copybutton_prompt_is_regexp = True
 # -----------------------------------------------------------------------------
 # LaTeX output
@@ -245,8 +244,20 @@ latex_engine = "xelatex"
 # (source start file, target name, title, author, document class [howto/manual]).
 _stdauthor = "Written by the gediDB members"
 latex_documents = [
-    ("reference/index", "gedidb-ref.tex", "gediDB Reference", _stdauthor, "manual"),
-    ("user/index", "gedidb-user.tex", "gediDB User Guide", _stdauthor, "manual"),
+    (
+        "reference/index",
+        "gedidb-ref.tex",
+        "gediDB Reference",
+        _stdauthor,
+        "manual",
+    ),
+    (
+        "user/index",
+        "gedidb-user.tex",
+        "gediDB User Guide",
+        _stdauthor,
+        "manual",
+    ),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -330,10 +341,16 @@ latex_use_modindex = False
 # -----------------------------------------------------------------------------
 
 texinfo_documents = [
-  ("index", 'gedidb', 'gediDB Documentation', _stdauthor, 'gediDB',
-   "gediDB: A toolbox for processing and providing Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data",
-   'Programming',
-   1),
+    (
+        "index",
+        "gedidb",
+        "gediDB Documentation",
+        _stdauthor,
+        "gediDB",
+        "gediDB: A toolbox for processing and providing Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data",
+        "Programming",
+        1,
+    ),
 ]
 
 
@@ -468,6 +485,7 @@ def html_page_context(app, pagename, templatename, context, doctree):
     # Disable edit button for docstring generated pages
     if "generated" in pagename:
         context["theme_use_edit_page_button"] = False
+
 
 # -----------------------------------------------------------------------------
 # Breathe & Doxygen

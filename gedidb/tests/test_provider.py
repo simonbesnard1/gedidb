@@ -19,6 +19,7 @@ import geopandas as gpd
 from gedidb import GEDIDatabase
 from gedidb import GEDIProvider
 
+
 class TestGEDIProvider(unittest.TestCase):
 
     @classmethod
@@ -53,7 +54,9 @@ class TestGEDIProvider(unittest.TestCase):
         variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
         result = self.gedi_provider.get_data(variables, geometry=self.geometry)
         self.assertIsNotNone(result, "Result should not be None")
-        self.assertTrue(isinstance(result, Dataset), "Result should be an xarray Dataset")
+        self.assertTrue(
+            isinstance(result, Dataset), "Result should be an xarray Dataset"
+        )
 
     def test_get_data_with_time_range(self):
         """Test get_data with start and end time arguments."""
@@ -61,7 +64,10 @@ class TestGEDIProvider(unittest.TestCase):
         start_time = "2020-06-09"
         end_time = "2020-06-09"
         result = self.gedi_provider.get_data(
-            variables, geometry=self.geometry, start_time=start_time, end_time=end_time
+            variables,
+            geometry=self.geometry,
+            start_time=start_time,
+            end_time=end_time,
         )
         self.assertIsNotNone(result, "Result should not be None")
         self.assertTrue(
@@ -73,8 +79,13 @@ class TestGEDIProvider(unittest.TestCase):
         variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
         point = (9.43074284703215, 6.33762697689783)
         radius = 1.0
-        result = self.gedi_provider.get_data(variables, query_type="nearest", 
-                                             point=point, radius=radius, num_shots=2)
+        result = self.gedi_provider.get_data(
+            variables,
+            query_type="nearest",
+            point=point,
+            radius=radius,
+            num_shots=2,
+        )
         self.assertIsNotNone(result, "Result should not be None")
         self.assertTrue(
             isinstance(result, Dataset), "Result should be an xarray Dataset"
@@ -84,28 +95,41 @@ class TestGEDIProvider(unittest.TestCase):
         """Test get_data with quality filters."""
         variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
 
-        unfiltered_result = self.gedi_provider.get_data(variables, geometry=self.geometry)
-        self.assertIsNotNone(unfiltered_result, "Unfiltered result should not be None")
+        unfiltered_result = self.gedi_provider.get_data(
+            variables, geometry=self.geometry
+        )
+        self.assertIsNotNone(
+            unfiltered_result, "Unfiltered result should not be None"
+        )
         self.assertTrue(
             isinstance(unfiltered_result, Dataset),
             "Unfiltered result should be an xarray Dataset",
         )
 
-        quality_filters = {"wsci_z_pi_lower": "> 4.0", "wsci_z_pi_upper": "> 6.1"}
+        quality_filters = {
+            "wsci_z_pi_lower": "> 4.0",
+            "wsci_z_pi_upper": "> 6.1",
+        }
 
-        filtered_result = self.gedi_provider.get_data(variables, geometry=self.geometry, **quality_filters)
-        self.assertIsNotNone(filtered_result, "Filtered result should not be None")
+        filtered_result = self.gedi_provider.get_data(
+            variables, geometry=self.geometry, **quality_filters
+        )
+        self.assertIsNotNone(
+            filtered_result, "Filtered result should not be None"
+        )
         self.assertTrue(
             isinstance(filtered_result, Dataset),
             "Filtered result should be an xarray Dataset",
         )
 
         self.assertTrue(
-            len(filtered_result[variables[0]]) < len(unfiltered_result[variables[0]]),
+            len(filtered_result[variables[0]])
+            < len(unfiltered_result[variables[0]]),
             "Filtered data should have fewer entries than unfiltered data",
         )
         self.assertTrue(
-            len(filtered_result[variables[1]]) < len(unfiltered_result[variables[1]]),
+            len(filtered_result[variables[1]])
+            < len(unfiltered_result[variables[1]]),
             "Filtered data should have fewer entries than unfiltered data",
         )
 
@@ -114,15 +138,21 @@ class TestGEDIProvider(unittest.TestCase):
         variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
 
         # Test xarray return type
-        result_xarray = self.gedi_provider.get_data(variables, geometry=self.geometry, return_type="xarray")
+        result_xarray = self.gedi_provider.get_data(
+            variables, geometry=self.geometry, return_type="xarray"
+        )
         self.assertTrue(
-            isinstance(result_xarray, Dataset), "Result should be an xarray Dataset"
+            isinstance(result_xarray, Dataset),
+            "Result should be an xarray Dataset",
         )
 
         # Test pandas DataFrame return type
-        result_df = self.gedi_provider.get_data(variables, geometry= self.geometry, return_type="dataframe")
+        result_df = self.gedi_provider.get_data(
+            variables, geometry=self.geometry, return_type="dataframe"
+        )
         self.assertTrue(
-            isinstance(result_df, DataFrame), "Result should be a pandas DataFrame"
+            isinstance(result_df, DataFrame),
+            "Result should be a pandas DataFrame",
         )
 
     def test_get_data_invalid_query_type(self):
@@ -130,11 +160,15 @@ class TestGEDIProvider(unittest.TestCase):
         variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
         query_type = "invalid_query"
         with self.assertRaises(ValueError):
-            self.gedi_provider.get_data(variables, geometry=self.geometry, query_type=query_type)
+            self.gedi_provider.get_data(
+                variables, geometry=self.geometry, query_type=query_type
+            )
 
     def test_get_data_invalid_return_type(self):
         """Test get_data with an invalid query type."""
         variables = ["wsci_z_pi_lower", "wsci_z_pi_upper"]
         return_type = "invalid_return"
         with self.assertRaises(ValueError):
-            self.gedi_provider.get_data(variables, geometry=self.geometry, return_type=return_type)
+            self.gedi_provider.get_data(
+                variables, geometry=self.geometry, return_type=return_type
+            )

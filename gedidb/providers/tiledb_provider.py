@@ -38,27 +38,35 @@ class TileDBProvider:
 
         # Validate storage_type
         if not storage_type or not isinstance(storage_type, str):
-            raise ValueError("The 'storage_type' argument must be a non-empty string.")
+            raise ValueError(
+                "The 'storage_type' argument must be a non-empty string."
+            )
 
         storage_type = storage_type.lower()
 
         if storage_type == "s3":
             # Validate s3_bucket for S3 storage type
             if not s3_bucket:
-                raise ValueError("The 's3_bucket' must be provided when 'storage_type' is set to 's3'.")
+                raise ValueError(
+                    "The 's3_bucket' must be provided when 'storage_type' is set to 's3'."
+                )
             self.scalar_array_uri = f"s3://{s3_bucket}/array_uri"
             self.ctx = self._initialize_s3_context(credentials, url, region)
 
         elif storage_type == "local":
             # Validate local_path for local storage type
             if not local_path:
-                raise ValueError("The 'local_path' must be provided when 'storage_type' is set to 'local'.")
+                raise ValueError(
+                    "The 'local_path' must be provided when 'storage_type' is set to 'local'."
+                )
             self.scalar_array_uri = os.path.join(local_path, "array_uri")
             self.ctx = self._initialize_local_context()
 
         else:
             # Raise an error for invalid storage_type
-            raise ValueError(f"Invalid 'storage_type': {storage_type}. Must be 'local' or 's3'.")
+            raise ValueError(
+                f"Invalid 'storage_type': {storage_type}. Must be 'local' or 's3'."
+            )
 
     def _initialize_s3_context(
         self, credentials: Optional[dict], url: str, region: str
@@ -68,16 +76,21 @@ class TileDBProvider:
             "vfs.s3.region": region,
             "py.init_buffer_bytes": "512000000",  # Increase buffer size
         }
-        
+
         # Add credentials if provided
         if credentials:
-            config.update({
-                "vfs.s3.aws_access_key_id": credentials.get("AccessKeyId", ""),
-                "vfs.s3.aws_secret_access_key": credentials.get("SecretAccessKey", "")
-            })
-        
-        return tiledb.Ctx(config)
+            config.update(
+                {
+                    "vfs.s3.aws_access_key_id": credentials.get(
+                        "AccessKeyId", ""
+                    ),
+                    "vfs.s3.aws_secret_access_key": credentials.get(
+                        "SecretAccessKey", ""
+                    ),
+                }
+            )
 
+        return tiledb.Ctx(config)
 
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx(
@@ -107,7 +120,9 @@ class TileDBProvider:
                         organized_metadata[var_name] = {}
                     organized_metadata[var_name][attr_type] = value
 
-                return pd.DataFrame.from_dict(organized_metadata, orient="index")
+                return pd.DataFrame.from_dict(
+                    organized_metadata, orient="index"
+                )
         except Exception as e:
             logger.error(f"Failed to retrieve variables from TileDB: {e}")
             raise
@@ -127,7 +142,9 @@ class TileDBProvider:
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
         """
         try:
-            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
+            with tiledb.open(
+                self.scalar_array_uri, mode="r", ctx=self.ctx
+            ) as array:
                 attr_list = []
                 profile_vars = {}
 
@@ -163,21 +180,25 @@ class TileDBProvider:
 
                 return data, profile_vars
         except Exception as e:
-            logger.error(f"Error querying TileDB array '{self.scalar_array_uri}': {e}")
+            logger.error(
+                f"Error querying TileDB array '{self.scalar_array_uri}': {e}"
+            )
             raise
-            
+
     def _get_tiledb_spatial_domain(self):
         """
         Retrieve the spatial domain (bounding box) from the TileDB array schema.
-    
+
         Returns:
         -------
         Tuple[float, float, float, float]
             (min_longitude, max_longitude, min_latitude, max_latitude)
         """
-        with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
+        with tiledb.open(
+            self.scalar_array_uri, mode="r", ctx=self.ctx
+        ) as array:
             domain = array.schema.domain
             min_lon, max_lon = domain.dim(1).domain  # Longitude dimension
             min_lat, max_lat = domain.dim(0).domain  # Latitude dimension
-    
+
         return min_lon, max_lon, min_lat, max_lat

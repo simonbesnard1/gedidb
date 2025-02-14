@@ -22,13 +22,17 @@ class EarthDataAuthenticator:
     Handles Earthdata authentication by managing .netrc and cookie files for automated login.
     """
 
-    def __init__(self, earth_data_dir: Optional['str'] = None, strict: bool = False):
+    def __init__(
+        self, earth_data_dir: Optional["str"] = None, strict: bool = False
+    ):
         """
         Initialize the authenticator.
         :param earth_data_dir: Directory to store .netrc and cookies. Defaults to the user's home directory.
         :param strict: If True, fail if credentials are missing without prompting.
         """
-        self.earth_data_path = Path(earth_data_dir) if earth_data_dir else Path.home()
+        self.earth_data_path = (
+            Path(earth_data_dir) if earth_data_dir else Path.home()
+        )
         self.netrc_file = self.earth_data_path / ".netrc"
         self.cookie_file = self.earth_data_path / ".cookies"
         self.strict = strict
@@ -42,7 +46,9 @@ class EarthDataAuthenticator:
     def authenticate(self):
         """Main method to manage authentication and cookies."""
         if not self._credentials_in_netrc():
-            logger.info("EarthData authentication setup incomplete; starting setup.")
+            logger.info(
+                "EarthData authentication setup incomplete; starting setup."
+            )
             if self.strict:
                 raise FileNotFoundError(
                     f"EarthData authentication files missing or incomplete. Please check {self.netrc_file} and {self.cookie_file}."
@@ -61,26 +67,27 @@ class EarthDataAuthenticator:
             if not self.netrc_file.exists():
                 logger.warning(f"Missing .netrc file at {self.netrc_file}.")
                 return False
-            
+
             with self.netrc_file.open("r") as f:
                 if "urs.earthdata.nasa.gov" not in f.read():
-                    logger.warning(f"No Earthdata credentials found in {self.netrc_file}.")
+                    logger.warning(
+                        f"No Earthdata credentials found in {self.netrc_file}."
+                    )
                     return False
-            
+
             # Check if cookie file exists and is non-empty
             if not self.cookie_file.exists():
                 logger.warning(f"Missing cookie file at {self.cookie_file}.")
                 return False
-            
+
             if self.cookie_file.stat().st_size == 0:
                 logger.warning(f"Cookie file at {self.cookie_file} is empty.")
                 return False
-            
+
             return True
         except Exception as e:
             logger.error(f"Error checking EarthData authentication files: {e}")
             return False
-
 
     def _prompt_for_credentials(self):
         """Prompt user for credentials and store them in .netrc."""
@@ -91,10 +98,14 @@ class EarthDataAuthenticator:
     def _prompt_password(self) -> str:
         """Securely prompt for password."""
         try:
-            return getpass.getpass("Please enter your Earthdata Login password: ")
+            return getpass.getpass(
+                "Please enter your Earthdata Login password: "
+            )
         except Exception:
             logger.warning("Password input not secure; text will be visible.")
-            return input("Please enter your Earthdata Login password (input visible): ")
+            return input(
+                "Please enter your Earthdata Login password (input visible): "
+            )
 
     def _add_netrc_credentials(self):
         """Add credentials to .netrc and set secure permissions."""
@@ -114,7 +125,8 @@ class EarthDataAuthenticator:
         try:
             self.cookie_file.touch(exist_ok=True)
             logger.info(
-                "Attempting to fetch Earthdata cookies and save to %s", self.cookie_file
+                "Attempting to fetch Earthdata cookies and save to %s",
+                self.cookie_file,
             )
             subprocess.run(
                 [

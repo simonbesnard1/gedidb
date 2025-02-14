@@ -18,7 +18,9 @@ from gedidb.downloader.authentication import EarthDataAuthenticator
 earth_data_dir = Path.home()
 
 # Initialize the authenticator
-authenticator = EarthDataAuthenticator(earth_data_dir=earth_data_dir, strict=False)
+authenticator = EarthDataAuthenticator(
+    earth_data_dir=earth_data_dir, strict=False
+)
 
 # Authenticate and ensure `.netrc` and cookies are valid
 authenticator.authenticate()
@@ -27,7 +29,7 @@ authenticator.authenticate()
 # ----------------
 # INFO:__main__:EarthData authentication setup incomplete; starting setup.
 # Please enter your Earthdata Login username: <your_username>
-# Please enter your Earthdata Login password: 
+# Please enter your Earthdata Login password:
 # INFO:__main__:Credentials added to .netrc file.
 # INFO:__main__:Attempting to fetch Earthdata cookies and save to /home/username/.earthdata_auth/.cookies
 # INFO:__main__:Earthdata cookies successfully fetched and saved to /home/username/.earthdata_auth/.cookies.

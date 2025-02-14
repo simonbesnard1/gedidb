@@ -54,6 +54,7 @@ class SpatialConsolidationPlanner:
     """
     Generate a spatial consolidation plan for a TileDB array.
     """
+
     @staticmethod
     def compute(array_uri: str, ctx: tiledb.Ctx) -> SpatialConsolidationPlan:
         """
@@ -71,15 +72,21 @@ class SpatialConsolidationPlanner:
         SpatialConsolidationPlan
             The spatial consolidation plan object.
         """
-        logger.info(f"Generating spatial consolidation plan for array: {array_uri}")
+        logger.info(
+            f"Generating spatial consolidation plan for array: {array_uri}"
+        )
 
         try:
             fragment_info = tiledb.FragmentInfoList(array_uri, ctx=ctx)
         except Exception as e:
-            logger.error(f"Failed to retrieve fragment info for {array_uri}: {e}")
+            logger.error(
+                f"Failed to retrieve fragment info for {array_uri}: {e}"
+            )
             raise
 
-        fragments = SpatialConsolidationPlanner._extract_fragments(fragment_info)
+        fragments = SpatialConsolidationPlanner._extract_fragments(
+            fragment_info
+        )
         if not fragments:
             logger.warning(f"No fragments found for array: {array_uri}")
             return SpatialConsolidationPlan({})
@@ -140,7 +147,10 @@ class SpatialConsolidationPlanner:
         ) -> bool:
             """Check if two fragments spatially overlap."""
             return (
-                frag1["latitude_range"][0] <= frag2["latitude_range"][1] and frag1["latitude_range"][1] >= frag2["latitude_range"][0] and frag1["longitude_range"][0] <= frag2["longitude_range"][1] and frag1["longitude_range"][1] >= frag2["longitude_range"][0]
+                frag1["latitude_range"][0] <= frag2["latitude_range"][1]
+                and frag1["latitude_range"][1] >= frag2["latitude_range"][0]
+                and frag1["longitude_range"][0] <= frag2["longitude_range"][1]
+                and frag1["longitude_range"][1] >= frag2["longitude_range"][0]
             )
 
         visited = set()
@@ -170,7 +180,9 @@ class SpatialConsolidationPlanner:
                 for uri, candidate in list(unvisited.items()):
                     if has_spatial_overlap(frag, candidate):
                         stack.append(candidate)
-                        del unvisited[uri]  # Mark as visited by removing from unvisited
+                        del unvisited[
+                            uri
+                        ]  # Mark as visited by removing from unvisited
 
             # Assign the current node to the plan
             plan[node_id] = current_node
