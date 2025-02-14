@@ -8,8 +8,8 @@
 
 # gediDB: A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data
 
-[![Pipelines](https://github.com/pydata/gedidb/workflows/CI/badge.svg?branch=main)](https://github.com/pydata/xarray/actions?query=workflow%3ACI)
-[![Code Coverage](https://git.gfz-potsdam.de/global-land-monitoring/gedidb/badges/main/coverage.svg)](https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/coverage/)
+[![Pipelines](https://github.com/simonbesnard1/gedidb/workflows/CI/badge.svg?branch=main)](https://github.com/simonbesnard1/gedidb/actions?query=workflow%3ACI)
+[![Code coverage](https://codecov.io/gh/simonbesnard1/gedidb/branch/main/graph/badge.svg?flag=unittests)](https://codecov.io/gh/simonbesnard1/gedidb)
 [![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://gedidb.readthedocs.io/en/latest/)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://static.pepy.tech/badge/gedidb)](https://pepy.tech/projects/gedidb)
