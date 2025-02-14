@@ -123,7 +123,7 @@ jobs:
   event_file:
     name: "Event File"
     runs-on: ubuntu-latest
-    if: github.repository == ''simonbesnard1/gedidb'
+    if: github.repository == 'simonbesnard1/gedidb'
     steps:
       - name: Upload
         uses: actions/upload-artifact@v4
