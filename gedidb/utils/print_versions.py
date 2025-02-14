@@ -55,7 +55,6 @@ def get_sys_info():
                 ("machine", f"{machine}"),
                 ("processor", f"{processor}"),
                 ("byteorder", f"{sys.byteorder}"),
-                ("LC_ALL", f'{os.environ.get("LC_ALL", "None")}'),
                 ("LANG", f'{os.environ.get("LANG", "None")}'),
                 ("LOCALE", f"{locale.getlocale()}"),
             ]
@@ -103,6 +102,7 @@ def show_versions(file=sys.stdout):
         # (MODULE_NAME, f(mod) -> mod version)
         ("gedidb", lambda mod: mod.__version__),
         ("pandas", lambda mod: mod.__version__),
+        ("geopandas", lambda mod: mod.__version__),
         ("pyarrow", lambda mod: mod.__version__),
         ("numpy", lambda mod: mod.__version__),
         ("h5py", lambda mod: mod.__version__),
@@ -117,10 +117,6 @@ def show_versions(file=sys.stdout):
         ("setuptools", lambda mod: mod.__version__),
         ("pip", lambda mod: mod.__version__),
         ("pytest", lambda mod: mod.__version__),
-        ("mypy", lambda mod: importlib.metadata.version(mod.__name__)),
-        # Misc.
-        ("IPython", lambda mod: mod.__version__),
-        ("sphinx", lambda mod: mod.__version__),
     ]
 
     deps_blob = []
