@@ -1,0 +1,52 @@
+name: gedidb-tests
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - aiobotocore
+  - array-api-strict
+  - boto3
+  - bottleneck
+  - cartopy
+  - cftime
+  - dask
+  - distributed
+  - flox
+  - fsspec
+  - geopandas
+  - h5netcdf
+  - h5py
+  - hdf5
+  - hypothesis
+  - lxml # Optional dep of pydap
+  - matplotlib-base
+  - nc-time-axis
+  - netcdf4
+  - numba
+  - numbagg
+  - numexpr
+  - numpy>=2
+  - opt_einsum
+  - packaging
+  - pandas
+  - pip
+  - pooch
+  - pre-commit
+  - pyarrow # pandas raises a deprecation warning without this, breaking doctests
+  - pydap
+  - pydap-server
+  - pytest
+  - pytest-cov
+  - pytest-env
+  - pytest-xdist
+  - pytest-timeout
+  - requests
+  - retry
+  - scipy
+  - sparse
+  - tiledb
+  - toolz
+  - typing_extensions
+  - xarray
+  - pip:
+      - jax # no way to get cpu-only jaxlib from conda if gpu is present
