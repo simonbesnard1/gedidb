@@ -74,7 +74,7 @@ To install the latest development version from GitLab:
 
 .. code-block:: bash
 
-    $ pip install git+https://git.gfz-potsdam.de/global-land-monitoring/gedidb.git
+    $ pip install git+https://github.com/simonbesnard1/gedidb.git
 
 Testing
 -------

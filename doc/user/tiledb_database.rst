@@ -251,7 +251,7 @@ Here are some example use cases:
 Resources
 ---------
 - `TileDB Documentation <https://tiledb.com/docs>`_
-- `gediDB GitLab Repository <https://git.gfz-potsdam.de/global-land-monitoring/gedidb>`_
+- `gediDB GitLab Repository <https://github.com/simonbesnard1/gedidb>`_
 - `GEDI Data Products Overview <https://gedi.umd.edu>`_
 
    
