@@ -102,12 +102,11 @@ jobs:
           key: cache-hypothesis
           enableCrossOsArchive: true
 
-
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Test results
+          name: Test results for ${{ runner.os }}-${{ matrix.python-version }} ${{ matrix.env }}
           path: pytest.xml
 
       - name: Upload code coverage to Codecov
@@ -120,3 +119,14 @@ jobs:
           env_vars: RUNNER_OS,PYTHON_VERSION
           name: codecov-umbrella
           fail_ci_if_error: false
+
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    if: github.repository == ''simonbesnard1/gedidb'
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Event File
+          path: ${{ github.event_path }}

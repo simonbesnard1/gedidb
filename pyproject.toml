@@ -42,10 +42,10 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb"
-documentation = "https://global-land-monitoring.git-pages.gfz-potsdam.de/gedidb/"
-source = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb"
-tracker = "https://git.gfz-potsdam.de/global-land-monitoring/gedidb/issues"
+homepage = "https://github.com/simonbesnard1/gedidb"
+documentation = "https://gedidb.readthedocs.io/en/latest/"
+source = "https://github.com/simonbesnard1/gedidb"
+tracker = "https://github.com/simonbesnard1/gedidb/issues"
 
 [project.optional-dependencies]
 accel = [

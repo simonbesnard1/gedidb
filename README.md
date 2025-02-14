@@ -10,7 +10,8 @@
 
 [![Pipelines](https://github.com/simonbesnard1/gedidb/workflows/CI/badge.svg?branch=main)](https://github.com/simonbesnard1/gedidb/actions?query=workflow%3ACI)
 [![Code coverage](https://codecov.io/gh/simonbesnard1/gedidb/branch/main/graph/badge.svg?flag=unittests)](https://codecov.io/gh/simonbesnard1/gedidb)
-[![Docs](https://img.shields.io/static/v1?label=Documentation&message=GitLab%20Pages&color=orange)](https://gedidb.readthedocs.io/en/latest/)
+[![Docs](https://readthedocs.org/projects/gedidb/badge/?version=latest)](https://gedidb.readthedocs.io/en/latest/)
+[![Formatted with black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://static.pepy.tech/badge/gedidb)](https://pepy.tech/projects/gedidb)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885228)
