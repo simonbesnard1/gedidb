@@ -33,8 +33,7 @@ from gedidb.utils import (
 
 from gedidb.utils.tiledb_consolidation import (
     SpatialConsolidationPlan,
-    SpatialConsolidationPlanner
-    
+    SpatialConsolidationPlanner,
 )
 from gedidb.core.gediprocessor import GEDIProcessor
 from gedidb.core.gedigranule import GEDIGranule
@@ -42,11 +41,7 @@ from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.core.gediprovider import GEDIProvider
 
 
-from gedidb.downloader import (
-    authentication,
-    cmr_query,
-    data_downloader
-)
+from gedidb.downloader import authentication, cmr_query, data_downloader
 
 from gedidb.downloader.authentication import EarthDataAuthenticator
 from gedidb.downloader.cmr_query import CMRQuery
@@ -61,7 +56,7 @@ from gedidb.granule import (
     l2a_granule,
     l2b_granule,
     l4a_granule,
-    l4c_granule
+    l4c_granule,
 )
 from gedidb.granule.Granule import granule_handler
 from gedidb.granule.granule_name import GediNameMetadata
@@ -72,14 +67,7 @@ from gedidb.granule.l4a_granule import L4AGranule
 from gedidb.granule.l4c_granule import L4CGranule
 
 
-
-from gedidb.beam import (
-    Beam,
-    l2a_beam,
-    l2b_beam,
-    l4a_beam,
-    l4c_beam
-)
+from gedidb.beam import Beam, l2a_beam, l2b_beam, l4a_beam, l4c_beam
 
 from gedidb.beam.Beam import beam_handler
 from gedidb.beam.l2a_beam import L2ABeam
@@ -139,7 +127,7 @@ __all__ = [
     "l2b_granule",
     "l4a_granule",
     "l4c_granule",
-    "TileDBProvider",   
+    "TileDBProvider",
     "show_versions",
     "__version__",
 ]

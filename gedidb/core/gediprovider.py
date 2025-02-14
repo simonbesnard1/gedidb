@@ -83,7 +83,9 @@ class GEDIProvider(TileDBProvider):
         -----
         Supports both S3 and local storage configurations based on `storage_type`.
         """
-        super().__init__(storage_type, s3_bucket, local_path, url, region, credentials)
+        super().__init__(
+            storage_type, s3_bucket, local_path, url, region, credentials
+        )
 
     def query_nearest_shots(
         self,
@@ -139,7 +141,9 @@ class GEDIProvider(TileDBProvider):
         start_timestamp = (
             _datetime_to_timestamp_days(start_time) if start_time else None
         )
-        end_timestamp = _datetime_to_timestamp_days(end_time) if end_time else None
+        end_timestamp = (
+            _datetime_to_timestamp_days(end_time) if end_time else None
+        )
 
         lon_min, lat_min = point[0] - radius, point[1] - radius
         lon_max, lat_max = point[0] + radius, point[1] + radius
@@ -170,11 +174,15 @@ class GEDIProvider(TileDBProvider):
             return {}, {}
 
         tree = cKDTree(np.column_stack((longitudes, latitudes)))
-        distances, indices = tree.query(point, k=min(num_shots, len(longitudes)))
+        distances, indices = tree.query(
+            point, k=min(num_shots, len(longitudes))
+        )
         nearest_shots = scalar_data_subset["shot_number"][indices]
 
         scalar_data = {
-            k: np.array(v)[np.isin(scalar_data_subset["shot_number"], nearest_shots)]
+            k: np.array(v)[
+                np.isin(scalar_data_subset["shot_number"], nearest_shots)
+            ]
             for k, v in scalar_data_subset.items()
         }
 
@@ -227,7 +235,7 @@ class GEDIProvider(TileDBProvider):
 
         geometry = check_and_format_shape(geometry, simplify=True)
         lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
-        
+
         if start_time:
             start_time = np.datetime64(start_time)
             start_timestamp = _datetime_to_timestamp_days(start_time)
@@ -320,21 +328,33 @@ class GEDIProvider(TileDBProvider):
         """
         # Ensure query_type is valid
         if query_type not in {"bounding_box", "nearest"}:
-            raise ValueError(f"Invalid query_type '{query_type}'. Must be 'bounding_box' or 'nearest'.")
-    
+            raise ValueError(
+                f"Invalid query_type '{query_type}'. Must be 'bounding_box' or 'nearest'."
+            )
+
         # Validation for bounding_box queries
         if query_type == "bounding_box":
             if geometry is None or not isinstance(geometry, gpd.GeoDataFrame):
-                raise ValueError("For 'bounding_box' queries, a valid GeoDataFrame must be provided as 'geometry'.")
-    
+                raise ValueError(
+                    "For 'bounding_box' queries, a valid GeoDataFrame must be provided as 'geometry'."
+                )
+
         # Validation for nearest queries
         elif query_type == "nearest":
-            if point is None or not (isinstance(point, tuple) and len(point) == 2):
-                raise ValueError("For 'nearest' queries, 'point' must be a (longitude, latitude) tuple.")
+            if point is None or not (
+                isinstance(point, tuple) and len(point) == 2
+            ):
+                raise ValueError(
+                    "For 'nearest' queries, 'point' must be a (longitude, latitude) tuple."
+                )
             if num_shots is None or num_shots <= 0:
-                raise ValueError("For 'nearest' queries, 'num_shots' must be a positive integer.")
+                raise ValueError(
+                    "For 'nearest' queries, 'num_shots' must be a positive integer."
+                )
             if radius is None or radius <= 0:
-                raise ValueError("For 'nearest' queries, 'radius' must be a positive float.")
+                raise ValueError(
+                    "For 'nearest' queries, 'radius' must be a positive float."
+                )
 
         if query_type == "nearest":
             scalar_data, profile_vars = self.query_nearest_shots(
@@ -455,7 +475,8 @@ class GEDIProvider(TileDBProvider):
             var
             for var in scalar_data
             if var
-            not in ["latitude", "longitude", "time", "shot_number"] + profile_var_components
+            not in ["latitude", "longitude", "time", "shot_number"]
+            + profile_var_components
         ]
 
         times = _timestamp_to_datetime(scalar_data["time"])
@@ -479,7 +500,8 @@ class GEDIProvider(TileDBProvider):
 
             # Preallocate an array with shape (num_shots, num_profile_points)
             profile_data = np.empty(
-                (len(scalar_data["shot_number"]), num_profile_points), dtype=np.float32
+                (len(scalar_data["shot_number"]), num_profile_points),
+                dtype=np.float32,
             )
 
             # Fill the preallocated array directly
@@ -508,7 +530,9 @@ class GEDIProvider(TileDBProvider):
 
         return dataset
 
-    def _attach_metadata(self, dataset: xr.Dataset, metadata: pd.DataFrame) -> None:
+    def _attach_metadata(
+        self, dataset: xr.Dataset, metadata: pd.DataFrame
+    ) -> None:
         """
         Attach metadata to each variable in an Xarray Dataset.
 

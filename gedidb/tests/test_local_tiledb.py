@@ -24,7 +24,9 @@ class TestGEDIDatabase(unittest.TestCase):
         cls.yaml_file_path = cls.data_dir / "data_config.yml"
 
         if not cls.yaml_file_path.exists():
-            raise FileNotFoundError(f"Config file not found: {cls.yaml_file_path}")
+            raise FileNotFoundError(
+                f"Config file not found: {cls.yaml_file_path}"
+            )
 
         with open(cls.yaml_file_path, "r") as file:
             cls.config = yaml.safe_load(file)
@@ -71,13 +73,17 @@ class TestGEDIDatabase(unittest.TestCase):
                 "The 'time' dimension is missing from the TileDB schema.",
             )
 
-            self.assertEqual(lat_dim.domain, (-56.0, 56.0), "Latitude range mismatch")
+            self.assertEqual(
+                lat_dim.domain, (-56.0, 56.0), "Latitude range mismatch"
+            )
             self.assertEqual(
                 lon_dim.domain, (-180.0, 180.0), "Longitude range mismatch"
             )
             # Check chunk size
             self.assertEqual(lat_dim.tile, 1.0, "Latitude chunk size mismatch")
-            self.assertEqual(lon_dim.tile, 1.0, "Longitude chunk size mismatch")
+            self.assertEqual(
+                lon_dim.tile, 1.0, "Longitude chunk size mismatch"
+            )
 
     def test_tiledb_attributes(self):
         """Test that TileDB attributes are correctly set."""
@@ -101,7 +107,8 @@ class TestGEDIDatabase(unittest.TestCase):
     def test_overwrite_behavior(self):
         """Ensure overwrite behavior works correctly."""
         self.assertTrue(
-            self.config["tiledb"]["overwrite"], "Overwrite setting should be True"
+            self.config["tiledb"]["overwrite"],
+            "Overwrite setting should be True",
         )
 
         # Check if array exists after creation
@@ -130,7 +137,9 @@ class TestGEDIDatabase(unittest.TestCase):
         with tiledb.open(
             self.gedi_db.array_uri, mode="r", ctx=self.gedi_db.ctx
         ) as array:
-            shot_number = array.query(attrs=("shot_number",)).multi_index[:, :, :]
+            shot_number = array.query(attrs=("shot_number",)).multi_index[
+                :, :, :
+            ]
             beam_type = array.query(attrs=("beam_type",)).multi_index[:, :, :]
             beam_name = array.query(attrs=("beam_name",)).multi_index[:, :, :]
 
@@ -152,14 +161,26 @@ class TestGEDIDatabase(unittest.TestCase):
             self.assertTrue(
                 np.array_equal(
                     beam_type["beam_type"],
-                    ["coverage", "coverage", "coverage", "coverage", "coverage"],
+                    [
+                        "coverage",
+                        "coverage",
+                        "coverage",
+                        "coverage",
+                        "coverage",
+                    ],
                 ),
                 "Beam type mismatch",
             )
             self.assertTrue(
                 np.array_equal(
                     beam_name["beam_name"],
-                    ["/BEAM0000", "/BEAM0000", "/BEAM0000", "/BEAM0000", "/BEAM0000"],
+                    [
+                        "/BEAM0000",
+                        "/BEAM0000",
+                        "/BEAM0000",
+                        "/BEAM0000",
+                        "/BEAM0000",
+                    ],
                 ),
                 "Beam name mismatch",
             )

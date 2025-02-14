@@ -22,7 +22,9 @@ import gedidb as gdb
 
 # Step 1: Configure the TileDB storage backend
 storage_type = "local"  # Options: "local" or "s3"
-local_path = "/path/to/processed/gedi/data"  # Update with your local TileDB path
+local_path = (
+    "/path/to/processed/gedi/data"  # Update with your local TileDB path
+)
 s3_bucket = None  # Set the S3 bucket name if using S3 storage
 
 # Step 2: Initialize the GEDIProvider

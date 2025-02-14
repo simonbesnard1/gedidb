@@ -50,9 +50,7 @@ class L2ABeam(beam_handler):
                                             (self["elev_lowestmode"][()] - self["digital_elevation_model"][()]) > -150
                                         ) & (
                                             (self["elev_lowestmode"][()] - self["digital_elevation_model"][()]) < 150
-                                        ),
-                                    }
-
+                                        )}
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
         """

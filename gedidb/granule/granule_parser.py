@@ -72,7 +72,9 @@ class GranuleParser:
         Raises:
             NotImplementedError: Child classes must implement this method.
         """
-        raise NotImplementedError("This method should be implemented in child classes")
+        raise NotImplementedError(
+            "This method should be implemented in child classes"
+        )
 
 
 class L2AGranuleParser(GranuleParser):
@@ -80,7 +82,9 @@ class L2AGranuleParser(GranuleParser):
 
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get("level_2a", {}).get("variables", [])
+        self.variables = self.data_info.get("level_2a", {}).get(
+            "variables", []
+        )
 
     def parse(self) -> pd.DataFrame:
         with L2AGranule(self.file, self.variables) as granule:
@@ -92,7 +96,9 @@ class L2BGranuleParser(GranuleParser):
 
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get("level_2b", {}).get("variables", [])
+        self.variables = self.data_info.get("level_2b", {}).get(
+            "variables", []
+        )
 
     def parse(self) -> pd.DataFrame:
         with L2BGranule(self.file, self.variables) as granule:
@@ -104,7 +110,9 @@ class L4AGranuleParser(GranuleParser):
 
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get("level_4a", {}).get("variables", [])
+        self.variables = self.data_info.get("level_4a", {}).get(
+            "variables", []
+        )
 
     def parse(self) -> pd.DataFrame:
         with L4AGranule(self.file, self.variables) as granule:
@@ -116,12 +124,14 @@ class L4CGranuleParser(GranuleParser):
 
     def __init__(self, file: str, data_info: Optional[dict] = None):
         super().__init__(file, data_info)
-        self.variables = self.data_info.get("level_4c", {}).get("variables", [])
+        self.variables = self.data_info.get("level_4c", {}).get(
+            "variables", []
+        )
 
     def parse(self) -> pd.DataFrame:
         with L4CGranule(self.file, self.variables) as granule:
             return self.parse_granule(granule)
-        
+
 
 def parse_h5_file(
     file: str, product: GediProduct, data_info: Optional[Dict] = None

@@ -26,6 +26,7 @@ import datetime as dt
 
 data_dir = Path(__file__).parent / "data"
 
+
 class TestNasaCmrApi(unittest.TestCase):
 
     def _get_test_data(self):
@@ -47,7 +48,11 @@ class TestNasaCmrApi(unittest.TestCase):
     def test_l2a(self):
         geom, start_date, end_date, earth_data_info = self._get_test_data()
         cmr = cmr_query.GranuleQuery(
-            constants.GediProduct.L2A, geom, start_date, end_date, earth_data_info
+            constants.GediProduct.L2A,
+            geom,
+            start_date,
+            end_date,
+            earth_data_info,
         )
         granules = cmr.query_granules()
         self.assertGreater(len(granules), 0)
@@ -55,7 +60,11 @@ class TestNasaCmrApi(unittest.TestCase):
     def test_l2b(self):
         geom, start_date, end_date, earth_data_info = self._get_test_data()
         cmr = cmr_query.GranuleQuery(
-            constants.GediProduct.L2B, geom, start_date, end_date, earth_data_info
+            constants.GediProduct.L2B,
+            geom,
+            start_date,
+            end_date,
+            earth_data_info,
         )
         granules = cmr.query_granules()
         self.assertGreater(len(granules), 0)
@@ -63,7 +72,11 @@ class TestNasaCmrApi(unittest.TestCase):
     def test_l4a(self):
         geom, start_date, end_date, earth_data_info = self._get_test_data()
         cmr = cmr_query.GranuleQuery(
-            constants.GediProduct.L4A, geom, start_date, end_date, earth_data_info
+            constants.GediProduct.L4A,
+            geom,
+            start_date,
+            end_date,
+            earth_data_info,
         )
         granules = cmr.query_granules()
         self.assertGreater(len(granules), 0)
@@ -71,7 +84,11 @@ class TestNasaCmrApi(unittest.TestCase):
     def test_l4c(self):
         geom, start_date, end_date, earth_data_info = self._get_test_data()
         cmr = cmr_query.GranuleQuery(
-            constants.GediProduct.L4C, geom, start_date, end_date, earth_data_info
+            constants.GediProduct.L4C,
+            geom,
+            start_date,
+            end_date,
+            earth_data_info,
         )
         granules = cmr.query_granules()
         self.assertGreater(len(granules), 0)

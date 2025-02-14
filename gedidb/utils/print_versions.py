@@ -44,7 +44,9 @@ def get_sys_info():
     blob.append(("commit", commit))
 
     try:
-        (sysname, _nodename, release, _version, machine, processor) = platform.uname()
+        (sysname, _nodename, release, _version, machine, processor) = (
+            platform.uname()
+        )
         blob.extend(
             [
                 ("python", sys.version),
