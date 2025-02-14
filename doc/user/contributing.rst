@@ -15,7 +15,7 @@ All contributions, including bug reports, bug fixes, documentation improvements,
 and other ideas are welcome.
 
 This project is a community effort, and everyone is welcome to contribute. Everyone within the community
-is expected to abide by our `code of conduct <https://git.gfz-potsdam.de/global-land-monitoring/gedidb/blob/main/CODE_OF_CONDUCT.md>`_.
+is expected to abide by our `code of conduct <https://github.com/simonbesnard1/gedidb/blob/main/CODE_OF_CONDUCT.md>`_.
 
 You can contribute in many ways:
 
@@ -25,7 +25,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://git.gfz-potsdam.de/global-land-monitoring/gedidb/issues.
+Report bugs at https://github.com/simonbesnard1/gedidb/issues.
 
 If you are reporting a bug, please include:
 
@@ -57,7 +57,7 @@ ensure it will help the next person.
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an `issue <https://git.gfz-potsdam.de/global-land-monitoring/gedidb/issues>`_.
+The best way to send feedback is to file an `issue <https://github.com/simonbesnard1/gedidb/issues>`_.
 
 If you are proposing a feature:
 
@@ -75,7 +75,7 @@ How to
 1. Fork the `gedidb` repo on GitLab.
 2. Clone your fork locally::
 
-    $ git clone git@git.gfz-potsdam.de:global-land-monitoring/gedidb.git
+    $ git clone git@github.com:simonbesnard1/gedidb.git
 
 3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
@@ -127,6 +127,6 @@ Before you submit a pull request, check that it meets these guidelines:
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
 3. The pull request should work for Python 3.6, 3.7, 3.8 and 3.9. Check
-   https://git.gfz-potsdam.de/global-land-monitoring/gedidb/-/merge_requests
+   https://github.com/simonbesnard1/gedidb/pulls
    and make sure that the tests pass for all supported Python versions.
 
