@@ -1,4 +1,4 @@
-name: Build and Upload xarray to PyPI
+name: Build and Upload gediDB to PyPI
 on:
   release:
     types:
@@ -10,7 +10,7 @@ on:
 jobs:
   build-artifacts:
     runs-on: ubuntu-latest
-    if: github.repository == 'pydata/xarray'
+    if: github.repository == 'simonbesnard1/gedidb'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,7 +35,7 @@ jobs:
         run: |
           python -m twine check --strict dist/*
           pwd
-          if [ -f dist/xarray-0.0.0.tar.gz ]; then
+          if [ -f dist/gedidb-0.0.0.tar.gz ]; then
             echo "❌ INVALID VERSION NUMBER"
             exit 1
           else
@@ -67,8 +67,8 @@ jobs:
         if: github.event_name == 'push'
         run: |
           python -m pip install --upgrade pip
-          python -m pip install dist/xarray*.whl
-          python -m xarray.util.print_versions
+          python -m pip install dist/gedidb*.whl
+          python -m gedidb.utils.print_versions
 
   upload-to-test-pypi:
     needs: test-built-dist
@@ -77,7 +77,7 @@ jobs:
 
     environment:
       name: pypi
-      url: https://test.pypi.org/p/xarray
+      url: https://test.pypi.org/p/gedidb
     permissions:
       id-token: write
 
@@ -100,7 +100,7 @@ jobs:
 
     environment:
       name: pypi
-      url: https://pypi.org/p/xarray
+      url: https://pypi.org/p/gedidb
     permissions:
       id-token: write
 
