@@ -34,7 +34,6 @@ dependencies:
   - requests
   - retry
   - scipy
-  - tiledb
   - xarray
   - pip:
-      - jax # no way to get cpu-only jaxlib from conda if gpu is present
+      - tiledb
