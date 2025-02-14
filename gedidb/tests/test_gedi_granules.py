@@ -17,7 +17,7 @@ import h5py
 # THIS_DIR = pathlib.Path(__name__).parent
 THIS_DIR = pathlib.Path.cwd().parent
 L4A_NAME = "./data/GEDI04_A_2019117051430_O02102_01_T04603_02_002_02_V002.h5"
-L4C_NAME = "./data/GEDI04_C_2019110062417_O01994_04_T02062_02_001_01_V002.h5"
+L4C_NAME = "./data/GEDI04_C_2019108002012_O01959_01_T03909_02_001_01_V002.h5"
 L2B_NAME = "./data/GEDI02_B_2019117051430_O02102_01_T04603_02_003_01_V002.h5"
 L2A_NAME = "./data/GEDI02_A_2019162222610_O02812_04_T01244_02_003_01_V002.h5"
 
@@ -204,18 +204,13 @@ class TestCase(unittest.TestCase):
         self._generic_test_parse_granule(L2A_NAME, data)
         # Some of the data is correct
         data_orig = h5py.File(L2A_NAME, "r")
-        idx = 999
+        idx = 800
         shot_number = data_orig["BEAM1000"]["shot_number"][idx]
         lat = data_orig["BEAM1000"]["lat_lowestmode"][idx]
         lon = data_orig["BEAM1000"]["lon_lowestmode"][idx]
-        # rh_98 = data_orig["BEAM1000"]["rh"][idx][98]
 
         row = data.loc[data["shot_number"] == shot_number]
         self.assertEqual(row["lat_lowestmode"].values[0], lat)
         self.assertEqual(row["lon_lowestmode"].values[0], lon)
-        # self.assertEqual(row["rh_98"].values[0], rh_98)
-
-    # TODO basic tests of quality filtering
-
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestCase)
