@@ -92,7 +92,7 @@ jobs:
         run: |
           micromamba activate gedidb-tests
           python -m pytest -n 4 --timeout 180 \
-          --cov=gedidb --cov-context=test --cov-report=xml --junitxml=pytest.xml
+          --cov=gedidb --cov-report=xml --junitxml=pytest.xml
 
       - name: Save Hypothesis Cache
         if: always()
