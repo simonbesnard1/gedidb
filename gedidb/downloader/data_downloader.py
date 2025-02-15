@@ -17,12 +17,7 @@ from collections import defaultdict
 from retry import retry
 from urllib3.exceptions import NewConnectionError
 from requests.exceptions import (
-    HTTPError,
-    ConnectionError,
-    ChunkedEncodingError,
-    Timeout,
-    RequestException,
-    ReadTimeout,
+    HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException, ReadTimeout, 
 )
 import time
 
@@ -31,7 +26,6 @@ from gedidb.utils.constants import GediProduct
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
 
 # Create a filter to suppress WARNING messages
 class WarningFilter(logging.Filter):
@@ -42,7 +36,6 @@ class WarningFilter(logging.Filter):
 # Apply the filter
 logger.addFilter(WarningFilter())
 
-
 class GEDIDownloader:
     """
     Base class for GEDI data downloaders.
@@ -52,9 +45,7 @@ class GEDIDownloader:
         """
         Abstract method that must be implemented by subclasses.
         """
-        raise NotImplementedError(
-            "This method should be implemented by subclasses."
-        )
+        raise NotImplementedError("This method should be implemented by subclasses.")
 
 
 class CMRDataDownloader(GEDIDownloader):
@@ -75,20 +66,11 @@ class CMRDataDownloader(GEDIDownloader):
         self.earth_data_info = earth_data_info
 
     @retry(
-        (
-            ValueError,
-            TypeError,
-            HTTPError,
-            ConnectionError,
-            ChunkedEncodingError,
-            Timeout,
-            RequestException,
-            NewConnectionError,
-        ),
+        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException, NewConnectionError),
         tries=10,
         delay=5,
         backoff=3,
-        logger=logger,
+        logger=logger
     )
     def download(self) -> dict:
         """
@@ -132,14 +114,10 @@ class CMRDataDownloader(GEDIDownloader):
                             )
                         )
                 else:
-                    logger.warning(
-                        f"No granules found for product {product.value}."
-                    )
+                    logger.warning(f"No granules found for product {product.value}.")
 
             except Exception as e:
-                logger.error(
-                    f"Failed to download granules for {product.name}: {e}"
-                )
+                logger.error(f"Failed to download granules for {product.name}: {e}")
                 continue
 
         if not cmr_dict:
@@ -155,7 +133,7 @@ class CMRDataDownloader(GEDIDownloader):
         logger.info(
             f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB)."
         )
-
+        
         return filtered_cmr_dict
 
     def _filter_granules_with_all_products(self, granules: dict) -> dict:
@@ -183,7 +161,6 @@ class CMRDataDownloader(GEDIDownloader):
 
         return filtered_granules
 
-
 class H5FileDownloader:
     """
     Downloader for HDF5 files from URLs, with resume and retry support,
@@ -192,26 +169,15 @@ class H5FileDownloader:
 
     def __init__(self, download_path: str = "."):
         self.download_path = pathlib.Path(download_path)
-
+        
     @retry(
-        (
-            ValueError,
-            TypeError,
-            HTTPError,
-            ConnectionError,
-            ChunkedEncodingError,
-            Timeout,
-            RequestException,
-            OSError,
-        ),
+        (ValueError, TypeError, HTTPError, ConnectionError, ChunkedEncodingError, Timeout, RequestException, OSError),
         tries=10,
         delay=5,
         backoff=3,
-        logger=logger,
+        logger=logger
     )
-    def download(
-        self, granule_key: str, url: str, product: str
-    ) -> Tuple[str, Tuple[str, Optional[str]]]:
+    def download(self, granule_key: str, url: str, product: str) -> Tuple[str, Tuple[str, Optional[str]]]:
         """
         Download an HDF5 file for a specific granule and product with resume support
         using a temporary ".part" file. Renames to ".h5" only upon successful download.
@@ -234,14 +200,10 @@ class H5FileDownloader:
         total_size: Optional[int] = None
 
         try:
-            partial_response = requests.get(
-                url, headers=headers, stream=True, timeout=30
-            )
+            partial_response = requests.get(url, headers=headers, stream=True, timeout=30)
             partial_response.raise_for_status()  # Ensure HTTP errors are caught
             if "Content-Range" in partial_response.headers:
-                total_size = int(
-                    partial_response.headers["Content-Range"].split("/")[-1]
-                )
+                total_size = int(partial_response.headers["Content-Range"].split("/")[-1])
                 if downloaded_size == total_size:
                     temp_path.rename(final_path)
                     return granule_key, (product.value, str(final_path))
@@ -253,12 +215,8 @@ class H5FileDownloader:
 
         # Download (or resume) the file to the .part path
         try:
-            with requests.get(
-                url, headers=headers, stream=True, timeout=30
-            ) as r:
-                if (
-                    r.status_code == 416
-                ):  # Handle "Requested Range Not Satisfiable"
+            with requests.get(url, headers=headers, stream=True, timeout=30) as r:
+                if r.status_code == 416:  # Handle "Requested Range Not Satisfiable"
                     if temp_path.exists():
                         temp_path.unlink()
                     raise ValueError("Invalid byte range.")
@@ -267,9 +225,7 @@ class H5FileDownloader:
 
                 mode = "ab" if headers.get("Range") else "wb"
                 with open(temp_path, mode) as f:
-                    for chunk in r.iter_content(
-                        chunk_size=8 * 1024 * 1024
-                    ):  # 8 MB chunks
+                    for chunk in r.iter_content(chunk_size=8 * 1024 * 1024):  # 8 MB chunks
                         if chunk:
                             f.write(chunk)
 
@@ -277,37 +233,22 @@ class H5FileDownloader:
             final_downloaded_size = temp_path.stat().st_size
             if total_size is not None and final_downloaded_size != total_size:
                 temp_path.unlink(missing_ok=True)  # Clean up corrupt file
-                raise ValueError(
-                    "Downloaded final size mismatch with expected size"
-                )
+                raise ValueError("Downloaded final size mismatch with expected size")
 
             # Rename to final name upon successful download
             temp_path.rename(final_path)
             return granule_key, (product.value, str(final_path))
 
-        except (
-            HTTPError,
-            ConnectionError,
-            ChunkedEncodingError,
-            ReadTimeout,
-            OSError,
-            ValueError,
-        ) as e:
+        except (HTTPError, ConnectionError, ChunkedEncodingError, ReadTimeout, OSError, ValueError) as e:
             if isinstance(e, OSError) and e.errno == 24:
-                logger.error(
-                    f"Too many open files for {product.name} of the granule {granule_key}: {e}. Retrying..."
-                )
+                logger.error(f"Too many open files for {product.name} of the granule {granule_key}: {e}. Retrying...")
                 time.sleep(5)
-
-            logger.error(
-                f"Error encountered for {product.name} of the granule {granule_key}: {e}. Retrying..."
-            )
+        
+            logger.error(f"Error encountered for {product.name} of the granule {granule_key}: {e}. Retrying...")
             raise  # This is what triggers the retry
 
         except Exception as e:
-            logger.error(
-                f"Download failed after all retries for {product.name} of the granule {granule_key}: {e}"
-            )
+            logger.error(f"Download failed after all retries for {product.name} of the granule {granule_key}: {e}")
             if temp_path.exists():
                 temp_path.unlink()
             return granule_key, (product.value, None)
