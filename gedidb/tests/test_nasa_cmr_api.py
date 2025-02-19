@@ -12,17 +12,16 @@ However, if we don't run this test, they tend to silently disable old API
 endpoints, which can break our code.
 """
 
+import datetime as dt
 import os
-import yaml
+import unittest
 from pathlib import Path
+
+import geopandas as gpd
+import yaml
 
 from gedidb.downloader import cmr_query
 from gedidb.utils import constants
-
-import unittest
-import geopandas as gpd
-import datetime as dt
-
 
 data_dir = Path(__file__).parent / "data"
 

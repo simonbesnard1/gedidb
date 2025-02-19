@@ -7,6 +7,7 @@
 #
 
 import unittest
+
 from gedidb.granule import granule_name
 
 TEST_V2_NAME = "GEDI02_A_2019268053258_O04446_04_T02132_02_003_01_V002.h5"

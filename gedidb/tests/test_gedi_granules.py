@@ -7,12 +7,14 @@
 #
 
 import os
+import pathlib
 import unittest
+import warnings
+
+import h5py
+
 from gedidb.granule.granule_parser import parse_h5_file
 from gedidb.utils.constants import GediProduct
-import pathlib
-import warnings
-import h5py
 
 # THIS_DIR = pathlib.Path(__name__).parent
 THIS_DIR = pathlib.Path.cwd().parent

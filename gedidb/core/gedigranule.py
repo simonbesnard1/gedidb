@@ -6,15 +6,16 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import os
 import logging
+import os
 import shutil
-import pandas as pd
-import numpy as np
-from typing import Optional, Tuple, List, Dict
+from typing import Dict, List, Optional, Tuple
 
-from gedidb.utils.constants import GediProduct
+import numpy as np
+import pandas as pd
+
 from gedidb.granule import granule_parser
+from gedidb.utils.constants import GediProduct
 
 # Configure the logger
 logger = logging.getLogger(__name__)
@@ -150,10 +151,7 @@ class GEDIGranule:
         try:
             # Validate required products
             for product in required_products:
-                if (
-                    product.value not in df_dict
-                    or df_dict[product.value].empty
-                ):
+                if product.value not in df_dict or df_dict[product.value].empty:
                     return None
 
             # Start joining with the L2A product
@@ -168,14 +166,10 @@ class GEDIGranule:
                 )
 
             # Drop duplicate columns with suffixes
-            suffixes = [
-                f"_{product.value}" for product in required_products[1:]
-            ]
+            suffixes = [f"_{product.value}" for product in required_products[1:]]
             df = df.loc[:, ~df.columns.str.endswith(tuple(suffixes))]
 
             return df if not df.empty else None
         except Exception as e:
-            logger.error(
-                f"Granule {granule_key}: Error while joining DataFrames: {e}"
-            )
+            logger.error(f"Granule {granule_key}: Error while joining DataFrames: {e}")
             return None

@@ -22,10 +22,12 @@ We will:
 
 """
 
+import json
+
+import yaml
+
 # Import required libraries
 import gedidb as gdb
-import yaml
-import json
 
 # Define paths for configuration and spatial data
 config_file = "/path/to/data_config.yml"

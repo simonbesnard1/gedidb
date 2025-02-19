@@ -12,15 +12,14 @@ Before running this example:
 """
 
 from pathlib import Path
+
 from gedidb.downloader.authentication import EarthDataAuthenticator
 
 # Specify the directory where `.netrc` and cookies will be stored
 earth_data_dir = Path.home()
 
 # Initialize the authenticator
-authenticator = EarthDataAuthenticator(
-    earth_data_dir=earth_data_dir, strict=False
-)
+authenticator = EarthDataAuthenticator(earth_data_dir=earth_data_dir, strict=False)
 
 # Authenticate and ensure `.netrc` and cookies are valid
 authenticator.authenticate()

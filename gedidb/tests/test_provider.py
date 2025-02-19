@@ -10,14 +10,13 @@ import os
 import tempfile
 import unittest
 
+import geopandas as gpd
 import pandas as pd
 import yaml
 from pandas import DataFrame
 from xarray import Dataset
-import geopandas as gpd
 
-from gedidb import GEDIDatabase
-from gedidb import GEDIProvider
+from gedidb import GEDIDatabase, GEDIProvider
 
 
 class TestGEDIProvider(unittest.TestCase):
@@ -98,9 +97,7 @@ class TestGEDIProvider(unittest.TestCase):
         unfiltered_result = self.gedi_provider.get_data(
             variables, geometry=self.geometry
         )
-        self.assertIsNotNone(
-            unfiltered_result, "Unfiltered result should not be None"
-        )
+        self.assertIsNotNone(unfiltered_result, "Unfiltered result should not be None")
         self.assertTrue(
             isinstance(unfiltered_result, Dataset),
             "Unfiltered result should be an xarray Dataset",
@@ -114,22 +111,18 @@ class TestGEDIProvider(unittest.TestCase):
         filtered_result = self.gedi_provider.get_data(
             variables, geometry=self.geometry, **quality_filters
         )
-        self.assertIsNotNone(
-            filtered_result, "Filtered result should not be None"
-        )
+        self.assertIsNotNone(filtered_result, "Filtered result should not be None")
         self.assertTrue(
             isinstance(filtered_result, Dataset),
             "Filtered result should be an xarray Dataset",
         )
 
         self.assertTrue(
-            len(filtered_result[variables[0]])
-            < len(unfiltered_result[variables[0]]),
+            len(filtered_result[variables[0]]) < len(unfiltered_result[variables[0]]),
             "Filtered data should have fewer entries than unfiltered data",
         )
         self.assertTrue(
-            len(filtered_result[variables[1]])
-            < len(unfiltered_result[variables[1]]),
+            len(filtered_result[variables[1]]) < len(unfiltered_result[variables[1]]),
             "Filtered data should have fewer entries than unfiltered data",
         )
 

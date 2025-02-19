@@ -6,16 +6,15 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import h5py
-from typing import Iterable, Union, List
 import pathlib
+from typing import Iterable, List, Union
+
+import h5py
 import pandas as pd
 
 from gedidb.beam.Beam import beam_handler
-from gedidb.granule.granule_name import (
-    GediNameMetadata,
-    parse_granule_filename,
-)
+from gedidb.granule.granule_name import (GediNameMetadata,
+                                         parse_granule_filename)
 
 
 class granule_handler(h5py.File):
@@ -40,9 +39,7 @@ class granule_handler(h5py.File):
 
         try:
             super().__init__(file_path, "r")  # Open HDF5 file
-            self.beam_names = [
-                name for name in self.keys() if name.startswith("BEAM")
-            ]
+            self.beam_names = [name for name in self.keys() if name.startswith("BEAM")]
             self._is_open = True  # Mark as successfully opened
         except Exception as e:
             print(f"Error opening granule {file_path}: {e}")
@@ -52,11 +49,7 @@ class granule_handler(h5py.File):
         """Close the granule file safely."""
         if self._is_open:  # Only attempt to close if it was opened
             try:
-                if (
-                    hasattr(self, "id")
-                    and hasattr(self.id, "valid")
-                    and self.id.valid
-                ):
+                if hasattr(self, "id") and hasattr(self.id, "valid") and self.id.valid:
                     super().close()
                     self._is_open = False
             except Exception as e:
@@ -86,9 +79,7 @@ class granule_handler(h5py.File):
             GediNameMetadata: Parsed metadata from the granule filename.
         """
         if self._parsed_filename_metadata is None:
-            self._parsed_filename_metadata = parse_granule_filename(
-                self.filename
-            )
+            self._parsed_filename_metadata = parse_granule_filename(self.filename)
         return self._parsed_filename_metadata
 
     def _get_metadata_attr(self, attr_name: str) -> str:
@@ -102,9 +93,7 @@ class granule_handler(h5py.File):
             str: Attribute value if it exists, otherwise an empty string.
         """
         try:
-            return self["METADATA"]["DatasetIdentification"].attrs.get(
-                attr_name, ""
-            )
+            return self["METADATA"]["DatasetIdentification"].attrs.get(attr_name, "")
         except KeyError:
             return ""
 
@@ -188,9 +177,7 @@ class granule_handler(h5py.File):
             ValueError: If the index is out of bounds.
         """
         if not 0 <= beam_index < self.n_beams:
-            raise ValueError(
-                f"Beam index must be between 0 and {self.n_beams - 1}"
-            )
+            raise ValueError(f"Beam index must be between 0 and {self.n_beams - 1}")
         return self._beam_from_name(self.beam_names[beam_index])
 
     def _beam_from_name(self, beam_name: str) -> beam_handler:

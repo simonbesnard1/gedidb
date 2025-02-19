@@ -8,9 +8,9 @@
 
 from typing import Dict
 
-from gedidb.granule.Granule import granule_handler
-from gedidb.beam.l4a_beam import L4ABeam
 from gedidb.beam.Beam import beam_handler
+from gedidb.beam.l4a_beam import L4ABeam
+from gedidb.granule.Granule import granule_handler
 
 
 class L4AGranule(granule_handler):

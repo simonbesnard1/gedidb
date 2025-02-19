@@ -18,6 +18,7 @@ Before running this example:
 """
 
 import geopandas as gpd
+
 import gedidb as gdb
 
 # Configure the TileDB storage backend
@@ -93,9 +94,7 @@ print(nearest_data)
 # Section 3: Data Format Options
 # -----------------------------------------------------------------
 print("\n=== Data Format Options ===")
-print(
-    "Retrieving GEDI data as a pandas.DataFrame for easier tabular analysis."
-)
+print("Retrieving GEDI data as a pandas.DataFrame for easier tabular analysis.")
 
 # Query the data within the bounding box and retrieve it as a `pandas.DataFrame`
 data_dataframe = provider.get_data(
