@@ -6,11 +6,12 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import numpy as np
 from typing import Dict, Optional
 
-from gedidb.granule.Granule import granule_handler
+import numpy as np
+
 from gedidb.beam.Beam import beam_handler
+from gedidb.granule.Granule import granule_handler
 
 
 class L4CBeam(beam_handler):
@@ -21,7 +22,10 @@ class L4CBeam(beam_handler):
     """
 
     def __init__(
-        self, granule: granule_handler, beam: str, field_mapping: Dict[str, Dict[str, str]]
+        self,
+        granule: granule_handler,
+        beam: str,
+        field_mapping: Dict[str, Dict[str, str]],
     ):
         """
         Initialize the L4CBeam class.

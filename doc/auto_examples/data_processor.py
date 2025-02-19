@@ -22,10 +22,12 @@ We will:
 
 """
 
+import concurrent.futures
+
+from dask.distributed import Client, LocalCluster
+
 # Import required libraries
 import gedidb as gdb
-from dask.distributed import Client, LocalCluster
-import concurrent.futures
 
 # Configuration file path
 config_file = "/path/to/data_config.yml"

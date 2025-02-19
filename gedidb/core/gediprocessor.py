@@ -6,31 +6,27 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import os
-import logging
-
-import yaml
-import geopandas as gpd
-from datetime import datetime
 import concurrent.futures
-from dask.distributed import Client
-import pandas as pd
-from typing import Optional, Union
+import logging
+import os
 import traceback
+from datetime import datetime
 from pathlib import Path
+from typing import Optional, Union
 
-from gedidb.utils.constants import GediProduct
-from gedidb.downloader.data_downloader import (
-    H5FileDownloader,
-    CMRDataDownloader,
-)
+import geopandas as gpd
+import pandas as pd
+import yaml
+from dask.distributed import Client
+
 from gedidb.core.gedidatabase import GEDIDatabase
-from gedidb.utils.geo_processing import (
-    check_and_format_shape,
-    _temporal_tiling,
-)
 from gedidb.core.gedigranule import GEDIGranule
 from gedidb.downloader.authentication import EarthDataAuthenticator
+from gedidb.downloader.data_downloader import (CMRDataDownloader,
+                                               H5FileDownloader)
+from gedidb.utils.constants import GediProduct
+from gedidb.utils.geo_processing import (_temporal_tiling,
+                                         check_and_format_shape)
 
 # Configure logging
 logging.basicConfig(
@@ -118,9 +114,7 @@ class GEDIProcessor:
 
         # Validate log_dir
         if log_dir is not None and not isinstance(log_dir, str):
-            raise ValueError(
-                "The 'log_dir' argument must be a string if provided."
-            )
+            raise ValueError("The 'log_dir' argument must be a string if provided.")
 
         # Validate geometry
         if geometry is None:
@@ -129,12 +123,8 @@ class GEDIProcessor:
 
         # Validate and parse dates
         if not start_date or not end_date:
-            raise ValueError(
-                "Both 'start_date' and 'end_date' must be provided."
-            )
-        self.start_date = self._validate_and_parse_date(
-            start_date, "start_date"
-        )
+            raise ValueError("Both 'start_date' and 'end_date' must be provided.")
+        self.start_date = self._validate_and_parse_date(start_date, "start_date")
         self.end_date = self._validate_and_parse_date(end_date, "end_date")
         if self.start_date > self.end_date:
             raise ValueError(
@@ -153,15 +143,11 @@ class GEDIProcessor:
             # Create a FileHandler and set its level and format
             file_handler = logging.FileHandler(log_file)
             file_handler.setLevel(logging.DEBUG)
-            formatter = logging.Formatter(
-                "%(asctime)s - %(levelname)s - %(message)s"
-            )
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
             file_handler.setFormatter(formatter)
 
             # Add the FileHandler to the logger
-            if not any(
-                isinstance(h, logging.FileHandler) for h in logger.handlers
-            ):
+            if not any(isinstance(h, logging.FileHandler) for h in logger.handlers):
                 logger.addHandler(file_handler)
 
         # Load configurations and setup paths and components
@@ -198,13 +184,9 @@ class GEDIProcessor:
         self.database_writer._create_arrays()
 
         # Set the parallel engine
-        self.parallel_engine = self._initialize_parallel_engine(
-            parallel_engine
-        )
+        self.parallel_engine = self._initialize_parallel_engine(parallel_engine)
 
-    def _validate_and_load_geometry(
-        self, geometry: object
-    ) -> gpd.GeoDataFrame:
+    def _validate_and_load_geometry(self, geometry: object) -> gpd.GeoDataFrame:
         """
         Validates and loads the geometry from a file or GeoDataFrame.
 
@@ -250,9 +232,7 @@ class GEDIProcessor:
         try:
             return datetime.strptime(date_str, "%Y-%m-%d")
         except ValueError:
-            raise ValueError(
-                f"Invalid format for {date_type}. Expected 'YYYY-MM-DD'."
-            )
+            raise ValueError(f"Invalid format for {date_type}. Expected 'YYYY-MM-DD'.")
 
     def _initialize_database_writer(self, credentials: Optional[dict]):
         """
@@ -295,9 +275,7 @@ class GEDIProcessor:
         with open(file_path, "r") as file:
             return yaml.safe_load(file)
 
-    def compute(
-        self, consolidate: bool = True, consolidation_type: str = "spatial"
-    ):
+    def compute(self, consolidate: bool = True, consolidation_type: str = "spatial"):
         """
         Main method to download and process GEDI granules.
 
@@ -364,17 +342,13 @@ class GEDIProcessor:
             A dictionary of unprocessed granules from the input `cmr_data`.
         """
         granule_ids = list(cmr_data.keys())
-        processed_granules = self.database_writer.check_granules_status(
-            granule_ids
-        )
+        processed_granules = self.database_writer.check_granules_status(granule_ids)
 
         # Filter to include only granules that have not been processed
         unprocessed_granules = {
             granule_id: product_info
             for granule_id, product_info in cmr_data.items()
-            if not processed_granules.get(
-                granule_id, False
-            )  # Keep if not processed
+            if not processed_granules.get(granule_id, False)  # Keep if not processed
         }
 
         return unprocessed_granules
@@ -384,9 +358,7 @@ class GEDIProcessor:
         Process unprocessed granules in parallel using the selected parallelization engine.
         """
         # Check the temporal tiling configuration
-        temporal_batching = self.data_info["tiledb"].get(
-            "temporal_batching", None
-        )
+        temporal_batching = self.data_info["tiledb"].get("temporal_batching", None)
 
         if temporal_batching == "daily" or temporal_batching == "weekly":
             # Apply temporal tiling based on the specified configuration
@@ -423,14 +395,10 @@ class GEDIProcessor:
                     results = [future.result() for future in futures]
 
                     # Collect valid data for writing
-                    valid_dataframes = [
-                        gdf for _, gdf in results if gdf is not None
-                    ]
+                    valid_dataframes = [gdf for _, gdf in results if gdf is not None]
 
                     if valid_dataframes:
-                        concatenated_df = pd.concat(
-                            valid_dataframes, ignore_index=True
-                        )
+                        concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
                         quadrants = self.database_writer.spatial_chunking(
                             concatenated_df,
                             chunk_size=self.data_info["tiledb"]["chunk_size"],
@@ -439,13 +407,9 @@ class GEDIProcessor:
                             self.database_writer.write_granule(data)
 
                     # Collect processed granules
-                    granule_ids = [
-                        ids_ for ids_, _ in results if ids_ is not None
-                    ]
+                    granule_ids = [ids_ for ids_, _ in results if ids_ is not None]
                     for granule_id in granule_ids:
-                        self.database_writer.mark_granule_as_processed(
-                            granule_id
-                        )
+                        self.database_writer.mark_granule_as_processed(granule_id)
 
         elif isinstance(self.parallel_engine, Client):
             for timeframe, granules in unprocessed_temporal_cmr_data.items():
@@ -464,14 +428,10 @@ class GEDIProcessor:
                 results = self.parallel_engine.gather(futures)
 
                 # Collect valid data for writing
-                valid_dataframes = [
-                    gdf for _, gdf in results if gdf is not None
-                ]
+                valid_dataframes = [gdf for _, gdf in results if gdf is not None]
 
                 if valid_dataframes:
-                    concatenated_df = pd.concat(
-                        valid_dataframes, ignore_index=True
-                    )
+                    concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
                     quadrants = self.database_writer.spatial_chunking(
                         concatenated_df,
                         chunk_size=self.data_info["tiledb"]["chunk_size"],
@@ -489,9 +449,7 @@ class GEDIProcessor:
             )
 
     @staticmethod
-    def process_single_granule(
-        granule_id, product_info, data_info, download_path
-    ):
+    def process_single_granule(granule_id, product_info, data_info, download_path):
         """
         Processes a single granule by downloading and processing sequentially.
 

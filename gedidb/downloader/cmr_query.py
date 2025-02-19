@@ -6,14 +6,15 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
+import logging
+from datetime import datetime
+from typing import List, Optional
+
+import geopandas as gpd
+import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import geopandas as gpd
-from datetime import datetime
-import pandas as pd
-import logging
-from typing import Optional, List
 
 from gedidb.granule import granule_name
 from gedidb.utils.constants import GediProduct
@@ -53,9 +54,7 @@ class CMRQuery:
         }
 
     @staticmethod
-    def _construct_temporal_params(
-        start_date: datetime, end_date: datetime
-    ) -> str:
+    def _construct_temporal_params(start_date: datetime, end_date: datetime) -> str:
         """
         Construct the temporal query parameter for the CMR request.
         """
@@ -115,9 +114,7 @@ class CMRQuery:
             else:
                 granule_name = title
         else:
-            logger.warning(
-                f"Unknown data center or missing granule ID in item: {item}"
-            )
+            logger.warning(f"Unknown data center or missing granule ID in item: {item}")
             return None
 
         # Remove any leading/trailing whitespace
@@ -158,9 +155,7 @@ class GranuleQuery(CMRQuery):
         self.end_date = end_date
         self.earth_data_info = earth_data_info
 
-    def query_granules(
-        self, page_size: int = 2000, page_num: int = 1
-    ) -> pd.DataFrame:
+    def query_granules(self, page_size: int = 2000, page_num: int = 1) -> pd.DataFrame:
         """
         Query granules from CMR and return them as a DataFrame.
 

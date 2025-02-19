@@ -6,11 +6,12 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import pandas as pd
+import logging
+from typing import Callable, Dict, Optional
+
 import h5py
 import numpy as np
-from typing import Dict, Callable, Optional
-import logging
+import pandas as pd
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -22,9 +23,7 @@ class beam_handler(h5py.Group):
     Provides methods to extract and process the beam data, including filtering, caching, and SQL formatting.
     """
 
-    def __init__(
-        self, granule: h5py.File, beam: str, field_mapping: Dict[str, str]
-    ):
+    def __init__(self, granule: h5py.File, beam: str, field_mapping: Dict[str, str]):
         """
         Initialize the Beam class.
 
@@ -116,10 +115,7 @@ class beam_handler(h5py.Group):
             for key, value in data.items():
                 if isinstance(value, np.ndarray) and value.ndim > 1:
                     flattened_data.update(
-                        {
-                            f"{key}_{i + 1}": value[:, i]
-                            for i in range(value.shape[1])
-                        }
+                        {f"{key}_{i + 1}": value[:, i] for i in range(value.shape[1])}
                     )
                 else:
                     flattened_data[key] = value

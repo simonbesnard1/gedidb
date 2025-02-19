@@ -6,12 +6,13 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import os
 import logging
-import tiledb
+import os
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-from typing import Optional, List, Dict, Tuple
+import tiledb
 
 # Configure the logger
 logger = logging.getLogger(__name__)
@@ -38,9 +39,7 @@ class TileDBProvider:
 
         # Validate storage_type
         if not storage_type or not isinstance(storage_type, str):
-            raise ValueError(
-                "The 'storage_type' argument must be a non-empty string."
-            )
+            raise ValueError("The 'storage_type' argument must be a non-empty string.")
 
         storage_type = storage_type.lower()
 
@@ -81,9 +80,7 @@ class TileDBProvider:
         if credentials:
             config.update(
                 {
-                    "vfs.s3.aws_access_key_id": credentials.get(
-                        "AccessKeyId", ""
-                    ),
+                    "vfs.s3.aws_access_key_id": credentials.get("AccessKeyId", ""),
                     "vfs.s3.aws_secret_access_key": credentials.get(
                         "SecretAccessKey", ""
                     ),
@@ -120,9 +117,7 @@ class TileDBProvider:
                         organized_metadata[var_name] = {}
                     organized_metadata[var_name][attr_type] = value
 
-                return pd.DataFrame.from_dict(
-                    organized_metadata, orient="index"
-                )
+                return pd.DataFrame.from_dict(organized_metadata, orient="index")
         except Exception as e:
             logger.error(f"Failed to retrieve variables from TileDB: {e}")
             raise
@@ -142,9 +137,7 @@ class TileDBProvider:
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
         """
         try:
-            with tiledb.open(
-                self.scalar_array_uri, mode="r", ctx=self.ctx
-            ) as array:
+            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
                 attr_list = []
                 profile_vars = {}
 
@@ -180,9 +173,7 @@ class TileDBProvider:
 
                 return data, profile_vars
         except Exception as e:
-            logger.error(
-                f"Error querying TileDB array '{self.scalar_array_uri}': {e}"
-            )
+            logger.error(f"Error querying TileDB array '{self.scalar_array_uri}': {e}")
             raise
 
     def _get_tiledb_spatial_domain(self):
@@ -194,9 +185,7 @@ class TileDBProvider:
         Tuple[float, float, float, float]
             (min_longitude, max_longitude, min_latitude, max_latitude)
         """
-        with tiledb.open(
-            self.scalar_array_uri, mode="r", ctx=self.ctx
-        ) as array:
+        with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
             domain = array.schema.domain
             min_lon, max_lon = domain.dim(1).domain  # Longitude dimension
             min_lat, max_lat = domain.dim(0).domain  # Latitude dimension
