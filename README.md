@@ -11,10 +11,10 @@
 [![Pipelines](https://github.com/simonbesnard1/gedidb/workflows/CI/badge.svg?branch=main)](https://github.com/simonbesnard1/gedidb/actions?query=workflow%3ACI)
 [![Code coverage](https://codecov.io/gh/simonbesnard1/gedidb/branch/main/graph/badge.svg?flag=unittests)](https://codecov.io/gh/simonbesnard1/gedidb)
 [![Docs](https://readthedocs.org/projects/gedidb/badge/?version=latest)](https://gedidb.readthedocs.io/en/latest/)
-[![Formatted with black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://static.pepy.tech/badge/gedidb)](https://pepy.tech/projects/gedidb)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885228)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 **gediDB** is an open-source Python package designed to streamline the processing, analysis, and management of GEDI L2A-B and L4A-C data. This toolbox enables efficient and flexible data querying and management of large GEDI datasets stored with [TileDB](https://tiledb.com/), a high-performance, multi-dimensional array database.
 
