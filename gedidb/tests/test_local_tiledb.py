@@ -6,14 +6,16 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import unittest
-import numpy as np
-import tiledb
-import pandas as pd
-import yaml
 import tempfile
-from gedidb.core.gedidatabase import GEDIDatabase
+import unittest
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import tiledb
+import yaml
+
+from gedidb.core.gedidatabase import GEDIDatabase
 
 
 class TestGEDIDatabase(unittest.TestCase):
@@ -24,9 +26,7 @@ class TestGEDIDatabase(unittest.TestCase):
         cls.yaml_file_path = cls.data_dir / "data_config.yml"
 
         if not cls.yaml_file_path.exists():
-            raise FileNotFoundError(
-                f"Config file not found: {cls.yaml_file_path}"
-            )
+            raise FileNotFoundError(f"Config file not found: {cls.yaml_file_path}")
 
         with open(cls.yaml_file_path, "r") as file:
             cls.config = yaml.safe_load(file)
@@ -73,17 +73,13 @@ class TestGEDIDatabase(unittest.TestCase):
                 "The 'time' dimension is missing from the TileDB schema.",
             )
 
-            self.assertEqual(
-                lat_dim.domain, (-56.0, 56.0), "Latitude range mismatch"
-            )
+            self.assertEqual(lat_dim.domain, (-56.0, 56.0), "Latitude range mismatch")
             self.assertEqual(
                 lon_dim.domain, (-180.0, 180.0), "Longitude range mismatch"
             )
             # Check chunk size
             self.assertEqual(lat_dim.tile, 1.0, "Latitude chunk size mismatch")
-            self.assertEqual(
-                lon_dim.tile, 1.0, "Longitude chunk size mismatch"
-            )
+            self.assertEqual(lon_dim.tile, 1.0, "Longitude chunk size mismatch")
 
     def test_tiledb_attributes(self):
         """Test that TileDB attributes are correctly set."""
@@ -137,9 +133,7 @@ class TestGEDIDatabase(unittest.TestCase):
         with tiledb.open(
             self.gedi_db.array_uri, mode="r", ctx=self.gedi_db.ctx
         ) as array:
-            shot_number = array.query(attrs=("shot_number",)).multi_index[
-                :, :, :
-            ]
+            shot_number = array.query(attrs=("shot_number",)).multi_index[:, :, :]
             beam_type = array.query(attrs=("beam_type",)).multi_index[:, :, :]
             beam_name = array.query(attrs=("beam_name",)).multi_index[:, :, :]
 

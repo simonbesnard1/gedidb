@@ -8,6 +8,7 @@
 #
 
 from importlib.metadata import version as _version
+
 from gedidb.utils.print_versions import show_versions
 
 try:
@@ -15,49 +16,25 @@ try:
 except Exception:
     __version__ = "9999"
 
-from gedidb.core import (
-    gedidatabase,
-    gedigranule,
-    gediprocessor,
-    gediprovider,
-)
-
-from gedidb.providers import tiledb_provider
-
-from gedidb.utils import (
-    constants,
-    geo_processing,
-    print_versions,
-    tiledb_consolidation,
-)
-
-from gedidb.utils.tiledb_consolidation import (
-    SpatialConsolidationPlan,
-    SpatialConsolidationPlanner,
-)
-from gedidb.core.gediprocessor import GEDIProcessor
-from gedidb.core.gedigranule import GEDIGranule
+from gedidb.beam import Beam, l2a_beam, l2b_beam, l4a_beam, l4c_beam
+from gedidb.beam.Beam import beam_handler
+from gedidb.beam.l2a_beam import L2ABeam
+from gedidb.beam.l2b_beam import L2BBeam
+from gedidb.beam.l4a_beam import L4ABeam
+from gedidb.beam.l4c_beam import L4CBeam
+from gedidb.core import gedidatabase, gedigranule, gediprocessor, gediprovider
 from gedidb.core.gedidatabase import GEDIDatabase
+from gedidb.core.gedigranule import GEDIGranule
+from gedidb.core.gediprocessor import GEDIProcessor
 from gedidb.core.gediprovider import GEDIProvider
-
-
 from gedidb.downloader import authentication, cmr_query, data_downloader
-
 from gedidb.downloader.authentication import EarthDataAuthenticator
 from gedidb.downloader.cmr_query import CMRQuery
-from gedidb.downloader.data_downloader import GEDIDownloader
-from gedidb.downloader.data_downloader import H5FileDownloader
-from gedidb.downloader.data_downloader import CMRDataDownloader
-
-from gedidb.granule import (
-    granule_parser,
-    Granule,
-    granule_name,
-    l2a_granule,
-    l2b_granule,
-    l4a_granule,
-    l4c_granule,
-)
+from gedidb.downloader.data_downloader import (CMRDataDownloader,
+                                               GEDIDownloader,
+                                               H5FileDownloader)
+from gedidb.granule import (Granule, granule_name, granule_parser, l2a_granule,
+                            l2b_granule, l4a_granule, l4c_granule)
 from gedidb.granule.Granule import granule_handler
 from gedidb.granule.granule_name import GediNameMetadata
 from gedidb.granule.granule_parser import GranuleParser
@@ -65,18 +42,12 @@ from gedidb.granule.l2a_granule import L2AGranule
 from gedidb.granule.l2b_granule import L2BGranule
 from gedidb.granule.l4a_granule import L4AGranule
 from gedidb.granule.l4c_granule import L4CGranule
-
-
-from gedidb.beam import Beam, l2a_beam, l2b_beam, l4a_beam, l4c_beam
-
-from gedidb.beam.Beam import beam_handler
-from gedidb.beam.l2a_beam import L2ABeam
-from gedidb.beam.l2b_beam import L2BBeam
-from gedidb.beam.l4a_beam import L4ABeam
-from gedidb.beam.l4c_beam import L4CBeam
-
-
+from gedidb.providers import tiledb_provider
 from gedidb.providers.tiledb_provider import TileDBProvider
+from gedidb.utils import (constants, geo_processing, print_versions,
+                          tiledb_consolidation)
+from gedidb.utils.tiledb_consolidation import (SpatialConsolidationPlan,
+                                               SpatialConsolidationPlanner)
 
 __all__ = [
     "gedidatabase",

@@ -11,9 +11,7 @@ import pytest
 
 def pytest_addoption(parser):
     """Add command-line flags for pytest."""
-    parser.addoption(
-        "--run-flaky", action="store_true", help="Run flaky tests"
-    )
+    parser.addoption("--run-flaky", action="store_true", help="Run flaky tests")
     parser.addoption(
         "--run-network-tests",
         action="store_true",
@@ -25,9 +23,7 @@ def pytest_runtest_setup(item):
     """Skip tests based on custom markers and command-line options."""
     if "flaky" in item.keywords and not item.config.getoption("--run-flaky"):
         pytest.skip("Set --run-flaky option to run flaky tests")
-    if "network" in item.keywords and not item.config.getoption(
-        "--run-network-tests"
-    ):
+    if "network" in item.keywords and not item.config.getoption("--run-network-tests"):
         pytest.skip(
             "Set --run-network-tests to run tests requiring an internet connection"
         )
@@ -38,6 +34,7 @@ def add_standard_imports(doctest_namespace, tmpdir):
     """Provide standard imports and setup for doctests."""
     import numpy as np
     import pandas as pd
+
     import gedidb as gdb
 
     # Add commonly used modules to the doctest namespace

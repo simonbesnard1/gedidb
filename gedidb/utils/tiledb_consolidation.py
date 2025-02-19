@@ -6,10 +6,11 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import os
-import tiledb
-from typing import Dict, List, Iterator, Tuple, Union
 import logging
+import os
+from typing import Dict, Iterator, List, Tuple, Union
+
+import tiledb
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -72,21 +73,15 @@ class SpatialConsolidationPlanner:
         SpatialConsolidationPlan
             The spatial consolidation plan object.
         """
-        logger.info(
-            f"Generating spatial consolidation plan for array: {array_uri}"
-        )
+        logger.info(f"Generating spatial consolidation plan for array: {array_uri}")
 
         try:
             fragment_info = tiledb.FragmentInfoList(array_uri, ctx=ctx)
         except Exception as e:
-            logger.error(
-                f"Failed to retrieve fragment info for {array_uri}: {e}"
-            )
+            logger.error(f"Failed to retrieve fragment info for {array_uri}: {e}")
             raise
 
-        fragments = SpatialConsolidationPlanner._extract_fragments(
-            fragment_info
-        )
+        fragments = SpatialConsolidationPlanner._extract_fragments(fragment_info)
         if not fragments:
             logger.warning(f"No fragments found for array: {array_uri}")
             return SpatialConsolidationPlan({})
@@ -180,9 +175,7 @@ class SpatialConsolidationPlanner:
                 for uri, candidate in list(unvisited.items()):
                     if has_spatial_overlap(frag, candidate):
                         stack.append(candidate)
-                        del unvisited[
-                            uri
-                        ]  # Mark as visited by removing from unvisited
+                        del unvisited[uri]  # Mark as visited by removing from unvisited
 
             # Assign the current node to the plan
             plan[node_id] = current_node

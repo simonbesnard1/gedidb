@@ -6,12 +6,13 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import numpy as np
-import pandas as pd
 from typing import Dict, Optional
 
-from gedidb.granule.Granule import granule_handler
+import numpy as np
+import pandas as pd
+
 from gedidb.beam.Beam import beam_handler
+from gedidb.granule.Granule import granule_handler
 
 
 class L2ABeam(beam_handler):
@@ -21,7 +22,9 @@ class L2ABeam(beam_handler):
     and returns the filtered beam data as a DataFrame.
     """
 
-    def __init__(self, granule: granule_handler, beam: str, field_mapping: Dict[str, str]):
+    def __init__(
+        self, granule: granule_handler, beam: str, field_mapping: Dict[str, str]
+    ):
         """
         Initialize the L2ABeam class.
 
@@ -34,23 +37,28 @@ class L2ABeam(beam_handler):
 
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
-                                        "quality_flag": lambda: self["quality_flag"][()] == 1,
-                                        "sensitivity_a0": lambda: (
-                                            (self["sensitivity"][()] >= 0.5) & (self["sensitivity"][()] <= 1.0)
-                                        ),
-                                        "sensitivity_a2": lambda: (
-                                            (self["geolocation/sensitivity_a2"][()] > 0.7) & (self["geolocation/sensitivity_a2"][()] <= 1.0)
-                                        ),
-                                        "degrade_flag": lambda: np.isin(
-                                            self["degrade_flag"][()],
-                                            [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68]
-                                        ),
-                                        "surface_flag": lambda: self["surface_flag"][()] == 1,
-                                        "elevation_difference_tdx": lambda: (
-                                            (self["elev_lowestmode"][()] - self["digital_elevation_model"][()]) > -150
-                                        ) & (
-                                            (self["elev_lowestmode"][()] - self["digital_elevation_model"][()]) < 150
-                                        )}
+            "quality_flag": lambda: self["quality_flag"][()] == 1,
+            "sensitivity_a0": lambda: (
+                (self["sensitivity"][()] >= 0.5) & (self["sensitivity"][()] <= 1.0)
+            ),
+            "sensitivity_a2": lambda: (
+                (self["geolocation/sensitivity_a2"][()] > 0.7)
+                & (self["geolocation/sensitivity_a2"][()] <= 1.0)
+            ),
+            "degrade_flag": lambda: np.isin(
+                self["degrade_flag"][()],
+                [0, 3, 8, 10, 13, 18, 20, 23, 28, 30, 33, 38, 40, 43, 48, 60, 63, 68],
+            ),
+            "surface_flag": lambda: self["surface_flag"][()] == 1,
+            "elevation_difference_tdx": lambda: (
+                (self["elev_lowestmode"][()] - self["digital_elevation_model"][()])
+                > -150
+            )
+            & (
+                (self["elev_lowestmode"][()] - self["digital_elevation_model"][()])
+                < 150
+            ),
+        }
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
         """
