@@ -7,20 +7,19 @@
 #
 
 import logging
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple, Union
+
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import xarray as xr
-import geopandas as gpd
 from scipy.spatial import cKDTree
-from typing import Optional, List, Union, Dict, Tuple
-from collections import defaultdict
 
-from gedidb.utils.geo_processing import (
-    check_and_format_shape,
-    _datetime_to_timestamp_days,
-    _timestamp_to_datetime,
-)
 from gedidb.providers.tiledb_provider import TileDBProvider
+from gedidb.utils.geo_processing import (_datetime_to_timestamp_days,
+                                         _timestamp_to_datetime,
+                                         check_and_format_shape)
 
 # Configure the logger
 logging.basicConfig(
@@ -83,9 +82,7 @@ class GEDIProvider(TileDBProvider):
         -----
         Supports both S3 and local storage configurations based on `storage_type`.
         """
-        super().__init__(
-            storage_type, s3_bucket, local_path, url, region, credentials
-        )
+        super().__init__(storage_type, s3_bucket, local_path, url, region, credentials)
 
     def query_nearest_shots(
         self,
@@ -141,9 +138,7 @@ class GEDIProvider(TileDBProvider):
         start_timestamp = (
             _datetime_to_timestamp_days(start_time) if start_time else None
         )
-        end_timestamp = (
-            _datetime_to_timestamp_days(end_time) if end_time else None
-        )
+        end_timestamp = _datetime_to_timestamp_days(end_time) if end_time else None
 
         lon_min, lat_min = point[0] - radius, point[1] - radius
         lon_max, lat_max = point[0] + radius, point[1] + radius
@@ -174,15 +169,11 @@ class GEDIProvider(TileDBProvider):
             return {}, {}
 
         tree = cKDTree(np.column_stack((longitudes, latitudes)))
-        distances, indices = tree.query(
-            point, k=min(num_shots, len(longitudes))
-        )
+        distances, indices = tree.query(point, k=min(num_shots, len(longitudes)))
         nearest_shots = scalar_data_subset["shot_number"][indices]
 
         scalar_data = {
-            k: np.array(v)[
-                np.isin(scalar_data_subset["shot_number"], nearest_shots)
-            ]
+            k: np.array(v)[np.isin(scalar_data_subset["shot_number"], nearest_shots)]
             for k, v in scalar_data_subset.items()
         }
 
@@ -341,9 +332,7 @@ class GEDIProvider(TileDBProvider):
 
         # Validation for nearest queries
         elif query_type == "nearest":
-            if point is None or not (
-                isinstance(point, tuple) and len(point) == 2
-            ):
+            if point is None or not (isinstance(point, tuple) and len(point) == 2):
                 raise ValueError(
                     "For 'nearest' queries, 'point' must be a (longitude, latitude) tuple."
                 )
@@ -530,9 +519,7 @@ class GEDIProvider(TileDBProvider):
 
         return dataset
 
-    def _attach_metadata(
-        self, dataset: xr.Dataset, metadata: pd.DataFrame
-    ) -> None:
+    def _attach_metadata(self, dataset: xr.Dataset, metadata: pd.DataFrame) -> None:
         """
         Attach metadata to each variable in an Xarray Dataset.
 

@@ -6,16 +6,17 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
+import importlib
+import inspect
 import os
 import sys
-import importlib
-import gedidb
+from datetime import datetime
+from importlib.metadata import version as version_
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
-from datetime import datetime
-import inspect
-from importlib.metadata import version as version_
+
+import gedidb
 
 # Minimum version, enforced by sphinx
 needs_sphinx = "4.3"
@@ -141,9 +142,7 @@ class LegacyDirective(Directive):
             self.content[0] = text + " " + self.content[0]
         except IndexError:
             # Content is empty; use the default text
-            source, lineno = self.state_machine.get_source_and_line(
-                self.lineno
-            )
+            source, lineno = self.state_machine.get_source_and_line(self.lineno)
             self.content.append(text, source=source, offset=lineno)
         text = "\n".join(self.content)
         # Create the admonition node, to be populated by `nested_parse`
@@ -157,17 +156,13 @@ class LegacyDirective(Directive):
         # Select custom class for CSS styling
         admonition_node["classes"] = ["admonition-legacy"]
         # Parse the directive contents
-        self.state.nested_parse(
-            self.content, self.content_offset, admonition_node
-        )
+        self.state.nested_parse(self.content, self.content_offset, admonition_node)
         return [admonition_node]
 
 
 def setup(app):
     # add a config value for `ifconfig` directives
-    app.add_config_value(
-        "python_version_major", str(sys.version_info.major), "env"
-    )
+    app.add_config_value("python_version_major", str(sys.version_info.major), "env")
     app.add_directive("legacy", LegacyDirective)
 
 
@@ -223,9 +218,7 @@ plot_html_show_formats = False
 plot_html_show_source_link = False
 
 # sphinx-copybutton configurations
-copybutton_prompt_text = (
-    r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
-)
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
 copybutton_prompt_is_regexp = True
 # -----------------------------------------------------------------------------
 # LaTeX output

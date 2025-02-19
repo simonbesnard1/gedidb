@@ -6,11 +6,12 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import numpy as np
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from gedidb.granule.Granule import granule_handler
+import numpy as np
+
 from gedidb.beam.Beam import beam_handler
+from gedidb.granule.Granule import granule_handler
 
 
 class L2BBeam(beam_handler):
@@ -21,7 +22,10 @@ class L2BBeam(beam_handler):
     """
 
     def __init__(
-        self, granule: granule_handler, beam: str, field_mapping: Dict[str, Dict[str, str]]
+        self,
+        granule: granule_handler,
+        beam: str,
+        field_mapping: Dict[str, Dict[str, str]],
     ):
         """
         Initialize the L2BBeam class.
@@ -35,8 +39,12 @@ class L2BBeam(beam_handler):
 
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
         self.DEFAULT_QUALITY_FILTERS = {
-            "water_persistence": lambda: self["land_cover_data/landsat_water_persistence"][()] < 10,
-            "urban_proportion": lambda: self["land_cover_data/urban_proportion"][()] < 50,
+            "water_persistence": lambda: self[
+                "land_cover_data/landsat_water_persistence"
+            ][()]
+            < 10,
+            "urban_proportion": lambda: self["land_cover_data/urban_proportion"][()]
+            < 50,
         }
 
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:

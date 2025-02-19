@@ -8,8 +8,8 @@
 #
 
 import getpass
-import subprocess
 import logging
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -22,17 +22,13 @@ class EarthDataAuthenticator:
     Handles Earthdata authentication by managing .netrc and cookie files for automated login.
     """
 
-    def __init__(
-        self, earth_data_dir: Optional["str"] = None, strict: bool = False
-    ):
+    def __init__(self, earth_data_dir: Optional["str"] = None, strict: bool = False):
         """
         Initialize the authenticator.
         :param earth_data_dir: Directory to store .netrc and cookies. Defaults to the user's home directory.
         :param strict: If True, fail if credentials are missing without prompting.
         """
-        self.earth_data_path = (
-            Path(earth_data_dir) if earth_data_dir else Path.home()
-        )
+        self.earth_data_path = Path(earth_data_dir) if earth_data_dir else Path.home()
         self.netrc_file = self.earth_data_path / ".netrc"
         self.cookie_file = self.earth_data_path / ".cookies"
         self.strict = strict
@@ -46,9 +42,7 @@ class EarthDataAuthenticator:
     def authenticate(self):
         """Main method to manage authentication and cookies."""
         if not self._credentials_in_netrc():
-            logger.info(
-                "EarthData authentication setup incomplete; starting setup."
-            )
+            logger.info("EarthData authentication setup incomplete; starting setup.")
             if self.strict:
                 raise FileNotFoundError(
                     f"EarthData authentication files missing or incomplete. Please check {self.netrc_file} and {self.cookie_file}."
@@ -98,14 +92,10 @@ class EarthDataAuthenticator:
     def _prompt_password(self) -> str:
         """Securely prompt for password."""
         try:
-            return getpass.getpass(
-                "Please enter your Earthdata Login password: "
-            )
+            return getpass.getpass("Please enter your Earthdata Login password: ")
         except Exception:
             logger.warning("Password input not secure; text will be visible.")
-            return input(
-                "Please enter your Earthdata Login password (input visible): "
-            )
+            return input("Please enter your Earthdata Login password (input visible): ")
 
     def _add_netrc_credentials(self):
         """Add credentials to .netrc and set secure permissions."""

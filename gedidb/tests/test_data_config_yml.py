@@ -6,10 +6,10 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
+import os
 import unittest
 
 import yaml
-import os
 
 
 class TestDataConfig(unittest.TestCase):
@@ -23,9 +23,7 @@ class TestDataConfig(unittest.TestCase):
 
     def test_file_load(self):
         """Test if the YAML file is loaded correctly"""
-        self.assertIsNotNone(
-            self.config, "Failed to load data_config.yml file"
-        )
+        self.assertIsNotNone(self.config, "Failed to load data_config.yml file")
 
     def test_tiledb_parameters(self):
         """Validate the TileDB configuration"""
@@ -44,13 +42,9 @@ class TestDataConfig(unittest.TestCase):
     def test_earth_data_info(self):
         """Check Earthdata Search API configuration"""
         earth_data = self.config.get("earth_data_info")
-        self.assertIsNotNone(
-            earth_data, "'earth_data_info' section is missing"
-        )
+        self.assertIsNotNone(earth_data, "'earth_data_info' section is missing")
         self.assertIn("CMR_URL", earth_data)
-        self.assertTrue(
-            earth_data["CMR_URL"].startswith("https"), "Invalid CMR_URL"
-        )
+        self.assertTrue(earth_data["CMR_URL"].startswith("https"), "Invalid CMR_URL")
         self.assertIn("CMR_PRODUCT_IDS", earth_data)
         self.assertIsInstance(earth_data["CMR_PRODUCT_IDS"], dict)
 
@@ -59,13 +53,9 @@ class TestDataConfig(unittest.TestCase):
         level_2a = self.config.get("level_2a")
         self.assertIsNotNone(level_2a, "'level_2a' section is missing")
         variables = level_2a.get("variables")
-        self.assertIsNotNone(
-            variables, "'variables' under level_2a is missing"
-        )
+        self.assertIsNotNone(variables, "'variables' under level_2a is missing")
         self.assertIsInstance(variables, dict)
-        self.assertIn(
-            "shot_number", variables, "'shot_number' variable is missing"
-        )
+        self.assertIn("shot_number", variables, "'shot_number' variable is missing")
         shot_number = variables["shot_number"]
         self.assertEqual(
             shot_number.get("dtype"),
@@ -80,13 +70,9 @@ class TestDataConfig(unittest.TestCase):
         level_2b = self.config.get("level_2b")
         self.assertIsNotNone(level_2b, "'level_2b' section is missing")
         variables = level_2b.get("variables")
-        self.assertIsNotNone(
-            variables, "'variables' under level_2b is missing"
-        )
+        self.assertIsNotNone(variables, "'variables' under level_2b is missing")
         self.assertIsInstance(variables, dict)
-        self.assertIn(
-            "shot_number", variables, "'shot_number' variable is missing"
-        )
+        self.assertIn("shot_number", variables, "'shot_number' variable is missing")
         shot_number = variables["shot_number"]
         self.assertEqual(
             shot_number.get("dtype"),
@@ -101,13 +87,9 @@ class TestDataConfig(unittest.TestCase):
         level_4a = self.config.get("level_4a")
         self.assertIsNotNone(level_4a, "'level_4a' section is missing")
         variables = level_4a.get("variables")
-        self.assertIsNotNone(
-            variables, "'variables' under level_4c is missing"
-        )
+        self.assertIsNotNone(variables, "'variables' under level_4c is missing")
         self.assertIsInstance(variables, dict)
-        self.assertIn(
-            "shot_number", variables, "'shot_number' variable is missing"
-        )
+        self.assertIn("shot_number", variables, "'shot_number' variable is missing")
         shot_number = variables["shot_number"]
         self.assertEqual(
             shot_number.get("dtype"),
@@ -122,13 +104,9 @@ class TestDataConfig(unittest.TestCase):
         level_4c = self.config.get("level_4c")
         self.assertIsNotNone(level_4c, "'level_4c' section is missing")
         variables = level_4c.get("variables")
-        self.assertIsNotNone(
-            variables, "'variables' under level_4c is missing"
-        )
+        self.assertIsNotNone(variables, "'variables' under level_4c is missing")
         self.assertIsInstance(variables, dict)
-        self.assertIn(
-            "shot_number", variables, "'shot_number' variable is missing"
-        )
+        self.assertIn("shot_number", variables, "'shot_number' variable is missing")
         shot_number = variables["shot_number"]
         self.assertEqual(
             shot_number.get("dtype"),

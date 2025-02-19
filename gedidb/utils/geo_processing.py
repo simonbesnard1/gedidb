@@ -7,16 +7,17 @@
 #
 
 import logging
-import geopandas as gpd
-from shapely.geometry import MultiPolygon
-from shapely.geometry.polygon import orient
-from shapely.geometry.base import BaseGeometry  # for typing only
-import dateutil.parser
-import numpy as np
-import pandas as pd
-from typing import Union
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Union
+
+import dateutil.parser
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from shapely.geometry import MultiPolygon
+from shapely.geometry.base import BaseGeometry  # for typing only
+from shapely.geometry.polygon import orient
 
 # Maximum number of coordinates allowed for NASA CMR API
 MAX_CMR_COORDS = 4999
@@ -83,9 +84,7 @@ def check_and_format_shape(
         if not simplify:
             raise DetailError(n_coords)
 
-        logging.info(
-            f"Simplifying shape with {n_coords} coordinates to convex hull."
-        )
+        logging.info(f"Simplifying shape with {n_coords} coordinates to convex hull.")
         geom = geom.convex_hull
         n_coords = _count_coordinates(geom)
         logging.info(f"Simplified shape to {n_coords} coordinates.")
@@ -118,14 +117,11 @@ def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
     if isinstance(dt, np.datetime64):
         # Convert datetime64 to days since epoch
         timestamp = int(
-            (dt - np.datetime64("1970-01-01T00:00:00"))
-            / np.timedelta64(1, "D")
+            (dt - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "D")
         )
     else:
         # Parse ISO string and convert to days since epoch
-        dt = dateutil.parser.isoparse(dt).replace(
-            tzinfo=dateutil.tz.UTC
-        )  # Ensure UTC
+        dt = dateutil.parser.isoparse(dt).replace(tzinfo=dateutil.tz.UTC)  # Ensure UTC
         timestamp = int(
             dt.timestamp() // (86400)
         )  # Convert to days (86400 seconds/day)
@@ -216,15 +212,11 @@ def _temporal_tiling(
             if time_granularity == "weekly":
                 week_start = get_week_start(start_date)
                 year_week = f"{week_start.year}-W{week_start.strftime('%U')}"
-                grouped_data[year_week][granule_id].append(
-                    (url, product, date_str)
-                )
+                grouped_data[year_week][granule_id].append((url, product, date_str))
 
             elif time_granularity == "daily":
                 day_start = get_day_start(start_date)
                 day_key = day_start.date().isoformat()
-                grouped_data[day_key][granule_id].append(
-                    (url, product, date_str)
-                )
+                grouped_data[day_key][granule_id].append((url, product, date_str))
 
     return grouped_data
