@@ -21,6 +21,8 @@ from requests.exceptions import (ChunkedEncodingError, ConnectionError,
                                  Timeout)
 from retry import retry
 from urllib3.exceptions import NewConnectionError
+import h5py
+import time
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
@@ -212,9 +214,13 @@ class H5FileDownloader:
         temp_path = granule_dir / f"{product.name}.h5.part"
         os.makedirs(granule_dir, exist_ok=True)
 
-        # Check if file already exists
+        # Check if file already exists and is valid
         if final_path.exists():
-            return granule_key, (product.value, str(final_path))
+            if self._is_hdf5_valid(final_path):
+                return granule_key, (product.value, str(final_path))
+            else:
+                logger.warning(f"Corrupt HDF5 file detected: {final_path}. Deleting and retrying.")
+                final_path.unlink()
 
         # Get the size of partially downloaded file
         downloaded_size = temp_path.stat().st_size if temp_path.exists() else 0
@@ -234,7 +240,12 @@ class H5FileDownloader:
                 )
                 if downloaded_size == total_size:
                     temp_path.rename(final_path)
-                    return granule_key, (product.value, str(final_path))
+                    if self._is_hdf5_valid(final_path):
+                        return granule_key, (product.value, str(final_path))
+                    else:
+                        logger.warning(f"Downloaded file {final_path} is corrupt. Deleting and retrying.")
+                        final_path.unlink()
+                        raise ValueError("Invalid HDF5 file after download.")
                 headers["Range"] = f"bytes={downloaded_size}-"
             else:
                 headers = {}  # Server doesn't support Range requests
@@ -262,11 +273,18 @@ class H5FileDownloader:
             # Validate final size
             final_downloaded_size = temp_path.stat().st_size
             if total_size is not None and final_downloaded_size != total_size:
-                temp_path.unlink(missing_ok=True)  # Clean up corrupt file
-                raise ValueError("Downloaded final size mismatch with expected size")
+                temp_path.unlink(missing_ok=True)
+                raise ValueError("Downloaded final size mismatch with expected size.")
 
             # Rename to final name upon successful download
             temp_path.rename(final_path)
+
+            # Validate the HDF5 file
+            if not self._is_hdf5_valid(final_path):
+                logger.warning(f"Downloaded file {final_path} is corrupt. Deleting and retrying.")
+                final_path.unlink()
+                raise ValueError("Invalid HDF5 file after download.")
+
             return granule_key, (product.value, str(final_path))
 
         except (
@@ -295,3 +313,13 @@ class H5FileDownloader:
             if temp_path.exists():
                 temp_path.unlink()
             return granule_key, (product.value, None)
+
+    def _is_hdf5_valid(self, file_path: pathlib.Path) -> bool:
+        """
+        Check if an HDF5 file is valid and can be opened.
+        """
+        try:
+            with h5py.File(file_path, "r") as f:
+                return True  # File is valid
+        except OSError:
+            return False  # File is corrupt or not a valid HDF5
