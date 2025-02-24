@@ -57,7 +57,7 @@ Amelia Holcomb is a PhD candidate in Computer Science at the University of Cambr
 
 For any questions or inquiries, please contact:
 - Simon Besnard (besnard@gfz.de)
-- Felix Dombrowski (felix.dombrowski@uni-potsdam.de)
+- Felix Dombrowski (fdombrowski@uni-potsdam.de)
 - Amelia Holcomb (ah2174@cam.ac.uk)
 
 ## Acknowledgments
