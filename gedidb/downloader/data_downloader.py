@@ -16,9 +16,14 @@ from typing import Optional, Tuple
 
 import geopandas as gpd
 import requests
-from requests.exceptions import (ChunkedEncodingError, ConnectionError,
-                                 HTTPError, ReadTimeout, RequestException,
-                                 Timeout)
+from requests.exceptions import (
+    ChunkedEncodingError,
+    ConnectionError,
+    HTTPError,
+    ReadTimeout,
+    RequestException,
+    Timeout,
+)
 from retry import retry
 from urllib3.exceptions import NewConnectionError
 import h5py
@@ -219,7 +224,9 @@ class H5FileDownloader:
             if self._is_hdf5_valid(final_path):
                 return granule_key, (product.value, str(final_path))
             else:
-                logger.warning(f"Corrupt HDF5 file detected: {final_path}. Deleting and retrying.")
+                logger.warning(
+                    f"Corrupt HDF5 file detected: {final_path}. Deleting and retrying."
+                )
                 final_path.unlink()
 
         # Get the size of partially downloaded file
@@ -243,7 +250,9 @@ class H5FileDownloader:
                     if self._is_hdf5_valid(final_path):
                         return granule_key, (product.value, str(final_path))
                     else:
-                        logger.warning(f"Downloaded file {final_path} is corrupt. Deleting and retrying.")
+                        logger.warning(
+                            f"Downloaded file {final_path} is corrupt. Deleting and retrying."
+                        )
                         final_path.unlink()
                         raise ValueError("Invalid HDF5 file after download.")
                 headers["Range"] = f"bytes={downloaded_size}-"
@@ -281,7 +290,9 @@ class H5FileDownloader:
 
             # Validate the HDF5 file
             if not self._is_hdf5_valid(final_path):
-                logger.warning(f"Downloaded file {final_path} is corrupt. Deleting and retrying.")
+                logger.warning(
+                    f"Downloaded file {final_path} is corrupt. Deleting and retrying."
+                )
                 final_path.unlink()
                 raise ValueError("Invalid HDF5 file after download.")
 
