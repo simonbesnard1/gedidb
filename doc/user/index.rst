@@ -31,5 +31,11 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
    tuning-config
    contributing
 
+.. toctree::
+   :caption: Community
+   :maxdepth: 1
+
+   GitHub discussions <https://github.com/simonbesnard1/gedidb/discussions>
+
 .. tip::
    Make sure to check the :ref:`faq` section if you encounter any issues while using gediDB!

@@ -39,15 +39,17 @@ We will:
 2. Initialize the `GEDIProcessor` with the modified configuration.
 3. Process GEDI granules and store them in a **regional TileDB array**.
 
-.. GENERATED FROM PYTHON SOURCE LINES 24-83
+.. GENERATED FROM PYTHON SOURCE LINES 24-85
 
 .. code-block:: Python
 
 
+    import json
+
+    import yaml
+
     # Import required libraries
     import gedidb as gdb
-    import yaml
-    import json
 
     # Define paths for configuration and spatial data
     config_file = "/path/to/data_config.yml"

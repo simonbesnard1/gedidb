@@ -29,12 +29,13 @@ Before running this example:
 1. Ensure you have a valid EarthData account. You can create one at https://urs.earthdata.nasa.gov.
 2. Install `wget`, which is used to fetch cookies. You can install it via your system's package manager (e.g., `apt-get install wget` on Debian/Ubuntu).
 
-.. GENERATED FROM PYTHON SOURCE LINES 13-35
+.. GENERATED FROM PYTHON SOURCE LINES 13-36
 
 .. code-block:: Python
 
 
     from pathlib import Path
+
     from gedidb.downloader.authentication import EarthDataAuthenticator
 
     # Specify the directory where `.netrc` and cookies will be stored
@@ -50,7 +51,7 @@ Before running this example:
     # ----------------
     # INFO:__main__:EarthData authentication setup incomplete; starting setup.
     # Please enter your Earthdata Login username: <your_username>
-    # Please enter your Earthdata Login password: 
+    # Please enter your Earthdata Login password:
     # INFO:__main__:Credentials added to .netrc file.
     # INFO:__main__:Attempting to fetch Earthdata cookies and save to /home/username/.earthdata_auth/.cookies
     # INFO:__main__:Earthdata cookies successfully fetched and saved to /home/username/.earthdata_auth/.cookies.

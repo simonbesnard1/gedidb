@@ -13,6 +13,7 @@ gediDB Documentation
    GEDI Global Database <user/tiledb_database>
    API Reference <user/api>
    Examples <auto_examples/index>
+   Discussions <https://github.com/simonbesnard1/gedidb/discussions>
    Development <user/contributing>
 
 **Version**: |version|
