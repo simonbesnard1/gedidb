@@ -214,15 +214,18 @@ class GEDIDatabase:
                     self.array_uri, self.ctx
                 )
 
-            # Perform consolidation using the provided parallel engine
+            logger.info("Executing consolidation...")
             self._execute_consolidation(cons_plan, parallel_engine)
-
-            # Consolidate and vacuum metadata, fragment metadata, and commit logs
+            logger.info("Consolidation execution completed.")
+            
+            logger.info("Consolidating array metadata...")
             self._consolidate_and_vacuum("array_meta")
+            logger.info("Consolidating fragment metadata...")
             self._consolidate_and_vacuum("fragment_meta")
+            logger.info("Consolidating commit logs...")
             self._consolidate_and_vacuum("commits")
-
-            logger.info(f"Consolidation complete for array: {self.array_uri}")
+            
+            logger.info(f"Consolidation complete for {self.array_uri}")
 
         except tiledb.TileDBError as e:
             logger.error(f"Error during consolidation of {self.array_uri}: {e}")

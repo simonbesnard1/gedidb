@@ -34,12 +34,13 @@ Before running this example:
 - Ensure that the GEDI data has been processed and stored in TileDB arrays.
 - Configure the TileDB storage settings (local or S3) based on your data location.
 
-.. GENERATED FROM PYTHON SOURCE LINES 19-46
+.. GENERATED FROM PYTHON SOURCE LINES 19-47
 
 .. code-block:: Python
 
 
     import geopandas as gpd
+
     import gedidb as gdb
 
     # Configure the TileDB storage backend
@@ -66,13 +67,13 @@ Before running this example:
     end_time = "2020-12-31"
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 47-50
+.. GENERATED FROM PYTHON SOURCE LINES 48-51
 
 -----------------------------------------------------------------
 Section 1: Bounding Box Query
 -----------------------------------------------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 50-67
+.. GENERATED FROM PYTHON SOURCE LINES 51-68
 
 .. code-block:: Python
 
@@ -94,13 +95,13 @@ Section 1: Bounding Box Query
     print(data_xarray)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 68-71
+.. GENERATED FROM PYTHON SOURCE LINES 69-72
 
 -----------------------------------------------------------------
 Section 2: Nearest Shot Query
 -----------------------------------------------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 71-91
+.. GENERATED FROM PYTHON SOURCE LINES 72-92
 
 .. code-block:: Python
 
@@ -125,13 +126,13 @@ Section 2: Nearest Shot Query
     print(nearest_data)
 
 
-.. GENERATED FROM PYTHON SOURCE LINES 92-95
+.. GENERATED FROM PYTHON SOURCE LINES 93-96
 
 -----------------------------------------------------------------
 Section 3: Data Format Options
 -----------------------------------------------------------------
 
-.. GENERATED FROM PYTHON SOURCE LINES 95-111
+.. GENERATED FROM PYTHON SOURCE LINES 96-112
 
 .. code-block:: Python
 
