@@ -17,8 +17,10 @@ import tiledb
 from dask.distributed import Client
 from retry import retry
 
-from gedidb.utils.geo_processing import (_datetime_to_timestamp_days,
-                                         convert_to_days_since_epoch)
+from gedidb.utils.geo_processing import (
+    _datetime_to_timestamp_days,
+    convert_to_days_since_epoch,
+)
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 
 # Configure the logger
@@ -217,14 +219,14 @@ class GEDIDatabase:
             logger.info("Executing consolidation...")
             self._execute_consolidation(cons_plan, parallel_engine)
             logger.info("Consolidation execution completed.")
-            
+
             logger.info("Consolidating array metadata...")
             self._consolidate_and_vacuum("array_meta")
             logger.info("Consolidating fragment metadata...")
             self._consolidate_and_vacuum("fragment_meta")
             logger.info("Consolidating commit logs...")
             self._consolidate_and_vacuum("commits")
-            
+
             logger.info(f"Consolidation complete for {self.array_uri}")
 
         except tiledb.TileDBError as e:
