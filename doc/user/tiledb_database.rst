@@ -3,9 +3,11 @@
 TileDB Global Database for GEDI Data
 ====================================
 
-.. warning::
+.. important::
 
-   The TileDB global database is currently being processed and will be available by the end of February 2025. Please stay tuned for updates!
+   If you use the database for your publications, please acknowledge that the dataset has been processed using `gediDB`:
+
+   **Besnard, S., Dombrowski, F., & Holcomb, A.** gediDB [Computer software]. `https://doi.org/10.5281/zenodo.13885229 <https://doi.org/10.5281/zenodo.13885229>`_.
 
 Overview
 --------
