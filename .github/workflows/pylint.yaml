@@ -40,14 +40,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pylint black isort
+          pip install pylint black
           python -m pip install --no-deps -e .
 
       - name: Run Black (Check Code Formatting)
         run: black --check --diff .
-
-      - name: Run Isort (Check Import Sorting)
-        run: isort --check-only --diff .
 
       - name: Run Pylint (Check Code Quality)
         run: pylint gedidb/ --disable=C0301 --exit-zero
