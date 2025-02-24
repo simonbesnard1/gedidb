@@ -120,7 +120,7 @@ class SpatialConsolidationPlanner:
 
     @staticmethod
     def _generate_plan(
-        fragments: List[Dict[str, Union[str, Tuple[float, float]]]]
+        fragments: List[Dict[str, Union[str, Tuple[float, float]]]],
     ) -> Dict[int, Dict[str, List[str]]]:
         """
         Generate a plan by grouping overlapping fragments.

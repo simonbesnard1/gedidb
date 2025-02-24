@@ -147,7 +147,7 @@ def _timestamp_to_datetime(days: np.ndarray) -> np.ndarray:
 
 
 def convert_to_days_since_epoch(
-    timestamps: Union[pd.DatetimeIndex, pd.Series, list]
+    timestamps: Union[pd.DatetimeIndex, pd.Series, list],
 ) -> pd.Series:
     """
     Convert nanosecond-precision timestamps to daily timestamps in days since the Unix epoch (1970-01-01).

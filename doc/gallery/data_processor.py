@@ -2,7 +2,7 @@
 GEDIProcessor example with different parallel engines
 =======================================================
 
-This example demonstrates how to use the `gedidb` library to process GEDI granules 
+This example demonstrates how to use the `gedidb` library to process GEDI granules
 with different parallel engines, such as `concurrent.futures.ThreadPoolExecutor` and `dask.distributed.Client`.
 
 A default data configuration file (`data_config.yml`) can be downloaded here:
