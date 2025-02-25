@@ -65,32 +65,28 @@ class TileDBProvider:
                 f"Invalid 'storage_type': {storage_type}. Must be 'local' or 's3'."
             )
 
-    def _initialize_s3_context(
-        self, credentials: Optional[dict], url: str, region: str
-    ) -> tiledb.Ctx:
+    def _initialize_s3_context(self, credentials: Optional[dict], url: str, region: str) -> tiledb.Ctx:
         config = {
             "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region,
-            "py.init_buffer_bytes": "17179869184",  # 2GB buffer
-            "sm.tile_cache_size": "17179869184",  # 2GB cache
-            "sm.num_reader_threads": "128",  # More parallel reads
+            "py.init_buffer_bytes": "17179869184",  # 16GB buffer (as string bytes)
+            "sm.tile_cache_size": "17179869184",    # 16GB cache
+            "sm.num_reader_threads": "128",          # More parallel reads
             "sm.num_tiledb_threads": "128",
-            "vfs.s3.max_parallel_ops": "64",  # Maximize parallel S3 ops
+            "vfs.s3.max_parallel_ops": "64",         # Maximize parallel S3 ops
             "vfs.s3.use_virtual_addressing": "true",
         }
-        return tiledb.Ctx(config)
-
-        # Add credentials if provided
+        
         if credentials:
-            config.update(
-                {
-                    "vfs.s3.aws_access_key_id": credentials.get("AccessKeyId", ""),
-                    "vfs.s3.aws_secret_access_key": credentials.get(
-                        "SecretAccessKey", ""
-                    ),
-                }
-            )
-
+            config.update({
+                "vfs.s3.aws_access_key_id": credentials.get("AccessKeyId", ""),
+                "vfs.s3.aws_secret_access_key": credentials.get("SecretAccessKey", ""),
+                "vfs.s3.no_sign_request": "false",  # Use signed requests when credentials are provided
+            })
+        else:
+            # For anonymous access, disable request signing
+            config["vfs.s3.no_sign_request"] = "true"
+        
         return tiledb.Ctx(config)
 
     def _initialize_local_context(self) -> tiledb.Ctx:
