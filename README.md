@@ -1,6 +1,6 @@
 <p align="center">
 <a href="https://github.com/simonbesnard1/gedidb.git">
-    <img src="https://github.com/simonbesnard1/gedidb/blob/main/doc/_static/logos/gediDB_logo.svg" 
+        <img src="https://raw.githubusercontent.com/simonbesnard1/gedidb/main/doc/_static/logos/gediDB_logo.svg"
          alt="gediDB Logo" height="200px" hspace="0px" vspace="30px" align="left">
 </a>
 </p>

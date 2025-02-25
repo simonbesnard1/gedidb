@@ -406,19 +406,19 @@ class GEDIDatabase:
             tiledb.Dim(
                 "latitude",
                 domain=(lat_min, lat_max),
-                tile=self.config.get("tiledb", {}).get("latitude_tile", 1),
+                tile=self.config.get("tiledb", {}).get("latitude_tile", 0.5),
                 dtype="float64",
             ),
             tiledb.Dim(
                 "longitude",
                 domain=(lon_min, lon_max),
-                tile=self.config.get("tiledb", {}).get("longitude_tile", 1),
+                tile=self.config.get("tiledb", {}).get("longitude_tile", 0.5),
                 dtype="float64",
             ),
             tiledb.Dim(
                 "time",
                 domain=(time_min, time_max),
-                tile=self.config.get("tiledb", {}).get("time_tile", 1825),
+                tile=self.config.get("tiledb", {}).get("time_tile", 365),
                 dtype="int64",
             ),
         ]
