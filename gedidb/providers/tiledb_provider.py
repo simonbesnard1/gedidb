@@ -32,10 +32,8 @@ class TileDBProvider:
         local_path: Optional[str] = "./",
         url: Optional[str] = None,
         region: str = "eu-central-1",
-        credentials: Optional[dict] = None,
-        n_workers: int = 5,
+        credentials: Optional[dict] = None
     ):
-        self.n_workers = n_workers
 
         # Validate storage_type
         if not storage_type or not isinstance(storage_type, str):
