@@ -67,14 +67,18 @@ class TileDBProvider:
                 f"Invalid 'storage_type': {storage_type}. Must be 'local' or 's3'."
             )
 
-    def _initialize_s3_context(
-        self, credentials: Optional[dict], url: str, region: str
-    ) -> tiledb.Ctx:
+    def _initialize_s3_context(self, credentials: Optional[dict], url: str, region: str) -> tiledb.Ctx:
         config = {
-            "vfs.s3.endpoint_override": url,
-            "vfs.s3.region": region,
-            "py.init_buffer_bytes": "512000000",  # Increase buffer size
-        }
+        "vfs.s3.endpoint_override": url,
+        "vfs.s3.region": region,
+        "py.init_buffer_bytes": "17179869184",  # 2GB buffer
+        "sm.tile_cache_size": "17179869184",  # 2GB cache
+        "sm.num_reader_threads": "128",  # More parallel reads
+        "sm.num_tiledb_threads": "128",
+        "vfs.s3.max_parallel_ops": "64",  # Maximize parallel S3 ops
+        "vfs.s3.use_virtual_addressing": "true",
+    }
+        return tiledb.Ctx(config)
 
         # Add credentials if provided
         if credentials:
@@ -92,7 +96,10 @@ class TileDBProvider:
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx(
             {
-                "py.init_buffer_bytes": "512000000",  # Increase buffer size
+                "py.init_buffer_bytes": "2048000000",  # 2GB buffer
+                "sm.tile_cache_size": "2048000000",  # 2GB cache
+                "sm.num_reader_threads": "32",  # More parallel reads
+                "sm.num_tiledb_threads": "32",
             }
         )
 
@@ -167,7 +174,7 @@ class TileDBProvider:
                 data = query.multi_index[
                     lat_min:lat_max, lon_min:lon_max, start_time:end_time
                 ]
-
+               
                 if len(data["shot_number"]) == 0:
                     return None, profile_vars
 

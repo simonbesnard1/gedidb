@@ -324,7 +324,13 @@ class GEDIProvider(TileDBProvider):
             raise ValueError(
                 f"Invalid query_type '{query_type}'. Must be 'bounding_box' or 'nearest'."
             )
-
+        
+        # Ensure return_type is valid
+        if return_type not in {"xarray", "dataframe"}:
+            raise ValueError(
+                f"Invalid return_type '{return_type}'. Must be either 'xarray' or 'dataframe'."
+            )
+        
         # Validation for bounding_box queries
         if query_type == "bounding_box":
             if geometry is None or not isinstance(geometry, gpd.GeoDataFrame):
@@ -361,10 +367,6 @@ class GEDIProvider(TileDBProvider):
             scalar_data, profile_vars = self.query_data(
                 variables, geometry, start_time, end_time, **quality_filters
             )
-        else:
-            raise ValueError(
-                "Invalid query_type. Must be either 'nearest' or 'bounding_box'."
-            )
 
         if not scalar_data:
             logger.info("No data found for specified criteria.")
@@ -376,11 +378,7 @@ class GEDIProvider(TileDBProvider):
             return self.to_xarray(scalar_data, metadata, profile_vars)
         elif return_type == "dataframe":
             return self.to_dataframe(scalar_data)
-        else:
-            raise ValueError(
-                "Invalid return_type. Must be either 'xarray' or 'dataframe'."
-            )
-
+        
     def to_dataframe(self, scalar_data: Dict[str, np.ndarray]) -> pd.DataFrame:
         """
         Convert scalar and profile data dictionaries into a unified pandas DataFrame.
@@ -417,6 +415,7 @@ class GEDIProvider(TileDBProvider):
         # Convert scalar data to DataFrame
         scalar_data["time"] = _timestamp_to_datetime(scalar_data["time"])
         scalar_df = pd.DataFrame.from_dict(scalar_data)
+        scalar_df = scalar_df.sort_values(by="time")
 
         # Merge scalar and profile data on shot_number
         return scalar_df
@@ -516,6 +515,8 @@ class GEDIProvider(TileDBProvider):
                 "time": ("shot_number", times),
             }
         )
+        dataset = dataset.sortby("time")
+
 
         self._attach_metadata(dataset, metadata)
 
