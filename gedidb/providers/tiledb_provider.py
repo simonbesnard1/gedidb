@@ -33,9 +33,7 @@ class TileDBProvider:
         url: Optional[str] = None,
         region: str = "eu-central-1",
         credentials: Optional[dict] = None,
-        n_workers: int = 5,
     ):
-        self.n_workers = n_workers
 
         # Validate storage_type
         if not storage_type or not isinstance(storage_type, str):
@@ -73,8 +71,14 @@ class TileDBProvider:
         config = {
             "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region,
-            "py.init_buffer_bytes": "512000000",  # Increase buffer size
+            "py.init_buffer_bytes": "17179869184",  # 2GB buffer
+            "sm.tile_cache_size": "17179869184",  # 2GB cache
+            "sm.num_reader_threads": "128",  # More parallel reads
+            "sm.num_tiledb_threads": "128",
+            "vfs.s3.max_parallel_ops": "64",  # Maximize parallel S3 ops
+            "vfs.s3.use_virtual_addressing": "true",
         }
+        return tiledb.Ctx(config)
 
         # Add credentials if provided
         if credentials:
@@ -92,7 +96,10 @@ class TileDBProvider:
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx(
             {
-                "py.init_buffer_bytes": "512000000",  # Increase buffer size
+                "py.init_buffer_bytes": "2048000000",  # 2GB buffer
+                "sm.tile_cache_size": "2048000000",  # 2GB cache
+                "sm.num_reader_threads": "32",  # More parallel reads
+                "sm.num_tiledb_threads": "32",
             }
         )
 
