@@ -324,13 +324,13 @@ class GEDIProvider(TileDBProvider):
             raise ValueError(
                 f"Invalid query_type '{query_type}'. Must be 'bounding_box' or 'nearest'."
             )
-        
+
         # Ensure return_type is valid
         if return_type not in {"xarray", "dataframe"}:
             raise ValueError(
                 f"Invalid return_type '{return_type}'. Must be either 'xarray' or 'dataframe'."
             )
-        
+
         # Validation for bounding_box queries
         if query_type == "bounding_box":
             if geometry is None or not isinstance(geometry, gpd.GeoDataFrame):
@@ -372,13 +372,12 @@ class GEDIProvider(TileDBProvider):
             logger.info("No data found for specified criteria.")
             return None
 
-        metadata = self.get_available_variables()
-
         if return_type == "xarray":
+            metadata = self.get_available_variables()
             return self.to_xarray(scalar_data, metadata, profile_vars)
         elif return_type == "dataframe":
             return self.to_dataframe(scalar_data)
-        
+
     def to_dataframe(self, scalar_data: Dict[str, np.ndarray]) -> pd.DataFrame:
         """
         Convert scalar and profile data dictionaries into a unified pandas DataFrame.
@@ -516,7 +515,6 @@ class GEDIProvider(TileDBProvider):
             }
         )
         dataset = dataset.sortby("time")
-
 
         self._attach_metadata(dataset, metadata)
 
