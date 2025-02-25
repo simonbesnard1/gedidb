@@ -46,7 +46,7 @@ Gallery
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the gedidb library to process GEDI granules  with different parallel engines, such as concurrent.futures.ThreadPoolExecutor and dask.distributed.Client.">
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the gedidb library to process GEDI granules with different parallel engines, such as concurrent.futures.ThreadPoolExecutor and dask.distributed.Client.">
 
 .. only:: html
 
@@ -63,7 +63,7 @@ Gallery
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to create a regional TileDB array for the Amazon  by modifying the data_config.yml file to adjust the spatial range based on  a bounding box extracted from a GeoJSON file.">
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to create a regional TileDB array for the Amazon by modifying the data_config.yml file to adjust the spatial range based on a bounding box extracted from a GeoJSON file.">
 
 .. only:: html
 
