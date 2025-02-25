@@ -16,8 +16,6 @@ gediDB Documentation
    Discussions <https://github.com/simonbesnard1/gedidb/discussions>
    Development <user/contributing>
 
-**Version**: |version|
-
 **gediDB** is an open-source Python package designed to simplify working with GEDI L2A-B and L4A-C datasets, streamlining data analysis for efficient data exploration. It offers intuitive modules for processing, querying, and analyzing GEDI data stored in **tileDB databases**.
 
 .. grid:: 1 1 2 2
