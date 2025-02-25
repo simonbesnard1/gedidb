@@ -21,8 +21,8 @@
 Creating a Regional TileDB Array for the Amazon
 ===============================================
 
-This example demonstrates how to create a **regional TileDB array** for the Amazon 
-by modifying the `data_config.yml` file to adjust the **spatial range** based on 
+This example demonstrates how to create a **regional TileDB array** for the Amazon
+by modifying the `data_config.yml` file to adjust the **spatial range** based on
 a bounding box extracted from a GeoJSON file.
 
 A default data configuration file (`data_config.yml`) can be downloaded here:
