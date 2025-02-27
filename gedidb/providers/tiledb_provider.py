@@ -146,7 +146,7 @@ class TileDBProvider:
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
         """
         print(lat_min, lat_max, lon_min, lon_max, start_time, end_time)
-        
+
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
                 attr_list = []
