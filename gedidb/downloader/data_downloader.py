@@ -27,7 +27,6 @@ from requests.exceptions import (
 from retry import retry
 from urllib3.exceptions import NewConnectionError
 import h5py
-import time
 
 from gedidb.downloader.cmr_query import GranuleQuery
 from gedidb.utils.constants import GediProduct
