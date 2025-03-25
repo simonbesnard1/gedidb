@@ -94,7 +94,7 @@ Testing was conducted on a Linux server with Intel Xeon CPUs, 64 GB RAM, and NVM
 
 # Example use cases
 
-An illustrative application includes assessing forest regeneration across the Amazon basin, where `gediDB` rapidly extracted GEDI variables over large spatial-temporal extents. Outputs were integrated with scientific Python libraries such as `geopandas` and `xarray`, allowing detailed spatial analyses and ecological assessments. Such workflows have practical implications for studies of carbon dynamics, biomass changes, and forest recovery trajectories following disturbances.
+An illustrative application involved analyzing canopy height changes across the Amazon Basin. Using gediDB, GEDI variables such as canopy height and canopy cover were rapidly extracted for a large spatial-temporal extent. The retrieved data were then aggregated within a spatial grid composed of 3x3 degree hexagons, facilitating detailed analysis of canopy height variability and temporal changes across the region. Integration with Python libraries such as geopandas and xarray streamlined spatial analyses and visualization, offering practical insights into forest structure dynamics.
 
 # Community impact and future development
 
