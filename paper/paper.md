@@ -23,7 +23,7 @@ affiliations:
  - name: University of Cambridge, UK
    index: 3
 date: 25 March 2025
-bibliography: paper.bib
+bibliography: refs.bib
 --- 
 
 # Abstract
