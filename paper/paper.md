@@ -26,35 +26,6 @@ date: 25 March 2025
 bibliography: paper.bib
 ---
 
----
-title: 'gediDB: A toolbox for processing and providing Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data'
-tags:
-  - Python
-  - GEDI
-  - LiDAR
-  - remote sensing
-  - TileDB
-  - forestry
-authors:
-  - name: Simon Besnard
-    orcid: 0000-0002-1137-103X
-    affiliation: 1
-    corresponding: true
-  - name: Felix Dombrowski
-    affiliation: 2
-  - name: Amelia Holcomb
-    affiliation: 3
-affiliations:
- - name: GFZ Helmholtz Centre Potsdam, Germany
-   index: 1
- - name: University of Potsdam, Germany
-   index: 2
- - name: University of Cambridge, UK
-   index: 3
-date: 25 March 2025
-bibliography: paper.bib
----
-
 # Abstract
 
 The Global Ecosystem Dynamics Investigation (GEDI) mission provides high-resolution LiDAR observations critical for understanding Earth's forest structure and carbon dynamics. However, GEDI datasets, structured as HDF5 granules, are inherently complex and challenging to efficiently process for large-scale analyses. To facilitate operational processing and large-scale querying of GEDI data, we developed `gediDB`, an open-source Python toolbox that restructures and manages GEDI Level 2A-B and Level 4A-C data using TileDB, an optimized multidimensional array database. `gediDB` significantly enhances the efficiency and scalability of GEDI data analysis, enabling rapid spatial and temporal queries and fostering reproducible workflows in forestry, ecology, and environmental research.
