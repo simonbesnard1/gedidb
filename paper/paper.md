@@ -34,8 +34,6 @@ The Global Ecosystem Dynamics Investigation (GEDI) mission provides high-resolut
 
 GEDI's granule-based storage presents significant practical challenges: retrieving data for specific geographic or temporal extents can be inefficient and computationally demanding, particularly at regional or global scales. Current approaches often require substantial preprocessing and handling of large numbers of individual HDF5 files. `gediDB` streamlines this process by reorganizing GEDI data into spatially indexed TileDB arrays, significantly improving efficiency, scalability, and accessibility for large-scale analysis.
 
-![Figure 1: Comparison of traditional GEDI data access workflow versus the simplified workflow provided by gediDB. \label{fig:concept}](figs/GEDIDB_FLOWCHART.png)
-
 ![A schematic representation](figs/GEDIDB_FLOWCHART.png)
 *Figure 1: A schematic representation of the gediDB data workflow.*
 
@@ -72,7 +70,7 @@ An example use case includes analyzing forest recovery in the Amazon, where `ged
 # Community impact and future development
 
 `gediDB` is actively maintained and designed with community-driven development in mind. Future developments include:
-- Integration with cloud storage services for easier access and scalability.
+- Processing of upcoming new version of the GEDI data archive.
 - Enhancements in parallel processing capabilities for even faster data retrieval and analysis.
 - Continued expansion of the documentation and user tutorials to facilitate broader adoption by the remote sensing community.
 
