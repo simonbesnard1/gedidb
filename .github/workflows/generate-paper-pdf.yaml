@@ -1,30 +1,20 @@
-name: Generate PDF from Paper
-
-on:
-  push:
-    paths:
-      - 'paper/*.md'
-  workflow_dispatch:
+name: Draft PDF
+on: [push]
 
 jobs:
-  build_pdf:
+  paper:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    name: Paper Draft
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
+      - name: Build draft PDF
+        uses: openjournals/openjournals-draft-action@master
         with:
-          fetch-depth: 0
-
-      - name: Generate PDF
-        uses: openjournals/openjournals-pdf-generator-action@v2
+          journal: joss
+          paper-path: paper/paper.md
+      - name: Upload
+        uses: actions/upload-artifact@v4
         with:
-          paper-path: paper/paper.md  # <-- adjust filename if different
-          output-path: paper/paper.pdf
-
-      - name: Commit generated PDF
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update generated paper PDF"
-          file_pattern: "pdf/paper.pdf"
+          name: paper
+          path: paper/paper.pdf
