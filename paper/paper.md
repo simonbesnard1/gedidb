@@ -34,9 +34,10 @@ The Global Ecosystem Dynamics Investigation (GEDI) mission provides high-resolut
 
 GEDI's granule-based storage presents significant practical challenges: retrieving data for specific geographic or temporal extents can be inefficient and computationally demanding, particularly at regional or global scales. Current approaches often require substantial preprocessing and handling of large numbers of individual HDF5 files. `gediDB` streamlines this process by reorganizing GEDI data into spatially indexed TileDB arrays, significantly improving efficiency, scalability, and accessibility for large-scale analysis.
 
-![Illustration of the online monitoring process for a univariate time-series, depicting the distinct phases including the history period, monitoring period, and a detected break against modeled values. \label{fig:concept}](figs/NRT_image.png)
-
 ![Figure 1: Comparison of traditional GEDI data access workflow versus the simplified workflow provided by gediDB. \label{fig:concept}](figs/GEDIDB_FLOWCHART.png)
+
+![A schematic representation](figs/GEDIDB_FLOWCHART.png)
+*Figure 1: A schematic representation of the gediDB data workflow.*
 
 # Features
 
@@ -49,7 +50,8 @@ GEDI's granule-based storage presents significant practical challenges: retrievi
 - **Robust downloading**: Includes a `CMRDataDownloader` module with built-in error handling and retry mechanisms for reliable data acquisition from NASA's Common Metadata Repository (CMR).
 - **Configuration management**: Allows users to manage data retrieval parameters, TileDB storage schemas, and querying options via flexible configuration files, enhancing adaptability across various use cases.
 
-![Figure 2: Illustration of the global GEDI data storage schema using TileDB arrays. \label{fig:data-structure}](figs/tileDB_fragment_structure.png)
+![TileDB schema illustration](figs/tileDB_fragment_structure.png)
+*Figure 2: Illustration of the global GEDI data storage schema using TileDB arrays.*
 
 # Performance benchmarks
 
@@ -77,3 +79,9 @@ An example use case includes analyzing forest recovery in the Amazon, where `ged
 # Acknowledgements
 
 Development was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We thank the R2D2 Workshop at GFZ Potsdam (March 2024) for valuable discussions.
+
+
+
+
+
+
