@@ -42,6 +42,8 @@ High-volume GEDI LiDAR data are essential for studying forest dynamics, biomass 
 
 # Core functionalities
 
+Extensive documentation and user tutorials for `gediDB` are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), including setup instructions, configuration options, and full workflow examples. In particular, users can access a global processed GEDI database via 'TileDB' as described in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html), which provides instant access to pre-ingested data without requiring local downloads.
+
 `gediDB` provides:
 
 - **High-performance data storage**: Efficiently stores GEDI data using TileDB, optimized for rapid multidimensional data access. A global schema is used to manage all granules, chunked by space and time ([Fig. 3](#fig3)).
@@ -65,18 +67,20 @@ The efficiency of `gediDB` was rigorously evaluated under realistic research sce
 
 | Scenario                  | Spatial extent         | Time range | Variables queried           | Query time (seconds) |
 |---------------------------|------------------------|------------|-----------------------------|----------------------|
-| Local-scale query         | 1° × 1° bounding box   | 1 month    | rh profile, canopy_cover    | 1.8                  |
+| Local-scale query         | 1° × 1° bounding box   | 1 month    | rh profile, canopy cover    | 1.8                  |
 | Regional-scale query      | 10° × 10° bounding box | 6 months   | rh profile, biomass, pai    | 17.9                 |
-| Continental-scale query   | Amazon Basin           | 1 year     | canopy_cover, biomass       | 28.9                 |
+| Continental-scale query   | Amazon Basin           | 1 year     | canopy cover, biomass       | 28.9                 |
 
 Benchmarks were conducted on a Linux server equipped with dual Intel® Xeon® E5-2643 v4 CPUs (12 physical cores, 24 threads total), 503 GB RAM, and a combination of NVMe SSD (240 GB) and HDD storage (16.4 TB total). Queries were executed from NVMe-backed storage to ensure high I/O performance. Compared to workflows based on direct HDF5 access, `gediDB` provides a significant speedup and streamlined user experience.
 
 # Example use cases
 
-An illustrative application involved analyzing aboveground biomass and canopy cover changes across a subset of the Amazon Basin ([Fig. 4](#fig4)). Using `gediDB`, aboveground biomass and canopy cover variables were rapidly extracted for a multi-year, large-area extent. Data were aggregated within a 1°×1° hexagonal grid to enable spatiotemporal analysis of forest structure dynamics. The integration with Python tools such as `geopandas`, `xarray`, and `matplotlib` facilitated an end-to-end workflow from extraction to visualization.
+An illustrative application involved analyzing aboveground biomass and canopy cover changes across the Amazon Basin ([Fig. 4](#fig4)). Using `gediDB`, aboveground biomass and canopy cover variables were rapidly extracted for a multi-year, large-area extent. Data were aggregated within a 1°×1° hexagonal grid to enable spatiotemporal analysis of forest structure dynamics. The integration with Python tools such as `geopandas`, `xarray`, and `matplotlib` facilitated an end-to-end workflow from extraction to visualization.
+
+In addition to regional change analysis, `gediDB` enables more advanced workflows such as the comparison of forest structure profiles across biomes, the extraction of GEDI shots near field plots for calibration and validation studies, and the generation of gridded products at varying spatial resolutions. The API is designed to be modular and extensible, supporting integration with cloud-native processing, long-term monitoring pipelines, and machine learning applications that require scalable access to remote sensing data.
 
 ![<a name="fig4"></a>Changes in aboveground biomass and canopy cover across the Amazon Basin](figs/amazon_changes.png)
-*Fig. 4: Visualization of changes in aboveground biomass density (AGBD) and canopy cover between 2018–2020 and 2021–2023, aggregated to a 1°×1° hexagonal grid over a subset of the Amazon Basin.*
+*Fig. 4: Visualization of changes in aboveground biomass density (AGBD) and canopy cover between 2018–2020 and 2021–2023, aggregated to a 1°×1° hexagonal grid over the Amazon Basin.*
 
 # Community impact and future development
 
@@ -85,8 +89,13 @@ An illustrative application involved analyzing aboveground biomass and canopy co
 - Support for future GEDI releases and product updates
 - Expanded multi-threaded and cloud-compatible processing
 - Additional tutorials and workflows for new user communities
+- Enhanced error handling, provenance tracking, and metadata discovery features
 
-We encourage feedback, feature requests, and pull requests from users and developers working with LiDAR and large-scale environmental data.
+We encourage feedback, feature requests, and pull requests from users and developers working with LiDAR and large-scale environmental data. The open-source nature of `gediDB` ensures transparency, reproducibility, and long-term accessibility for diverse research needs.
+
+# Conclusion
+
+`gediDB` represents a significant step forward in the operational use of spaceborne LiDAR data, offering an efficient and flexible solution for large-scale data processing. By providing a unified framework for accessing and organizing GEDI products, the package reduces technical barriers to entry and promotes best practices in reproducible environmental research. As a community-driven open-source tool, `gediDB` is well positioned to evolve alongside future Earth observation missions and emerging research priorities in forest ecology, carbon cycle analysis, and remote sensing.
 
 # Acknowledgements
 
