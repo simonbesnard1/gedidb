@@ -28,50 +28,48 @@ bibliography: refs.bib
 
 # Abstract
 
-The Global Ecosystem Dynamics Investigation (GEDI) mission ([Fig. 1](#fig1)) provides spaceborne LiDAR observations critical for understanding Earth's forest structure and carbon dynamics. However, GEDI datasets, structured as HDF5 granules, are inherently complex and challenging to efficiently process for large-scale analyses. To facilitate operational processing and large-scale querying of GEDI data, we developed `gediDB`, an open-source Python toolbox that restructures and manages GEDI Level 2A-B and Level 4A-C data using `TileDB`, an optimized multidimensional array database. `gediDB` significantly enhances the efficiency and scalability of GEDI data analysis, enabling rapid spatial and temporal queries and fostering reproducible workflows in forestry, ecology, and environmental research.
+The Global Ecosystem Dynamics Investigation (GEDI) mission ([Fig. 1](#fig1)) generates spaceborne LiDAR observations essential for characterising Earth's forest structure and carbon dynamics. Despite their high scientific value, GEDI datasets are distributed as complex HDF5 granules, posing significant challenges for efficient large-scale data processing and analysis. To address these challenges, we developed `gediDB`, an open-source Python toolbox designed to streamline the management and analysis of GEDI Level 2A-B and Level 4A-C datasets. Leveraging the optimised multidimensional array database `TileDB`, `gediDB` facilitates operational-scale processing, supports rapid spatial and temporal data queries, and enhances reproducibility in forestry, ecological, and environmental research workflows.
 
 ![<a name="fig1"></a>Schematic representation of the GEDI data structure](figs/beam_product_footprint.png)
 *Fig. 1: A schematic representation of the GEDI data structure. Credits: Amelia Holcomb's PhD dissertation*
 
 # Statement of need
 
-High-volume GEDI LiDAR data are essential for studying forest dynamics, biomass estimation, and carbon cycling. Since the open-access to spaceborne LiDAR from the GEDI mission, there is now unprecedented potential to scale forest structure analysis from regional studies to near-global applications. However, despite the richness of the GEDI dataset, its usability is often limited by the complex structure of the raw HDF5 granules, the lack of scalable infrastructure for efficient data access, and the absence of standardized tools for spatial and temporal subsetting at scale.
+High-volume LiDAR datasets from the GEDI mission have become indispensable for quantifying forest dynamics, estimating biomass, and analysing carbon cycling. The availability of open-access, spaceborne GEDI LiDAR data has created unprecedented opportunities to extend forest structural analyses from local and regional scales to near-global applications. However, despite the wealth of information in GEDI datasets, practical usability is hindered by the complexity inherent in raw HDF5 granules, the absence of scalable infrastructure for efficient data retrieval, and a lack of standardised tooling for spatial and temporal subsetting at scale.
 
-While several tools are available to explore GEDI data, they are often limited to small-scale analysis or one-off use cases. These tools are generally not designed for efficient processing of large datasets or for use in automated workflows. As a result, researchers working with broad spatial or temporal extents often face challenges related to performance, consistency, and reproducibility.
+Current software tools for GEDI data analysis typically target small-scale or isolated use cases and are generally insufficient for handling large-scale, automated workflows. Consequently, researchers conducting extensive spatial and temporal analyses frequently encounter significant challenges related to computational performance, consistency, and reproducibility.
 
-`gediDB` addresses these limitations by providing a robust and scalable framework that unifies GEDI Level 2 and Level 4 data access using a consistent and intuitive API. Built on top of TileDB, `gediDB` supports rapid queries over multidimensional arrays, enabling efficient retrieval of large subsets of GEDI data based on spatial bounds, time windows, and variable selection. The package is designed to integrate seamlessly with Python’s geospatial data ecosystem (e.g., `xarray`, `geopandas`) and supports reproducible workflows in high-performance computing and cloud environments. `gediDB` provide an efficient, scalable framework that leverages spatial indexing through TileDB, significantly simplifying and accelerating data handling (see [Fig. 2](#fig2)).
-
+`gediDB` addresses these challenges by providing a robust, scalable framework that unifies access to GEDI Level 2 and Level 4 data through an intuitive API. Built upon the TileDB storage engine, `gediDB` facilitates rapid queries of multidimensional arrays, enabling efficient extraction of large GEDI data subsets based on spatial extents, temporal windows, and specific variable selections. Additionally, `gediDB` integrates seamlessly with Python's geospatial data processing ecosystem, including libraries such as `xarray` and `geopandas`, thereby supporting reproducible workflows optimised for high-performance computing clusters and cloud environments. By leveraging TileDB's advanced spatial indexing, `gediDB` significantly simplifies GEDI data processing (see [Fig. 2](#fig2)).
 
 ![<a name="fig2"></a>Schematic representation of the gediDB workflow](figs/GEDIDB_FLOWCHART.png)
 *Fig. 2: A schematic representation of the gediDB data workflow.*
 
 # Core functionalities
 
-Extensive documentation and user tutorials for `gediDB` are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), including setup instructions, configuration options, and full workflow examples. In particular, users can access a global processed GEDI database via TileDB as described in the [tiledb_database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html), which provides instant access to pre-ingested data without requiring local downloads.
+Extensive documentation and detailed user tutorials for `gediDB` are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io). These provide comprehensive setup instructions, configuration guidance, and workflow examples. Users have immediate access to a globally processed GEDI dataset via TileDB, eliminating the need for local data downloads, as described in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html).
 
-`gediDB` offers a high-level architecture based on two core modules: [`GEDIProcessor`](https://gedidb.readthedocs.io/en/latest/user/fundamentals.processor.html) and [`GEDIProvider`](https://gedidb.readthedocs.io/en/latest/user/fundamentals.provider.html). The `GEDIProcessor` class is responsible for ingesting and transforming GEDI granules into a structured TileDB array, including filtering, standardization, and spatial chunking of variables. The `GEDIProvider` class enables efficient access to the processed dataset, supporting flexible spatial and temporal queries that return data in formats compatible with Python’s geospatial stack (e.g., `xarray`, `pandas`).
+`gediDB` is structured around two main modules: [`GEDIProcessor`](https://gedidb.readthedocs.io/en/latest/user/fundamentals.processor.html) and [`GEDIProvider`](https://gedidb.readthedocs.io/en/latest/user/fundamentals.provider.html). The `GEDIProcessor` class systematically ingests and transforms raw GEDI granules into structured TileDB arrays, incorporating critical steps such as data filtering, standardisation, and spatial-temporal chunking. The `GEDIProvider` class enables efficient and flexible data access through spatial bounding-box queries, temporal filtering, and tailored variable selections, outputting results compatible with established Python geospatial libraries (e.g., `xarray`, `pandas`).
 
+Key functionalities of `gediDB` include:
 
-`gediDB` provides:
+- **High-performance Data Storage**: Efficiently manages GEDI data storage using spatially and temporally optimised TileDB arrays, structured via a global schema ([Fig. 3](#fig3)).
 
-- **High-performance data storage**: Efficiently stores GEDI data using TileDB, optimized for rapid multidimensional data access. A global schema is used to manage all granules, chunked by space and time ([Fig. 3](#fig3)).
+- **Parallel Processing Capabilities**: Incorporates Dask for parallelised downloading, processing, and storage, significantly accelerating data handling for large-scale analyses.
 
-- **Parallel processing capabilities**: Seamless integration with Dask for parallel downloading, processing, and storage of large GEDI datasets.
+- **Advanced Querying**: Supports advanced spatial and temporal queries, including bounding-box, time-range, and nearest-neighbor retrievals. It seamlessly accommodates both scalar and profile-type variables.
 
-- **Advanced querying interface**: Enables spatial bounding-box queries, temporal range selections, and nearest-neighbor retrieval (e.g., all GEDI footprints within 50 km of a research plot). Supports both scalar and profile-type variables in harmonized queries.
+- **Robust Data Downloading**: Includes reliable data acquisition modules interfacing with NASA’s Common Metadata Repository (CMR), featuring built-in retry logic and comprehensive error handling mechanisms.
 
-- **Robust data downloading**: Reliable modules for downloading from NASA's Common Metadata Repository (CMR), with built-in retry and error handling mechanisms.
+- **Comprehensive Metadata Management**: Tracks extensive metadata such as data provenance, measurement units, variable definitions, and product versioning directly within the TileDB arrays.
 
-- **Comprehensive metadata management**: Tracks data provenance, units, variable descriptions, and product versioning within the TileDB arrays.
-
-- **Configurable and reproducible workflows**: Uses customizable configuration files for managing TileDB schemas and data retrieval parameters, ensuring adaptable database structure.
+- **Configurable and Reproducible Workflows**: Provides customisable configuration files for defining TileDB schemas and managing data retrieval parameters, ensuring flexibility and reproducibility across varied research contexts.
 
 ![<a name="fig3"></a>TileDB fragment schema for GEDI data](figs/tileDB_fragment_structure.png)
 *Fig. 3: Illustration of the global GEDI data storage schema using TileDB arrays.*
 
 # Performance benchmarks
 
-The efficiency of `gediDB` was rigorously evaluated under realistic research scenarios. The table below summarizes query times across different spatial and temporal extents:
+The efficiency of `gediDB` was rigorously evaluated under realistic research scenarios. The table below summarises query times across different spatial and temporal extents:
 
 | Scenario                  | Spatial extent         | Time range | Variables queried           | Query time (seconds) |
 |---------------------------|------------------------|------------|-----------------------------|----------------------|
@@ -83,28 +81,28 @@ Benchmarks were conducted on a Linux server equipped with dual Intel® Xeon® E5
 
 # Example use cases
 
-An illustrative application involved analyzing aboveground biomass and canopy cover changes across the Amazon Basin ([Fig. 4](#fig4)). Using `gediDB`, aboveground biomass and canopy cover variables were rapidly extracted for a multi-year, large-area extent. Data were aggregated within a 1°×1° hexagonal grid to enable spatiotemporal analysis of forest structure dynamics. The integration with Python tools such as `geopandas`, `xarray`, and `matplotlib` facilitated an end-to-end workflow from extraction to visualization.
+An illustrative use case involved the analysis of aboveground biomass and canopy cover dynamics across the Amazon Basin ([Fig. 4](#fig4)). Utilising `gediDB`, variables representing aboveground biomass and canopy cover were efficiently extracted across large spatial extents over multiple years. Data were aggregated within a 1°×1° hexagonal grid framework, facilitating rigorous spatiotemporal analysis of forest structure changes. Integration with Python's geospatial libraries, such as `geopandas`, `xarray`, and `matplotlib` enabled a complete and reproducible workflow from data extraction to visualisation.
 
-In addition to regional change analysis, `gediDB` enables more advanced workflows such as the comparison of forest structure profiles across biomes, the extraction of GEDI shots near field plots for calibration and validation studies, and the generation of gridded products at varying spatial resolutions. The API is designed to be modular and extensible, supporting integration with cloud-native processing, long-term monitoring pipelines, and machine learning applications that require scalable access to remote sensing data.
+Beyond regional change assessments, `gediDB` supports advanced analyses, including biome-level comparisons of forest structural profiles, precise retrieval of GEDI data near field plots for calibration and validation, and the production of spatially gridded datasets at diverse resolutions. The modular and extensible API facilitates seamless integration into cloud-based processing pipelines, long-term ecological monitoring programs, and machine learning workflows that necessitate scalable, high-performance access to remote sensing data.
 
 ![<a name="fig4"></a>Changes in aboveground biomass and canopy cover across the Amazon Basin](figs/amazon_changes.png)
-*Fig. 4: Visualization of changes in aboveground biomass density (AGBD) and canopy cover between 2018–2020 and 2021–2023, aggregated to a 1°×1° hexagonal grid over the Amazon Basin.*
+*Fig. 4: Visualisation of changes in aboveground biomass density (AGBD) and canopy cover between 2018–2020 and 2021–2023, aggregated to a 1°×1° hexagonal grid over the Amazon Basin.*
 
 # Community impact and future development
 
-`gediDB` aims to foster a collaborative, community-driven environment. The project is actively developed and welcomes contributions via [GitHub](https://github.com/simonbesnard1/gedidb). Planned enhancements include:
+`gediDB` fosters an open and collaborative research environment, actively encouraging community-driven development and contributions through its [GitHub repository](https://github.com/simonbesnard1/gedidb). Future development plans for `gediDB` include:
 
-- Support for future GEDI releases and product updates
-- Expanded multi-threaded and cloud-compatible processing
-- Additional tutorials and workflows for new user communities
-- Enhanced error handling, provenance tracking, and metadata discovery features
+- Ongoing compatibility with future GEDI data releases and product enhancements.
+- Expansion of user tutorials and documentation to accommodate diverse user communities.
+- Improve testing frameworks.
+- Enhanced flexibility and efficiency in querying profile variables.
 
-We encourage feedback, feature requests, and pull requests from users and developers working with LiDAR and large-scale environmental data. The open-source nature of `gediDB` ensures transparency, reproducibility, and long-term accessibility for diverse research needs.
+Feedback, feature requests, and code contributions are actively encouraged from users and developers working with LiDAR data and large-scale environmental analyses. The open-source approach of `gediDB` promotes transparency, reproducibility, and enduring accessibility to support diverse scientific research needs.
 
 # Conclusion
 
-`gediDB` represents a significant step forward in the operational use of spaceborne LiDAR data, offering an efficient and flexible solution for large-scale data processing. By providing a unified framework for accessing and organizing GEDI products, the package reduces technical barriers to entry and promotes best practices in reproducible environmental research. As a community-driven open-source tool, `gediDB` is well positioned to evolve alongside future Earth observation missions and emerging research priorities in forest ecology, carbon cycle analysis, and remote sensing.
+`gediDB` substantially enhances the practical usability of GEDI LiDAR datasets by addressing critical challenges in data complexity, scalability, and reproducibility. By leveraging TileDB’s optimised multidimensional array storage, the package enables efficient management, rapid querying, and integration into diverse geospatial analysis workflows. This promotes the systematic exploration of forest dynamics and carbon cycling at unprecedented spatial and temporal scales. Through its open-source and community-oriented approach, `gediDB` facilitates collaborative advancements in remote sensing, ecology, and environmental research, supporting ongoing developments in Earth observation.
 
 # Acknowledgements
 
-The development of `gediDB` was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We gratefully acknowledge discussions and contributions from participants of the R2D2 Workshop at GFZ Potsdam (March 2024).
+The development of `gediDB` was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We would also like to acknowledge the R2D2 Workshop (March 2024, GFZ Potsdam) for providing the opportunity to meet and discuss GEDI data processing.
