@@ -35,14 +35,22 @@ The Global Ecosystem Dynamics Investigation (GEDI) mission ([Fig. 1](#fig1)) pro
 
 # Statement of need
 
-High-volume GEDI LiDAR data are essential for studying forest dynamics, biomass estimation, and carbon cycling. Yet, traditional workflows involving raw GEDI HDF5 granules are heavy due to the substantial overhead of file management, preprocessing, and querying over large geographic extents. Researchers and practitioners need accessible, streamlined solutions for retrieving spatially and temporally explicit subsets of GEDI data without the computational burden typically associated with handling raw granules. `gediDB` addresses this critical gap by providing an efficient, scalable framework that leverages spatial indexing through TileDB, significantly simplifying and accelerating data handling (see [Fig. 2](#fig2)).
+High-volume GEDI LiDAR data are essential for studying forest dynamics, biomass estimation, and carbon cycling. Since the open-access to spaceborne LiDAR from the GEDI mission, there is now unprecedented potential to scale forest structure analysis from regional studies to near-global applications. However, despite the richness of the GEDI dataset, its usability is often limited by the complex structure of the raw HDF5 granules, the lack of scalable infrastructure for efficient data access, and the absence of standardized tools for spatial and temporal subsetting at scale.
+
+While several tools are available to explore GEDI data, they are often limited to small-scale analysis or one-off use cases. These tools are generally not designed for efficient processing of large datasets or for use in automated workflows. As a result, researchers working with broad spatial or temporal extents often face challenges related to performance, consistency, and reproducibility.
+
+`gediDB` addresses these limitations by providing a robust and scalable framework that unifies GEDI Level 2 and Level 4 data access using a consistent and intuitive API. Built on top of TileDB, `gediDB` supports rapid queries over multidimensional arrays, enabling efficient retrieval of large subsets of GEDI data based on spatial bounds, time windows, and variable selection. The package is designed to integrate seamlessly with Python’s geospatial data ecosystem (e.g., `xarray`, `geopandas`) and supports reproducible workflows in high-performance computing and cloud environments. `gediDB` provide an efficient, scalable framework that leverages spatial indexing through TileDB, significantly simplifying and accelerating data handling (see [Fig. 2](#fig2)).
+
 
 ![<a name="fig2"></a>Schematic representation of the gediDB workflow](figs/GEDIDB_FLOWCHART.png)
 *Fig. 2: A schematic representation of the gediDB data workflow.*
 
 # Core functionalities
 
-Extensive documentation and user tutorials for `gediDB` are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), including setup instructions, configuration options, and full workflow examples. In particular, users can access a global processed GEDI database via 'TileDB' as described in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html), which provides instant access to pre-ingested data without requiring local downloads.
+Extensive documentation and user tutorials for `gediDB` are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), including setup instructions, configuration options, and full workflow examples. In particular, users can access a global processed GEDI database via TileDB as described in the [tiledb_database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html), which provides instant access to pre-ingested data without requiring local downloads.
+
+`gediDB` offers a high-level architecture based on two core modules: [`GEDIProcessor`](https://gedidb.readthedocs.io/en/latest/user/fundamentals.processor.html) and [`GEDIProvider`](https://gedidb.readthedocs.io/en/latest/user/fundamentals.provider.html). The `GEDIProcessor` class is responsible for ingesting and transforming GEDI granules into a structured TileDB array, including filtering, standardization, and spatial chunking of variables. The `GEDIProvider` class enables efficient access to the processed dataset, supporting flexible spatial and temporal queries that return data in formats compatible with Python’s geospatial stack (e.g., `xarray`, `pandas`).
+
 
 `gediDB` provides:
 
