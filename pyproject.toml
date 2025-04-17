@@ -95,6 +95,10 @@ debug = [
     "loguru"
 ]
 
+full = [
+    "gedidb[accel,io,viz,debug]"
+]
+
 [tool.mypy]
 enable_error_code = ["ignore-without-code", "redundant-self", "redundant-expr"]
 exclude = [
