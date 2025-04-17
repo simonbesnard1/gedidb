@@ -20,11 +20,11 @@ authors:
     equal-contrib: true
     affiliation: 3
 affiliations:
- - name: GFZ Helmholtz Centre Potsdam, Germany
+ - name: GFZ Helmholtz Centre Potsdam, Potsdam, Germany
    index: 1
- - name: University of Potsdam, Germany
+ - name: University of Potsdam, Potsda, Germany
    index: 2
- - name: University of Cambridge, UK
+ - name: Department of Computer Science, University of Cambridge, Cambridge, UK
    index: 3
 date: 17 April 2025
 bibliography: refs.bib
@@ -43,7 +43,7 @@ High-volume LiDAR datasets from the GEDI mission [@dubayah2020global] have becom
 
 Existing software tools for GEDI data analysis are typically designed for small-scale or isolated use cases and are generally inadequate for handling large, automated workflows. As a result, researchers undertaking extensive spatial and temporal analyses often face considerable challenges related to computational performance, methodological consistency, and reproducibility.
 
-`gediDB` addresses these limitations by offering a robust and scalable framework that unifies access to GEDI Level 2A [@dubayah2021gedi_l2a], 2B [@dubayah2021gedi_l2b], 4A [@dubayah2022gedi_l4a] and 4C [@deconto2024gedi_l4c] data via an Python [@python] API. Built on the TileDB storage engine, `gediDB` supports rapid querying of multidimensional arrays, allowing users to efficiently extract large data subsets by spatial extent, temporal range, and variable selection. It integrates seamlessly with Python’s geospatial data ecosystem, including libraries such as `xarray` [@hoyer2017xarray] and `geopandas` [@jordahl2020geopandas], and integrates into reproducible workflows that can scale to high-performance computing environments and cloud platforms. By leveraging TileDB’s advanced spatial indexing, `gediDB` substantially simplifies the processing and querying of GEDI data (see [Fig. 2](#fig2)).
+`gediDB` addresses these limitations by offering a robust and scalable framework that unifies access to GEDI Level 2A [@dubayah2021gedi_l2a], 2B [@dubayah2021gedi_l2b], 4A [@dubayah2022gedi_l4a] and 4C [@deconto2024gedi_l4c] data via an Python [@10.5555/1593511] API. Built on the TileDB storage engine, `gediDB` supports rapid querying of multidimensional arrays, allowing users to efficiently extract large data subsets by spatial extent, temporal range, and variable selection. It integrates seamlessly with Python’s geospatial data ecosystem, including libraries such as `xarray` [@hoyer2017xarray] and `geopandas` [@kelsey_jordahl_2020_3946761], and integrates into reproducible workflows that can scale to high-performance computing environments and cloud platforms. By leveraging TileDB’s advanced spatial indexing, `gediDB` substantially simplifies the processing and querying of GEDI data (see [Fig. 2](#fig2)).
 
 ![<a name="fig2"></a>Schematic representation of the gediDB workflow](figs/GEDIDB_FLOWCHART.png)
 *Fig. 2: A schematic representation of the gediDB data workflow.*
@@ -113,7 +113,7 @@ Feedback, feature requests, and code contributions are warmly welcomed from user
 
 # Acknowledgements
 
-The development of `gediDB` was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We would also like to acknowledge the R2D2 Workshop (March 2024, GFZ Potsdam) for providing the opportunity to meet and discuss GEDI data processing.
+The development of `gediDB` was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We would also like to acknowledge the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing.
 
 # References
 
