@@ -43,7 +43,7 @@ High-volume LiDAR datasets from the Global Ecosystem Dynamics Investigation (GED
 
 Existing software tools for GEDI data analysis, such as the GEDI Subsetter provided by NASA's Multi-Mission Algorithm and Analysis Platform (MAAP) [GEDI Subsetter; @chuck_daniels_2025_15122227], primarily address small to moderate-scale data extraction scenarios. While suitable for interactive or limited spatial extents, these tools often struggle to efficiently support large-scale workflows, leading to computational bottlenecks and decreased efficiency when applied to extensive spatial and temporal analyses.
 
-`gediDB` addresses these limitations by offering a robust and scalable framework that unifies access to GEDI Level 2A [@dubayah2021gedi_l2a], 2B [@dubayah2021gedi_l2b], 4A [@dubayah2022gedi_l4a] and 4C [@deconto2024gedi_l4c] data via an Python [@10.5555/1593511] standardized Application Programming Interface (API). Built on the TileDB storage engine, `gediDB` supports rapid querying of multidimensional arrays, allowing users to efficiently extract large data subsets by spatial extent, temporal range, and variable selection. It integrates seamlessly with Python’s geospatial data ecosystem, including libraries such as `xarray` [@hoyer2017xarray] and `geopandas` [@kelsey_jordahl_2020_3946761], and integrates into reproducible workflows that can scale to high-performance computing environments and cloud platforms. By leveraging TileDB’s advanced spatial indexing, `gediDB` substantially simplifies the processing and querying of GEDI data (see [Fig. 2](#fig2)).
+`gediDB` addresses these limitations by offering a robust and scalable framework that unifies access to GEDI Level 2A [@dubayah2021gedi_l2a], Level 2B [@dubayah2021gedi_l2b], Level 4A [@dubayah2022gedi_l4a] and Level 4C [@deconto2024gedi_l4c] data via an Python [@10.5555/1593511] standardized Application Programming Interface (API). Built on the TileDB storage engine, `gediDB` supports rapid querying of multidimensional arrays, allowing users to efficiently extract large data subsets by spatial extent, temporal range, and variable selection. It integrates seamlessly with Python’s geospatial data ecosystem, including libraries such as `xarray` [@hoyer2017xarray] and `geopandas` [@kelsey_jordahl_2020_3946761], and integrates into reproducible workflows that can scale to high-performance computing environments and cloud platforms. By leveraging TileDB’s advanced spatial indexing, `gediDB` substantially simplifies the processing and querying of GEDI data (see [Fig. 2](#fig2)).
 
 ![<a name="fig2"></a>Schematic representation of the gediDB workflow](figs/GEDIDB_FLOWCHART.png)
 *Fig. 2: A schematic representation of the gediDB data workflow.*
@@ -107,10 +107,10 @@ Benchmarks were conducted on a Linux server equipped with dual Intel® Xeon® E5
 
 # Example use cases
 
-An illustrative use case involved the analysis of aboveground biomass and canopy cover dynamics across the Amazon Basin ([Fig. 4](#fig4)). Leveraging `gediDB`, variables representing aboveground biomass, canopy cover, and vertical canopy structure (i.e., relative height (RH) metrics) were efficiently extracted over large spatial extents and multiple years. The data were aggregated within a 1°×1° hexagonal grid framework, enabling spatiotemporal analysis of forest structure change. Integration with Python’s geospatial libraries, such as `geopandas` and `xarray`, allowed for a fully reproducible workflow from data extraction to visualization. To explore structural drivers of biomass change, a scatter plot analysis compared changes in upper and lower canopy height metrics (ΔRH₉₈ and ΔRH₅₀) with ΔAGBD. This illustrated the nuanced relationships between vertical canopy dynamics and biomass accumulation or loss across forested ecosystems.
+An illustrative use case involved the analysis of aboveground biomass and canopy cover dynamics across the Amazon Basin ([Fig. 4](#fig4)). Leveraging `gediDB`, variables representing aboveground biomass, canopy cover, and vertical canopy structure (i.e., relative height (RH) metrics) were efficiently extracted over large spatial extents and multiple years. The data were aggregated within a 1°×1° hexagonal grid framework, enabling spatiotemporal analysis of forest structure change. Integration with Python’s geospatial libraries, such as `geopandas` and `xarray`, allowed for a fully reproducible workflow from data extraction to visualization. To explore structural drivers of biomass change, a scatter plot analysis compared changes in upper and lower canopy height metrics (ΔRH98 and ΔRH50) with ΔAGBD. This illustrated the nuanced relationships between vertical canopy dynamics and biomass accumulation or loss across forested ecosystems.
 
 ![<a name="fig4"></a>Changes in aboveground biomass and canopy cover across the Amazon Basin](figs/amazon_changes.png)
-*Fig. 4: Visualisation of changes in aboveground biomass density (AGBD) (top left panel) and canopy cover (top right panel) between 2018–2020 and 2021–2023, aggregated to a 1°×1° hexagonal grid over the Amazon Basin. The bottom left panel shows the relationship between changes in ΔRH₅₀ and ΔRH₉₈, with each point representing a hexagon. The bottom right panel shows the relationship between changes in canopy height metrics (ΔRH₅₀ and ΔRH₉₈) and ΔAGBD, with each point representing a hexagon. This highlights how vertical canopy structure dynamics relate to biomass change across the region.*
+*Fig. 4: Visualisation of changes in aboveground biomass density (AGBD) (top left panel) and canopy cover (top right panel) between 2018–2020 and 2021–2023, aggregated to a 1°×1° hexagonal grid over the Amazon Basin. The bottom left panel shows the relationship between changes in ΔRH50 and ΔRH98, with each point representing a hexagon. The bottom right panel shows the relationship between changes in canopy height metrics (ΔRH50 and ΔRH98) and ΔAGBD, with each point representing a hexagon. This highlights how vertical canopy structure dynamics relate to biomass change across the region.*
 
 Beyond regional change assessments, `gediDB` supports advanced analyses such as biome-level comparisons of forest structural profiles, precise retrieval of GEDI data near field plots for calibration and validation, and the production of spatially gridded datasets at diverse resolutions. Recent studies have leveraged GEDI data to map canopy height across global forested ecosystems [@pauls2024estimatingcanopyheightscale], to assess forest disturbances [@HOLCOMB2024114174], and to characterise forest degradation dynamics [@bourgoin2024human]. These applications demonstrate the potential of GEDI data to inform ecological monitoring and policy development. By streamlining data access, subsetting, and integration into scalable workflows, `gediDB` can significantly enhance the efficiency and reproducibility of such large-scale analyses—supporting efforts like global canopy height mapping, disturbance detection, and forest degradation monitoring.
 
@@ -145,48 +145,5 @@ The development of `gediDB` was supported by the European Union through the FORW
 
 
 # References
-
-
-
-# Core functionalities
-
-Extensive documentation and user tutorials for `gediDB` are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io). These resources provide comprehensive setup instructions, configuration guidance, and workflow examples. Users have immediate access to a globally processed GEDI dataset via TileDB, eliminating the need for local downloads, as detailed in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html).
-
-## Data processing framework
-
-The `gediDB` package is structured around two core modules designed to streamline GEDI data processing and retrieval:
-
-- **`GEDIProcessor`**: Systematically ingests raw GEDI granules and transforms them into structured TileDB arrays ([Fig. 3](#fig3)). Key steps include data filtering, standardisation, and efficient spatio-temporal chunking to ensure optimal query performance.
-
-- **`GEDIProvider`**: Enables rapid, flexible access to GEDI data using spatial bounding boxes, temporal filters, and user-selected variables. Results are provided in formats fully compatible with Python’s geospatial libraries such as `xarray` and `pandas` [@reback2020pandas].
-
-## Configurable and reproducible workflows
-
-`gediDB` uses customisable configuration files to define TileDB schemas and data retrieval parameters. This facilitates reproducibility and adaptability across diverse research scenarios and computing environments.
-
-## Robust data downloading
-
-The package interfaces directly with NASA’s Common Metadata Repository (CMR) to facilitate reliable data acquisition. It incorporates comprehensive retry logic and robust error handling to mitigate issues related to network interruptions or data inconsistencies.
-
-## High-performance data storage
-
-GEDI data is efficiently stored using globally structured TileDB arrays optimised for rapid spatial and temporal queries. The array structure is specifically designed to handle large-scale, multi-dimensional data seamlessly ([Fig. 3](#fig3)).
-
-## Parallel processing capabilities
-
-Parallelised operations are fully supported, including data downloading, processing, and storage. `gediDB` leverages libraries such as `Dask` [@rocklin2015dask] and Python’s built-in `concurrent.futures` to maximise performance on large-scale workflows and high-performance computing infrastructures.
-
-## Advanced querying functionality
-
-`gediDB` offers sophisticated querying methods, enabling spatial and temporal subsetting through bounding-box, time-range, and nearest-neighbour queries. The system efficiently handles both scalar and profile-type variables.
-
-## Comprehensive metadata management
-
-Rich metadata is systematically captured and managed, including data provenance, variable units, descriptions, and product version details. Metadata is embedded directly within the TileDB structure to facilitate clear data documentation and reproducibility.
-
-![<a name="fig3"></a>TileDB fragment schema for GEDI data](figs/tileDB_fragment_structure.png)
-*Fig. 3: Illustration of the global GEDI data storage schema using TileDB arrays.*
-
-
 
 
