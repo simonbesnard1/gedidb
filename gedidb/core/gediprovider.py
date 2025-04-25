@@ -558,10 +558,10 @@ class GEDIProvider(TileDBProvider):
         default_metadata = defaultdict(
             lambda: {"description": "", "units": "", "product_level": ""}
         )
-        
+
         # List of variables that can have _<percentile> variants
         base_vars_with_percentiles = {"rh", "cover_z", "pai_z", "pavd_z"}
-        
+
         for var in dataset.variables:
             var_metadata = metadata_dict.get(var, default_metadata)
             match = re.match(r"^(.+?)_(\d+)$", var)
@@ -574,6 +574,10 @@ class GEDIProvider(TileDBProvider):
                         # Copy base metadata and adjust description
                         var_metadata = base_metadata.copy()
                         desc = var_metadata.get("description", "")
-                        var_metadata["description"] = f"{desc} ({percentile}th percentile)" if desc else f"{percentile}th percentile of {base_var}"
-    
+                        var_metadata["description"] = (
+                            f"{desc} ({percentile}th percentile)"
+                            if desc
+                            else f"{percentile}th percentile of {base_var}"
+                        )
+
             dataset[var].attrs.update(var_metadata)
