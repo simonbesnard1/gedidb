@@ -140,7 +140,7 @@ Feedback, feature requests, and code contributions from users and developers are
 
 # Acknowledgements
 
-The development of `gediDB` was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We would also like to acknowledge the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing. We recognise using OpenAI's ChatGPT and Grammarly AI tools to enhance the manuscript's sentence structure, conciseness, and grammatical accuracy.
+The development of `gediDB` was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We also acknowledge funding for 3D-ABC by the Helmholtz Foundation Model Initiative supported by the Helmholtz Association. We would also like to thanks the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing. We recognise using OpenAI's ChatGPT and Grammarly AI tools to enhance the manuscript's sentence structure, conciseness, and grammatical accuracy.
 
 
 
