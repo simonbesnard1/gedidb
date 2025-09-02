@@ -52,6 +52,20 @@ For additional functionality, the following optional dependencies are available:
 
 To install optional dependencies, use **pip** with the extras syntax (e.g., `pip install gedidb[full]`).
 
+
+External Dependencies
+---------------------
+
+Some functionality requires system-level tools:
+
++-----------+-----------------------------------------------------------+
+| Tool      | Purpose                                                   |
++===========+===========================================================+
+| wget      | Required by EarthDataAuthenticator to download files.     |
+|           | Installed by default on most Linux/macOS systems. On      |
+|           | Windows, install via `choco` or `winget`.                 |
++-----------+-----------------------------------------------------------+
+
 Installation Instructions
 -------------------------
 
