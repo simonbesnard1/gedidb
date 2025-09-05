@@ -13,6 +13,7 @@ authors:
     corresponding: true
     affiliation: 1
   - name: Felix Dombrowski
+    orcid: 0009-0000-9210-3530
     affiliation: 2
   - name: Amelia Holcomb
     orcid: 0000-0001-5081-7201
@@ -30,7 +31,7 @@ bibliography: refs.bib
 
 # Abstract
 
-The Global Ecosystem Dynamics Investigation (GEDI) mission provides spaceborne LiDAR observations that are essential for characterising Earth's forest structure and carbon dynamics. However, GEDI datasets are distributed as complex HDF5 granules, which pose significant challenges for efficient, large-scale data processing and analysis. To overcome these hurdles, we developed `gediDB`, an open-source Python standardized Application Programming Interface (API) that streamlines both the processing and querying of GEDI Level 2A–B and Level 4A–C datasets. Built on the optimised multidimensional array database `TileDB`, `gediDB` enables operational-scale processing, rapid spatial and temporal queries, and reproducible LiDAR-based analyses of forest biomass, carbon stocks, and structural change.
+The Global Ecosystem Dynamics Investigation (GEDI) mission provides spaceborne LiDAR observations that are essential for characterising Earth's forest structure and carbon dynamics. However, GEDI datasets are distributed as complex HDF5 granules, which pose significant challenges for efficient, large-scale data processing and analysis. To overcome these hurdles, we developed `gediDB`, an open-source Python standardised Application Programming Interface (API) that streamlines both the processing and querying of GEDI Level 2A–B and Level 4A–C datasets. Built on the optimised multidimensional array database `TileDB`, `gediDB` enables operational-scale processing, rapid spatial and temporal queries, and reproducible LiDAR-based analyses of forest biomass, carbon stocks, and structural change.
 
 
 
@@ -54,7 +55,7 @@ The increasing use of GEDI in global applications—such as canopy height mappin
 
 # Core functionalities
 
-Extensive documentation and tutorials are available at at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), offering clear setup instructions, configuration guidance, and workflow examples. Users can access a globally processed GEDI dataset directly, avoiding the need for local downloads, as detailed in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html).
+Extensive documentation and tutorials are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), offering clear setup instructions, configuration guidance, and workflow examples. Users can access a globally processed GEDI dataset directly, avoiding the need for local downloads, as detailed in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html).
 
 ## Data processing framework
 
@@ -136,7 +137,7 @@ Planned future developments for `gediDB` include:
 
 # Acknowledgements
 
-The development of `gediDB` was supported by the European Union through the FORWARDS and OpenEarthMonitor projects. We also acknowledge funding for 3D-ABC by the Helmholtz Foundation Model Initiative supported by the Helmholtz Association. We would also like to thanks the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing. We recognise using OpenAI's ChatGPT and Grammarly AI tools to enhance the manuscript's sentence structure, conciseness, and grammatical accuracy.
+The development of `gediDB` was supported by the European Union through the FORWARDS and NextGenCarbon projects. We also acknowledge funding for 3D-ABC by the Helmholtz Foundation Model Initiative, supported by the Helmholtz Association. We would also like to thank the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing. We recognise using OpenAI's ChatGPT and Grammarly AI tools to enhance the manuscript's sentence structure, conciseness, and grammatical accuracy.
 
 
 
