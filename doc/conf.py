@@ -187,7 +187,7 @@ html_theme_options = {
         "image_light": "_static/logos/gediDB_logo.svg",
         "image_dark": "_static/logos/gediDB_logo.svg",
     },
-    "gitlab_url": "https://github.com/simonbesnard1/gedidb",
+    "github_url": "https://github.com/simonbesnard1/gedidb",
     "collapse_navigation": True,
     "header_links_before_dropdown": 6,
     "navbar_end": ["search-button", "theme-switcher", "navbar-icon-links"],
