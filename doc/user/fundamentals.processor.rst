@@ -25,7 +25,7 @@ Below is a quick example of using the :py:class:`gedidb.GEDIProcessor` in a work
 
    import gedidb as gdb
 
-   config_file = 'path/to/config_file.yml'
+   config_file = 'path/to/data_config.yml'
    geometry = 'path/to/test.geojson'
    
    # Initialize the GEDIProcessor and compute

@@ -23,7 +23,7 @@ This setup initiates the download, processing, and storage of GEDI data in your 
 .. code-block:: python
 
     # Paths to configuration files
-    config_file = 'path/to/config_file.yml'
+    config_file = 'path/to/data_config.yml'
     geometry = 'path/to/test.geojson'
 
     # Initialize a parallel engine
