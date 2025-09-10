@@ -162,18 +162,6 @@ Development progress and discussion of these features are tracked openly through
 
 
 
-# Future development
-
-Planned future developments for `gediDB` include:
-
-- Compatibility with upcoming GEDI product releases
-- Improved performance and flexibility in querying profile variables
-- Support for direct HDF5 access from AWS S3
-- Expanded documentation and tutorials
-- Strengthened testing for reliability and maintainability
-
-
-
 # Conclusion
 
 `gediDB` enhances the usability of GEDI LiDAR datasets by addressing challenges of data complexity, scalability, and reproducibility. Built on TileDB, it enables efficient data management, fast querying, and integration into geospatial workflows—facilitating large-scale analysis of forest dynamics and carbon cycling. Its open-source, community-driven design supports ongoing progress in remote sensing and environmental science.
@@ -182,7 +170,7 @@ Planned future developments for `gediDB` include:
 
 # Acknowledgements
 
-The development of `gediDB` was supported by the European Union through the FORWARDS and NextGenCarbon projects. We also acknowledge funding for 3D-ABC by the Helmholtz Foundation Model Initiative, supported by the Helmholtz Association. We would also like to thank the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing. We recognise using OpenAI's ChatGPT and Grammarly AI tools to enhance the manuscript's sentence structure, conciseness, and grammatical accuracy.
+The development of `gediDB` was supported by the European Union through the [FORWARDS](https://forwards-project.eu/) and [NextGenCarbon](https://www.nextgencarbon-project.eu/) projects. We also acknowledge funding for 3D-ABC by the Helmholtz Foundation Model Initiative, supported by the Helmholtz Association. We would also like to thank the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing. We recognise using OpenAI's ChatGPT and Grammarly AI tools to enhance the manuscript's sentence structure, conciseness, and grammatical accuracy.
 
 
 
