@@ -51,7 +51,7 @@ Write Documentation
 gediDB could always use more documentation, whether as part of the
 official gediDB docs, in docstrings, or even on the web in blog posts,
 articles, and such.  If something in the docs doesn't make sense to you, 
-updating the relevant section after you figure it out is a great way to 
+updating the relevant section after you figure it out is an excellent way to 
 ensure it will help the next person.
 
 Submit Feedback
@@ -111,7 +111,7 @@ Sign your commits
 ~~~~~~~~~~~~~~~~~
 
 Please note that our license terms only allow signed commits.
-A guideline how to sign your work can be found here: https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work
+A guideline on how to sign your work can be found here: https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work
 
 If you are using the PyCharm IDE, the `Commit changes` dialog has an option called `Sign-off commit` to
 automatically sign your work.
@@ -126,6 +126,5 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the merge request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
-3. The pull request should work for Python >=3.10. Check
-   https://github.com/simonbesnard1/gedidb/pulls
-   and make sure that the tests pass for all supported Python versions.
+3. The pull request should work for Python >=3.10. When you open a pull request, the tests will be run
+   for all supported Python versions. Please ensure that all tests pass.
