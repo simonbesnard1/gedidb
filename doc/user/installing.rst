@@ -84,7 +84,7 @@ To include optional dependencies:
 Development Versions
 --------------------
 
-To install the latest development version from GitLab:
+To install the latest development version from GitHub:
 
 .. code-block:: bash
 

@@ -36,13 +36,13 @@ If you are reporting a bug, please include:
 Fix Bugs
 ~~~~~~~~
 
-Look through the GitLab issues for bugs. Anything tagged with "bug" and "help
+Look through the GitHub issues for bugs. Anything tagged with "bug" and "help
 wanted" is open to whoever wants to implement it.
 
 Implement Features
 ~~~~~~~~~~~~~~~~~~
 
-Look through the GitLab issues for features. Anything tagged with "enhancement"
+Look through the GitHub issues for features. Anything tagged with "enhancement"
 and "help wanted" is open to whoever wants to implement it.
 
 Write Documentation
@@ -72,7 +72,7 @@ Commit Changes
 How to
 ~~~~~~
 
-1. Fork the `gedidb` repo on GitLab.
+1. Fork the `gedidb` repo on GitHub.
 2. Clone your fork locally::
 
     $ git clone git@github.com:simonbesnard1/gedidb.git
@@ -99,13 +99,13 @@ How to
 
    To get flake8 and tox, just pip install them into your virtualenv.
 
-6. Commit your changes and push your branch to GitLab::
+6. Commit your changes and push your branch to GitHub::
 
     $ git add .
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 
-7. Submit a merge request through the GitLab website.
+7. Submit a merge request through the GitHub website.
 
 Sign your commits
 ~~~~~~~~~~~~~~~~~
