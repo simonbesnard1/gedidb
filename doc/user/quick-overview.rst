@@ -6,6 +6,27 @@ Quick Overview
 
 This section provides brief examples of using :py:class:`gedidb.GEDIProcessor` and :py:class:`gedidb.GEDIProvider` to process and query **GEDI** data. For advanced features and detailed use cases, refer to the :ref:`fundamentals`.
 
+.. note::
+
+   **First install `gedidb`**:
+
+   .. code-block:: bash
+
+      pip install gedidb[full]
+      # or minimal
+      pip install gedidb
+
+   Verify the installation:
+
+   .. code-block:: bash
+
+      python -c "import gedidb; print(gedidb.__version__)"
+
+   For system dependencies, optional extras, and troubleshooting,
+   see :ref:`_installing`.
+
+---
+
 Start by importing the **gedidb** package:
 
 .. code-block:: python
