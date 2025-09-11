@@ -3,104 +3,130 @@
 Installation
 ============
 
-Dependencies
+Requirements
 ------------
 
-gediDB requires Python >= 3.10 and the following dependencies. These are resolved automatically when installing via **pip**:
+* Python >= 3.10
 
-+------------+-----------------+--------------------------------------------+
-| Dependency | Minimum Version | Link                                       |
-+============+=================+============================================+
-| dask       | 2024.8.2        | https://dask.org/                          |
-+------------+-----------------+--------------------------------------------+
-| distributed| 2024.8.2        | https://distributed.dask.org/              |
-+------------+-----------------+--------------------------------------------+
-| geopandas  | 1.0.1           | https://geopandas.org/                     |
-+------------+-----------------+--------------------------------------------+
-| h5py       | 3.11            | https://www.h5py.org/                      |
-+------------+-----------------+--------------------------------------------+
-| numpy      | 2.0.1           | https://numpy.org/                         |
-+------------+-----------------+--------------------------------------------+
-| pandas     | 2.2.2           | https://pandas.pydata.org/                 |
-+------------+-----------------+--------------------------------------------+
-| requests   | 2.32.3          | https://requests.readthedocs.io/en/latest/ |
-+------------+-----------------+--------------------------------------------+
-| retry      | 0.9.2           | https://pypi.org/project/retry/            |
-+------------+-----------------+--------------------------------------------+
-| scipy      | 1.14.1          | https://scipy.org/                         |
-+------------+-----------------+--------------------------------------------+
-| tiledb     | 0.33            | https://pypi.org/project/tiledb/           |
-+------------+-----------------+--------------------------------------------+
-| xarray     | 2024.7.0        | https://xarray.pydata.org/                 |
-+------------+-----------------+--------------------------------------------+
+Runtime dependencies are declared in ``pyproject.toml`` with **minimum compatible versions** and are
+resolved automatically when installing via pip. To avoid drift and duplication, we do not list them
+here—please see the authoritative list in the repository’s ``pyproject.toml``.
 
 
-Optional Dependencies
-----------------------
+Optional features
+-----------------
 
-For additional functionality, the following optional dependencies are available:
+Install optional components using pip “extras”:
 
-+-------------+-----------------------------------------------------------+
-| Dependency  | Purpose                                                   |
-+=============+===========================================================+
-| matplotlib  | Enhanced data visualization                               |
-+-------------+-----------------------------------------------------------+
-| netCDF4     | Support for netCDF data formats                           |
-+-------------+-----------------------------------------------------------+
-| seaborn     | Statistical data visualization                            |
-+-------------+-----------------------------------------------------------+
+* **Full stack (IO + viz + performance + logging)**
 
-To install optional dependencies, use **pip** with the extras syntax (e.g., `pip install gedidb[full]`).
+  .. code-block:: bash
+
+      python -m pip install "gedidb[full]"
+
+* Mix-and-match individual extras (advanced):
+
+  - ``accel`` — performance helpers (bottleneck, numba, etc.)
+  - ``io`` — cloud/filesystem and raster IO (s3fs, zarr, rasterio, pyproj, etc.)
+  - ``viz`` — plotting (matplotlib, cartopy, seaborn, etc.)
+  - ``debug`` — rich logging
+
+  Example:
+
+  .. code-block:: bash
+
+      python -m pip install "gedidb[io,viz]"
 
 
-External Dependencies
----------------------
-
-Some functionality requires system-level tools:
-
-+-----------+-----------------------------------------------------------+
-| Tool      | Purpose                                                   |
-+===========+===========================================================+
-| wget      | Required by EarthDataAuthenticator to download files.     |
-|           | Installed by default on most Linux/macOS systems. On      |
-|           | Windows, install via `choco` or `winget`.                 |
-+-----------+-----------------------------------------------------------+
-
-Installation Instructions
+External system libraries
 -------------------------
 
-Install via **pip**:
+Some geospatial backends rely on native libraries:
+
+* **GDAL / PROJ / GEOS** — Recommended to install via a conda-forge environment if you are not
+  already set up with these on your system:
+
+  .. code-block:: bash
+
+      mamba create -n gedidb -c conda-forge python>=3.10 gdal proj geos
+      mamba activate gedidb
+      python -m pip install "gedidb[full]"
+
+* **wget** — used by ``EarthDataAuthenticator`` for downloads. This is preinstalled on most Linux/macOS;
+  on Windows you can install via ``winget`` or ``choco``.
+
+
+User installation
+-----------------
+
+Install the latest release from PyPI:
 
 .. code-block:: bash
 
-    $ pip install gedidb
+    python -m pip install gedidb
 
-To include optional dependencies:
-
-.. code-block:: bash
-
-    $ pip install gedidb[full]
-
-Development Versions
---------------------
-
-To install the latest development version from GitHub:
+With all optional features:
 
 .. code-block:: bash
 
-    $ pip install git+https://github.com/simonbesnard1/gedidb.git
+    python -m pip install "gedidb[full]"
+
+
+Development setup
+-----------------
+
+Clone and install an editable development environment with tooling:
+
+.. code-block:: bash
+
+    git clone https://github.com/simonbesnard1/gedidb.git
+    cd gedidb
+
+    # (optional) create and activate a virtual environment
+    python -m venv .venv
+    source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+    python -m pip install -U pip wheel
+    # editable install with dev tools (pytest, ruff, mypy, pre-commit, etc.)
+    python -m pip install -e ".[dev,full]"
+    pre-commit install
+
+
+Install latest development snapshot directly from GitHub (no clone):
+
+.. code-block:: bash
+
+    python -m pip install "git+https://github.com/simonbesnard1/gedidb.git#egg=gedidb[full]"
+
 
 Testing
 -------
 
-To run tests after installing gediDB, first install **pytest**:
+From the project root:
 
 .. code-block:: bash
 
-    $ pip install pytest
+    pytest
 
-Navigate to the root directory of the gediDB repository, then run:
+With coverage:
 
 .. code-block:: bash
 
-    $ pytest
+    pytest --cov=gedidb --cov-report=term-missing
+
+If you maintain integration tests that require credentials or large datasets, mark them with
+``@pytest.mark.integration`` and run selectively:
+
+.. code-block:: bash
+
+    pytest -m "not integration"
+
+
+Troubleshooting
+---------------
+
+* **GDAL/GEOS/PROJ build errors on pip-only stacks** — prefer a conda-forge environment for these
+  native libraries, then install ``gedidb`` with pip inside that environment.
+* **S3 access issues (403/SignatureDoesNotMatch)** — ensure your AWS credentials are configured and,
+  if needed, set ``AWS_S3_SIGNATURE_VERSION=s3v4``.
+* **Extras name mismatch** — the correct all-in-one extra is ``full`` (not ``complete``).
