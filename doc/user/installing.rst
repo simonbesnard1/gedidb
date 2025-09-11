@@ -120,13 +120,3 @@ If you maintain integration tests that require credentials or large datasets, ma
 .. code-block:: bash
 
     pytest -m "not integration"
-
-
-Troubleshooting
----------------
-
-* **GDAL/GEOS/PROJ build errors on pip-only stacks** — prefer a conda-forge environment for these
-  native libraries, then install ``gedidb`` with pip inside that environment.
-* **S3 access issues (403/SignatureDoesNotMatch)** — ensure your AWS credentials are configured and,
-  if needed, set ``AWS_S3_SIGNATURE_VERSION=s3v4``.
-* **Extras name mismatch** — the correct all-in-one extra is ``full`` (not ``complete``).
