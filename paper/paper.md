@@ -125,12 +125,11 @@ These benchmarks demonstrate that `gediDB` consistently outperforms both MAAP an
 
 # Example use cases
 
-We used `gediDB` to analyse aboveground biomass and canopy cover dynamics across the Amazon Basin ([Fig. 4](#fig4)). The workflow extracted variables including aboveground biomass, canopy cover, and relative height (RH) metrics across large spatial extents and multiple years. Data were aggregated within a 2°×2° hexagonal grid to support spatiotemporal analysis of forest structural change. The analysis pipeline was implemented entirely in Python using `geopandas` and `xarray`, making it fully reproducible from data extraction to visualisation.
+We use `gediDB` to analyse aboveground biomass and canopy cover dynamics across the Amazon Basin ([Fig. 4](#fig4)). The workflow extracts variables including aboveground biomass, canopy cover, and relative height (RH) metrics across large spatial extents and multiple years. Data are aggregated within a 2°×2° hexagonal grid to support spatiotemporal analysis of forest structural change. The analysis pipeline is implemented entirely in Python using `geopandas` and `xarray`, making it fully reproducible from data extraction to visualisation.  
 
-![<a name="fig4"></a>Changes in aboveground biomass and canopy cover across the Amazon Basin](figs/amazon_changes.png)
-*Fig. 4: Visualisation of changes in aboveground biomass density (AGBD) (top left panel) and canopy cover (top right panel) between 2018–2020 and 2021–2023, aggregated to a 2°×2° hexagonal grid over the Amazon Basin. The bottom left panel shows the relationship between changes in ΔRH50 and ΔRH98, with each point representing a hexagon. The bottom right panel shows the relationship between changes in canopy height metrics (ΔRH50 and ΔRH98) and ΔAGBD, with each point representing a hexagon. This highlights how vertical canopy structure dynamics relate to biomass change across the region.*
+A key advantage of `gediDB` is that large-scale extractions can be performed directly within Python workflows, eliminating the need for manual downloads or interactive tools such as MAAP. Unlike the GEDI Subsetter, which requires per-product queries and does not support multi-product filtering, `gediDB` allows unified access across Level 2A, 2B, 4A, and 4C products in a single query.  
 
-A key advantage of `gediDB` is that large-scale extractions can be performed directly within Python workflows, eliminating the need for manual downloads or interactive tools such as MAAP. For example, the following snippet retrieves biomass, canopy cover, and RH metrics for the Amazon Basin:
+For example, the following snippet demonstrates how GEDI variables can be retrieved for the Amazon Basin as an `xarray.Dataset`:  
 
 ```python
 import geopandas as gpd
