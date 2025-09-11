@@ -25,8 +25,6 @@ This section provides brief examples of using :py:class:`gedidb.GEDIProcessor` a
    For system dependencies, optional extras, and troubleshooting,
    see :ref:`installing`.
 
----
-
 Start by importing the **gedidb** package:
 
 .. code-block:: python
