@@ -12,7 +12,7 @@ dynamic = ["version"]
 description = "A toolbox to download, process, store and visualise Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data"
 readme = "README.md"
 authors = [
-    { name = "Simon Besnard", email = "besnard@gfz.de" },
+    { name = "Simon Besnard", email = "simon.besnard@gfz.de" },
     { name = "Felix Dombrowski", email = "felix.dombrowski@uni-potsdam.de" },
     { name = "Amelia Holcomb", email = "amelia.holcomb@gmail.com" }
 ]
@@ -27,18 +27,20 @@ classifiers = [
     "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)"
 ]
 requires-python = ">=3.10"
+
+# ↓ Use *minimum compatible* versions; keep pins only in lockfiles/CI
 dependencies = [
-    "dask",
-    "distributed",
-    "geopandas",
-    "h5py",
-    "numpy",
-    "pandas",
-    "requests",
-    "retry",
-    "scipy",
-    "tiledb",
-    "xarray"
+    "dask[array]>=2023.7",
+    "distributed>=2023.7",
+    "geopandas>=0.13",
+    "h5py>=3.8",
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "requests>=2.31",
+    "retry>=0.9.2",
+    "scipy>=1.10",
+    "tiledb>=0.25",
+    "xarray>=2023.7"
 ]
 
 [project.urls]
@@ -48,62 +50,99 @@ source = "https://github.com/simonbesnard1/gedidb"
 tracker = "https://github.com/simonbesnard1/gedidb/issues"
 
 [project.optional-dependencies]
+# Performance / acceleration
 accel = [
-    "bottleneck",
-    "numbagg",
-    "flox",
-    "opt_einsum",
-    "numba",
-    "cython"
-]
-dev = [
-    "hypothesis",
-    "mypy",
-    "pre-commit",
-    "pytest",
-    "pytest-cov",
-    "pytest-env",
-    "pytest-xdist",
-    "pytest-timeout",
-    "ruff",
-    "gedidb[complete]",
-    "black",
-    "isort"
-]
-io = [
-    "boto3",
-    "netCDF4",
-    "h5netcdf",
-    'pydap; python_version<"3.10"',
-    "zarr",
-    "fsspec",
-    "cftime",
-    "pooch",
-    "rasterio",
-    "pyproj"
-]
-viz = [
-    "cartopy",
-    "matplotlib",
-    "seaborn",
-    "nc-time-axis",
-    "plotly",
-    "holoviews"
-]
-debug = [
-    "rich",
-    "loguru"
+    "bottleneck>=1.3",
+    "numbagg>=0.8",
+    "flox>=0.8",
+    "opt_einsum>=3.3",
+    "numba>=0.58",
+    "cython>=3.0"
 ]
 
+# IO and cloud access
+io = [
+    "boto3>=1.28",
+    "s3fs>=2023.6",
+    "fsspec>=2023.6",
+    "zarr>=2.16",
+    "netCDF4>=1.6",
+    "h5netcdf>=1.2",
+    "cftime>=1.6",
+    "pooch>=1.7",
+    "rasterio>=1.3",
+    "pyproj>=3.6",
+    "pydap; python_version < '3.10'"
+]
+
+# Visualization
+viz = [
+    "matplotlib>=3.7",
+    "seaborn>=0.13",
+    "cartopy>=0.22",
+    "nc-time-axis>=1.4",
+    "plotly>=5.17",
+    "holoviews>=1.17"
+]
+
+# Logging / debugging
+debug = [
+    "rich>=13.7",
+    "loguru>=0.7"
+]
+
+# Full stack (cannot reference other extras in TOML; list them explicitly)
 full = [
-    "gedidb[accel,io,viz,debug]"
+    # accel
+    "bottleneck>=1.3",
+    "numbagg>=0.8",
+    "flox>=0.8",
+    "opt_einsum>=3.3",
+    "numba>=0.58",
+    "cython>=3.0",
+    # io
+    "boto3>=1.28",
+    "s3fs>=2023.6",
+    "fsspec>=2023.6",
+    "zarr>=2.16",
+    "netCDF4>=1.6",
+    "h5netcdf>=1.2",
+    "cftime>=1.6",
+    "pooch>=1.7",
+    "rasterio>=1.3",
+    "pyproj>=3.6",
+    "pydap; python_version < '3.10'",
+    # viz
+    "matplotlib>=3.7",
+    "seaborn>=0.13",
+    "cartopy>=0.22",
+    "nc-time-axis>=1.4",
+    "plotly>=5.17",
+    "holoviews>=1.17",
+    # debug
+    "rich>=13.7",
+    "loguru>=0.7"
+]
+
+# Dev tools only; install as: python -m pip install -e ".[dev,full]"
+# (Removed invalid 'gedidb[complete]' self-reference)
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "pytest-env>=1.0",
+    "pytest-xdist>=3.3",
+    "pytest-timeout>=2.2",
+    "hypothesis>=6.88",
+    "pre-commit>=3.5",
+    "ruff>=0.3",
+    "mypy>=1.7",
+    "black>=24.3",
+    "isort>=5.12"
 ]
 
 [tool.mypy]
 enable_error_code = ["ignore-without-code", "redundant-self", "redundant-expr"]
-exclude = [
-  'build',
-]
+exclude = ['build']
 files = "gedidb"
 show_error_context = true
 warn_redundant_casts = true
@@ -111,10 +150,12 @@ warn_unused_configs = true
 warn_unused_ignores = true
 
 [tool.ruff]
-extend-exclude = [
-  "doc",
-  "_typed_ops.pyi",
-]
+extend-exclude = ["doc", "_typed_ops.pyi"]
+line-length = 100
+
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["."]
