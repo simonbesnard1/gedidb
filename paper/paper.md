@@ -19,13 +19,13 @@ authors:
     orcid: 0000-0001-5081-7201
     affiliation: 3
 affiliations:
- - name: GFZ Helmholtz Centre Potsdam, Potsdam, Germany
+ - name: GFZ Helmholtz Centre for Geosciences Potsdam, Potsdam, Germany
    index: 1
  - name: University of Potsdam, Potsdam, Germany
    index: 2
  - name: Department of Computer Science, University of Cambridge, Cambridge, UK
    index: 3
-date: 25 April 2025
+date: 10 September 2025
 bibliography: refs.bib
 ---
 
@@ -42,7 +42,10 @@ High-volume LiDAR datasets from the Global Ecosystem Dynamics Investigation (GED
 ![<a name="fig1"></a>Schematic representation of the GEDI data structure](figs/beam_product_footprint.png)
 *Fig. 1: A schematic representation of the GEDI data structure. Credits: Amelia Holcomb's PhD dissertation [@holcomb_measuring_2025]*
 
-Several efforts in the broader NASA LiDAR community have tackled similar challenges. For example, SlideRule [@Shean2023] provides a scalable, cloud-based framework for processing ICESat-2 photon data, enabling users to query and transform complex satellite LiDAR datasets into analysis-ready forms. This illustrates a common pattern: while raw LiDAR missions deliver highly relevant observations, the data formats and scales make direct scientific use difficult without specialised infrastructure. For GEDI, existing services such as NASA's GEDI Subsetter via the Multi-Mission Algorithm and Analysis Platform (MAAP) [@chuck_daniels_2025_15122227] offer useful access for small to moderate-scale extractions, but they are not designed for operational-scale workflows or integration into reproducible pipelines.
+Several efforts in the broader NASA LiDAR community have tackled similar challenges. For example, SlideRule [@Shean2023] provides a scalable, cloud-based framework for processing ICESat-2 photon data, enabling users to query and transform complex satellite LiDAR datasets into analysis-ready forms. This illustrates a common pattern: while raw LiDAR missions deliver highly relevant observations, the data formats and scales make direct scientific use difficult without specialised infrastructure. For GEDI, existing services such as NASA's GEDI Subsetter via the Multi-Mission Algorithm and Analysis Platform (MAAP) [@chuck_daniels_2025_15122227] offer useful access for small to moderate-scale extractions, but they are not designed for operational-scale workflows or integration into reproducible pipelines. Moreover, MAAP introduces two important limitations for many researchers:  
+
+- **Per-product restrictions:** GEDI subsetter requests must be submitted separately for each product (e.g., L2A, L2B, L4A, L4C), even though typical analyses span multiple products. Cross-product filtering is therefore impossible at the query stage.  
+- **Access restrictions:** MAAP accounts are limited to researchers affiliated with NASA or ESA projects, whereas `gediDB` is openly accessible to all users.  
 
 `gediDB` addresses this gap by providing a robust, scalable Python-based API for unified access to GEDI Level 2A [@dubayah2021gedi_l2a], 2B [@dubayah2021gedi_l2b], 4A [@dubayah2022gedi_l4a], and 4C [@deconto2024gedi_l4c] products. Built on the TileDB storage engine [@tiledb2025], it enables fast querying of multidimensional arrays by spatial extent, temporal range, and variable selection. Seamless integration with geospatial libraries such as xarray [@hoyer2017xarray] and geopandas [@kelsey_jordahl_2020_3946761] ensures compatibility with reproducible workflows, from local machines to cloud and high-performance computing environments. By leveraging TileDB’s advanced spatial indexing, `gediDB` simplifies and accelerates GEDI data access and analysis (see [Fig. 2](#fig2)).
 
@@ -87,7 +90,7 @@ GEDI data are stored as sparse TileDB arrays optimised for fast spatial and temp
 
 ## Rich metadata integration
 
-Comprehensive metadata—covering provenance, units, variable descriptions, and versioning—is embedded within the TileDB arrays, ensuring transparency and reproducibility.
+Comprehensive metadata, covering provenance, units, variable descriptions, and versioning, is embedded within the TileDB arrays, ensuring transparency and reproducibility.
 
 ![<a name="fig3"></a>TileDB fragment schema for GEDI data](figs/tileDB_fragment_structure.png)
 *Fig. 3: Illustration of the global GEDI data storage schema using TileDB arrays.*
@@ -96,15 +99,26 @@ Comprehensive metadata—covering provenance, units, variable descriptions, and 
 
 # Performance benchmarks
 
-To evaluate the efficiency of `gediDB`, we benchmarked representative research scenarios and compared them to equivalent queries performed with NASA’s GEDI Subsetter via the Multi-Mission Algorithm and Analysis Platform (MAAP). This comparison highlights not only absolute performance, but also practical trade-offs between the two approaches. The table below reports query times (in seconds) for varying spatial and temporal extents.
+To evaluate the efficiency of `gediDB`, we benchmarked spatiotemporal select queries against two alternatives:  
 
-| Scenario                  | Spatial extent         | Time range | Variables queried                                  | Query time (gediDB) | Query time (MAAP) |
-|---------------------------|------------------------|------------|----------------------------------------------------|---------------------|-------------------|
-| Local-scale query         | 1° × 1° bounding box   | 1 month    | relative height metrics, canopy cover              | 1.8                 | *TBD*             |
-| Regional-scale query      | 10° × 10° bounding box | 6 months   | relative height metrics, biomass, plant area index | 17.9                | *TBD*             |
-| Continental-scale query   | Amazon Basin           | 1 year     | canopy cover, biomass                              | 28.9                | *TBD*             |
+1. **NASA’s GEDI Subsetter** on the Multi-Mission Algorithm and Analysis Platform (MAAP), which downloads HDF5 files in real time rather than operating on a preprocessed copy of the data.  
+2. **A single-server PostGIS instance** hosting the GEDI data, following the approach in [Holcomb, 2023](https://github.com/ameliaholcomb/gedi-database). Postgres cannot be sharded across multiple servers, so while it may be a good option for users with only one machine, it does not achieve the speeds of a distributed database like TileDB.  
 
-Benchmarks for `gediDB` were performed on a Linux server with dual Intel® Xeon® E5-2643 v4 CPUs (12 cores, 24 threads), 503 GB RAM, and NVMe SSD (240 GB) + HDD (16.4 TB) storage. All queries ran on NVMe-backed data to ensure high I/O throughput.  
+This comparison highlights both absolute performance and practical trade-offs between the three approaches.  
+
+| Scenario                | Spatial extent         | Time range | Variables queried                                  | Query time (`gediDB`) | Query time (MAAP) | Query time (PostGIS) |
+|-------------------------|------------------------|------------|----------------------------------------------------|-----------------------|-------------------|----------------------|
+| Local-scale query       | 1° × 1° bounding box   | 1 month    | relative height metrics, canopy cover              | 1.8 s                 | 51 s              | 5.0 s                |
+| Regional-scale query    | 10° × 10° bounding box | 6 months   | relative height metrics, biomass, plant area index | 17.9 s                | 3,037 s           | 596.6 s              |
+| Continental-scale query | Amazon Basin           | 1 year     | canopy cover, biomass                              | 28.9 s                | 17,917 s          | 4,812.9 s            |
+
+**Benchmark setup**  
+- **gediDB:** Linux server with dual Intel® Xeon® E5-2643 v4 CPUs (12 cores, 24 threads), 503 GB RAM, and NVMe SSD (240 GB) + HDD (16.4 TB) storage. Queries ran on NVMe-backed data to ensure high I/O throughput.  
+- **MAAP + GEDI Subsetter:** version 0.12.0 running on `maap-dps-worker-32gb`. Because the subsetter requires each product to be queried separately, per-product jobs were initiated in parallel, and the benchmark time is the longest runtime of any individual product (excluding queueing time).  
+- **PostGIS:** version 14, hosted on a server with 4× 3.84 TB SATA SSDs (software RAID), two 18-core dual-threaded Intel® Xeon® CPU E5-2695 v4 @ 2.10GHz, and 512 GB RAM.  
+
+**Interpretation**  
+These benchmarks demonstrate that `gediDB` consistently outperforms both MAAP and PostGIS across local, regional, and continental queries. The difference is most pronounced at larger scales: for the Amazon Basin, `gediDB` returns results in under 30 seconds, compared to ~1.3 hours with PostGIS and nearly 5 hours with MAAP. 
 
 
 
@@ -170,7 +184,7 @@ Development progress and discussion of these features are tracked openly through
 
 # Acknowledgements
 
-The development of `gediDB` was supported by the European Union through the [FORWARDS](https://forwards-project.eu/) and [NextGenCarbon](https://www.nextgencarbon-project.eu/) projects. We also acknowledge funding for 3D-ABC by the Helmholtz Foundation Model Initiative, supported by the Helmholtz Association. We would also like to thank the R2D2 Workshop (March 2024, Potsdam) for providing the opportunity to meet and discuss GEDI data processing. We recognise using OpenAI's ChatGPT and Grammarly AI tools to enhance the manuscript's sentence structure, conciseness, and grammatical accuracy.
+The development of `gediDB` was supported by the European Union through the [FORWARDS](https://forwards-project.eu/) and [NextGenCarbon](https://www.nextgencarbon-project.eu/) projects, and by the Helmholtz Association via the Helmholtz Foundation Model Initiative ([3D-ABC project](https://www.3d-abc.ai/)). AC acknowledges funding from the Harding Distinguished Postgraduate Scholarship. We are grateful to participants of the R2D2 Workshop (March 2024, Potsdam) for valuable discussions on GEDI data processing that helped shape this work. We also acknowledge the use of language-assistance tools (OpenAI ChatGPT and Grammarly) to improve readability and grammar. The design, conceptualisation, and scientific results of this work are entirely those of the authors.
 
 
 
