@@ -13,8 +13,6 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
    why-gedidb
    installing
    quick-overview
-   api
-   faq
    
 .. toctree::
    :caption: Fundamentals
@@ -29,12 +27,14 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
 
    database
    tuning-config
-   contributing
+   api
 
 .. toctree::
    :caption: Community
    :maxdepth: 1
 
+   faq
+   contributing
    GitHub discussions <https://github.com/simonbesnard1/gedidb/discussions>
 
 .. tip::
