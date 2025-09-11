@@ -117,3 +117,6 @@ LICENSE
 
 # Sphinx doc
 _build/
+
+# Ignore generated PDFs
+paper/paper.pdf
