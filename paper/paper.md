@@ -102,7 +102,7 @@ Comprehensive metadata, covering provenance, units, variable descriptions, and v
 
 To evaluate the efficiency of `gediDB`, we benchmarked spatiotemporal select queries against two alternatives:  
 
-1. **NASA’s GEDI Subsetter** on the Multi-Mission Algorithm and Analysis Platform (MAAP), which downloads HDF5 files in real time rather than operating on a preprocessed copy of the data.  
+1. **NASA's GEDI Subsetter** on the MAAP, which reads GEDI products directly as HDF5 from LPDAAC's S3 bucket using temporary AWS credentials, rather than operating on a preprocessed copy of the data.    
 2. **A single-server PostGIS instance** hosting the GEDI data, following the approach in [Holcomb, 2023](https://github.com/ameliaholcomb/gedi-database). Postgres cannot be sharded across multiple servers, so while it may be a good option for users with only one machine, it does not achieve the speeds of a distributed database like TileDB.  
 
 This comparison highlights both absolute performance and practical trade-offs between the three approaches.  
@@ -114,6 +114,7 @@ This comparison highlights both absolute performance and practical trade-offs be
 | Continental-scale query | Amazon Basin           | 1 year     | canopy cover, biomass                              | 28.9 s                | 17,917 s          | 4,812.9 s            |
 
 **Benchmark setup**  
+- **gediDB:** Client machine: Linux server with dual Intel® Xeon® E5-2643 v4 CPUs (12 cores, 24 threads), 503 GB RAM, and local NVMe SSD (240 GB) + HDD (16.4 TB) storage. Queries were executed against GEDI data stored in a Ceph object storage cluster (version Quincy) comprising 18× DELL R7515 nodes, each with 11-18× 18-20 TB Seagate data drives and 1× 1.6 TB NVMe (metadata). 
 - **gediDB:** Linux server with dual Intel® Xeon® E5-2643 v4 CPUs (12 cores, 24 threads), 503 GB RAM, and NVMe SSD (240 GB) + HDD (16.4 TB) storage. Queries ran on NVMe-backed data to ensure high I/O throughput.  
 - **MAAP + GEDI Subsetter:** version 0.12.0 running on `maap-dps-worker-32gb`. Because the subsetter requires each product to be queried separately, per-product jobs were initiated in parallel, and the benchmark time is the longest runtime of any individual product (excluding queueing time).  
 - **PostGIS:** version 14, hosted on a server with 4× 3.84 TB SATA SSDs (software RAID), two 18-core dual-threaded Intel® Xeon® CPU E5-2695 v4 @ 2.10GHz, and 512 GB RAM.  
