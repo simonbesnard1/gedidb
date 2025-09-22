@@ -9,8 +9,17 @@ Requirements
 * Python >= 3.10
 
 Runtime dependencies are declared in ``pyproject.toml`` with **minimum compatible versions** and are
-resolved automatically when installing via pip. To avoid drift and duplication, we do not list them
-here—please see the authoritative list in the repository’s ``pyproject.toml``.
+resolved automatically when installing via pip.
+
+
+User installation
+-----------------
+
+Install the latest release from PyPI:
+
+.. code-block:: bash
+
+    python -m pip install gedidb
 
 
 Optional features
@@ -54,22 +63,6 @@ Some geospatial backends rely on native libraries:
 
 * **wget** — used by ``EarthDataAuthenticator`` for downloads. This is preinstalled on most Linux/macOS;
   on Windows you can install via ``winget`` or ``choco``.
-
-
-User installation
------------------
-
-Install the latest release from PyPI:
-
-.. code-block:: bash
-
-    python -m pip install gedidb
-
-With all optional features:
-
-.. code-block:: bash
-
-    python -m pip install "gedidb[full]"
 
 
 Development setup
