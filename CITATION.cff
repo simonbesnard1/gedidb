@@ -11,7 +11,7 @@ authors:
     given-names: "Amelia"
     orcid: "https://orcid.org/0000-0001-5081-7201"
 title: "gediDB: A toolbox for processing and providing Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data"
-abstract: "A toolbox for Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data."
+abstract: "gediDB is an open-source Python package designed to streamline the processing, analysis, and management of GEDI L2A-B and L4A-C data. This toolbox enables efficient and flexible data querying and management of large GEDI datasets stored with TileDB, a high-performance, multi-dimensional array database."
 license: "EUPL-1.2"
 doi: "https://doi.org/10.5281/zenodo.13885229"
 repository-code: "https://github.com/simonbesnard1/gedidb"
