@@ -89,7 +89,7 @@ Install latest development snapshot directly from GitHub (no clone):
 
 .. code-block:: bash
 
-    python -m pip install "git+https://github.com/simonbesnard1/gedidb.git#egg=gedidb[full]"
+    python -m pip install "git+https://github.com/simonbesnard1/gedidb.git"
 
 
 Testing
