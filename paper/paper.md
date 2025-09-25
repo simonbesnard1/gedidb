@@ -176,7 +176,7 @@ Planned future developments for `gediDB` are designed to improve usability and e
 
 - **Strengthened testing for reliability and maintainability**: supports developers and long-term users by ensuring that changes do not break existing workflows, and by increasing trust in the reproducibility of analyses built on `gediDB`.  
 
-Development progress and discussion of these features are tracked openly through the project’s [GitHub issues](https://github.com/your-org/gedidb/issues) and roadmap.
+Development progress and discussion of these features are tracked openly through the project’s [GitHub issues](https://github.com/simonbesnard1/gedidb/issues) and roadmap.
 
 
 
