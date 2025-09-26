@@ -161,25 +161,6 @@ ds = provider.get_data(
 ```
 
 
-
-# Future development
-
-Planned future developments for `gediDB` are designed to improve usability and extend the package’s scope for both researchers and operational users:
-
-- **Compatibility with upcoming GEDI product releases**: ensures long-term sustainability of the toolbox as new mission data become available, avoiding version lock-in for users building workflows on `gediDB`.  
-
-- **Improved performance and flexibility in querying profile variables**: will make it easier for users to analyse canopy structure profiles (e.g., RH metrics) at scale, which are currently among the most data-intensive GEDI products.  
-
-- **Support for direct HDF5 access from AWS S3**: will enable `gediDB` to operate directly on cloud-hosted GEDI granules (e.g., on NASA’s MAAP infrastructure), avoiding the need for local downloads and reducing storage overhead. This work corresponds to [Issue #15](https://github.com/simonbesnard1/gedidb/issues/15) (“Allow direct h5 read w/o download”), which aims to let the `GEDIProcessor` access HDF5 files in an S3 bucket without intermediate steps.  
-
-- **Expanded documentation and tutorials**: will benefit new users by lowering the entry barrier, providing clear end-to-end examples, and connecting scientific use cases to code snippets.  
-
-- **Strengthened testing for reliability and maintainability**: supports developers and long-term users by ensuring that changes do not break existing workflows, and by increasing trust in the reproducibility of analyses built on `gediDB`.  
-
-Development progress and discussion of these features are tracked openly through the project’s [GitHub issues](https://github.com/simonbesnard1/gedidb/issues) and roadmap.
-
-
-
 # Conclusion
 
 `gediDB` improves the usability of GEDI LiDAR datasets by removing key barriers of data complexity, scalability, and reproducibility. By representing GEDI products as sparse multidimensional arrays in TileDB, it enables fast, flexible queries across space, time, and variables, and integrates seamlessly into established geospatial workflows. This allows researchers to perform analyses that extend from local case studies to continental-scale assessments of forest dynamics and the carbon cycle. As an open-source and community-driven project, `gediDB` provides a sustainable framework for large-scale exploitation of spaceborne LiDAR data in remote sensing and environmental science.

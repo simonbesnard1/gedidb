@@ -41,6 +41,22 @@ Learn more about gediDB in its official documentation at
 You can find information about contributing to gediDB on our
 [Contributing page](https://gedidb.readthedocs.io/en/latest/user/contributing.html).
 
+## Future development
+
+Planned future developments for `gediDB` are designed to improve usability and extend the package’s scope for both researchers and operational users:
+
+- **Compatibility with upcoming GEDI product releases**: ensures long-term sustainability of the toolbox as new mission data become available, avoiding version lock-in for users building workflows on `gediDB`.  
+
+- **Improved performance and flexibility in querying profile variables**: will make it easier for users to analyse canopy structure profiles (e.g., RH metrics) at scale, which are currently among the most data-intensive GEDI products.  
+
+- **Support for direct HDF5 access from AWS S3**: will enable `gediDB` to operate directly on cloud-hosted GEDI granules (e.g., on NASA’s MAAP infrastructure), avoiding the need for local downloads and reducing storage overhead. This work corresponds to [Issue #15](https://github.com/simonbesnard1/gedidb/issues/15) (“Allow direct h5 read w/o download”), which aims to let the `GEDIProcessor` access HDF5 files in an S3 bucket without intermediate steps.  
+
+- **Expanded documentation and tutorials**: will benefit new users by lowering the entry barrier, providing clear end-to-end examples, and connecting scientific use cases to code snippets.  
+
+- **Strengthened testing for reliability and maintainability**: supports developers and long-term users by ensuring that changes do not break existing workflows, and by increasing trust in the reproducibility of analyses built on `gediDB`.  
+
+Development progress and discussion of these features are tracked openly through the project’s [GitHub issues](https://github.com/simonbesnard1/gedidb/issues).
+
 ## History
 
 The development of the gediDB package began during the PhD of Amelia Holcomb, who initially created part of this toolset to analyze and manage GEDI data for her research. Recognizing the potential of her work to benefit the broader scientific community, the [Global Land Monitoring](https://www.gfz-potsdam.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring) team collaborated with Amelia in March 2024 to expand and optimize her code, transforming it into a scalable and versatile Python package named gediDB. This collaboration refined the toolbox to handle large-scale datasets with TileDB, integrate parallel processing, and incorporate a robust querying and metadata management system. Today, gediDB is designed to help researchers in ecological and environmental sciences by making GEDI data processing more efficient and accessible.
