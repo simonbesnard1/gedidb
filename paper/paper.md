@@ -59,42 +59,17 @@ The increasing use of GEDI in global applications, such as canopy height mapping
 
 # Core functionalities
 
-Extensive documentation and tutorials are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), offering clear setup instructions, configuration guidance, and workflow examples. Users can access a globally processed GEDI dataset directly, avoiding the need for local downloads, as detailed in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html).
+Full documentation and tutorials are available at [https://gedidb.readthedocs.io](https://gedidb.readthedocs.io), including setup, configuration, and workflow examples. Users can also access a globally processed GEDI dataset without local downloads, as detailed in the [database documentation](https://gedidb.readthedocs.io/en/latest/user/tiledb_database.html).
 
-## Data processing framework
+`gediDB` centres on two modules:
 
-The `gediDB` package centres on two primary modules that streamline GEDI data ingestion and access:
+- **`GEDIProcessor`**: Converts raw GEDI granules into structured TileDB arrays through filtering, standardisation, and spatio-temporal chunking.  
+- **`GEDIProvider`**: Supports efficient spatio-temporal queries, variable access, and quality filtering, with outputs in `xarray` or `pandas` [@reback2020pandas].
 
-- **`GEDIProcessor`**: Ingests raw GEDI granules and transforms them into structured TileDB arrays ([Fig. 3](#fig3)). The process includes filtering, standardisation, and spatio-temporal chunking to ensure high-performance querying.
+Data are stored as **sparse TileDB arrays**, optimised for the footprint-based nature of GEDI, enabling compact storage and fast queries at global scale ([Fig. 3](#fig3)). Parallel processing with `Dask` [@rocklin2015dask] supports high-throughput workflows, while rich metadata (provenance, units, versioning) ensures transparency and reproducibility.
 
-- **`GEDIProvider`**: Enables flexible access to GEDI data using spatial and temporal filters and variable selection. Output is compatible with Python libraries such as `xarray` and `pandas` [@reback2020pandas].
-
-## Configurable and reproducible workflows
-
-Custom configuration files define the TileDB schema and data retrieval parameters, supporting reproducibility and adaptability across diverse computing environments.
-
-## Robust data downloading
-
-The API connects directly to NASA’s Common Metadata Repository (CMR) and includes robust retry logic and error handling to ensure consistent, fault-tolerant data acquisition.
-
-## High-performance data storage
-
-GEDI observations are inherently sparse: laser footprints sample only a tiny fraction of the Earth’s surface, with large gaps between adjacent shots. To efficiently represent this irregular structure, `gediDB` stores all products as **sparse TileDB arrays**, in which only the observed footprints are written to disk. This avoids the overhead of dense raster storage while still allowing fast spatial and temporal queries. The sparse array model scales to global, multi-terabyte datasets while keeping storage compact and query performance high ([Fig. 3](#fig3)).
-
-## Parallel processing capabilities
-
-`gediDB` supports parallelised downloading, processing, and storage using libraries such as `Dask` [@rocklin2015dask] and `concurrent.futures`, enabling high-throughput workflows on HPC systems.
-
-## Advanced querying functionality
-
-`gediDB` offers flexible querying capabilities, including bounding-box, temporal range, and nearest-neighbour queries. Both scalar and profile-type variables are supported.
-
-## Rich metadata integration
-
-Comprehensive metadata, covering provenance, units, variable descriptions, and versioning, is embedded within the TileDB arrays, ensuring transparency and reproducibility.
-
-![TileDB fragment schema for GEDI data](figs/tileDB_fragment_structure.png){#fig3}
-*Fig. 3: Illustration of the global GEDI data storage schema using TileDB arrays.*
+![TileDB fragment schema for GEDI data](figs/tileDB_fragment_structure.png){#fig3}  
+*Fig. 3: Global GEDI data storage schema in TileDB.*
 
 
 
@@ -159,6 +134,7 @@ ds = provider.get_data(
     return_type="xarray"
 )
 ```
+
 
 
 # Conclusion
