@@ -37,25 +37,19 @@ The Global Ecosystem Dynamics Investigation (GEDI) mission provides spaceborne L
 
 # Statement of Need
 
-High-volume LiDAR datasets from the Global Ecosystem Dynamics Investigation (GEDI) mission [@dubayah2020global] ([Fig. 1](#fig1)) have become essential for quantifying forest dynamics, estimating biomass, and analysing carbon cycling. The open availability of GEDI’s spaceborne LiDAR data has enabled forest structural analysis at near-global scales. However, practical use remains hindered by the complexity of raw HDF5 granules, the absence of scalable infrastructure for efficient access, and a lack of standardised tools for large-scale spatial and temporal subsetting.
+High-volume LiDAR datasets from the Global Ecosystem Dynamics Investigation (GEDI) mission [@dubayah2020global] ([Fig. 1](#fig1)) are central for quantifying forest dynamics, estimating biomass, and analysing carbon cycling. Yet, their practical use is limited by the complexity of raw HDF5 granules, the lack of scalable infrastructure, and the absence of standardised tools for large-scale spatio-temporal subsetting. The increasing use of GEDI in global applications, such as canopy height mapping [@pauls2024estimatingcanopyheightscale], disturbance assessment [@HOLCOMB2024114174], and forest degradation monitoring [@bourgoin2024human], underscores the need for efficient and scalable tooling.
 
-![Schematic representation of the GEDI data structure](figs/beam_product_footprint.png){#fig1}
-*Fig. 1: A schematic representation of the GEDI data structure. Credits: Amelia Holcomb's PhD dissertation [@holcomb_measuring_2025].*
+![Schematic representation of the GEDI data structure](figs/beam_product_footprint.png){#fig1}  
+*Fig. 1: Schematic representation of the GEDI data structure. Credits: Amelia Holcomb's PhD dissertation [@holcomb_measuring_2025].*
 
-Several efforts in the broader NASA LiDAR community have tackled similar challenges. For example, SlideRule [@Shean2023] provides a scalable, cloud-based framework for processing ICESat-2 photon data, enabling users to query and transform complex satellite LiDAR datasets into analysis-ready forms. This illustrates a common pattern: while raw LiDAR missions deliver highly relevant observations, the data formats and scales make direct scientific use difficult without specialised infrastructure. For GEDI, existing services such as NASA's GEDI Subsetter via the Multi-Mission Algorithm and Analysis Platform (MAAP) [@chuck_daniels_2025_15122227] offer useful access for small to moderate-scale extractions, but they are not designed for operational-scale workflows or integration into reproducible pipelines. Moreover, MAAP introduces two important limitations for many researchers:  
+Several efforts in the NASA LiDAR community highlight similar challenges. For example, SlideRule [@Shean2023] provides a scalable, cloud-based framework for ICESat-2, illustrating a common pattern: while raw LiDAR missions deliver highly relevant observations, the formats and scales hinder direct scientific use without specialised infrastructure. For GEDI, existing services such as NASA’s GEDI Subsetter via MAAP [@chuck_daniels_2025_15122227] are useful for small extractions but not designed for large-scale, reproducible workflows. They also introduce two key limitations:  
+- **Per-product queries:** Requests must be made separately for each GEDI product (L2A, L2B, L4A, L4C), preventing cross-product filtering.  
+- **Restricted access:** MAAP accounts are limited to NASA/ESA-affiliated researchers.  
 
-- **Per-product restrictions:** GEDI subsetter requests must be submitted separately for each product (e.g., L2A, L2B, L4A, L4C), even though typical analyses span multiple products. Cross-product filtering is therefore impossible at the query stage.  
-- **Access restrictions:** MAAP accounts are limited to researchers affiliated with NASA or ESA projects, whereas `gediDB` is openly accessible to all users.  
-
-`gediDB` addresses this gap by providing a robust, scalable Python-based API for unified access to GEDI Level 2A [@dubayah2021gedi_l2a], 2B [@dubayah2021gedi_l2b], 4A [@dubayah2022gedi_l4a], and 4C [@deconto2024gedi_l4c] products. Built on the TileDB storage engine [@tiledb2025], it enables fast querying of multidimensional arrays by spatial extent, temporal range, and variable selection. Seamless integration with geospatial libraries such as `xarray` [@hoyer2017xarray] and `geopandas` [@kelsey_jordahl_2020_3946761] ensures compatibility with reproducible workflows, from local machines to cloud and high-performance computing environments. By leveraging TileDB’s advanced spatial indexing, `gediDB` simplifies and accelerates GEDI data access and analysis (see [Fig. 2](#fig2)).
-
-The increasing use of GEDI in global applications, such as canopy height mapping [@pauls2024estimatingcanopyheightscale], disturbance assessment [@HOLCOMB2024114174], and forest degradation monitoring [@bourgoin2024human], highlights the need for efficient and scalable tooling. By streamlining data access and enabling large-scale, reproducible workflows, `gediDB` provides a scalable framework for GEDI data analysis, complementing efforts like SlideRule in the ICESat-2 domain and supporting broader ecological monitoring and policy-relevant research.
-
+`gediDB` fills this gap with a Python-based API that unifies access to all GEDI products (Level 2A [@dubayah2021gedi_l2a], 2B [@dubayah2021gedi_l2b], 4A [@dubayah2022gedi_l4a], and 4C [@deconto2024gedi_l4c]). Built on the TileDB engine [@tiledb2025], it enables fast, scalable queries by space, time, and variable. Results integrate seamlessly with `xarray` [@hoyer2017xarray] and `geopandas` [@kelsey_jordahl_2020_3946761], supporting reproducible workflows from laptops to HPC (see [Fig. 2](#fig2)). By simplifying access and scaling to global analyses, `gediDB` complements efforts like SlideRule in the ICESat-2 domain and supports ecological monitoring and policy-relevant research.
 
 ![Schematic representation of the gediDB workflow](figs/GEDIDB_FLOWCHART.png){#fig2}
 *Fig. 2: A schematic representation of the gediDB data workflow.*
-
-
 
 # Core functionalities
 
