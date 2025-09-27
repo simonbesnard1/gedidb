@@ -13,6 +13,7 @@
 [![Docs](https://readthedocs.org/projects/gedidb/badge/?version=latest)](https://gedidb.readthedocs.io/en/latest/)
 [![Available on PyPI](https://img.shields.io/pypi/v/gedidb.svg)](https://pypi.python.org/pypi/gedidb/)
 [![PyPI Downloads](https://static.pepy.tech/badge/gedidb)](https://pepy.tech/projects/gedidb)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.08593/status.svg)](https://doi.org/10.21105/joss.08593)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13885229.svg)](https://doi.org/10.5281/zenodo.13885228)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 

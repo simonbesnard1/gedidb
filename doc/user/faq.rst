@@ -9,7 +9,7 @@ How should I cite gediDB?
 
 Please use the following citation when referencing gediDB in your work:
 
-> Besnard, S., Dombrowski, F., & Holcomb, A. (2025). gediDB (2025.2.0). Zenodo. https://doi.org/10.5281/zenodo.13885229
+> Besnard et al., (2025). gediDB: A toolbox for processing and providing Global Ecosystem Dynamics Investigation (GEDI) L2A-B and L4A-C data. Journal of Open Source Software, 10(113), 8593, https://doi.org/10.21105/joss.08593
 
 What are the main features of gediDB?
 -------------------------------------
