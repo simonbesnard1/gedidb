@@ -4,17 +4,16 @@
 # SPDX-FileCopyrightText: 2025 Felix Dombrowski
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-#
 
 import logging
 import os
+from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import tiledb
 
-# Configure the logger
 logger = logging.getLogger(__name__)
 
 DEFAULT_DIMS = ["shot_number"]
@@ -22,7 +21,7 @@ DEFAULT_DIMS = ["shot_number"]
 
 class TileDBProvider:
     """
-    A base provider class for managing low-level interactions with TileDB arrays for GEDI data.
+    An optimized provider class for managing low-level interactions with TileDB arrays for GEDI data.
     """
 
     def __init__(
@@ -34,15 +33,12 @@ class TileDBProvider:
         region: str = "eu-central-1",
         credentials: Optional[dict] = None,
     ):
-
-        # Validate storage_type
         if not storage_type or not isinstance(storage_type, str):
             raise ValueError("The 'storage_type' argument must be a non-empty string.")
 
         storage_type = storage_type.lower()
 
         if storage_type == "s3":
-            # Validate s3_bucket for S3 storage type
             if not s3_bucket:
                 raise ValueError(
                     "The 's3_bucket' must be provided when 'storage_type' is set to 's3'."
@@ -51,7 +47,6 @@ class TileDBProvider:
             self.ctx = self._initialize_s3_context(credentials, url, region)
 
         elif storage_type == "local":
-            # Validate local_path for local storage type
             if not local_path:
                 raise ValueError(
                     "The 'local_path' must be provided when 'storage_type' is set to 'local'."
@@ -60,10 +55,13 @@ class TileDBProvider:
             self.ctx = self._initialize_local_context()
 
         else:
-            # Raise an error for invalid storage_type
             raise ValueError(
                 f"Invalid 'storage_type': {storage_type}. Must be 'local' or 's3'."
             )
+
+        # Cache schema information to avoid repeated array opens
+        self._schema_cache = None
+        self._metadata_cache = None
 
     def _initialize_s3_context(
         self, credentials: Optional[dict], url: str, region: str
@@ -71,12 +69,23 @@ class TileDBProvider:
         config = {
             "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region,
-            "py.init_buffer_bytes": "17179869184",  # 16GB buffer (as string bytes)
-            "sm.tile_cache_size": "17179869184",  # 16GB cache
-            "sm.num_reader_threads": "128",  # More parallel reads
-            "sm.num_tiledb_threads": "128",
-            "vfs.s3.max_parallel_ops": "64",  # Maximize parallel S3 ops
+            # Memory optimizations
+            "py.init_buffer_bytes": str(16 * 1024**3),  # 16GB
+            "sm.tile_cache_size": str(16 * 1024**3),  # 16GB
+            # Thread optimizations
+            "sm.num_reader_threads": "64",  # Reduced from 128 for better efficiency
+            "sm.num_tiledb_threads": "64",
+            # S3 optimizations
+            "vfs.s3.max_parallel_ops": "32",  # More conservative for stability
+            "vfs.s3.multipart_part_size": str(50 * 1024**2),  # 50MB parts
+            "vfs.s3.connect_timeout_ms": "10800000",  # 3 hours
+            "vfs.s3.request_timeout_ms": "10800000",  # 3 hours
             "vfs.s3.use_virtual_addressing": "true",
+            "vfs.s3.scheme": "https",
+            # Query optimization
+            "sm.enable_signal_handlers": "false",
+            "sm.compute_concurrency_level": "64",
+            "sm.io_concurrency_level": "64",
         }
 
         if credentials:
@@ -86,11 +95,11 @@ class TileDBProvider:
                     "vfs.s3.aws_secret_access_key": credentials.get(
                         "SecretAccessKey", ""
                     ),
-                    "vfs.s3.no_sign_request": "false",  # Use signed requests when credentials are provided
+                    "vfs.s3.aws_session_token": credentials.get("SessionToken", ""),
+                    "vfs.s3.no_sign_request": "false",
                 }
             )
         else:
-            # For anonymous access, disable request signing
             config["vfs.s3.no_sign_request"] = "true"
 
         return tiledb.Ctx(config)
@@ -98,38 +107,98 @@ class TileDBProvider:
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx(
             {
-                "py.init_buffer_bytes": "2048000000",  # 2GB buffer
-                "sm.tile_cache_size": "2048000000",  # 2GB cache
-                "sm.num_reader_threads": "32",  # More parallel reads
+                "py.init_buffer_bytes": str(4 * 1024**3),  # 4GB
+                "sm.tile_cache_size": str(4 * 1024**3),  # 4GB
+                "sm.num_reader_threads": "32",
                 "sm.num_tiledb_threads": "32",
+                "sm.compute_concurrency_level": "32",
+                "sm.io_concurrency_level": "32",
             }
         )
 
+    @lru_cache(maxsize=1)
     def get_available_variables(self) -> pd.DataFrame:
         """
         Retrieve metadata for available variables in the scalar TileDB array.
+        Results are cached to avoid repeated array opens.
         """
+        if self._metadata_cache is not None:
+            return self._metadata_cache
+
         try:
             with tiledb.open(
                 self.scalar_array_uri, mode="r", ctx=self.ctx
             ) as scalar_array:
+                # Filter metadata more efficiently
                 metadata = {
                     k: scalar_array.meta[k]
                     for k in scalar_array.meta
                     if not k.startswith("granule_") and "array_type" not in k
                 }
 
-                organized_metadata = {}
-                for key, value in metadata.items():
-                    var_name, attr_type = key.split(".", 1)
-                    if var_name not in organized_metadata:
-                        organized_metadata[var_name] = {}
-                    organized_metadata[var_name][attr_type] = value
+                # Organize metadata more efficiently using defaultdict
+                from collections import defaultdict
 
-                return pd.DataFrame.from_dict(organized_metadata, orient="index")
+                organized_metadata = defaultdict(dict)
+                for key, value in metadata.items():
+                    if "." in key:
+                        var_name, attr_type = key.split(".", 1)
+                        organized_metadata[var_name][attr_type] = value
+
+                result = pd.DataFrame.from_dict(dict(organized_metadata), orient="index")
+                self._metadata_cache = result
+                return result
+
         except Exception as e:
             logger.error(f"Failed to retrieve variables from TileDB: {e}")
             raise
+
+    def _build_profile_attrs(
+        self, variables: List[str], array_meta
+    ) -> Tuple[List[str], Dict[str, List[str]]]:
+        """
+        Build attribute list and profile variable mapping efficiently.
+        """
+        attr_list = []
+        profile_vars = {}
+
+        for var in variables:
+            profile_key = f"{var}.profile_length"
+            if profile_key in array_meta:
+                profile_length = array_meta[profile_key]
+                profile_attrs = [f"{var}_{i}" for i in range(1, profile_length + 1)]
+                attr_list.extend(profile_attrs)
+                profile_vars[var] = profile_attrs
+            else:
+                attr_list.append(var)
+
+        return attr_list, profile_vars
+
+    def _build_condition_string(self, filters: Dict[str, str]) -> Optional[str]:
+        """
+        Build TileDB query condition string from filter dictionary.
+        """
+        if not filters:
+            return None
+
+        cond_list = []
+        for key, condition in filters.items():
+            condition = condition.strip()
+            # Handle compound conditions
+            if " and " in condition.lower():
+                parts = condition.lower().split(" and ")
+                for part in parts:
+                    part = part.strip()
+                    # Extract operator and value
+                    for op in [">=", "<=", "==", "!=", ">", "<", "="]:
+                        if op in part:
+                            value = part.split(op, 1)[1].strip()
+                            cond_list.append(f"{key} {op} {value}")
+                            break
+            else:
+                cond_list.append(f"{key} {condition}")
+
+        return " and ".join(cond_list) if cond_list else None
 
     def _query_array(
         self,
@@ -140,63 +209,102 @@ class TileDBProvider:
         lon_max: float,
         start_time: Optional[np.datetime64],
         end_time: Optional[np.datetime64],
+        return_coords: bool = True,
         **filters: Dict[str, str],
     ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
         """
-        Execute a query on a TileDB array with spatial, temporal, and additional filters.
+        Execute an optimized query on a TileDB array with spatial, temporal, and additional filters.
         """
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
-                attr_list = []
-                profile_vars = {}
+                # Build attribute list and profile variables
+                attr_list, profile_vars = self._build_profile_attrs(
+                    variables, array.meta
+                )
 
-                for var in variables:
-                    if f"{var}.profile_length" in array.meta:
-                        profile_length = array.meta[f"{var}.profile_length"]
-                        profile_attrs = [
-                            f"{var}_{i}" for i in range(1, profile_length + 1)
-                        ]
-                        attr_list.extend(profile_attrs)
-                        profile_vars[var] = profile_attrs
-                    else:
-                        attr_list.append(var)
+                # Build condition string
+                cond_string = self._build_condition_string(filters)
 
-                # Construct the quality filter condition
-                cond_list = []
-                for key, condition in filters.items():
-                    # Handle range conditions like ">= 0.9 and <= 1.0"
-                    if "and" in condition:
-                        parts = condition.split("and")
-                        for part in parts:
-                            cond_list.append(f"{key} {part.strip()}")
-                    else:
-                        cond_list.append(f"{key} {condition.strip()}")
-                cond_string = " and ".join(cond_list) if cond_list else None
-                query = array.query(attrs=attr_list, cond=cond_string)
+                # Execute query with optimized settings
+                query = array.query(
+                    attrs=attr_list,
+                    cond=cond_string,
+                    coords=return_coords,
+                    return_incomplete=False,  # Ensure complete results
+                )
+
+                # Use multi_index for efficient spatial-temporal slicing
                 data = query.multi_index[
                     lat_min:lat_max, lon_min:lon_max, start_time:end_time
                 ]
 
-                if len(data["shot_number"]) == 0:
+                # Early return if no data
+                if not data or len(data.get("shot_number", [])) == 0:
+                    logger.info("Query returned no results for the specified filters.")
                     return None, profile_vars
 
                 return data, profile_vars
+
         except Exception as e:
             logger.error(f"Error querying TileDB array '{self.scalar_array_uri}': {e}")
             raise
 
-    def _get_tiledb_spatial_domain(self):
+    def _get_tiledb_spatial_domain(self) -> Tuple[float, float, float, float]:
         """
         Retrieve the spatial domain (bounding box) from the TileDB array schema.
+        Results are cached to avoid repeated array opens.
 
         Returns:
         -------
         Tuple[float, float, float, float]
             (min_longitude, max_longitude, min_latitude, max_latitude)
         """
+        if self._schema_cache is not None:
+            return self._schema_cache
+
         with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
             domain = array.schema.domain
-            min_lon, max_lon = domain.dim(1).domain  # Longitude dimension
-            min_lat, max_lat = domain.dim(0).domain  # Latitude dimension
+            min_lon, max_lon = domain.dim(1).domain
+            min_lat, max_lat = domain.dim(0).domain
 
-        return min_lon, max_lon, min_lat, max_lat
+        result = (min_lon, max_lon, min_lat, max_lat)
+        self._schema_cache = result
+        return result
+
+    def query_dataframe(
+        self,
+        variables: List[str],
+        lat_min: float,
+        lat_max: float,
+        lon_min: float,
+        lon_max: float,
+        start_time: Optional[np.datetime64] = None,
+        end_time: Optional[np.datetime64] = None,
+        **filters: Dict[str, str],
+    ) -> Optional[pd.DataFrame]:
+        """
+        Query TileDB and return results as a pandas DataFrame.
+        This is a convenience method for common use cases.
+        """
+        data, profile_vars = self._query_array(
+            variables, lat_min, lat_max, lon_min, lon_max, start_time, end_time, **filters
+        )
+
+        if data is None:
+            return None
+
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+
+        # Reconstruct profile variables if needed
+        for var_name, profile_cols in profile_vars.items():
+            if all(col in df.columns for col in profile_cols):
+                df[var_name] = df[profile_cols].values.tolist()
+                df = df.drop(columns=profile_cols)
+
+        return df
+
+    def close(self):
+        """Clean up resources."""
+        self._schema_cache = None
+        self._metadata_cache = None
