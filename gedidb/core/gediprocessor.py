@@ -47,7 +47,7 @@ class GEDIProcessor:
         start_date: str = None,
         end_date: str = None,
         config_file: str = None,
-        earth_data_dir: str = None,
+        earth_data_dir: Optional["str"] = None,
         credentials: Optional[dict] = None,
         parallel_engine: Optional[object] = None,
         log_dir: Optional[str] = None,
@@ -86,12 +86,6 @@ class GEDIProcessor:
         if not config_path.exists():
             raise FileNotFoundError(
                 f"The configuration file does not exist: {config_file}"
-            )
-
-        # Validate Earth data directory
-        if not earth_data_dir or not isinstance(earth_data_dir, str):
-            raise ValueError(
-                "The 'earth_data_dir' argument must be a valid, non-empty string pointing to the directory where the Earthdata credentials are storred"
             )
 
         # Validate credentials
@@ -152,8 +146,10 @@ class GEDIProcessor:
         self.data_info = self._load_yaml_file(config_file)
         self.credentials = credentials
 
-        # Validate Earthdata credentials directory
-        earth_data_path = Path(earth_data_dir)
+        # Validate Earth data directory
+        earth_data_path = Path(earth_data_dir) if earth_data_dir else Path.home()
+
+        print(earth_data_path)
         if not earth_data_path.exists():
             raise FileNotFoundError(
                 f"The specified Earth data credentials directory '{earth_data_dir}' does not exist. "
