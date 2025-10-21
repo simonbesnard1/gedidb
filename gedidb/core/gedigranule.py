@@ -137,85 +137,103 @@ class GEDIGranule:
         Join GEDI product DataFrames on 'shot_number' with this policy:
           - Required products: L2A, L2B, L4A, L4C must exist and be non-empty.
           - Base = inner(L2A, L2B) on 'shot_number' (one-to-one after de-dup).
-          - Then left-join L4A and L4C to the base, so L4-missing shots are retained.
+          - Then left-join L4A and L4C to the base, so L4 data is added where available.
 
         Additional behavior:
           - Enforces consistent 'string' dtype for 'shot_number'.
           - Drops duplicates per product on 'shot_number' (keeps first).
-          - Handles column collisions:
-              * For L2A ⨝ L2B: keep L2A names; suffix L2B overlapping non-key columns with '_L2B'.
-              * For L4A/L4C left-joins: suffix overlapping non-key columns with '_L4A' / '_L4C'.
-          - Returns None if any required product missing/empty, if key is missing, or if base ends empty.
+          - Handles column collisions with suffixes.
+          - Returns None if any required product missing/empty or if base ends empty.
+
         """
         key = "shot_number"
-
-        # --- Required products
         req = [GediProduct.L2A, GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]
+
+        missing = []
         for p in req:
             code = p.value
             if code not in df_dict or df_dict[code] is None or df_dict[code].empty:
-                return None
+                missing.append(code)
 
-        def _prep(df: pd.DataFrame) -> pd.DataFrame:
-            if key not in df.columns:
-                # treat as join failure per your contract (return None)
-                raise KeyError(f"[{granule_key}] Missing join key '{key}'.")
-            out = df.copy()
-            out[key] = out[key].astype("string")
-            return out.drop_duplicates(subset=[key], keep="first")
-
-        try:
-            l2a = _prep(df_dict[GediProduct.L2A.value])
-            l2b = _prep(df_dict[GediProduct.L2B.value])
-            l4a = _prep(df_dict[GediProduct.L4A.value])
-            l4c = _prep(df_dict[GediProduct.L4C.value])
-        except Exception:
+        if missing:
+            logger.warning(f"[{granule_key}] Missing required products: {missing}")
             return None
 
-        # --- Build base via inner join: L2A ⨝ L2B
-        # Resolve collisions: suffix on the RIGHT (L2B) for all overlapping non-key cols
+        def _prep(df: pd.DataFrame, product_name: str) -> pd.DataFrame:
+            """Prepare DataFrame with validation and deduplication."""
+            if key not in df.columns:
+                raise KeyError(
+                    f"[{granule_key}] Product {product_name} missing join key '{key}'"
+                )
+
+            # Single copy, then modify
+            out = df.copy()
+            out[key] = out[key].astype("string")
+
+            out = out.drop_duplicates(subset=[key], keep="first")
+
+            return out
+
+        # Prepare all DataFrames
+        try:
+            l2a = _prep(df_dict[GediProduct.L2A.value], "L2A")
+            l2b = _prep(df_dict[GediProduct.L2B.value], "L2B")
+            l4a = _prep(df_dict[GediProduct.L4A.value], "L4A")
+            l4c = _prep(df_dict[GediProduct.L4C.value], "L4C")
+        except Exception as e:
+            logger.error(f"[{granule_key}] Preparation failed: {e}")
+            return None
+
+        # STEP 1: Build base via inner join L2A ⨝ L2B
         overlap_l2 = l2a.columns.intersection(l2b.columns).difference([key])
         if len(overlap_l2) > 0:
-            l2b = l2b.rename(
-                columns={c: f"{c}_{GediProduct.L2B.value}" for c in overlap_l2}
-            )
+
+            # Use dictionary comprehension (slightly faster)
+            l2b = l2b.rename(columns={c: f"{c}_L2B" for c in overlap_l2})
 
         try:
             base = l2a.merge(
                 l2b, on=key, how="inner", validate="one_to_one", copy=False
             )
-        except Exception:
-            return None
-        if base.empty:
+        except Exception as e:
+            logger.error(f"[{granule_key}] L2A⨝L2B merge failed: {e}")
             return None
 
-        # --- LEFT-join L4A
+        if base.empty:
+            logger.warning(f"[{granule_key}] No matching shots between L2A and L2B")
+            return None
+
+        # STEP 2: LEFT-join L4A
         overlap = base.columns.intersection(l4a.columns).difference([key])
         if len(overlap) > 0:
-            l4a = l4a.rename(
-                columns={c: f"{c}_{GediProduct.L4A.value}" for c in overlap}
-            )
+
+            l4a = l4a.rename(columns={c: f"{c}_L4A" for c in overlap})
+
         try:
             base = base.merge(
                 l4a, on=key, how="left", validate="one_to_one", copy=False
             )
-        except Exception:
+
+        except Exception as e:
+            logger.error(f"[{granule_key}] L4A left-join failed: {e}")
             return None
 
-        # --- LEFT-join L4C
+        # STEP 3: LEFT-join L4C
         overlap = base.columns.intersection(l4c.columns).difference([key])
         if len(overlap) > 0:
-            l4c = l4c.rename(
-                columns={c: f"{c}_{GediProduct.L4C.value}" for c in overlap}
-            )
+
+            l4c = l4c.rename(columns={c: f"{c}_L4C" for c in overlap})
+
         try:
             base = base.merge(
                 l4c, on=key, how="left", validate="one_to_one", copy=False
             )
-        except Exception:
+
+        except Exception as e:
+            logger.error(f"[{granule_key}] L4C left-join failed: {e}")
             return None
 
-        # Deterministic column order: key, then original L2A cols, then others
+        # Build column list without repeated list operations
         l2a_cols = [c for c in l2a.columns if c != key]
         other_cols = [c for c in base.columns if c not in ([key] + l2a_cols)]
         base = base[[key] + l2a_cols + other_cols]
