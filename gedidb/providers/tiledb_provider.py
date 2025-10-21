@@ -147,7 +147,9 @@ class TileDBProvider:
                         var_name, attr_type = key.split(".", 1)
                         organized_metadata[var_name][attr_type] = value
 
-                result = pd.DataFrame.from_dict(dict(organized_metadata), orient="index")
+                result = pd.DataFrame.from_dict(
+                    dict(organized_metadata), orient="index"
+                )
                 self._metadata_cache = result
                 return result
 
@@ -192,14 +194,16 @@ class TileDBProvider:
 
         for key, condition in filters.items():
             condition = condition.strip()
-            
+
             # Handle compound conditions (AND/OR)
             if " and " in condition.lower():
                 parts = condition.lower().split(" and ")
                 for part in parts:
                     part = part.strip()
                     # Find operator and build condition
-                    for op in sorted(valid_ops, key=len, reverse=True):  # Check longest first
+                    for op in sorted(
+                        valid_ops, key=len, reverse=True
+                    ):  # Check longest first
                         if op in part:
                             value = part.split(op, 1)[1].strip()
                             cond_list.append(f"{key} {op} {value}")
@@ -212,9 +216,11 @@ class TileDBProvider:
                         cond_list.append(f"{key} {condition}")
                         found_op = True
                         break
-                
+
                 if not found_op:
-                    logger.warning(f"No valid operator found in filter: {key} {condition}")
+                    logger.warning(
+                        f"No valid operator found in filter: {key} {condition}"
+                    )
 
         return " and ".join(cond_list) if cond_list else None
 
@@ -226,14 +232,14 @@ class TileDBProvider:
         """
         Filter query results by irregular polygon using vectorized operations.
         Much faster than point-by-point checking.
-        
+
         Parameters
         ----------
         data : Dict[str, np.ndarray]
             Query results from TileDB
         geometry : gpd.GeoDataFrame
             Polygon(s) to filter by
-            
+
         Returns
         -------
         Dict[str, np.ndarray]
@@ -241,27 +247,25 @@ class TileDBProvider:
         """
         if data is None or len(data.get("shot_number", [])) == 0:
             return data
-        
+
         # Get lon/lat from data
         lons = data["longitude"]
         lats = data["latitude"]
-        
+
         # Get the geometry (handle MultiPolygon or single Polygon)
         geom = geometry.unary_union if len(geometry) > 1 else geometry.geometry.iloc[0]
-        
+
         # Vectorized point-in-polygon test (MUCH faster than iterating)
         mask = contains(geom, lons, lats)
-        
+
         # Apply mask to all arrays
-        filtered_data = {
-            key: value[mask] for key, value in data.items()
-        }
-        
+        filtered_data = {key: value[mask] for key, value in data.items()}
+
         logger.info(
             f"Polygon filter: {mask.sum()}/{len(mask)} points retained "
             f"({100 * mask.sum() / len(mask):.1f}%)"
         )
-        
+
         return filtered_data
 
     def _query_array(
@@ -280,7 +284,7 @@ class TileDBProvider:
     ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
         """
         Execute an optimized query on a TileDB array with spatial, temporal, and polygon filters.
-        
+
         Parameters
         ----------
         variables : List[str]
@@ -297,7 +301,7 @@ class TileDBProvider:
             If True, apply post-query polygon filtering (slower but handles irregular shapes)
         **filters : Dict[str, str]
             Additional attribute filters
-            
+
         Returns
         -------
         Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]
@@ -309,7 +313,7 @@ class TileDBProvider:
                 attr_list, profile_vars = self._build_profile_attrs(
                     variables, array.meta
                 )
-                
+
                 # Build condition string
                 cond_string = self._build_condition_string(filters)
 
@@ -325,7 +329,7 @@ class TileDBProvider:
                 data = query.multi_index[
                     lat_min:lat_max, lon_min:lon_max, start_time:end_time
                 ]
-                
+
                 # Early return if no data
                 if not data or len(data.get("shot_number", [])) == 0:
                     return None, profile_vars
@@ -333,7 +337,7 @@ class TileDBProvider:
                 # Apply polygon filter if requested
                 if use_polygon_filter and geometry is not None:
                     data = self._filter_by_polygon(data, geometry)
-                    
+
                     # Check again after polygon filter
                     if len(data.get("shot_number", [])) == 0:
                         return None, profile_vars
@@ -381,7 +385,7 @@ class TileDBProvider:
     ) -> Optional[pd.DataFrame]:
         """
         Query TileDB and return results as a pandas DataFrame.
-        
+
         Parameters
         ----------
         variables : List[str]
@@ -396,7 +400,7 @@ class TileDBProvider:
             Whether to apply polygon filtering after bbox query
         **filters : Dict[str, str]
             Additional filters
-            
+
         Returns
         -------
         Optional[pd.DataFrame]
@@ -412,7 +416,7 @@ class TileDBProvider:
             end_time,
             geometry=geometry,
             use_polygon_filter=use_polygon_filter,
-            **filters
+            **filters,
         )
 
         if data is None:

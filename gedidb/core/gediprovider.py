@@ -97,11 +97,11 @@ class GEDIProvider(TileDBProvider):
         # Efficient KD-tree search
         tree = cKDTree(np.column_stack((longitudes, latitudes)))
         distances, indices = tree.query(point, k=min(num_shots, len(longitudes)))
-        
+
         # Handle single result case
         if np.isscalar(indices):
             indices = [indices]
-        
+
         nearest_shots = scalar_data_subset["shot_number"][indices]
 
         # Vectorized filtering (faster than dict comprehension)
@@ -121,12 +121,12 @@ class GEDIProvider(TileDBProvider):
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
         Query GEDI data with optimized spatial filtering.
-        
+
         OPTIMIZATION IMPROVEMENTS:
         1. Auto-detect when polygon filtering is needed
         2. Use vectorized polygon operations
         3. Efficient timestamp conversion
-        
+
         Parameters
         ----------
         variables : List[str]
@@ -141,7 +141,7 @@ class GEDIProvider(TileDBProvider):
             - False: Only use bounding box (faster but may include extra points)
         **quality_filters : dict
             Additional attribute filters
-            
+
         Returns
         -------
         Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]
@@ -163,22 +163,24 @@ class GEDIProvider(TileDBProvider):
             else None
         )
         end_timestamp = (
-            _datetime_to_timestamp_days(np.datetime64(end_time))
-            if end_time
-            else None
+            _datetime_to_timestamp_days(np.datetime64(end_time)) if end_time else None
         )
-        
+
         # Auto-detect polygon filtering need
         if use_polygon_filter == "auto":
 
             # Check if geometry is complex (not just a rectangle)
-            geom = geometry.unary_union if len(geometry) > 1 else geometry.geometry.iloc[0]
+            geom = (
+                geometry.unary_union if len(geometry) > 1 else geometry.geometry.iloc[0]
+            )
             bbox_area = (lon_max - lon_min) * (lat_max - lat_min)
             geom_area = geom.area
-            
+
             # If geometry fills less than 80% of bbox, use polygon filter
-            use_polygon_filter = (geom_area / bbox_area) < 0.9 if bbox_area > 0 else False
-            
+            use_polygon_filter = (
+                (geom_area / bbox_area) < 0.9 if bbox_area > 0 else False
+            )
+
             if use_polygon_filter:
                 logger.info(
                     f"Auto-enabled polygon filter (geometry covers "
@@ -218,12 +220,12 @@ class GEDIProvider(TileDBProvider):
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
         Retrieve GEDI data with optimized querying and flexible polygon support.
-        
+
         NEW FEATURES:
         - Automatic polygon filter detection
         - Support for irregular polygons
         - Better validation and error messages
-        
+
         Parameters
         ----------
         use_polygon_filter : bool or "auto", default "auto"
@@ -299,19 +301,19 @@ class GEDIProvider(TileDBProvider):
             return self.to_dataframe(scalar_data, profile_vars)
 
     def to_dataframe(
-        self, 
+        self,
         scalar_data: Dict[str, np.ndarray],
-        profile_vars: Dict[str, List[str]] = None
+        profile_vars: Dict[str, List[str]] = None,
     ) -> pd.DataFrame:
         """
         Convert data to DataFrame with optimized profile reconstruction.
         """
         # Convert timestamps efficiently
         scalar_data["time"] = _timestamp_to_datetime(scalar_data["time"])
-        
+
         # Create DataFrame (optimized with from_dict)
         scalar_df = pd.DataFrame.from_dict(scalar_data)
-        
+
         # Reconstruct profile variables if present
         if profile_vars:
             for var_name, profile_cols in profile_vars.items():
@@ -319,10 +321,10 @@ class GEDIProvider(TileDBProvider):
                     # Vectorized list creation (faster than iterrows)
                     scalar_df[var_name] = scalar_df[profile_cols].values.tolist()
                     scalar_df = scalar_df.drop(columns=profile_cols)
-        
+
         # Sort once at the end
         scalar_df = scalar_df.sort_values(by="time")
-        
+
         return scalar_df
 
     def to_xarray(
@@ -338,12 +340,14 @@ class GEDIProvider(TileDBProvider):
         profile_var_components = [
             item for sublist in profile_vars.values() for item in sublist
         ]
-        
+
         # Identify scalar variables
         scalar_vars = [
             var
             for var in scalar_data
-            if var not in ["latitude", "longitude", "time", "shot_number"] + profile_var_components
+            if var
+            not in ["latitude", "longitude", "time", "shot_number"]
+            + profile_var_components
         ]
 
         # Convert timestamps
@@ -390,7 +394,7 @@ class GEDIProvider(TileDBProvider):
 
         # Merge datasets
         dataset = xr.merge([scalar_ds, profile_ds])
-        
+
         # Add coordinates
         dataset = dataset.assign_coords(
             {
@@ -399,7 +403,7 @@ class GEDIProvider(TileDBProvider):
                 "time": ("shot_number", times),
             }
         )
-        
+
         # Sort by time
         dataset = dataset.sortby("time")
 
@@ -410,7 +414,7 @@ class GEDIProvider(TileDBProvider):
 
     def _attach_metadata(self, dataset: xr.Dataset, metadata: pd.DataFrame) -> None:
         """
-        Attach metadata to Xarray variables with support for percentile variants.        
+        Attach metadata to Xarray variables with support for percentile variants.
         """
         metadata_dict = metadata.to_dict(orient="index")
         default_metadata = defaultdict(
@@ -422,13 +426,13 @@ class GEDIProvider(TileDBProvider):
 
         for var in dataset.variables:
             var_metadata = metadata_dict.get(var, default_metadata)
-            
+
             # Check for percentile variants (e.g., rh_95)
             match = re.match(r"^(.+?)_(\d+)$", var)
             if match:
                 base_var = match.group(1)
                 percentile = match.group(2)
-                
+
                 if base_var in base_vars_with_percentiles:
                     base_metadata = metadata_dict.get(base_var)
                     if base_metadata:
