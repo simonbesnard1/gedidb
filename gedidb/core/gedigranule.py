@@ -131,15 +131,14 @@ class GEDIGranule:
 
     @staticmethod
     def _join_dfs(
-        df_dict: Dict[str, pd.DataFrame],
-        granule_key: str
+        df_dict: Dict[str, pd.DataFrame], granule_key: str
     ) -> Optional[pd.DataFrame]:
         """
         Join GEDI product DataFrames on 'shot_number' with this policy:
           - Required products: L2A, L2B, L4A, L4C must exist and be non-empty.
           - Base = inner(L2A, L2B) on 'shot_number' (one-to-one after de-dup).
           - Then left-join L4A and L4C to the base, so L4-missing shots are retained.
-        
+
         Additional behavior:
           - Enforces consistent 'string' dtype for 'shot_number'.
           - Drops duplicates per product on 'shot_number' (keeps first).
@@ -177,7 +176,9 @@ class GEDIGranule:
         # Resolve collisions: suffix on the RIGHT (L2B) for all overlapping non-key cols
         overlap_l2 = l2a.columns.intersection(l2b.columns).difference([key])
         if len(overlap_l2) > 0:
-            l2b = l2b.rename(columns={c: f"{c}_{GediProduct.L2B.value}" for c in overlap_l2})
+            l2b = l2b.rename(
+                columns={c: f"{c}_{GediProduct.L2B.value}" for c in overlap_l2}
+            )
 
         try:
             base = l2a.merge(
@@ -191,7 +192,9 @@ class GEDIGranule:
         # --- LEFT-join L4A
         overlap = base.columns.intersection(l4a.columns).difference([key])
         if len(overlap) > 0:
-            l4a = l4a.rename(columns={c: f"{c}_{GediProduct.L4A.value}" for c in overlap})
+            l4a = l4a.rename(
+                columns={c: f"{c}_{GediProduct.L4A.value}" for c in overlap}
+            )
         try:
             base = base.merge(
                 l4a, on=key, how="left", validate="one_to_one", copy=False
@@ -202,7 +205,9 @@ class GEDIGranule:
         # --- LEFT-join L4C
         overlap = base.columns.intersection(l4c.columns).difference([key])
         if len(overlap) > 0:
-            l4c = l4c.rename(columns={c: f"{c}_{GediProduct.L4C.value}" for c in overlap})
+            l4c = l4c.rename(
+                columns={c: f"{c}_{GediProduct.L4C.value}" for c in overlap}
+            )
         try:
             base = base.merge(
                 l4c, on=key, how="left", validate="one_to_one", copy=False
