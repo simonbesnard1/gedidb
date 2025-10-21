@@ -85,9 +85,9 @@ class CMRDataDownloader(GEDIDownloader):
             RequestException,
             NewConnectionError,
         ),
-        tries=10,
-        delay=5,
-        backoff=3,
+        tries=4,
+        delay=2,
+        backoff=2,
         logger=logger,
     )
     def download(self) -> dict:
@@ -139,7 +139,11 @@ class CMRDataDownloader(GEDIDownloader):
                 continue
 
         if not cmr_dict:
-            raise ValueError("No granules found after retry attempts.")
+            raise ValueError(
+                "No GEDI granules found for the provided spatio-temporal request. "
+                f"Geometry bounds={self.geom.total_bounds.tolist()}, "
+                f"start_date={self.start_date}, end_date={self.end_date}"
+            )
 
         # Filter granules to only include those with all required products
         filtered_cmr_dict = self._filter_granules_with_all_products(cmr_dict)
