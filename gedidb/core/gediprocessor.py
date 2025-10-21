@@ -148,8 +148,6 @@ class GEDIProcessor:
 
         # Validate Earth data directory
         earth_data_path = Path(earth_data_dir) if earth_data_dir else Path.home()
-
-        print(earth_data_path)
         if not earth_data_path.exists():
             raise FileNotFoundError(
                 f"The specified Earth data credentials directory '{earth_data_dir}' does not exist. "
