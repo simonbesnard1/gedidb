@@ -337,12 +337,26 @@ class TileDBProvider:
                 data = query.multi_index[
                     lat_lo:lat_hi, lon_lo:lon_hi, start_time:end_time
                 ]
-                data["latitude"] = (
-                    data["latitude"].astype("float64") / quantization_factor
+
+                q = 1e6
+
+                # detect coord keys (supports either 'latitude' or 'latitude_q' naming)
+                lat_key = (
+                    "latitude"
+                    if "latitude" in data
+                    else ("latitude_q" if "latitude_q" in data else None)
                 )
-                data["longitude"] = (
-                    data["longitude"].astype("float64") / quantization_factor
+                lon_key = (
+                    "longitude"
+                    if "longitude" in data
+                    else ("longitude_q" if "longitude_q" in data else None)
                 )
+
+                if lat_key:
+                    # cast to float to avoid in-place integer division weirdness
+                    data["latitude"] = data.pop(lat_key).astype("float64") / q
+                if lon_key:
+                    data["longitude"] = data.pop(lon_key).astype("float64") / q
 
                 # Early return if no data
                 if not data or len(data.get("shot_number", [])) == 0:

@@ -641,9 +641,9 @@ class GEDIDatabase:
                 )
             elif dim_name in ("latitude", "longitude"):
                 # Quantize and round to the nearest integer grid cell
-                coords[dim_name + "_q"] = np.round(
-                    granule_data[dim_name].values * q
-                ).astype(np.int64)
+                coords[dim_name] = np.round(granule_data[dim_name].values * q).astype(
+                    np.int64
+                )
             else:
                 coords[dim_name] = granule_data[dim_name].values
 
