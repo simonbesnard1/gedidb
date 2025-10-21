@@ -359,7 +359,7 @@ class GEDIDatabase:
                 domain=domain,
                 attrs=attributes,
                 sparse=True,
-                capacity=self.config.get("tiledb", {}).get("capacity", 10000),
+                capacity=self.config.get("tiledb", {}).get("capacity", 200000),
                 cell_order=self.config.get("tiledb", {}).get("cell_order", "hilbert"),
             )
             tiledb.Array.create(uri, schema, ctx=self.ctx)
@@ -401,29 +401,54 @@ class GEDIDatabase:
         if time_min >= time_max:
             raise ValueError("Invalid time range: time_min must be less than time_max.")
 
-        # Define dimensions
-        dimensions = [
-            tiledb.Dim(
-                "latitude",
-                domain=(lat_min, lat_max),
-                tile=self.config.get("tiledb", {}).get("latitude_tile", 0.5),
-                dtype="float64",
-            ),
-            tiledb.Dim(
-                "longitude",
-                domain=(lon_min, lon_max),
-                tile=self.config.get("tiledb", {}).get("longitude_tile", 0.5),
-                dtype="float64",
-            ),
-            tiledb.Dim(
-                "time",
-                domain=(time_min, time_max),
-                tile=self.config.get("tiledb", {}).get("time_tile", 365),
-                dtype="int64",
-            ),
-        ]
+        # Quantization: micro-degrees (1e-6°). Adjust if you want coarser/finer.
+        q = self.config.get("tiledb", {}).get("quantization_factor", 1e6)
 
-        return tiledb.Domain(*dimensions)
+        if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
+            raise ValueError("Spatial and temporal ranges must be fully specified.")
+        if not (lat_min < lat_max and lon_min < lon_max and time_min < time_max):
+            raise ValueError("Invalid ranges: mins must be < maxs.")
+
+        # Quantize to integers
+        lat_q_min, lat_q_max = int(round(lat_min * q)), int(round(lat_max * q))
+        lon_q_min, lon_q_max = int(round(lon_min * q)), int(round(lon_max * q))
+
+        # Tile extents (pick values matching your common query windows)
+        # ~0.05° ≈ 5.5 km in latitude
+        lon_tile = int(self.config.get("tiledb", {}).get("longitude_tile", 0.05) * q)
+        lat_tile = int(self.config.get("tiledb", {}).get("latitude_tile", 0.05) * q)
+        time_tile = int(self.config.get("tiledb", {}).get("time_tile", 365))
+
+        # Dimensions as integers (better slicing & compression)
+        dim_lat = tiledb.Dim(
+            name="latitude",
+            domain=(lat_q_min, lat_q_max),
+            tile=lat_tile,
+            dtype="int32" if abs(lat_q_max - lat_q_min) <= 2_000_000_000 else "int64",
+            filters=tiledb.FilterList(
+                [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(3)]
+            ),
+        )
+        dim_lon = tiledb.Dim(
+            name="longitude",
+            domain=(lon_q_min, lon_q_max),
+            tile=lon_tile,
+            dtype="int32" if abs(lon_q_max - lon_q_min) <= 2_000_000_000 else "int64",
+            filters=tiledb.FilterList(
+                [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(3)]
+            ),
+        )
+        dim_time = tiledb.Dim(
+            name="time",
+            domain=(time_min, time_max),
+            tile=time_tile,
+            dtype="int64",
+            filters=tiledb.FilterList(
+                [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(3)]
+            ),
+        )
+
+        return tiledb.Domain(dim_lat, dim_lon, dim_time)
 
     def _create_attributes(self) -> List[tiledb.Attr]:
         """
@@ -603,25 +628,26 @@ class GEDIDatabase:
     def _prepare_coordinates(self, granule_data: pd.DataFrame) -> Dict[str, np.ndarray]:
         """
         Prepare coordinate data for dimensions based on the granule DataFrame.
-
-        Parameters:
-        ----------
-        granule_data : pd.DataFrame
-            The DataFrame containing granule data.
-
-        Returns:
-        --------
-        Dict[str, np.ndarray]
-            A dictionary of coordinate arrays for each dimension.
+        Converts latitude/longitude from float degrees to integer quantized degrees
+        for consistency with the TileDB domain.
         """
-        return {
-            dim_name: (
-                convert_to_days_since_epoch(granule_data[dim_name].values)
-                if dim_name == "time"
-                else granule_data[dim_name].values
-            )
-            for dim_name in self.config["tiledb"]["dimensions"]
-        }
+        q = self.config.get("tiledb", {}).get("quantization_factor", 1e6)
+
+        coords = {}
+        for dim_name in self.config["tiledb"]["dimensions"]:
+            if dim_name == "time":
+                coords[dim_name] = convert_to_days_since_epoch(
+                    granule_data[dim_name].values
+                )
+            elif dim_name in ("latitude", "longitude"):
+                # Quantize and round to the nearest integer grid cell
+                coords[dim_name + "_q"] = np.round(
+                    granule_data[dim_name].values * q
+                ).astype(np.int64)
+            else:
+                coords[dim_name] = granule_data[dim_name].values
+
+        return coords
 
     def _extract_variable_data(
         self, granule_data: pd.DataFrame

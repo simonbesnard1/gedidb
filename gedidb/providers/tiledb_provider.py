@@ -9,6 +9,7 @@ import logging
 import os
 from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
+import math
 
 import numpy as np
 import pandas as pd
@@ -280,6 +281,7 @@ class TileDBProvider:
         geometry: Optional[gpd.GeoDataFrame] = None,
         return_coords: bool = True,
         use_polygon_filter: bool = False,
+        quantization_factor: float = 1e6,
         **filters: Dict[str, str],
     ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
         """
@@ -307,6 +309,12 @@ class TileDBProvider:
         Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]
             Query results and profile variable mapping
         """
+        lat_lo = math.floor(lat_min * quantization_factor)
+        lat_hi = math.ceil(lat_max * quantization_factor)
+
+        lon_lo = math.floor(lon_min * quantization_factor)
+        lon_hi = math.ceil(lon_max * quantization_factor)
+
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
                 # Build attribute list and profile variables (cached metadata)
@@ -327,8 +335,14 @@ class TileDBProvider:
 
                 # Use multi_index for efficient spatial-temporal slicing
                 data = query.multi_index[
-                    lat_min:lat_max, lon_min:lon_max, start_time:end_time
+                    lat_lo:lat_hi, lon_lo:lon_hi, start_time:end_time
                 ]
+                data["latitude"] = (
+                    data["latitude"].astype("float64") / quantization_factor
+                )
+                data["longitude"] = (
+                    data["longitude"].astype("float64") / quantization_factor
+                )
 
                 # Early return if no data
                 if not data or len(data.get("shot_number", [])) == 0:
