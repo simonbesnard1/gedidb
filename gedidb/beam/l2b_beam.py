@@ -57,7 +57,11 @@ class L2BBeam(beam_handler):
         data: Dict[str, np.ndarray] = {}
 
         # Populate data dictionary with fields from field mapping
+        PROFILE_KEYS = {"cover_z", "pai_z", "pavd_z", "rh_height"}
+
         for key, source in self.field_mapper.items():
+            if key in PROFILE_KEYS:
+                continue
             sds_name = source["SDS_Name"]
             if key == "dz":
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
@@ -79,7 +83,7 @@ class L2BBeam(beam_handler):
         )
         rossg = np.asarray(self["rossg"][()], dtype=np.float32)
         omega = np.asarray(self["omega"][()], dtype=np.float32)
-        cov_rh, pai_rh, pavd_rh, height_rh, H = prof.compute_profiles(
+        cov_rh, pai_rh, pavd_rh, height_ag, H = prof.compute_profiles(
             pgap, height, elev, rossg, omega
         )
 
@@ -90,8 +94,8 @@ class L2BBeam(beam_handler):
             data["pai_z"] = pai_rh
         if "pavd_z" in self.field_mapper:
             data["pavd_z"] = pavd_rh
-        if "height_rh" in self.field_mapper:
-            data["height_rh"] = height_rh
+        if "height_ag" in self.field_mapper:
+            data["height_ag"] = height_ag
 
         # Apply quality filters and store filtered index
         self._filtered_index = self.apply_filter(
