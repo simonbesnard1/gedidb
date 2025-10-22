@@ -12,7 +12,7 @@ import numpy as np
 
 from gedidb.beam.Beam import beam_handler
 from gedidb.granule.Granule import granule_handler
-from gedidb.utils.profiles import pgap_to_vertical_profiles
+from gedidb.utils.profiles import GEDIVerticalProfiler
 
 
 class L2BBeam(beam_handler):
@@ -56,7 +56,7 @@ class L2BBeam(beam_handler):
         """
         data: Dict[str, np.ndarray] = {}
 
-        # 1) Populate base fields from field mapping
+        # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
             sds_name = source["SDS_Name"]
             if key == "dz":
@@ -68,80 +68,31 @@ class L2BBeam(beam_handler):
             else:
                 data[key] = np.array(self[sds_name][()])
 
-        # 2) Apply quality filters to get a mask over shots
+        prof = GEDIVerticalProfiler()
+      
+        # read pgap + per-shot height-above-ground grids (both shaped (n_shots, nz))
+        pgap, height = prof.read_pgap_theta_z(self)
+        
+        # compute profiles (elevation can be scalar or (n_shots,))
+        elev = np.asarray(self['geolocation/local_beam_elevation'][()], dtype=np.float32)
+        rossg = np.asarray(self['rossg'][()], dtype=np.float32) 
+        omega = np.asarray(self['omega'][()], dtype=np.float32) 
+        cov_rh, pai_rh, pavd_rh, height_rh, H = prof.compute_profiles(pgap, height, elev, rossg, omega)
+                        
+        # attach if requested
+        if "cover_z" in self.field_mapper: data["cover_z"] = cov_rh
+        if "pai_z"   in self.field_mapper: data["pai_z"]   = pai_rh
+        if "pavd_z"  in self.field_mapper: data["pavd_z"]  = pavd_rh
+        if "height_rh"  in self.field_mapper: data["height_rh"]  = height_rh
+        
+        # Apply quality filters and store filtered index
         self._filtered_index = self.apply_filter(
             data, filters=self.DEFAULT_QUALITY_FILTERS
         )
 
-        # 3) Slice only arrays whose first dimension is n_shots; leave others intact (e.g., height bins (nz,))
-        filtered_data: Dict[str, np.ndarray] = {}
-        for key, arr in data.items():
-            a = np.asarray(arr)
-            if a.ndim > 0 and a.shape[0] == self.n_shots:
-                filtered_data[key] = a[self._filtered_index]
-            else:
-                filtered_data[key] = a  # keep globals like height(z) unchanged
-
-        # Early exit if nothing left
-        if not filtered_data or (
-            isinstance(self._filtered_index, np.ndarray)
-            and self._filtered_index.size
-            and not self._filtered_index.any()
-        ):
-            return None
-
-        # 4) Compute vertical profiles only if asked for in field_mapper
-        requested_profile_keys = {"cover_z", "pai_z", "pavd_z"}
-        need_profiles = any(k in self.field_mapper for k in requested_profile_keys)
-
-        if need_profiles:
-
-            def _get_arr(field_key: str) -> np.ndarray:
-                """
-                Fetch array directly from data or from the file.
-                Only slices if first dimension is n_shots.
-                """
-                if field_key in filtered_data:
-                    return filtered_data[field_key]
-
-                if field_key in data:
-                    arr = data[field_key]
-                else:
-                    # direct SDS read
-                    arr = np.array(self[field_key][()])
-
-                if arr.ndim > 0 and arr.shape[0] == self.n_shots:
-                    return arr[self._filtered_index]
-                return arr
-
-            # Required inputs
-            pgap = _get_arr("pgap_theta_z")
-
-            # Height bin centers (1D)
-            height = _get_arr("rh100")
-
-            # Elevation
-            elev = _get_arr("geolocation/local_beam_elevation")
-
-            # Scalars: rossg (G) and omega (clumping)
-            rossg = _get_arr("rossg")
-            omega = _get_arr("omega")
-
-            cover_z, pai_z, pavd_z = pgap_to_vertical_profiles(
-                pgap_theta_z=pgap,
-                height=height,
-                local_beam_elevation=elev,
-                rossg=float(rossg),
-                omega=float(omega),
-                out_dtype=np.float32,
-            )
-
-            # Attach only what was requested
-            if "cover_z" in self.field_mapper:
-                filtered_data["cover_z"] = cover_z
-            if "pai_z" in self.field_mapper:
-                filtered_data["pai_z"] = pai_z
-            if "pavd_z" in self.field_mapper:
-                filtered_data["pavd_z"] = pavd_z
+        # Filter the data based on the quality filters
+        filtered_data = {
+            key: value[self._filtered_index] for key, value in data.items()
+        }
 
         return filtered_data if filtered_data else None
