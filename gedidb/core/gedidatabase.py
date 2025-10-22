@@ -370,82 +370,93 @@ class GEDIDatabase:
 
     def _create_domain(self) -> tiledb.Domain:
         """
-        Creates a TileDB domain based on spatial, temporal, and profile dimensions specified in the configuration.
+        Creates TileDB domain with FloatScaleFilter for lat/lon dimensions.
 
-        Returns:
-        --------
-        tiledb.Domain
-            A TileDB Domain object configured according to the spatial, temporal, and profile settings.
+        BENEFITS:
+        - Store as float32 (4 bytes), scale to int32 internally
+        - DoubleDelta compression works on scaled integers
+        - No manual conversion in query code
+        - Precision controlled by scale factor
 
-        Raises:
-        -------
-        ValueError:
-            If spatial or temporal ranges are not fully specified in the configuration.
+        PRECISION OPTIONS:
+        factor=1e-6 → 0.11m precision (your current approach)
+        factor=1e-7 → 0.011m precision (matches float32)
+        factor=1e-5 → 1.1m precision (sufficient for GEDI)
         """
         spatial_range = self.config.get("tiledb", {}).get("spatial_range", {})
         time_range = self.config.get("tiledb", {}).get("time_range", {})
-        lat_min, lat_max = spatial_range.get("lat_min"), spatial_range.get("lat_max")
-        lon_min, lon_max = spatial_range.get("lon_min"), spatial_range.get("lon_max")
-        time_min = _datetime_to_timestamp_days(time_range.get("start_time"))
-        time_max = _datetime_to_timestamp_days(time_range.get("end_time"))
+
+        lat_min = spatial_range.get("lat_min")
+        lat_max = spatial_range.get("lat_max")
+        lon_min = spatial_range.get("lon_min")
+        lon_max = spatial_range.get("lon_max")
+
+        time_min = self._datetime_to_timestamp_days(time_range.get("start_time"))
+        time_max = self._datetime_to_timestamp_days(time_range.get("end_time"))
 
         # Validate ranges
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
             raise ValueError(
                 "Spatial and temporal ranges must be fully specified in the configuration."
             )
-        if lat_min >= lat_max or lon_min >= lon_max:
-            raise ValueError(
-                "Invalid spatial range: lat_min must be less than lat_max and lon_min less than lon_max."
-            )
-        if time_min >= time_max:
-            raise ValueError("Invalid time range: time_min must be less than time_max.")
-
-        # Quantization: micro-degrees (1e-6°). Adjust if you want coarser/finer.
-        q = self.config.get("tiledb", {}).get("quantization_factor", 1e6)
-
-        if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
-            raise ValueError("Spatial and temporal ranges must be fully specified.")
         if not (lat_min < lat_max and lon_min < lon_max and time_min < time_max):
-            raise ValueError("Invalid ranges: mins must be < maxs.")
+            raise ValueError(
+                "Invalid ranges: lat_min < lat_max, lon_min < lon_max, time_min < time_max required."
+            )
 
-        # Quantize to integers
-        lat_q_min, lat_q_max = int(round(lat_min * q)), int(round(lat_max * q))
-        lon_q_min, lon_q_max = int(round(lon_min * q)), int(round(lon_max * q))
+        # Precision factor (scale factor for FloatScaleFilter)
+        # 1e-6 = ~11cm precision, good for GEDI
+        # 1e-7 = ~1cm precision, matches float32 exactly
+        scale_factor = self.config.get("tiledb", {}).get("scale_factor", 1e-6)
 
-        # Tile extents (pick values matching your common query windows)
-        # ~0.05° ≈ 5.5 km in latitude
-        lon_tile = int(self.config.get("tiledb", {}).get("longitude_tile", 0.05) * q)
-        lat_tile = int(self.config.get("tiledb", {}).get("latitude_tile", 0.05) * q)
-        time_tile = int(self.config.get("tiledb", {}).get("time_tile", 365))
+        # Tile sizes (in degrees for spatial, days for temporal)
+        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 0.1)
+        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 0.1)
+        time_tile = self.config.get("tiledb", {}).get("time_tile", 30)
 
-        # Dimensions as integers (better slicing & compression)
+        # OPTION 1: FloatScaleFilter on DIMENSIONS (RECOMMENDED)
+        # Store as float32, compress as int32 internally
+        spatial_filters = tiledb.FilterList(
+            [
+                tiledb.FloatScaleFilter(
+                    factor=scale_factor,  # Precision: 1e-6 = 11cm
+                    offset=0.0,  # No offset needed for lat/lon
+                    bytewidth=4,  # Store as int32 (4 bytes)
+                ),
+                tiledb.DoubleDeltaFilter(),  # Works on scaled integers!
+                tiledb.BitWidthReductionFilter(),
+                tiledb.ZstdFilter(level=3),
+            ]
+        )
+
+        # Time doesn't need scaling (already int64)
+        time_filters = tiledb.FilterList(
+            [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(level=3)]
+        )
+
+        # Create dimensions with float32 dtype (FloatScaleFilter handles conversion)
         dim_lat = tiledb.Dim(
             name="latitude",
-            domain=(lat_q_min, lat_q_max),
+            domain=(lat_min, lat_max),
             tile=lat_tile,
-            dtype="int32" if abs(lat_q_max - lat_q_min) <= 2_000_000_000 else "int64",
-            filters=tiledb.FilterList(
-                [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(3)]
-            ),
+            dtype=np.float32,  # ← User-facing type (no manual conversion!)
+            filters=spatial_filters,
         )
+
         dim_lon = tiledb.Dim(
             name="longitude",
-            domain=(lon_q_min, lon_q_max),
+            domain=(lon_min, lon_max),
             tile=lon_tile,
-            dtype="int32" if abs(lon_q_max - lon_q_min) <= 2_000_000_000 else "int64",
-            filters=tiledb.FilterList(
-                [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(3)]
-            ),
+            dtype=np.float32,  # ← User-facing type
+            filters=spatial_filters,
         )
+
         dim_time = tiledb.Dim(
             name="time",
             domain=(time_min, time_max),
             tile=time_tile,
-            dtype="int64",
-            filters=tiledb.FilterList(
-                [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(3)]
-            ),
+            dtype=np.int64,
+            filters=time_filters,
         )
 
         return tiledb.Domain(dim_lat, dim_lon, dim_time)
@@ -631,19 +642,12 @@ class GEDIDatabase:
         Converts latitude/longitude from float degrees to integer quantized degrees
         for consistency with the TileDB domain.
         """
-        q = self.config.get("tiledb", {}).get("quantization_factor", 1e6)
-
         coords = {}
         for dim_name in self.config["tiledb"]["dimensions"]:
             if dim_name == "time":
                 coords[dim_name] = convert_to_days_since_epoch(
                     granule_data[dim_name].values
                 )
-            elif dim_name in ("latitude", "longitude"):
-                # Quantize and round to the nearest integer grid cell
-                coords[dim_name + "_q"] = np.round(
-                    granule_data[dim_name].values * q
-                ).astype(np.int64)
             else:
                 coords[dim_name] = granule_data[dim_name].values
 
