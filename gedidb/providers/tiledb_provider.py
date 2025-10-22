@@ -309,12 +309,6 @@ class TileDBProvider:
         Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]
             Query results and profile variable mapping
         """
-        lat_lo = math.floor(lat_min * quantization_factor)
-        lat_hi = math.ceil(lat_max * quantization_factor)
-
-        lon_lo = math.floor(lon_min * quantization_factor)
-        lon_hi = math.ceil(lon_max * quantization_factor)
-
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
                 # Build attribute list and profile variables (cached metadata)
@@ -335,28 +329,8 @@ class TileDBProvider:
 
                 # Use multi_index for efficient spatial-temporal slicing
                 data = query.multi_index[
-                    lat_lo:lat_hi, lon_lo:lon_hi, start_time:end_time
+                    lat_min:lat_max, lon_min:lon_max, start_time:end_time
                 ]
-
-                q = 1e6
-
-                # detect coord keys (supports either 'latitude' or 'latitude_q' naming)
-                lat_key = (
-                    "latitude"
-                    if "latitude" in data
-                    else ("latitude_q" if "latitude_q" in data else None)
-                )
-                lon_key = (
-                    "longitude"
-                    if "longitude" in data
-                    else ("longitude_q" if "longitude_q" in data else None)
-                )
-
-                if lat_key:
-                    # cast to float to avoid in-place integer division weirdness
-                    data["latitude"] = data.pop(lat_key).astype("float64") / q
-                if lon_key:
-                    data["longitude"] = data.pop(lon_key).astype("float64") / q
 
                 # Early return if no data
                 if not data or len(data.get("shot_number", [])) == 0:
