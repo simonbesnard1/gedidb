@@ -391,8 +391,8 @@ class GEDIDatabase:
         lon_min = spatial_range.get("lon_min")
         lon_max = spatial_range.get("lon_max")
 
-        time_min = self._datetime_to_timestamp_days(time_range.get("start_time"))
-        time_max = self._datetime_to_timestamp_days(time_range.get("end_time"))
+        time_min = _datetime_to_timestamp_days(time_range.get("start_time"))
+        time_max = _datetime_to_timestamp_days(time_range.get("end_time"))
 
         # Validate ranges
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
