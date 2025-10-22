@@ -69,22 +69,30 @@ class L2BBeam(beam_handler):
                 data[key] = np.array(self[sds_name][()])
 
         prof = GEDIVerticalProfiler()
-      
+
         # read pgap + per-shot height-above-ground grids (both shaped (n_shots, nz))
         pgap, height = prof.read_pgap_theta_z(self)
-        
+
         # compute profiles (elevation can be scalar or (n_shots,))
-        elev = np.asarray(self['geolocation/local_beam_elevation'][()], dtype=np.float32)
-        rossg = np.asarray(self['rossg'][()], dtype=np.float32) 
-        omega = np.asarray(self['omega'][()], dtype=np.float32) 
-        cov_rh, pai_rh, pavd_rh, height_rh, H = prof.compute_profiles(pgap, height, elev, rossg, omega)
-                        
+        elev = np.asarray(
+            self["geolocation/local_beam_elevation"][()], dtype=np.float32
+        )
+        rossg = np.asarray(self["rossg"][()], dtype=np.float32)
+        omega = np.asarray(self["omega"][()], dtype=np.float32)
+        cov_rh, pai_rh, pavd_rh, height_rh, H = prof.compute_profiles(
+            pgap, height, elev, rossg, omega
+        )
+
         # attach if requested
-        if "cover_z" in self.field_mapper: data["cover_z"] = cov_rh
-        if "pai_z"   in self.field_mapper: data["pai_z"]   = pai_rh
-        if "pavd_z"  in self.field_mapper: data["pavd_z"]  = pavd_rh
-        if "height_rh"  in self.field_mapper: data["height_rh"]  = height_rh
-        
+        if "cover_z" in self.field_mapper:
+            data["cover_z"] = cov_rh
+        if "pai_z" in self.field_mapper:
+            data["pai_z"] = pai_rh
+        if "pavd_z" in self.field_mapper:
+            data["pavd_z"] = pavd_rh
+        if "height_rh" in self.field_mapper:
+            data["height_rh"] = height_rh
+
         # Apply quality filters and store filtered index
         self._filtered_index = self.apply_filter(
             data, filters=self.DEFAULT_QUALITY_FILTERS
