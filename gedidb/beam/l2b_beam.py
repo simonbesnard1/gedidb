@@ -12,6 +12,7 @@ import numpy as np
 
 from gedidb.beam.Beam import beam_handler
 from gedidb.granule.Granule import granule_handler
+from gedidb.utils.profiles import GEDIVerticalProfiler
 
 
 class L2BBeam(beam_handler):
@@ -50,13 +51,10 @@ class L2BBeam(beam_handler):
     def _get_main_data(self) -> Optional[Dict[str, np.ndarray]]:
         """
         Extract the main data for the beam, including time and elevation differences.
-        This method applies quality filters to the data.
-
-        Returns:
-            Optional[Dict[str, np.ndarray]]: The filtered data as a dictionary or None if no data is present.
+        This method applies quality filters to the data and optionally computes
+        vertical profiles (cover_z, pai_z, pavd_z) from pgap if requested.
         """
-        # Initialize the data dictionary
-        data = {}
+        data: Dict[str, np.ndarray] = {}
 
         # Populate data dictionary with fields from field mapping
         for key, source in self.field_mapper.items():
@@ -64,18 +62,43 @@ class L2BBeam(beam_handler):
             if key == "dz":
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
             elif key == "waveform_start":
-                data[key] = np.array(self[sds_name][()] - 1)  # Adjusting waveform start
+                data[key] = np.array(self[sds_name][()] - 1)  # 0-based start
             elif key == "beam_name":
                 data[key] = np.array([self.name] * self.n_shots)
             else:
                 data[key] = np.array(self[sds_name][()])
 
-        # Apply quality filters and store the filtered index
+        prof = GEDIVerticalProfiler()
+
+        # read pgap + per-shot height-above-ground grids (both shaped (n_shots, nz))
+        pgap, height = prof.read_pgap_theta_z(self)
+
+        # compute profiles (elevation can be scalar or (n_shots,))
+        elev = np.asarray(
+            self["geolocation/local_beam_elevation"][()], dtype=np.float32
+        )
+        rossg = np.asarray(self["rossg"][()], dtype=np.float32)
+        omega = np.asarray(self["omega"][()], dtype=np.float32)
+        cov_rh, pai_rh, pavd_rh, height_rh, H = prof.compute_profiles(
+            pgap, height, elev, rossg, omega
+        )
+
+        # attach if requested
+        if "cover_z" in self.field_mapper:
+            data["cover_z"] = cov_rh
+        if "pai_z" in self.field_mapper:
+            data["pai_z"] = pai_rh
+        if "pavd_z" in self.field_mapper:
+            data["pavd_z"] = pavd_rh
+        if "height_rh" in self.field_mapper:
+            data["height_rh"] = height_rh
+
+        # Apply quality filters and store filtered index
         self._filtered_index = self.apply_filter(
             data, filters=self.DEFAULT_QUALITY_FILTERS
         )
 
-        # Filter the data using the mask
+        # Filter the data based on the quality filters
         filtered_data = {
             key: value[self._filtered_index] for key, value in data.items()
         }
