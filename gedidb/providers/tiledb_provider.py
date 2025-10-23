@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.vectorized import contains
+from shapely import contains_xy
 import tiledb
 
 logger = logging.getLogger(__name__)
@@ -256,7 +256,7 @@ class TileDBProvider:
         geom = geometry.unary_union if len(geometry) > 1 else geometry.geometry.iloc[0]
 
         # Vectorized point-in-polygon test (MUCH faster than iterating)
-        mask = contains(geom, lons, lats)
+        mask = contains_xy(geom, lons, lats)
 
         # Apply mask to all arrays
         filtered_data = {key: value[mask] for key, value in data.items()}
