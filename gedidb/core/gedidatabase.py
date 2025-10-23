@@ -410,9 +410,9 @@ class GEDIDatabase:
         scale_factor = self.config.get("tiledb", {}).get("scale_factor", 1e-6)
 
         # Tile sizes (in degrees for spatial, days for temporal)
-        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 0.1)
-        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 0.1)
-        time_tile = self.config.get("tiledb", {}).get("time_tile", 30)
+        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 0.5)
+        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 0.5)
+        time_tile = self.config.get("tiledb", {}).get("time_tile", 365)
 
         # OPTION 1: FloatScaleFilter on DIMENSIONS (RECOMMENDED)
         # Store as float32, compress as int32 internally

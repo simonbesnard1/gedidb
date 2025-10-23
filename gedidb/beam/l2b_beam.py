@@ -57,11 +57,7 @@ class L2BBeam(beam_handler):
         data: Dict[str, np.ndarray] = {}
 
         # Populate data dictionary with fields from field mapping
-        PROFILE_KEYS = {"cover_z", "pai_z", "pavd_z", "rh_height"}
-
         for key, source in self.field_mapper.items():
-            if key in PROFILE_KEYS:
-                continue
             sds_name = source["SDS_Name"]
             if key == "dz":
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
@@ -72,30 +68,32 @@ class L2BBeam(beam_handler):
             else:
                 data[key] = np.array(self[sds_name][()])
 
-        prof = GEDIVerticalProfiler()
+        # --- only compute CP stuff if any cp_* key is requested ---
+        cp_keys = {"cp_cover", "cp_pai", "cp_pavd", "cp_height"}
+        if any(k in self.field_mapper for k in cp_keys):
+            prof = GEDIVerticalProfiler()
 
-        # read pgap + per-shot height-above-ground grids (both shaped (n_shots, nz))
-        pgap, height = prof.read_pgap_theta_z(self)
-
-        # compute profiles (elevation can be scalar or (n_shots,))
-        elev = np.asarray(
-            self["geolocation/local_beam_elevation"][()], dtype=np.float32
-        )
-        rossg = np.asarray(self["rossg"][()], dtype=np.float32)
-        omega = np.asarray(self["omega"][()], dtype=np.float32)
-        cov_rh, pai_rh, pavd_rh, height_ag, H = prof.compute_profiles(
-            pgap, height, elev, rossg, omega
-        )
-
-        # attach if requested
-        if "cover_z" in self.field_mapper:
-            data["cover_z"] = cov_rh
-        if "pai_z" in self.field_mapper:
-            data["pai_z"] = pai_rh
-        if "pavd_z" in self.field_mapper:
-            data["pavd_z"] = pavd_rh
-        if "height_ag" in self.field_mapper:
-            data["height_ag"] = height_ag
+            # read pgap + per-shot height-above-ground grids (both shaped (n_shots, nz))
+            pgap, height = prof.read_pgap_theta_z(self)
+        
+            # compute profiles (elevation can be scalar or (n_shots,))
+            elev  = np.asarray(self["geolocation/local_beam_elevation"][()], dtype=np.float32)
+            rossg = np.asarray(self["rossg"][()], dtype=np.float32)
+            omega = np.asarray(self["omega"][()], dtype=np.float32)
+        
+            cov_rh, pai_rh, pavd_rh, height_ag, H = prof.compute_profiles(
+                pgap, height, elev, rossg, omega
+            )
+        
+            # attach *only* those requested
+            if "cp_cover"  in self.field_mapper:
+                data["cp_cover"]  = cov_rh
+            if "cp_pai"    in self.field_mapper:
+                data["cp_pai"]    = pai_rh
+            if "cp_pavd"   in self.field_mapper:
+                data["cp_pavd"]   = pavd_rh
+            if "cp_height" in self.field_mapper:
+                data["cp_height"] = height_ag
 
         # Apply quality filters and store filtered index
         self._filtered_index = self.apply_filter(
