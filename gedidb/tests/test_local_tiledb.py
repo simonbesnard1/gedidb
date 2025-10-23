@@ -78,8 +78,8 @@ class TestGEDIDatabase(unittest.TestCase):
                 lon_dim.domain, (-180.0, 180.0), "Longitude range mismatch"
             )
             # Check chunk size
-            self.assertEqual(lat_dim.tile, 5, "Latitude chunk size mismatch")
-            self.assertEqual(lon_dim.tile, 5, "Longitude chunk size mismatch")
+            self.assertEqual(lat_dim.tile, 1, "Latitude chunk size mismatch")
+            self.assertEqual(lon_dim.tile, 1, "Longitude chunk size mismatch")
 
     def test_tiledb_attributes(self):
         """Test that TileDB attributes are correctly set."""

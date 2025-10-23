@@ -115,61 +115,91 @@ class GEDIDatabase:
         self.ctx = tiledb.Ctx(self.tiledb_config)
 
     def spatial_chunking(
-        self, dataset: pd.DataFrame, buffer_tiles: int = 0
+        self,
+        dataset: pd.DataFrame,
+        tiles_across_lat: int = 10,
+        tiles_across_lon: int = 10,
     ) -> Dict[Tuple[float, float, float, float], pd.DataFrame]:
         """
-        Split dataset into chunks aligned with TileDB tile boundaries.
+        Split a geospatial dataset into **tile-aligned spatial blocks** for efficient
+        writing into a TileDB array.
 
-        Parameters:
+        This function does *not* require that the chunk/window size equals the TileDB
+        schema tile size. Instead, windows are defined as integer **multiples** of the
+        schema's underlying tile size (e.g. 10×10° blocks on a 1° schema tile), which
+        significantly reduces fragment overlap and improves consolidation efficiency.
+
+        Parameters
         ----------
         dataset : pd.DataFrame
-            DataFrame with 'latitude' and 'longitude' columns.
-        lat_tile_size : float
-            TileDB latitude tile size in degrees (default: 0.5).
-        lon_tile_size : float
-            TileDB longitude tile size in degrees (default: 0.5).
-        buffer_tiles : int
-            Number of extra tiles to include in each chunk for edge cases.
-            Default: 0 (single tile per chunk).
-            Use 1-2 if you want to batch multiple adjacent tiles.
+            Input data containing at least ``latitude`` and ``longitude`` columns.
+            Typically this is a subset of one or more GEDI granules after preprocessing.
+        tiles_across_lat : int, default=10
+            Number of schema tiles to group together along the latitude dimension.
+            For a 1° schema tile, ``tiles_across_lat=10`` produces a 10° block.
+        tiles_across_lon : int, default=10
+            Number of schema tiles to group together along the longitude dimension.
 
-        Returns:
-        --------
+        Returns
+        -------
         Dict[Tuple[float, float, float, float], pd.DataFrame]
-            Keys: (lat_min, lat_max, lon_min, lon_max) aligned to tile boundaries
-            Values: DataFrames containing shots within those tiles
+            A dictionary where:
+            - the key is a tuple ``(lat_min, lat_max, lon_min, lon_max)`` aligned to the
+              underlying TileDB tile grid and expressed in degrees
+            - the value is a DataFrame containing all rows that fall inside that window
 
-        Example:
+        Notes
+        -----
+        - TileDB does not require writes to match the schema tile size, but performance
+          improves when writes align to **integer multiples** of those tiles.
+        - This function ensures alignment by computing block boundaries relative to
+          the **domain minima**, not zero. This prevents subtle misalignment when
+          domain offsets exist (e.g. `[−56°, +56°]` instead of `[−90°, +90°]`).
+        - Large spatial windows (e.g. 10×10°) combined with temporal batching (e.g.
+          weekly or monthly) tend to yield optimal performance for sparse LiDAR data.
+
+        Examples
         --------
-        >>> # For 0.5° tiles, chunks will be:
-        >>> # (45.0, 45.5, -122.5, -122.0), (45.0, 45.5, -122.0, -121.5), etc.
-        >>> chunks = tile_aligned_chunking(data, lat_tile_size=0.5, lon_tile_size=0.5)
-        >>> print(f"Created {len(chunks)} tile-aligned chunks")
-        """
-        lat_tile_size = self.config.get("tiledb", {}).get("latitude_tile", 5)
-        lon_tile_size = self.config.get("tiledb", {}).get("longitude_tile", 5)
-        required_columns = {"latitude", "longitude"}
-        missing_columns = required_columns - set(dataset.columns)
-        if missing_columns:
-            raise ValueError(f"Dataset must contain columns: {missing_columns}")
+        >>> # 1° tiled schema, but write in 10×10 degree blocks
+        >>> chunks = db.spatial_chunking(df, tiles_across_lat=10, tiles_across_lon=10)
+        >>> for bounds, subdf in chunks.items():
+        ...     db.write_granule(subdf)
 
+        This is especially effective in combination with spatial consolidation planned
+        at 10×10° (as used elsewhere in the gediDB ingest pipeline).
+        """
         if dataset.empty:
             return {}
 
-        # Calculate tile indices (floor division aligns to tile boundaries)
-        lat_indices = np.floor(dataset["latitude"] / lat_tile_size).astype(int)
-        lon_indices = np.floor(dataset["longitude"] / lon_tile_size).astype(int)
+        if not {"latitude", "longitude"}.issubset(dataset.columns):
+            raise ValueError("Dataset must contain 'latitude' and 'longitude' columns.")
 
-        # Group by tile index
-        chunks = {}
-        for (lat_idx, lon_idx), group in dataset.groupby([lat_indices, lon_indices]):
-            # Calculate exact tile boundaries
-            lat_min = lat_idx * lat_tile_size
-            lat_max = lat_min + lat_tile_size * (1 + buffer_tiles)
-            lon_min = lon_idx * lon_tile_size
-            lon_max = lon_min + lon_tile_size * (1 + buffer_tiles)
+        # Source-of-truth: read actual tile sizes + domain minima from schema
+        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as A:
+            dom = A.schema.domain
+            dim_lat, dim_lon = dom.dim(0), dom.dim(1)
+            lat_tile, lon_tile = float(dim_lat.tile), float(dim_lon.tile)
+            lat_min_dom, lon_min_dom = float(dim_lat.domain[0]), float(
+                dim_lon.domain[0]
+            )
 
-            chunk_key = (lat_min, lat_max, lon_min, lon_max)
+        # Compute block sizes as integer multiples of schema tile
+        block_lat = lat_tile * tiles_across_lat
+        block_lon = lon_tile * tiles_across_lon
+
+        # Indices relative to domain minima to guarantee alignment
+        lat_idx = np.floor(
+            (dataset["latitude"].to_numpy() - lat_min_dom) / block_lat
+        ).astype(int)
+        lon_idx = np.floor(
+            (dataset["longitude"].to_numpy() - lon_min_dom) / block_lon
+        ).astype(int)
+
+        chunks: Dict[Tuple[float, float, float, float], pd.DataFrame] = {}
+        for (i_lat, i_lon), group in dataset.groupby([lat_idx, lon_idx]):
+            lat0 = lat_min_dom + i_lat * block_lat
+            lon0 = lon_min_dom + i_lon * block_lon
+            chunk_key = (lat0, lat0 + block_lat, lon0, lon0 + block_lon)
             chunks[chunk_key] = group.reset_index(drop=True)
 
         return chunks
