@@ -57,7 +57,10 @@ class L2BBeam(beam_handler):
         data: Dict[str, np.ndarray] = {}
 
         # Populate data dictionary with fields from field mapping
+        cp_keys = {"cp_cover", "cp_pai", "cp_pavd", "cp_height"}
         for key, source in self.field_mapper.items():
+            if key in cp_keys:
+                continue
             sds_name = source["SDS_Name"]
             if key == "dz":
                 data[key] = np.repeat(self[sds_name][()], self.n_shots)
@@ -69,7 +72,6 @@ class L2BBeam(beam_handler):
                 data[key] = np.array(self[sds_name][()])
 
         # --- only compute CP stuff if any cp_* key is requested ---
-        cp_keys = {"cp_cover", "cp_pai", "cp_pavd", "cp_height"}
         if any(k in self.field_mapper for k in cp_keys):
             prof = GEDIVerticalProfiler()
 
