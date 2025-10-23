@@ -392,8 +392,7 @@ class GEDIProcessor:
                     if valid_dataframes:
                         concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
                         quadrants = self.database_writer.spatial_chunking(
-                            concatenated_df,
-                            chunk_size=self.data_info["tiledb"]["chunk_size"],
+                            concatenated_df
                         )
                         for data in quadrants.values():
                             self.database_writer.write_granule(data)

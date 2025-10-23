@@ -9,7 +9,7 @@
 import concurrent.futures
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -68,6 +68,8 @@ class GEDIDatabase:
                     "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
                     "vfs.s3.endpoint_override": config["tiledb"]["url"],
                     "vfs.s3.region": "eu-central-1",
+                    "vfs.s3.use_virtual_addressing": "true",
+                    "vfs.s3.max_parallel_ops": str(os.cpu_count() or 8),
                     # S3 writting settings
                     "sm.vfs.s3.connect_timeout_ms": config["tiledb"]["s3_settings"].get(
                         "connect_timeout_ms", "10800"
@@ -113,62 +115,64 @@ class GEDIDatabase:
         self.ctx = tiledb.Ctx(self.tiledb_config)
 
     def spatial_chunking(
-        self, dataset: pd.DataFrame, chunk_size: float = 10
-    ) -> Dict[tuple, pd.DataFrame]:
+        self, dataset: pd.DataFrame, buffer_tiles: int = 0
+    ) -> Dict[Tuple[float, float, float, float], pd.DataFrame]:
         """
-        Splits a dataset into spatial chunks (quadrants) based on latitude and longitude.
+        Split dataset into chunks aligned with TileDB tile boundaries.
 
         Parameters:
         ----------
         dataset : pd.DataFrame
-            A DataFrame containing 'latitude' and 'longitude' columns.
-        chunk_size : float, optional
-            The size of each spatial chunk in degrees. Default is 10.
+            DataFrame with 'latitude' and 'longitude' columns.
+        lat_tile_size : float
+            TileDB latitude tile size in degrees (default: 0.5).
+        lon_tile_size : float
+            TileDB longitude tile size in degrees (default: 0.5).
+        buffer_tiles : int
+            Number of extra tiles to include in each chunk for edge cases.
+            Default: 0 (single tile per chunk).
+            Use 1-2 if you want to batch multiple adjacent tiles.
 
         Returns:
         --------
-        Dict[tuple, pd.DataFrame]
-            A dictionary where keys are tuples representing quadrant boundaries
-            (lat_min, lat_max, lon_min, lon_max), and values are DataFrames containing
-            the data in those quadrants.
+        Dict[Tuple[float, float, float, float], pd.DataFrame]
+            Keys: (lat_min, lat_max, lon_min, lon_max) aligned to tile boundaries
+            Values: DataFrames containing shots within those tiles
 
-        Raises:
-        -------
-        ValueError
-            If the dataset does not contain 'latitude' or 'longitude' columns.
+        Example:
+        --------
+        >>> # For 0.5° tiles, chunks will be:
+        >>> # (45.0, 45.5, -122.5, -122.0), (45.0, 45.5, -122.0, -121.5), etc.
+        >>> chunks = tile_aligned_chunking(data, lat_tile_size=0.5, lon_tile_size=0.5)
+        >>> print(f"Created {len(chunks)} tile-aligned chunks")
         """
-        # Validate input columns
+        lat_tile_size = self.config.get("tiledb", {}).get("latitude_tile", 5)
+        lon_tile_size = self.config.get("tiledb", {}).get("longitude_tile", 5)
         required_columns = {"latitude", "longitude"}
         missing_columns = required_columns - set(dataset.columns)
         if missing_columns:
             raise ValueError(f"Dataset must contain columns: {missing_columns}")
 
-        # Handle empty dataset
         if dataset.empty:
             return {}
 
-        # Compute quadrant indices for grouping
-        try:
-            lat_quadrants = np.floor_divide(dataset["latitude"], chunk_size).astype(int)
-            lon_quadrants = np.floor_divide(dataset["longitude"], chunk_size).astype(
-                int
-            )
-        except KeyError as e:
-            raise ValueError(f"Dataset is missing required column: {e}")
+        # Calculate tile indices (floor division aligns to tile boundaries)
+        lat_indices = np.floor(dataset["latitude"] / lat_tile_size).astype(int)
+        lon_indices = np.floor(dataset["longitude"] / lon_tile_size).astype(int)
 
-        # Group and create chunks
-        quadrants = {}
-        for (lat_idx, lon_idx), group in dataset.groupby(
-            [lat_quadrants, lon_quadrants]
-        ):
-            lat_min = lat_idx * chunk_size
-            lat_max = lat_min + chunk_size
-            lon_min = lon_idx * chunk_size
-            lon_max = lon_min + chunk_size
-            quadrant_key = (lat_min, lat_max, lon_min, lon_max)
-            quadrants[quadrant_key] = group.reset_index(drop=True)
+        # Group by tile index
+        chunks = {}
+        for (lat_idx, lon_idx), group in dataset.groupby([lat_indices, lon_indices]):
+            # Calculate exact tile boundaries
+            lat_min = lat_idx * lat_tile_size
+            lat_max = lat_min + lat_tile_size * (1 + buffer_tiles)
+            lon_min = lon_idx * lon_tile_size
+            lon_max = lon_min + lon_tile_size * (1 + buffer_tiles)
 
-        return quadrants
+            chunk_key = (lat_min, lat_max, lon_min, lon_max)
+            chunks[chunk_key] = group.reset_index(drop=True)
+
+        return chunks
 
     @retry(
         (tiledb.TileDBError, ConnectionError),
@@ -407,13 +411,11 @@ class GEDIDatabase:
             )
 
         # Precision factor for FloatScaleFilter
-        # 1e-6 = ~11cm precision (recommended for GEDI)
-        # 1e-7 = ~1cm precision (overkill, larger storage)
         scale_factor = self.config.get("tiledb", {}).get("scale_factor", 1e-6)
 
         # Tile sizes
-        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 0.5)
-        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 0.5)
+        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 5)
+        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 5)
         time_tile = self.config.get("tiledb", {}).get("time_tile", 365)
 
         # Spatial filters: FloatScaleFilter + DoubleDelta compression
@@ -440,7 +442,7 @@ class GEDIDatabase:
             name="latitude",
             domain=(lat_min, lat_max),
             tile=lat_tile,
-            dtype=np.float32,  # ← Write/read as float32
+            dtype=np.float32,
             filters=spatial_filters,
         )
 
@@ -448,7 +450,7 @@ class GEDIDatabase:
             name="longitude",
             domain=(lon_min, lon_max),
             tile=lon_tile,
-            dtype=np.float32,  # ← Write/read as float32
+            dtype=np.float32,
             filters=spatial_filters,
         )
 
@@ -464,40 +466,53 @@ class GEDIDatabase:
 
     def _create_attributes(self) -> List[tiledb.Attr]:
         """
-        Creates TileDB attributes for GEDI data based on configuration.
+        Create TileDB attributes for GEDI data.
 
-        Returns:
-        --------
-        List[tiledb.Attr]
-            A list of TileDB attributes configured with appropriate data types.
-
-        Notes:
-        ------
-        - The `timestamp_ns` attribute is always added to the array.
+        Notes
+        -----
+        - Profiles are kept as 101 scalar attributes (no profile dimension).
+        - We apply Zstd to attributes; DoubleDelta is usually not helpful for noisy float profiles.
         """
-        attributes = []
+        attributes: List[tiledb.Attr] = []
         if not self.variables_config:
             raise ValueError(
                 "Variable configuration is missing. Cannot create attributes."
             )
 
-        # Add scalar variables
+        # Allow override via config; defaults are sensible
+        attr_zstd_level = int(self.config.get("tiledb", {}).get("attr_zstd_level", 4))
+        attr_filters = tiledb.FilterList([tiledb.ZstdFilter(level=attr_zstd_level)])
+
+        # Scalars
         for var_name, var_info in self.variables_config.items():
             if not var_info.get("is_profile", False):
-                attributes.append(tiledb.Attr(name=var_name, dtype=var_info["dtype"]))
+                attributes.append(
+                    tiledb.Attr(
+                        name=var_name, dtype=var_info["dtype"], filters=attr_filters
+                    )
+                )
 
-        # Add profile variables
+        # Profiles as separate scalar attributes (…_1 .. …_N)
         for var_name, var_info in self.variables_config.items():
             if var_info.get("is_profile", False):
-                profile_length = var_info.get("profile_length", 1)
+                profile_length = int(var_info.get("profile_length", 1))
+                if profile_length <= 0:
+                    raise ValueError(f"{var_name}: profile_length must be >= 1")
                 for i in range(profile_length):
                     attr_name = f"{var_name}_{i + 1}"
                     attributes.append(
-                        tiledb.Attr(name=attr_name, dtype=var_info["dtype"])
+                        tiledb.Attr(
+                            name=attr_name,
+                            dtype=var_info["dtype"],
+                            filters=attr_filters,
+                        )
                     )
 
-        # Add timestamp attribute
-        attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
+        # Optional: timestamp in nanoseconds (true ns)
+        if self.config.get("tiledb", {}).get("write_timestamp_ns", True):
+            attributes.append(
+                tiledb.Attr(name="timestamp_ns", dtype="int64", filters=attr_filters)
+            )
 
         return attributes
 
@@ -578,6 +593,8 @@ class GEDIDatabase:
             If required dimension data or critical variables are missing.
         """
         try:
+            granule_data = self._dedup_consistent_with_scaling(granule_data)
+
             # Remove duplicates (modify in place if possible)
             granule_data = granule_data.drop_duplicates(
                 subset=["latitude", "longitude", "time"]
@@ -792,6 +809,34 @@ class GEDIDatabase:
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
             raise
+
+    def _dedup_consistent_with_scaling(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Drop duplicates using the SAME quantization as the FloatScaleFilter, to
+        prevent duplicate-cell collisions after scaling on write.
+        """
+        if df.empty:
+            return df
+
+        factor = float(self.config.get("tiledb", {}).get("scale_factor", 1e-6))
+        q = int(round(1.0 / factor))  # e.g., 1e6
+
+        out = df.copy()
+
+        # Normalize lon to [-180, 180) before quantization
+        lon_norm = (
+            (out["longitude"].to_numpy(dtype=np.float64) + 180.0) % 360.0
+        ) - 180.0
+        out["__lon_norm"] = lon_norm
+
+        out["__lat_q"] = np.round(
+            out["latitude"].to_numpy(dtype=np.float64) * q
+        ).astype(np.int64)
+        out["__lon_q"] = np.round(out["__lon_norm"] * q).astype(np.int64)
+        out["__t_days"] = convert_to_days_since_epoch(out["time"].values)
+
+        out = out.drop_duplicates(subset=["__lat_q", "__lon_q", "__t_days"])
+        return out.drop(columns=["__lon_norm", "__lat_q", "__lon_q", "__t_days"])
 
     @staticmethod
     def _load_variables_config(config):
