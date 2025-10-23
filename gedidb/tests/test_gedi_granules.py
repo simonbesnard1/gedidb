@@ -184,7 +184,7 @@ class TestCase(unittest.TestCase):
             GediProduct.L2B.value,
             data_info=self._data_info,
         )
-        
+
         data_orig = h5py.File(L2B_NAME, "r")
         # TODO: idx needs to correspond to a shot_number which won't be initially quality filtered
         idx = 8

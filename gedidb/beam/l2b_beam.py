@@ -75,23 +75,25 @@ class L2BBeam(beam_handler):
 
             # read pgap + per-shot height-above-ground grids (both shaped (n_shots, nz))
             pgap, height = prof.read_pgap_theta_z(self)
-        
+
             # compute profiles (elevation can be scalar or (n_shots,))
-            elev  = np.asarray(self["geolocation/local_beam_elevation"][()], dtype=np.float32)
+            elev = np.asarray(
+                self["geolocation/local_beam_elevation"][()], dtype=np.float32
+            )
             rossg = np.asarray(self["rossg"][()], dtype=np.float32)
             omega = np.asarray(self["omega"][()], dtype=np.float32)
-        
+
             cov_rh, pai_rh, pavd_rh, height_ag, H = prof.compute_profiles(
                 pgap, height, elev, rossg, omega
             )
-        
+
             # attach *only* those requested
-            if "cp_cover"  in self.field_mapper:
-                data["cp_cover"]  = cov_rh
-            if "cp_pai"    in self.field_mapper:
-                data["cp_pai"]    = pai_rh
-            if "cp_pavd"   in self.field_mapper:
-                data["cp_pavd"]   = pavd_rh
+            if "cp_cover" in self.field_mapper:
+                data["cp_cover"] = cov_rh
+            if "cp_pai" in self.field_mapper:
+                data["cp_pai"] = pai_rh
+            if "cp_pavd" in self.field_mapper:
+                data["cp_pavd"] = pavd_rh
             if "cp_height" in self.field_mapper:
                 data["cp_height"] = height_ag
 
