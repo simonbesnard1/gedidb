@@ -43,6 +43,8 @@ class GEDIDatabase:
             Configuration dictionary.
         """
         self.config = config
+        self.dimension_names = config["tiledb"]["dimensions"]
+        self._spatial_bounds = self._get_tiledb_spatial_domain()
         storage_type = config["tiledb"].get("storage_type", "local").lower()
 
         # Set array URIs based on storage type
@@ -404,42 +406,41 @@ class GEDIDatabase:
                 "Invalid ranges: lat_min < lat_max, lon_min < lon_max, time_min < time_max required."
             )
 
-        # Precision factor (scale factor for FloatScaleFilter)
-        # 1e-6 = ~11cm precision, good for GEDI
-        # 1e-7 = ~1cm precision, matches float32 exactly
+        # Precision factor for FloatScaleFilter
+        # 1e-6 = ~11cm precision (recommended for GEDI)
+        # 1e-7 = ~1cm precision (overkill, larger storage)
         scale_factor = self.config.get("tiledb", {}).get("scale_factor", 1e-6)
 
-        # Tile sizes (in degrees for spatial, days for temporal)
+        # Tile sizes
         lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 0.5)
         lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 0.5)
         time_tile = self.config.get("tiledb", {}).get("time_tile", 365)
 
-        # OPTION 1: FloatScaleFilter on DIMENSIONS (RECOMMENDED)
-        # Store as float32, compress as int32 internally
+        # Spatial filters: FloatScaleFilter + DoubleDelta compression
         spatial_filters = tiledb.FilterList(
             [
                 tiledb.FloatScaleFilter(
-                    factor=scale_factor,  # Precision: 1e-6 = 11cm
-                    offset=0.0,  # No offset needed for lat/lon
-                    bytewidth=4,  # Store as int32 (4 bytes)
+                    factor=scale_factor,
+                    offset=0.0,
+                    bytewidth=4,  # int32 internal storage
                 ),
-                tiledb.DoubleDeltaFilter(),  # Works on scaled integers!
+                tiledb.DoubleDeltaFilter(),  # Excellent for spatial data
                 tiledb.BitWidthReductionFilter(),
                 tiledb.ZstdFilter(level=3),
             ]
         )
 
-        # Time doesn't need scaling (already int64)
+        # Temporal filters: DoubleDelta works great for time series
         time_filters = tiledb.FilterList(
             [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(level=3)]
         )
 
-        # Create dimensions with float32 dtype (FloatScaleFilter handles conversion)
+        # Create dimensions (dtype=float32 for user-facing API)
         dim_lat = tiledb.Dim(
             name="latitude",
             domain=(lat_min, lat_max),
             tile=lat_tile,
-            dtype=np.float32,  # ← User-facing type (no manual conversion!)
+            dtype=np.float32,  # ← Write/read as float32
             filters=spatial_filters,
         )
 
@@ -447,7 +448,7 @@ class GEDIDatabase:
             name="longitude",
             domain=(lon_min, lon_max),
             tile=lon_tile,
-            dtype=np.float32,  # ← User-facing type
+            dtype=np.float32,  # ← Write/read as float32
             filters=spatial_filters,
         )
 
@@ -577,38 +578,42 @@ class GEDIDatabase:
             If required dimension data or critical variables are missing.
         """
         try:
+            # Remove duplicates (modify in place if possible)
             granule_data = granule_data.drop_duplicates(
                 subset=["latitude", "longitude", "time"]
             )
 
-            # Validate granule data
+            if granule_data.empty:
+                logger.debug("Granule data is empty after deduplication")
+                return
+
+            # Validate required dimensions exist
             self._validate_granule_data(granule_data)
 
-            # Get spatial domain from config
-            min_lon, max_lon, min_lat, max_lat = self._get_tiledb_spatial_domain()
+            # Create spatial filter mask (avoids copying entire dataframe)
+            min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
+            mask = granule_data["longitude"].between(
+                min_lon, max_lon, inclusive="both"
+            ) & granule_data["latitude"].between(min_lat, max_lat, inclusive="both")
 
-            # Filter out shots outside the TileDB spatial domain
-            filtered_data = granule_data[
-                (granule_data["longitude"] >= min_lon)
-                & (granule_data["longitude"] <= max_lon)
-                & (granule_data["latitude"] >= min_lat)
-                & (granule_data["latitude"] <= max_lat)
-            ]
+            valid_count = mask.sum()
+            if valid_count == 0:
+                logger.debug("No shots within spatial domain for this granule")
+                return
 
-            if filtered_data.empty:
-                return  # Skip writing if no valid data
+            logger.debug(f"Writing {valid_count} shots to TileDB")
 
-            # Prepare coordinates (dimensions)
-            coords = self._prepare_coordinates(filtered_data)
+            # Use .loc[mask] for efficient view-based slicing
+            coords = self._prepare_coordinates(granule_data.loc[mask])
+            data = self._extract_variable_data(granule_data.loc[mask])
 
-            # Extract data for scalar and profile variables
-            data = self._extract_variable_data(filtered_data)
-
-            # Write to the TileDB array
+            # Write to TileDB with retry logic
             self._write_to_tiledb(coords, data)
 
         except Exception as e:
-            logger.error(f"Failed to process and write granule data: {e}")
+            logger.error(
+                f"Failed to process and write granule data: {e}", exc_info=True
+            )
             raise
 
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
@@ -625,15 +630,14 @@ class GEDIDatabase:
         ValueError
             If required dimensions or critical variables are missing.
         """
-        # Check for required dimensions
-        missing_dims = [
-            dim
-            for dim in self.config["tiledb"]["dimensions"]
-            if dim not in granule_data
-        ]
+        # Use set operations for efficient membership testing
+        required_dims = set(self.dimension_names)
+        available_cols = set(granule_data.columns)
+        missing_dims = required_dims - available_cols
+
         if missing_dims:
             raise ValueError(
-                f"Granule data is missing required dimensions: {missing_dims}"
+                f"Granule data is missing required dimensions: {sorted(missing_dims)}"
             )
 
     def _prepare_coordinates(self, granule_data: pd.DataFrame) -> Dict[str, np.ndarray]:
@@ -643,13 +647,18 @@ class GEDIDatabase:
         for consistency with the TileDB domain.
         """
         coords = {}
-        for dim_name in self.config["tiledb"]["dimensions"]:
+
+        for dim_name in self.dimension_names:
             if dim_name == "time":
+                # Convert timestamps to days since epoch
                 coords[dim_name] = convert_to_days_since_epoch(
                     granule_data[dim_name].values
                 )
             else:
-                coords[dim_name] = granule_data[dim_name].values
+                # Latitude/longitude:
+                coords[dim_name] = granule_data[dim_name].values.astype(
+                    np.float32, copy=False
+                )
 
         return coords
 
@@ -670,25 +679,44 @@ class GEDIDatabase:
             A dictionary of variable data for writing to TileDB.
         """
         data = {}
+        available_cols = set(granule_data.columns)
 
-        # Process scalar variables
-        for var_name, var_info in self.variables_config.items():
-            if not var_info.get("is_profile", False):
-                if var_name in granule_data:
-                    data[var_name] = granule_data[var_name].values
+        # Separate scalar and profile variables for more efficient processing
+        scalar_vars = []
+        profile_vars = []
 
-        # Process profile variables
         for var_name, var_info in self.variables_config.items():
             if var_info.get("is_profile", False):
-                profile_length = var_info.get("profile_length", 1)
-                for i in range(profile_length):
-                    expanded_var_name = f"{var_name}_{i + 1}"
-                    if expanded_var_name in granule_data:
-                        data[expanded_var_name] = granule_data[expanded_var_name].values
+                profile_vars.append((var_name, var_info))
+            else:
+                scalar_vars.append(var_name)
 
-        # Add timestamp
+        # Extract scalar variables in batch
+        scalar_vars_present = [v for v in scalar_vars if v in available_cols]
+        if scalar_vars_present:
+            # Batch extract using dict comprehension
+            data.update({var: granule_data[var].values for var in scalar_vars_present})
+
+        # Extract profile variables
+        for var_name, var_info in profile_vars:
+            profile_length = var_info.get("profile_length", 1)
+
+            # Generate all profile column names
+            profile_cols = [f"{var_name}_{i + 1}" for i in range(profile_length)]
+
+            # Find which profile columns actually exist
+            existing_profile_cols = [
+                col for col in profile_cols if col in available_cols
+            ]
+
+            if existing_profile_cols:
+                # Batch extract all layers at once
+                for col in existing_profile_cols:
+                    data[col] = granule_data[col].values
+
+        # Add timestamp (convert to microseconds since epoch)
         data["timestamp_ns"] = (
-            pd.to_datetime(granule_data["time"]).astype("int64") // 1000
+            pd.to_datetime(granule_data["time"]).astype("int64")
         ).values
 
         return data
@@ -711,27 +739,39 @@ class GEDIDatabase:
         granule_statuses = {}
 
         try:
-            # Open scalar array and check metadata for granule statuses
-            with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as scalar_array:
-                scalar_metadata = {
-                    key: scalar_array.meta[key]
-                    for key in scalar_array.meta.keys()
+            with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as array:
+                # Extract all status metadata in one pass
+                metadata = {
+                    key: array.meta[key]
+                    for key in array.meta.keys()
                     if "_status" in key
                 }
 
-            # Combine metadata from both arrays and check each granule
+            # Check each granule's status
             for granule_id in granule_ids:
                 granule_key = f"granule_{granule_id}_status"
-                scalar_processed = scalar_metadata.get(granule_key, "") == "processed"
+                granule_statuses[granule_id] = metadata.get(granule_key) == "processed"
 
-                # Set status as True only if both arrays mark the granule as processed
-                granule_statuses[granule_id] = scalar_processed
+            processed_count = sum(granule_statuses.values())
+            logger.debug(
+                f"Checked {len(granule_ids)} granules: "
+                f"{processed_count} processed, {len(granule_ids) - processed_count} pending"
+            )
 
         except tiledb.TileDBError as e:
             logger.error(f"Failed to access TileDB metadata: {e}")
+            # Return all False on error (conservative approach)
+            granule_statuses = {gid: False for gid in granule_ids}
 
         return granule_statuses
 
+    @retry(
+        (tiledb.TileDBError, ConnectionError),
+        tries=10,
+        delay=5,
+        backoff=3,
+        logger=logger,
+    )
     def mark_granule_as_processed(self, granule_key: str) -> None:
         """
         Mark a granule as processed by storing its status and processing date in TileDB metadata.
@@ -742,15 +782,16 @@ class GEDIDatabase:
             The unique identifier for the granule.
         """
         try:
-            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as scalar_array:
-
-                scalar_array.meta[f"granule_{granule_key}_status"] = "processed"
-                scalar_array.meta[f"granule_{granule_key}_processed_date"] = (
+            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+                array.meta[f"granule_{granule_key}_status"] = "processed"
+                array.meta[f"granule_{granule_key}_processed_date"] = (
                     pd.Timestamp.utcnow().isoformat()
                 )
+            logger.debug(f"Marked granule {granule_key} as processed")
 
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
+            raise
 
     @staticmethod
     def _load_variables_config(config):
@@ -780,9 +821,10 @@ class GEDIDatabase:
         Tuple[float, float, float, float]
             (min_longitude, max_longitude, min_latitude, max_latitude)
         """
-
         spatial_config = self.config["tiledb"]["spatial_range"]
-        min_lat, max_lat = spatial_config["lat_min"], spatial_config["lat_max"]
-        min_lon, max_lon = spatial_config["lon_min"], spatial_config["lon_max"]
+        min_lat = spatial_config["lat_min"]
+        max_lat = spatial_config["lat_max"]
+        min_lon = spatial_config["lon_min"]
+        max_lon = spatial_config["lon_max"]
 
         return min_lon, max_lon, min_lat, max_lat
