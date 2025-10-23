@@ -444,8 +444,8 @@ class GEDIDatabase:
         scale_factor = self.config.get("tiledb", {}).get("scale_factor", 1e-6)
 
         # Tile sizes
-        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 5)
-        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 5)
+        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 1)
+        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 1)
         time_tile = self.config.get("tiledb", {}).get("time_tile", 365)
 
         # Spatial filters: FloatScaleFilter + DoubleDelta compression
