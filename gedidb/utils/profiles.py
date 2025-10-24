@@ -16,6 +16,61 @@ from numba import njit, prange
 # ----------------------------
 
 
+@njit(cache=True, fastmath=True, parallel=True)
+def _derivative_variable_dz(y2d: np.ndarray, z2d: np.ndarray) -> np.ndarray:
+    """
+    Compute ∂y/∂z row-wise when z is per-row (variable, 2-D).
+    Central difference where possible; fallback to forward/backward.
+    NaNs propagate.
+    """
+    n, m = y2d.shape
+    out = np.empty((n, m), dtype=np.float64)
+
+    for i in prange(n):
+        yi = y2d[i]
+        zi = z2d[i]
+        oi = out[i]
+
+        for j in range(m):
+            yj = yi[j]
+            zj = zi[j]
+            if not (np.isfinite(yj) and np.isfinite(zj)):
+                oi[j] = np.nan
+                continue
+
+            # try central
+            if 0 < j < m - 1:
+                y_l, z_l = yi[j - 1], zi[j - 1]
+                y_r, z_r = yi[j + 1], zi[j + 1]
+                if (
+                    np.isfinite(y_l)
+                    and np.isfinite(z_l)
+                    and np.isfinite(y_r)
+                    and np.isfinite(z_r)
+                    and z_r != z_l
+                ):
+                    oi[j] = (y_r - y_l) / (z_r - z_l)
+                    continue
+
+            # forward
+            if j < m - 1:
+                y_r, z_r = yi[j + 1], zi[j + 1]
+                if np.isfinite(y_r) and np.isfinite(z_r) and z_r != zj:
+                    oi[j] = (y_r - yj) / (z_r - zj)
+                    continue
+
+            # backward
+            if j > 0:
+                y_l, z_l = yi[j - 1], zi[j - 1]
+                if np.isfinite(y_l) and np.isfinite(z_l) and zj != z_l:
+                    oi[j] = (yj - y_l) / (zj - z_l)
+                    continue
+
+            oi[j] = np.nan
+
+    return out
+
+
 @njit(cache=True, fastmath=True)
 def _scatter_waveform_jit(
     start_offset: int, counts: np.ndarray, flat_values: np.ndarray, out_2d: np.ndarray
@@ -153,57 +208,61 @@ def _resample_profiles_to_rh101_per_shot_jit(
     cover_z: np.ndarray,
     pai_z: np.ndarray,
     pavd_z: np.ndarray,
-    rh98: np.ndarray,  # may contain NaN
-    min_canopy_height: float,
+    waveform_z: np.ndarray,
     out_dtype_code: int,
 ) -> tuple:
     """
-    Numba-parallel per-shot resampling. Returns (cov_rh, pai_rh, pavd_rh, height_rh, H)
-    out_dtype_code: 0 -> float32, 1 -> float64 (simple switch to avoid dtype objects in nopython)
+    Numba-parallel per-shot resampling to RH=0..100 (101 points).
+    Returns (cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H)
+
+    Notes:
+      - 'waveform_z' is assumed per-height (1/m), already in z-domain.
+      - Waveform is normalized per shot so that ∫ w(z) dz = 1 (GEDI L1B-style).
+        Integration is approximated on the RH grid using dz ≈ H/100.
+      - If the integral is 0 or not finite, the shot's waveform is returned as NaN.
+      - PAVD is converted from per-RH to per-meter via (Hi/100).
+      - No minimum canopy-height gating is applied; only non-finite H is skipped.
+      - Outputs are float64 internally; caller casts to desired dtype.
     """
     n, m = height_2d.shape
-    # outputs as float64 internally; cast by caller
+
     cov_rh = np.empty((n, 101), dtype=np.float64)
     pai_rh = np.empty((n, 101), dtype=np.float64)
     pavd_rh = np.empty((n, 101), dtype=np.float64)
     height_rh = np.empty((n, 101), dtype=np.float64)
+    waveform_rh = np.empty((n, 101), dtype=np.float64)
     H = np.empty(n, dtype=np.float64)
 
-    # compute H
-    if rh98.shape[0] == n:  # provided
-        for i in prange(n):
-            H[i] = rh98[i]
-    else:
-        # derive from height_2d
-        H = _finite_max_rowwise(height_2d)
+    # compute H (or use provided rh98)
+    H = _finite_max_rowwise(height_2d)
 
+    # RH axis 0..100
     rh_axis = np.empty(101, dtype=np.float64)
     for k in range(101):
         rh_axis[k] = float(k)
 
     for i in prange(n):
         Hi = H[i]
-        # initialize outputs with NaN
+
+        # init row with NaNs
         for k in range(101):
             cov_rh[i, k] = np.nan
             pai_rh[i, k] = np.nan
             pavd_rh[i, k] = np.nan
             height_rh[i, k] = np.nan
+            waveform_rh[i, k] = np.nan
 
-        if not np.isfinite(Hi) or Hi < min_canopy_height:
+        # require finite canopy height to define RH->z mapping
+        if not np.isfinite(Hi):
             continue
 
-        # z -> RH support
         zi = height_2d[i, :]
         czi = cover_z[i, :]
         paii = pai_z[i, :]
         pzi = pavd_z[i, :]
+        wzi = waveform_z[i, :]
 
-        # mask finite pairs
-        # build r, y arrays without NaNs
-        # r = 100 * zi/Hi, clipped to [0, 100]
-        # we also need to sort and deduplicate r (monotonic requirement)
-        # First, collect finite indices
+        # count finite z
         count = 0
         for j in range(m):
             if np.isfinite(zi[j]):
@@ -211,34 +270,39 @@ def _resample_profiles_to_rh101_per_shot_jit(
         if count == 0:
             continue
 
+        # temp arrays (monotonic in RH)
         r = np.empty(count, dtype=np.float64)
         yc = np.empty(count, dtype=np.float64)
         ypai = np.empty(count, dtype=np.float64)
         ypav = np.empty(count, dtype=np.float64)
+        ywav = np.empty(count, dtype=np.float64)
+
         q = 0
         invH = 100.0 / Hi
         for j in range(m):
             zval = zi[j]
             if np.isfinite(zval):
-                r[q] = zval * invH
-                if r[q] < 0.0:
-                    r[q] = 0.0
-                elif r[q] > 100.0:
-                    r[q] = 100.0
+                rr = zval * invH
+                if rr < 0.0:
+                    rr = 0.0
+                elif rr > 100.0:
+                    rr = 100.0
+                r[q] = rr
                 yc[q] = czi[j]
                 ypai[q] = paii[j]
                 ypav[q] = pzi[j]
+                ywav[q] = wzi[j]  # per-meter waveform
                 q += 1
 
         # sort by r
-        # simple insertion sort (m is small), but use argsort for clarity
         order = np.argsort(r)
         r = r[order]
         yc = yc[order]
         ypai = ypai[order]
         ypav = ypav[order]
+        ywav = ywav[order]
 
-        # deduplicate r (stable keep-first)
+        # deduplicate r (keep-first)
         w = 1
         for j in range(1, r.shape[0]):
             if r[j] != r[w - 1]:
@@ -246,25 +310,53 @@ def _resample_profiles_to_rh101_per_shot_jit(
                 yc[w] = yc[j]
                 ypai[w] = ypai[j]
                 ypav[w] = ypav[j]
+                ywav[w] = ywav[j]
                 w += 1
         r = r[:w]
         yc = yc[:w]
         ypai = ypai[:w]
         ypav = ypav[:w]
+        ywav = ywav[:w]
 
-        # interpolate to rh_axis
+        # interpolate to integer RH grid
         cov_r = _interp1d_monotonic_edgefill(rh_axis, r, yc)
         pai_r = _interp1d_monotonic_edgefill(rh_axis, r, ypai)
         pav_r = _interp1d_monotonic_edgefill(rh_axis, r, ypav)
+        wav_r = _interp1d_monotonic_edgefill(rh_axis, r, ywav)  # still per-meter
 
+        # fill outputs
+        # pavd: convert to per-meter using dz/dr = H/100
+        # waveform: no rescale (already per-meter)
         for k in range(101):
             cov_rh[i, k] = cov_r[k]
             pai_rh[i, k] = pai_r[k]
-            # conserve integral via dz/dr = H/100
             pavd_rh[i, k] = pav_r[k] * (Hi / 100.0)
             height_rh[i, k] = Hi * (rh_axis[k] / 100.0)
 
-    return cov_rh, pai_rh, pavd_rh, height_rh, H
+        # --- L1B-style normalization of waveform to unit area ---
+        pos_sum = 0.0
+        for k in range(101):
+            wk = wav_r[k]
+            if np.isfinite(wk) and wk > 0.0:
+                pos_sum += wk
+            else:
+                # clamp negatives / NaNs to zero for normalization
+                wav_r[k] = 0.0
+
+        # area ≈ sum_k w(z_k) * dz, with dz ≈ Hi/100 per RH bin
+        area = pos_sum * (Hi / 100.0)
+
+        if np.isfinite(area) and area > 0.0:
+            inv_area = 1.0 / area
+            for k in range(101):
+                # wav_r is now ≥ 0.0 and finite
+                waveform_rh[i, k] = wav_r[k] * inv_area  # unitless, ∫=1
+        else:
+            # degenerate shot → all NaN (as requested)
+            for k in range(101):
+                waveform_rh[i, k] = np.nan
+
+    return cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H
 
 
 @dataclass(slots=True)
@@ -417,12 +509,19 @@ class GEDIVerticalProfiler:
             pai_z = np.where(nan_mask, np.nan, pai_z)
             pavd_z = np.where(nan_mask, np.nan, pavd_z)
 
+        # ---- construct GEDI-like waveform BEFORE masking ----
+        dpgap_dz = _derivative_variable_dz(pgap, z_in)
+        waveform_z = (dpgap_dz * mu / denom).astype(np.float64, copy=False)
+        waveform_z = np.where(waveform_z > 0.0, waveform_z, 0.0)
+
         # ---- 1) mask away height < 0 ----
         h = height_2d.astype(np.float64, copy=False)
         mask = ~(h >= 0.0)
         # masked copies (float64 to keep JIT paths happy)
         h_masked = h.copy()
         h_masked[mask] = np.nan
+        waveform_m = waveform_z.copy()
+        waveform_m[mask] = np.nan
         cover_m = cover_z.copy()
         cover_m[mask] = np.nan
         pai_m = pai_z.copy()
@@ -433,15 +532,14 @@ class GEDIVerticalProfiler:
         # ---- 2) resample to 101-point RH grid (vegetation-only) ----
         # map dtype to tiny code for JIT
         out_dtype_code = 0 if self.out_dtype == np.float32 else 1
-        rh98 = np.empty(0, dtype=np.float64)  # "not provided"
-        cov_rh64, pai_rh64, pavd_rh64, height_rh64, H64 = (
+
+        cov_rh64, pai_rh64, pavd_rh64, height_rh64, waveform_rh64, H64 = (
             _resample_profiles_to_rh101_per_shot_jit(
                 h_masked,
                 cover_m,
                 pai_m,
                 pavd_m,
-                rh98,
-                min_canopy_height=2.0,
+                waveform_m,
                 out_dtype_code=out_dtype_code,
             )
         )
@@ -451,6 +549,7 @@ class GEDIVerticalProfiler:
         pai_rh = pai_rh64.astype(self.out_dtype, copy=False)
         pavd_rh = pavd_rh64.astype(self.out_dtype, copy=False)
         height_rh = height_rh64.astype(self.out_dtype, copy=False)
+        waveform_rh = waveform_rh64.astype(self.out_dtype, copy=False)
         H = H64.astype(self.out_dtype, copy=False)
 
-        return cov_rh, pai_rh, pavd_rh, height_rh, H
+        return cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H

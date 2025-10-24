@@ -15,7 +15,7 @@ from gedidb.utils.profiles import (
     _pavd_from_pai_variable_dz,
     _resample_profiles_to_rh101_per_shot_jit,
     GEDIVerticalProfiler,
-    _finite_max_rowwise,  # add this import if not already
+    _finite_max_rowwise,
 )
 
 # ---------------------------
@@ -26,14 +26,15 @@ from gedidb.utils.profiles import (
 def test_finite_max_rowwise_covers_all_nan_and_neginf():
     h = np.array(
         [
-            [np.nan, np.nan, np.nan],  # all NaN
+            [np.nan, np.nan, np.nan],  # all NaN -> NaN or -inf under fastmath
             [-np.inf, 2.0, -np.inf],  # finite values present -> 2.0
             [0.0, -5.0, -np.inf],  # finite max 0.0
         ],
         dtype=np.float64,
     )
     out = _finite_max_rowwise(h)
-    # Accept NaN or -inf for all-NaN row (Numba+fastmath can differ)
+
+    # Under numba fastmath, all-NaN row can yield np.nan OR -np.inf
     assert np.isnan(out[0]) or np.isneginf(out[0])
     assert np.isclose(out[1], 2.0)
     assert np.isclose(out[2], 0.0)
@@ -55,24 +56,37 @@ def test_pavd_from_pai_variable_dz_zero_spacing_nan_edges():
 # ---------------------------
 
 
-def test_resample_rh_uses_provided_rh98_and_handles_all_nan_row():
-    # Two shots; second has all-NaN heights -> all NaNs out
+def test_resample_rh_computes_H_from_max_height_and_handles_all_nan_row():
+    # Two shots; second has all-NaN heights -> degenerate shot
     h2d = np.array([[0.0, 5.0, 10.0], [np.nan, np.nan, np.nan]], dtype=np.float64)
     c = np.where(np.isfinite(h2d), 0.5, np.nan).astype(np.float64)
     pai = np.where(np.isfinite(h2d), 1.0, np.nan).astype(np.float64)
     pav = np.where(np.isfinite(h2d), 0.2, np.nan).astype(np.float64)
+    waveform = np.where(np.isfinite(h2d), 1, np.nan).astype(np.float64)
 
-    # Provide rh98 (length n=2) to take the provided H path
-    rh98 = np.array([9.0, np.nan], dtype=np.float64)
-    cov_rh, pai_rh, pavd_rh, height_rh, H = _resample_profiles_to_rh101_per_shot_jit(
-        h2d, c, pai, pav, rh98, min_canopy_height=2.0, out_dtype_code=1
+    cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H = (
+        _resample_profiles_to_rh101_per_shot_jit(
+            h2d, c, pai, pav, waveform, out_dtype_code=1
+        )
     )
-    # H matches provided vector
-    assert np.allclose(H, [9.0, np.nan], equal_nan=True)
-    # Row 2: count==0 (no finite heights) -> remains all NaN
+
+    # H is computed as rowwise finite max(height)
+    assert np.isclose(H[0], 10.0)
+    # Under numba fastmath, the all-NaN row may yield NaN or -inf
+    assert np.isnan(H[1]) or np.isneginf(H[1])
+
+    # Degenerate shot (row 2): everything should be non-finite
     assert np.isnan(cov_rh[1]).all()
-    # Row 1: height_rh spans 0..H[0]
-    assert np.isclose(height_rh[0, 0], 0.0) and np.isclose(height_rh[0, -1], 9.0)
+    assert np.isnan(pai_rh[1]).all()
+    assert np.isnan(pavd_rh[1]).all()
+    # Height may be NaN or -inf across the row; require all non-finite
+    assert np.all(~np.isfinite(height_rh[1]))
+    # Waveform normalization skipped -> remains NaN
+    assert np.isnan(waveform_rh[1]).all()
+
+    # Valid shot (row 1): height_rh spans 0..H[0]
+    assert np.isclose(height_rh[0, 0], 0.0)
+    assert np.isclose(height_rh[0, -1], 10.0)
 
 
 def test_resample_rh_duplicate_heights_get_deduped():
@@ -81,9 +95,10 @@ def test_resample_rh_duplicate_heights_get_deduped():
     c = np.array([[0.1, 0.2, 0.8, 0.9]], dtype=np.float64)  # two values at same z
     pai = np.ones_like(c, dtype=np.float64)
     pav = np.ones_like(c, dtype=np.float64) * 0.3
-    rh98 = np.empty(0, dtype=np.float64)
+    w = np.ones_like(c, dtype=np.float64)
+
     cov_rh, *_ = _resample_profiles_to_rh101_per_shot_jit(
-        h2d, c, pai, pav, rh98, min_canopy_height=2.0, out_dtype_code=0
+        h2d, c, pai, pav, w, out_dtype_code=0
     )
     # Just sanity: interpolation gives values within [min,max], no crashes
     assert np.nanmin(cov_rh) >= 0.1 - 1e-6 and np.nanmax(cov_rh) <= 0.9 + 1e-6
@@ -168,7 +183,7 @@ def test_compute_profiles_float64_output_and_broadcasting():
     elev = np.array([np.pi / 6, np.pi / 3], dtype=np.float64)  # mu>0 for both
     vp = GEDIVerticalProfiler(out_dtype=np.float64)
 
-    cov_rh, pai_rh, pavd_rh, height_rh, H = vp.compute_profiles(
+    cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H = vp.compute_profiles(
         pgap_theta_z=pgap,
         height=z2d,
         local_beam_elevation=elev,
@@ -236,7 +251,7 @@ def test_scatter_waveform_jit_varied_counts_with_offset():
 
 def test_scatter_waveform_jit_matches_python_reference_multiple_shots():
     rng = np.random.default_rng(42)
-    # Random counts including zeros; ensure sum(counts>0) == len(flat)
+    # Random counts including zeros; ensure sum(counts) == len(flat)
     counts = rng.integers(low=0, high=5, size=6, dtype=np.int64)
     total = int(counts.sum())
     flat = rng.integers(1, 100, size=total).astype(np.float32)
