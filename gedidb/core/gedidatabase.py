@@ -494,54 +494,130 @@ class GEDIDatabase:
 
         return tiledb.Domain(dim_lat, dim_lon, dim_time)
 
-    def _create_attributes(self) -> List[tiledb.Attr]:
-        """
-        Create TileDB attributes for GEDI data.
+    def filters_float(self, lvl=None):
+        lvl = (
+            int(self.config.get("tiledb", {}).get("profiles_zstd_level", 5))
+            if lvl is None
+            else lvl
+        )
+        return tiledb.FilterList(
+            [tiledb.ByteShuffleFilter(), tiledb.ZstdFilter(level=lvl)]
+        )
 
-        Notes
-        -----
-        - Profiles are kept as 101 scalar attributes (no profile dimension).
-        - We apply Zstd to attributes; DoubleDelta is usually not helpful for noisy float profiles.
-        """
-        attributes: List[tiledb.Attr] = []
+    def filters_float64(self, lvl=None):
+        # slightly lower level if you care about speed
+        lvl = (
+            int(self.config.get("tiledb", {}).get("float64_zstd_level", 4))
+            if lvl is None
+            else lvl
+        )
+        return tiledb.FilterList(
+            [tiledb.ByteShuffleFilter(), tiledb.ZstdFilter(level=lvl)]
+        )
+
+    def filters_flags(self, lvl=None):
+        lvl = (
+            int(self.config.get("tiledb", {}).get("flags_zstd_level", 3))
+            if lvl is None
+            else lvl
+        )
+        fl = [tiledb.RleFilter(), tiledb.ZstdFilter(level=lvl)]
+        # Optional: if your TileDB has BitWidthReductionFilter, prepend it
+        try:
+            fl.insert(0, tiledb.BitWidthReductionFilter())
+        except Exception:
+            pass
+        return tiledb.FilterList(fl)
+
+    def filters_small_int(self, lvl=None):
+        lvl = (
+            int(self.config.get("tiledb", {}).get("int_zstd_level", 3))
+            if lvl is None
+            else lvl
+        )
+        fl = [tiledb.ZstdFilter(level=lvl)]
+        try:
+            fl.insert(0, tiledb.BitWidthReductionFilter())
+        except Exception:
+            pass
+        return tiledb.FilterList(fl)
+
+    def filters_utf8(self, lvl=None):
+        lvl = (
+            int(self.config.get("tiledb", {}).get("string_zstd_level", 3))
+            if lvl is None
+            else lvl
+        )
+        return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
+
+    def _make_string_attr(self, name: str, fl: tiledb.FilterList) -> tiledb.Attr:
+        # Try UTF-8 first; fall back to ASCII for older TileDB-Py
+        try:
+            return tiledb.Attr(name=name, dtype="utf8", var=True, filters=fl)
+        except Exception:
+            return tiledb.Attr(name=name, dtype="ascii", var=True, filters=fl)
+
+    def _create_attributes(self) -> List[tiledb.Attr]:
         if not self.variables_config:
             raise ValueError(
                 "Variable configuration is missing. Cannot create attributes."
             )
 
-        # Allow override via config; defaults are sensible
-        attr_zstd_level = int(self.config.get("tiledb", {}).get("attr_zstd_level", 4))
-        attr_filters = tiledb.FilterList([tiledb.ZstdFilter(level=attr_zstd_level)])
+        attributes: List[tiledb.Attr] = []
 
-        # Scalars
-        for var_name, var_info in self.variables_config.items():
-            if not var_info.get("is_profile", False):
-                attributes.append(
-                    tiledb.Attr(
-                        name=var_name, dtype=var_info["dtype"], filters=attr_filters
-                    )
+        def choose_filters(var_name: str, dtype: np.dtype) -> tiledb.FilterList:
+            k = dtype.kind  # 'f', 'i', 'u', 'U'
+            if k == "f":
+                return (
+                    self.filters_float64()
+                    if dtype == np.float64
+                    else self.filters_float()
                 )
+            if k in ("i", "u"):
+                return (
+                    self.filters_flags()
+                    if dtype == np.uint8
+                    else self.filters_small_int()
+                )
+            if k == "U":
+                return self.filters_utf8()
+            return tiledb.FilterList([tiledb.ZstdFilter(level=3)])
 
-        # Profiles as separate scalar attributes (…_1 .. …_N)
+        # Non-profile attrs
         for var_name, var_info in self.variables_config.items():
             if var_info.get("is_profile", False):
-                profile_length = int(var_info.get("profile_length", 1))
-                if profile_length <= 0:
-                    raise ValueError(f"{var_name}: profile_length must be >= 1")
-                for i in range(profile_length):
-                    attr_name = f"{var_name}_{i + 1}"
-                    attributes.append(
-                        tiledb.Attr(
-                            name=attr_name,
-                            dtype=var_info["dtype"],
-                            filters=attr_filters,
-                        )
-                    )
+                continue
+            dtype = np.dtype(var_info["dtype"])
+            fl = choose_filters(var_name, dtype)
+            if dtype.kind == "U":
+                attributes.append(self._make_string_attr(var_name, fl))
+            else:
+                attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=fl))
 
-        # Optional: timestamp in nanoseconds (true ns)
+        # Profile attrs (…_1 .. …_N)
+        for var_name, var_info in self.variables_config.items():
+            if not var_info.get("is_profile", False):
+                continue
+            profile_length = int(var_info.get("profile_length", 1))
+            if profile_length <= 0:
+                raise ValueError(f"{var_name}: profile_length must be >= 1")
+            dtype = np.dtype(var_info["dtype"])
+            fl = choose_filters(var_name, dtype)
+            for i in range(profile_length):
+                attributes.append(
+                    tiledb.Attr(name=f"{var_name}_{i + 1}", dtype=dtype, filters=fl)
+                )
+
+        # Optional timestamp (ns) — robust to unordered/duplicate values
         if self.config.get("tiledb", {}).get("write_timestamp_ns", True):
+            try:
+                ts_filters = tiledb.FilterList(
+                    [tiledb.BitWidthReductionFilter(), tiledb.ZstdFilter(level=2)]
+                )
+            except Exception:
+                ts_filters = tiledb.FilterList([tiledb.ZstdFilter(level=2)])
             attributes.append(
-                tiledb.Attr(name="timestamp_ns", dtype="int64", filters=attr_filters)
+                tiledb.Attr(name="timestamp_ns", dtype="int64", filters=ts_filters)
             )
 
         return attributes
