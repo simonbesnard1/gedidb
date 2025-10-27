@@ -543,7 +543,7 @@ class GEDIVerticalProfiler:
                 out_dtype_code=out_dtype_code,
             )
         )
-        
+
         # At ground contact: no cover, PAI=0, no vertical density, waveform=0.
         nshots = cov_rh64.shape[0]
         if nshots > 0:
@@ -552,7 +552,7 @@ class GEDIVerticalProfiler:
             pavd_rh64[:, 0] = 0.0
             waveform_rh64[:, 0] = 0.0
             height_rh64[:, 0] = 0.0
-        
+
         # final cast once
         cov_rh = cov_rh64.astype(self.out_dtype, copy=False)
         pai_rh = pai_rh64.astype(self.out_dtype, copy=False)
