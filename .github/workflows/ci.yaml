@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Test results for ${{ runner.os }}-${{ matrix.python-version }} ${{ matrix.env }}
           path: pytest.xml
@@ -126,7 +126,7 @@ jobs:
     if: github.repository == 'simonbesnard1/gedidb'
     steps:
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Event File
           path: ${{ github.event_path }}
