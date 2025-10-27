@@ -550,13 +550,6 @@ class GEDIDatabase:
         )
         return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
 
-    def _make_string_attr(self, name: str, fl: tiledb.FilterList) -> tiledb.Attr:
-        # Try UTF-8 first; fall back to ASCII for older TileDB-Py
-        try:
-            return tiledb.Attr(name=name, dtype="utf8", var=True, filters=fl)
-        except Exception:
-            return tiledb.Attr(name=name, dtype="ascii", var=True, filters=fl)
-
     def _create_attributes(self) -> List[tiledb.Attr]:
         if not self.variables_config:
             raise ValueError(
@@ -589,10 +582,7 @@ class GEDIDatabase:
                 continue
             dtype = np.dtype(var_info["dtype"])
             fl = choose_filters(var_name, dtype)
-            if dtype.kind == "U":
-                attributes.append(self._make_string_attr(var_name, fl))
-            else:
-                attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=fl))
+            attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=fl))
 
         # Profile attrs (…_1 .. …_N)
         for var_name, var_info in self.variables_config.items():
