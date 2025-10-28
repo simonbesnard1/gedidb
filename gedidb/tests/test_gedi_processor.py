@@ -5,7 +5,6 @@
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 
-import json
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -524,7 +523,7 @@ def test_process_single_granule_calls_download_and_process(monkeypatch, tmp_path
         ("https://u/3", "level4A", None),
         ("https://u/4", "level4C", None),
     ]
-    gid, df = GEDIProcessor.process_single_granule(
+    gid, df, _ = GEDIProcessor.process_single_granule(
         "GZ", product_info, data_info, str(tmp_path / "dl")
     )
     assert gid == "GZ"

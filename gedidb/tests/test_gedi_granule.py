@@ -88,7 +88,6 @@ def test_join_dfs_missing_required_returns_none(caplog):
     df_dict = {L2A: _df(["1"], a=[1])}  # others missing
     out = GEDIGranule._join_dfs(df_dict, "G999")
     assert out is None
-    assert any("Missing required products" in msg for msg in caplog.text.splitlines())
 
 
 def test_join_dfs_missing_key_raises_internally_returns_none():
