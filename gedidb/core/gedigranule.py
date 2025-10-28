@@ -199,7 +199,6 @@ class GEDIGranule:
             return None
 
         if base.empty:
-            logger.warning(f"[{granule_key}] No matching shots between L2A and L2B")
             return None
 
         # STEP 2: LEFT-join L4A
