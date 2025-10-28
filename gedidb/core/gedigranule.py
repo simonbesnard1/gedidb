@@ -156,7 +156,6 @@ class GEDIGranule:
                 missing.append(code)
 
         if missing:
-            logger.warning(f"[{granule_key}] Missing required products: {missing}")
             return None
 
         def _prep(df: pd.DataFrame, product_name: str) -> pd.DataFrame:
