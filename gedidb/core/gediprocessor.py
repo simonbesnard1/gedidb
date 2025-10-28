@@ -6,18 +6,20 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
-import concurrent.futures
 import logging
 import os
 import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
+import time
 
 import geopandas as gpd
 import pandas as pd
 import yaml
 from dask.distributed import Client
+import concurrent.futures
+from concurrent.futures import as_completed
 
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.core.gedigranule import GEDIGranule
@@ -25,6 +27,8 @@ from gedidb.downloader.authentication import EarthDataAuthenticator
 from gedidb.downloader.data_downloader import CMRDataDownloader, H5FileDownloader
 from gedidb.utils.constants import GediProduct
 from gedidb.utils.geo_processing import _temporal_tiling, check_and_format_shape
+from gedidb.utils.progress_ledger import ProgressLedger, Row
+
 
 # Configure logging
 logging.basicConfig(
@@ -168,6 +172,11 @@ class GEDIProcessor:
         self.download_path = self._ensure_directory(
             os.path.join(self.data_info["data_dir"], "download")
         )
+
+        self.progress_dir = self._ensure_directory(
+            os.path.join(self.data_info["data_dir"], "progress")
+        )
+        self.report_every = int(self.data_info["tiledb"].get("report_every", 25))
 
         # Initialize database writer
         self.database_writer = self._initialize_database_writer(credentials)
@@ -349,46 +358,84 @@ class GEDIProcessor:
         """
         Process unprocessed granules in parallel using the selected parallelization engine.
         """
-        # Check the temporal tiling configuration
         temporal_batching = self.data_info["tiledb"].get("temporal_batching", None)
-
-        if temporal_batching == "daily" or temporal_batching == "weekly":
-            # Apply temporal tiling based on the specified configuration
-            unprocessed_temporal_cmr_data = _temporal_tiling(
-                unprocessed_cmr_data, temporal_batching
-            )
+        if temporal_batching in ("daily", "weekly"):
+            batches = _temporal_tiling(unprocessed_cmr_data, temporal_batching)
         elif temporal_batching is None:
-            # No tiling, process all granules as a single batch
-            unprocessed_temporal_cmr_data = {"all": unprocessed_cmr_data}
+            batches = {"all": unprocessed_cmr_data}
         else:
-            # Raise an error for invalid temporal tiling options
-            raise ValueError(
-                f"Invalid temporal batching option: '{temporal_batching}'. "
-                "It must be one of ['daily', 'weekly', None]."
-            )
+            raise ValueError("Invalid temporal batching option.")
 
         if isinstance(self.parallel_engine, concurrent.futures.Executor):
-            # Create the executor once
             with self.parallel_engine as executor:
-                for (
-                    timeframe,
-                    granules,
-                ) in unprocessed_temporal_cmr_data.items():
-                    futures = [
-                        executor.submit(
+                for timeframe, granules in batches.items():
+                    ledger = ProgressLedger(
+                        os.path.join(self.progress_dir, timeframe), timeframe
+                    )
+                    # submit all
+                    future_map = {}
+                    for gid, pinf in granules.items():
+                        ledger.note_submit(gid)
+                        fut = executor.submit(
                             GEDIProcessor.process_single_granule,
-                            granule_id,
-                            product_info,
+                            gid,
+                            pinf,
                             self.data_info,
                             self.download_path,
                         )
-                        for granule_id, product_info in granules.items()
-                    ]
-                    results = [future.result() for future in futures]
+                        future_map[fut] = gid
 
-                    # Collect valid data for writing
-                    valid_dataframes = [gdf for _, gdf in results if gdf is not None]
+                    valid_dataframes = []
+                    counter = 0
+                    for fut in as_completed(future_map):
+                        gid = future_map[fut]
+                        started_ts = time.time()
+                        try:
+                            (ids_, gdf, metrics) = fut.result()
+                            finished_ts = time.time()
+                            ok = ids_ is not None
+                            if gdf is not None:
+                                valid_dataframes.append(gdf)
+                            if ok:
+                                self.database_writer.mark_granule_as_processed(ids_)
+                            row = Row(
+                                granule_id=gid,
+                                timeframe=timeframe,
+                                submitted_ts=ledger._submits.get(gid, finished_ts),
+                                started_ts=metrics.get("started_ts", started_ts),
+                                finished_ts=finished_ts,
+                                duration_s=finished_ts
+                                - metrics.get("started_ts", started_ts),
+                                status="ok" if ok else "fail",
+                                n_records=metrics.get("n_records"),
+                                bytes_downloaded=metrics.get("bytes_downloaded"),
+                                products=",".join(metrics.get("products", [])),
+                                error_msg=None,
+                            )
+                            ledger.append(row)
+                        except Exception as e:
+                            finished_ts = time.time()
+                            tb = traceback.format_exc()
+                            ledger.write_error(gid, tb)
+                            row = Row(
+                                granule_id=gid,
+                                timeframe=timeframe,
+                                submitted_ts=ledger._submits.get(gid, finished_ts),
+                                started_ts=started_ts,
+                                finished_ts=finished_ts,
+                                duration_s=finished_ts - started_ts,
+                                status="fail",
+                                error_msg=str(e),
+                            )
+                            ledger.append(row)
+                            logger.error(f"Granule {gid} failed: {e}")
+                        finally:
+                            counter += 1
+                            if counter % self.report_every == 0:
+                                ledger.write_status_md()
+                                ledger.write_html()
 
+                    # write data then finalize report
                     if valid_dataframes:
                         concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
                         quadrants = self.database_writer.spatial_chunking(
@@ -397,47 +444,85 @@ class GEDIProcessor:
                         for data in quadrants.values():
                             self.database_writer.write_granule(data)
 
-                    # Collect processed granules
-                    granule_ids = [ids_ for ids_, _ in results if ids_ is not None]
-                    for granule_id in granule_ids:
-                        self.database_writer.mark_granule_as_processed(granule_id)
+                    ledger.write_status_md()
+                    ledger.write_html()
 
         elif isinstance(self.parallel_engine, Client):
-            for timeframe, granules in unprocessed_temporal_cmr_data.items():
-
-                # Assume Dask client
-                futures = [
-                    self.parallel_engine.submit(
+            for timeframe, granules in batches.items():
+                ledger = ProgressLedger(
+                    os.path.join(self.progress_dir, timeframe), timeframe
+                )
+                futures = []
+                for gid, pinf in granules.items():
+                    ledger.note_submit(gid)
+                    fut = self.parallel_engine.submit(
                         GEDIProcessor.process_single_granule,
-                        granule_id,
-                        product_info,
+                        gid,
+                        pinf,
                         self.data_info,
                         self.download_path,
                     )
-                    for granule_id, product_info in granules.items()
-                ]
-                results = self.parallel_engine.gather(futures)
+                    futures.append((gid, fut))
 
-                # Collect valid data for writing
-                valid_dataframes = [gdf for _, gdf in results if gdf is not None]
+                valid_dataframes = []
+                counter = 0
+                for gid, fut in futures:
+                    started_ts = time.time()
+                    try:
+                        ids_, gdf, metrics = self.parallel_engine.gather(fut)
+                        finished_ts = time.time()
+                        ok = ids_ is not None
+                        if gdf is not None:
+                            valid_dataframes.append(gdf)
+                        if ok:
+                            self.database_writer.mark_granule_as_processed(ids_)
+                        row = Row(
+                            granule_id=gid,
+                            timeframe=timeframe,
+                            submitted_ts=ledger._submits.get(gid, finished_ts),
+                            started_ts=metrics.get("started_ts", started_ts),
+                            finished_ts=finished_ts,
+                            duration_s=finished_ts
+                            - metrics.get("started_ts", started_ts),
+                            status="ok" if ok else "fail",
+                            n_records=metrics.get("n_records"),
+                            bytes_downloaded=metrics.get("bytes_downloaded"),
+                            products=",".join(metrics.get("products", [])),
+                            error_msg=None,
+                        )
+                        ledger.append(row)
+                    except Exception as e:
+                        finished_ts = time.time()
+                        tb = traceback.format_exc()
+                        ledger.write_error(gid, tb)
+                        row = Row(
+                            granule_id=gid,
+                            timeframe=timeframe,
+                            submitted_ts=ledger._submits.get(gid, finished_ts),
+                            started_ts=started_ts,
+                            finished_ts=finished_ts,
+                            duration_s=finished_ts - started_ts,
+                            status="fail",
+                            error_msg=str(e),
+                        )
+                        ledger.append(row)
+                        logger.error(f"Dask task for {gid} failed: {e}")
+                    finally:
+                        counter += 1
+                        if counter % self.report_every == 0:
+                            ledger.write_status_md()
+                            ledger.write_html()
 
                 if valid_dataframes:
                     concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-                    quadrants = self.database_writer.spatial_chunking(
-                        concatenated_df,
-                        chunk_size=self.data_info["tiledb"]["chunk_size"],
-                    )
+                    quadrants = self.database_writer.spatial_chunking(concatenated_df)
                     for data in quadrants.values():
                         self.database_writer.write_granule(data)
 
-                # Collect processed granules
-                granule_ids = [ids_ for ids_, _ in results if ids_ is not None]
-                for granule_id in granule_ids:
-                    self.database_writer.mark_granule_as_processed(granule_id)
+                ledger.write_status_md()
+                ledger.write_html()
         else:
-            raise ValueError(
-                "Unsupported parallel engine. Provide a 'concurrent.futures.Executor' or 'dask.distributed.Client'."
-            )
+            raise ValueError("Unsupported parallel engine.")
 
     @staticmethod
     def process_single_granule(granule_id, product_info, data_info, download_path):
@@ -460,18 +545,32 @@ class GEDIProcessor:
         tuple
             A tuple containing the granule ID and the processed granule data.
         """
-        # Initialize the downloader
+
+        started_ts = time.time()
         downloader = H5FileDownloader(download_path)
 
-        # Sequentially download each product
+        bytes_dl = 0
+        prods = []
         download_results = []
-        for url, product, _ in product_info:
-            result = downloader.download(granule_id, url, GediProduct(product))
-            download_results.append(result)
+        for url, product, extra in product_info:
+            res = downloader.download(granule_id, url, GediProduct(product))
+            # If your downloader can expose sizes, insert here:
+            if isinstance(res, tuple) and len(res) >= 2 and isinstance(res[1], int):
+                bytes_dl += int(res[1])
+            prods.append(str(product))
+            download_results.append(res)
 
-        # Process granule
         granule_processor = GEDIGranule(download_path, data_info)
-        return granule_processor.process_granule(download_results)
+        ids_, gdf = granule_processor.process_granule(download_results)
+        n_records = int(gdf.shape[0]) if gdf is not None else None
+
+        metrics = {
+            "started_ts": started_ts,
+            "bytes_downloaded": bytes_dl or None,
+            "products": prods,
+            "n_records": n_records,
+        }
+        return ids_, gdf, metrics
 
     def close(self):
         """Close the parallelization engine if applicable."""
