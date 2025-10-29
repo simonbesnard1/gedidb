@@ -36,7 +36,7 @@ earth_data_info:
    GediProduct.L2A: 'C2142771958-LPCLOUD'
    GediProduct.L2B: 'C2142776747-LPCLOUD'
    GediProduct.L4A: 'C2237824918-ORNL_CLOUD'
-   GediProduct.L4C: 'C3049900163-ORNL_CLOUD'
+   GediProduct.L4C: 'C3049900163-ORNL_CLOUD' 
 
 # Variables list for each GEDI level product - SDS_Name is science dataset name the native h5 file retrieved from the NASA API
 level_2a:

@@ -689,12 +689,12 @@ class GEDIDatabase:
             If required dimension data or critical variables are missing.
         """
         try:
-            granule_data = self._dedup_consistent_with_scaling(granule_data)
-
             # Remove duplicates (modify in place if possible)
             granule_data = granule_data.drop_duplicates(
                 subset=["latitude", "longitude", "time"]
             )
+
+            granule_data = self._dedup_consistent_with_scaling(granule_data)
 
             if granule_data.empty:
                 logger.debug("Granule data is empty after deduplication")
@@ -908,8 +908,8 @@ class GEDIDatabase:
 
     def _dedup_consistent_with_scaling(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Drop duplicates using the SAME quantization as the FloatScaleFilter, to
-        prevent duplicate-cell collisions after scaling on write.
+        Drop duplicates using the SAME quantization as FloatScaleFilter.
+        CRITICAL: Must convert to float32 first to match TileDB's behavior.
         """
         if df.empty:
             return df
@@ -919,20 +919,22 @@ class GEDIDatabase:
 
         out = df.copy()
 
-        # Normalize lon to [-180, 180) before quantization
-        lon_norm = (
-            (out["longitude"].to_numpy(dtype=np.float64) + 180.0) % 360.0
-        ) - 180.0
-        out["__lon_norm"] = lon_norm
+        # STEP 1: Convert to float32 FIRST (matching what you do in _prepare_coordinates)
+        lat_f32 = out["latitude"].to_numpy(dtype=np.float32)
+        lon_f32 = out["longitude"].to_numpy(dtype=np.float32)
 
-        out["__lat_q"] = np.round(
-            out["latitude"].to_numpy(dtype=np.float64) * q
-        ).astype(np.int64)
-        out["__lon_q"] = np.round(out["__lon_norm"] * q).astype(np.int64)
+        # STEP 2: Normalize longitude using float32 precision
+        lon_norm_f32 = ((lon_f32 + 180.0) % 360.0) - 180.0
+
+        # STEP 3: Quantize the float32 values (now matches TileDB's FloatScaleFilter)
+        out["__lat_q"] = np.round(lat_f32 * q).astype(np.int64)
+        out["__lon_q"] = np.round(lon_norm_f32 * q).astype(np.int64)
         out["__t_days"] = convert_to_days_since_epoch(out["time"].values)
 
+        # STEP 4: Drop duplicates
         out = out.drop_duplicates(subset=["__lat_q", "__lon_q", "__t_days"])
-        return out.drop(columns=["__lon_norm", "__lat_q", "__lon_q", "__t_days"])
+
+        return out.drop(columns=["__lat_q", "__lon_q", "__t_days"])
 
     @staticmethod
     def _load_variables_config(config):
