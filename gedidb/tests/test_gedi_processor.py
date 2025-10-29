@@ -170,6 +170,7 @@ class FakeDaskClient:
 def config_file(tmp_path):
     cfg = {
         "data_dir": str(tmp_path / "data"),
+        "progress_dir": str(tmp_path / "progress"),
         "earth_data_info": {"foo": "bar"},
         "tiledb": {
             "chunk_size": 100,
@@ -469,6 +470,7 @@ def test_process_granules_invalid_tiling_raises(
     p = Path(config_file)
     cfg = {
         "data_dir": str(p.parent / "data"),
+        "progress_dir": str(p.parent / "progress"),
         "earth_data_info": {},
         "tiledb": {"temporal_batching": "monthly"},  # invalid on purpose
     }

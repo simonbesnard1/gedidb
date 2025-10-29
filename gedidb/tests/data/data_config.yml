@@ -29,6 +29,9 @@ tiledb:
 # Data directory for downloading GEDI data
 data_dir: ''
 
+# Progress directory for monitoring processing
+progress_dir: ''
+
 # Configuration for accessing NASA's Earthdata Search API to query granule data.
 earth_data_info:
  CMR_URL: "https://cmr.earthdata.nasa.gov/search/granules.json"
