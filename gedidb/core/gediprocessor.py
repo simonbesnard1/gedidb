@@ -174,7 +174,7 @@ class GEDIProcessor:
         )
 
         self.progress_dir = self._ensure_directory(
-            os.path.join(self.data_info["data_dir"], "progress")
+            os.path.join(self.data_info["progress_dir"], "progress")
         )
         self.report_every = int(self.data_info["tiledb"].get("report_every", 25))
 
