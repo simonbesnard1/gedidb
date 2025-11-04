@@ -409,7 +409,7 @@ class GEDIDatabase:
         Creates TileDB domain with FloatScaleFilter for lat/lon dimensions.
 
         BENEFITS:
-        - Store as float32 (4 bytes), scale to int32 internally
+        - Store as float64 (4 bytes), scale to int32 internally
         - DoubleDelta compression works on scaled integers
         - No manual conversion in query code
         - Precision controlled by scale factor
@@ -467,12 +467,12 @@ class GEDIDatabase:
             [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(level=3)]
         )
 
-        # Create dimensions (dtype=float32 for user-facing API)
+        # Create dimensions (dtype=float64 for user-facing API)
         dim_lat = tiledb.Dim(
             name="latitude",
             domain=(lat_min, lat_max),
             tile=lat_tile,
-            dtype=np.float32,
+            dtype=np.float64,
             filters=spatial_filters,
         )
 
@@ -480,7 +480,7 @@ class GEDIDatabase:
             name="longitude",
             domain=(lon_min, lon_max),
             tile=lon_tile,
-            dtype=np.float32,
+            dtype=np.float64,
             filters=spatial_filters,
         )
 
@@ -694,8 +694,6 @@ class GEDIDatabase:
                 subset=["latitude", "longitude", "time"]
             )
 
-            granule_data = self._dedup_consistent_with_scaling(granule_data)
-
             if granule_data.empty:
                 logger.debug("Granule data is empty after deduplication")
                 return
@@ -770,7 +768,7 @@ class GEDIDatabase:
             else:
                 # Latitude/longitude:
                 coords[dim_name] = granule_data[dim_name].values.astype(
-                    np.float32, copy=False
+                    np.float64, copy=False
                 )
 
         return coords
@@ -905,36 +903,6 @@ class GEDIDatabase:
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
             raise
-
-    def _dedup_consistent_with_scaling(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Drop duplicates using the SAME quantization as FloatScaleFilter.
-        CRITICAL: Must convert to float32 first to match TileDB's behavior.
-        """
-        if df.empty:
-            return df
-
-        factor = float(self.config.get("tiledb", {}).get("scale_factor", 1e-6))
-        q = int(round(1.0 / factor))  # e.g., 1e6
-
-        out = df.copy()
-
-        # STEP 1: Convert to float32 FIRST (matching what you do in _prepare_coordinates)
-        lat_f32 = out["latitude"].to_numpy(dtype=np.float32)
-        lon_f32 = out["longitude"].to_numpy(dtype=np.float32)
-
-        # STEP 2: Normalize longitude using float32 precision
-        lon_norm_f32 = ((lon_f32 + 180.0) % 360.0) - 180.0
-
-        # STEP 3: Quantize the float32 values (now matches TileDB's FloatScaleFilter)
-        out["__lat_q"] = np.round(lat_f32 * q).astype(np.int64)
-        out["__lon_q"] = np.round(lon_norm_f32 * q).astype(np.int64)
-        out["__t_days"] = convert_to_days_since_epoch(out["time"].values)
-
-        # STEP 4: Drop duplicates
-        out = out.drop_duplicates(subset=["__lat_q", "__lon_q", "__t_days"])
-
-        return out.drop(columns=["__lat_q", "__lon_q", "__t_days"])
 
     @staticmethod
     def _load_variables_config(config):
