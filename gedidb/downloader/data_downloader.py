@@ -45,6 +45,17 @@ class WarningFilter(logging.Filter):
 logger.addFilter(WarningFilter())
 
 
+def _normalize_entry(t):
+    """Accept (url, product, start_time) or (url, product, start_time, size_mb)."""
+    if len(t) == 4:
+        url, product, start_time, size_mb = t
+        return (url, product, start_time, float(size_mb) if size_mb is not None else 0.0)
+    elif len(t) == 3:
+        url, product, start_time = t
+        return (url, product, start_time, 0.0)
+    else:
+        raise ValueError(f"Unexpected granule tuple shape: {t!r}")
+
 class GEDIDownloader:
     """
     Base class for GEDI data downloaders.
@@ -93,96 +104,105 @@ class CMRDataDownloader(GEDIDownloader):
     def download(self) -> dict:
         """
         Download granules across all GEDI products and ensure ID consistency.
-        Returns a dictionary organized by granule ID with a list of (url, product) tuples.
-        Retry mechanism is applied if the IDs across products are inconsistent.
-
-        :return: A dictionary containing granule data organized by granule ID.
-        :raises: ValueError if no granules with all required products are found.
+        Returns: {granule_id: [(url, product, start_time, size_mb), ...]}
         """
         cmr_dict = defaultdict(list)
-        total_granules = 0
-        total_size_mb = 0.0
-
-        # Iterate over each required product and collect granule information
+        per_product_counts = {}
+        per_product_sizes_mb = {}
+    
+        # 1) Query per product and stage everything (include size for post-intersection sum)
         for product in GediProduct:
             try:
                 granule_query = GranuleQuery(
-                    product,
-                    self.geom,
-                    self.start_date,
-                    self.end_date,
-                    self.earth_data_info,
+                    product, self.geom, self.start_date, self.end_date, self.earth_data_info
                 )
                 granules = granule_query.query_granules()
-
-                if not granules.empty:
-                    total_granules += len(granules)
-                    total_size_mb += (
-                        granules["size"].astype(float).sum()
-                    )  # Summing the size column
-
-                    # Organize granules by ID and append (url, product) tuples
-                    for _, row in granules.iterrows():
-
-                        cmr_dict[row["id"]].append(
-                            (
-                                row["url"],
-                                product.value,
-                                row["start_time"],
-                            )
-                        )
-                else:
+    
+                if granules.empty:
                     logger.warning(f"No granules found for product {product.value}.")
-
+                    per_product_counts[product.value] = 0
+                    per_product_sizes_mb[product.value] = 0.0
+                    continue
+    
+                per_product_counts[product.value] = len(granules)
+                per_product_sizes_mb[product.value] = float(granules["size"].astype(float).sum())
+    
+                for _, row in granules.iterrows():
+                    cmr_dict[row["id"]].append(
+                        (row["url"], product.value, row["start_time"], float(row["size"]))
+                    )
+    
             except Exception as e:
                 logger.error(f"Failed to download granules for {product.name}: {e}")
+                per_product_counts.setdefault(product.value, 0)
+                per_product_sizes_mb.setdefault(product.value, 0.0)
                 continue
-
+    
         if not cmr_dict:
             raise ValueError(
                 "No GEDI granules found for the provided spatio-temporal request. "
                 f"Geometry bounds={self.geom.total_bounds.tolist()}, "
                 f"start_date={self.start_date}, end_date={self.end_date}"
             )
-
-        # Filter granules to only include those with all required products
+    
+        # 2) Intersect to keep only granules that have all required products.
         filtered_cmr_dict = self._filter_granules_with_all_products(cmr_dict)
-
         if not filtered_cmr_dict:
             raise ValueError("No granules with all required products found.")
-
-        # Log the total number of granules and total size of the data
-        logger.info(
-            f"NASA's CMR service found {int(total_granules / len(GediProduct))} granules for a total size of {total_size_mb / 1024:.2f} GB ({total_size_mb / 1_048_576:.2f} TB)."
+    
+        # 3) True counts/sizes AFTER intersection.
+        n_intersection = len(filtered_cmr_dict)
+        total_size_mb = sum(
+            sz for entries in filtered_cmr_dict.values() for _, _, _, sz in entries
         )
-
+    
+        # 4) Clear logging (and a sanity note)
+        if per_product_counts:
+            min_per_prod = min(per_product_counts.values())
+            if n_intersection > min_per_prod:
+                logger.warning(
+                    "Intersection (%d) > min per-product count (%d) — check product set / inputs.",
+                    n_intersection, min_per_prod
+                )
+    
+        logger.info(
+            "Intersection has %d granule IDs across %d products. "
+            "Estimated download: %.2f GB (%.2f TB). ",
+            n_intersection,
+            len(GediProduct),
+            total_size_mb / 1024,
+            total_size_mb / 1_048_576
+        )
+    
         return filtered_cmr_dict
-
+    
+    
     def _filter_granules_with_all_products(self, granules: dict) -> dict:
         """
-        Filter the granules dictionary to only include granules that have all required products.
-
-        :param granules: Dictionary where keys are granule IDs and values are lists of (url, product) tuples.
-        :return: Filtered dictionary containing only granules with all required products.
+        Keep only granule IDs that have all required products.
+        Deduplicates multiple entries for the same (granule_id, product).
+        Accepts tuples of len 3 or 4 and normalizes to len 4.
         """
-        required_products = {"level2A", "level2B", "level4A", "level4C"}
+        required_products = {p.value for p in GediProduct}
         filtered_granules = {}
-
+    
         for granule_id, product_info in granules.items():
-            # Extract the set of products for the current granule
-            products_found = {product[1] for product in product_info}
-
-            # Check for missing products
-            missing_products = required_products - products_found
-            if missing_products:
-                # Skip this granule as it's missing required products
+            # Normalize shapes & dedupe per product
+            by_product = {}
+            for t in product_info:
+                url, product, start_time, size_mb = _normalize_entry(t)
+                # keep first seen per product; change policy if you prefer newest/largest
+                by_product.setdefault(product, (url, product, start_time, size_mb))
+    
+            # Check intersection condition
+            if not required_products.issubset(by_product.keys()):
                 continue
-            else:
-                # Include this granule as it has all required products
-                filtered_granules[granule_id] = product_info
-
+    
+            # Keep only required products (ignore extras)
+            filtered_granules[granule_id] = [by_product[p] for p in required_products]
+    
         return filtered_granules
-
+    
 
 class H5FileDownloader:
     """
