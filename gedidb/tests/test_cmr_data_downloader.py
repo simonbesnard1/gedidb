@@ -64,7 +64,12 @@ def test_cmr_download_happy_path(monkeypatch, geom):
     for v in out.values():
         assert len(v) == 4
         # (url, product_value, start_time)
-        assert set(p for _, p, _ in v) == {"level2A", "level2B", "level4A", "level4C"}
+        assert set(p for _, p, _, _ in v) == {
+            "level2A",
+            "level2B",
+            "level4A",
+            "level4C",
+        }
 
 
 def test_cmr_download_filters_missing_products(monkeypatch, geom):
