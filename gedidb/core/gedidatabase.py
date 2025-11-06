@@ -9,13 +9,14 @@
 import concurrent.futures
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 import tiledb
 from dask.distributed import Client
 from retry import retry
+from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
 
 from gedidb.utils.geo_processing import (
     _datetime_to_timestamp_days,
@@ -119,62 +120,16 @@ class GEDIDatabase:
         dataset: pd.DataFrame,
         tiles_across_lat: int = 10,
         tiles_across_lon: int = 10,
-    ) -> Dict[Tuple[float, float, float, float], pd.DataFrame]:
+    ):
         """
-        Split a geospatial dataset into **tile-aligned spatial blocks** for efficient
-        writing into a TileDB array.
-
-        This function does *not* require that the chunk/window size equals the TileDB
-        schema tile size. Instead, windows are defined as integer **multiples** of the
-        schema's underlying tile size (e.g. 10×10° blocks on a 1° schema tile), which
-        significantly reduces fragment overlap and improves consolidation efficiency.
-
-        Parameters
-        ----------
-        dataset : pd.DataFrame
-            Input data containing at least ``latitude`` and ``longitude`` columns.
-            Typically this is a subset of one or more GEDI granules after preprocessing.
-        tiles_across_lat : int, default=10
-            Number of schema tiles to group together along the latitude dimension.
-            For a 1° schema tile, ``tiles_across_lat=10`` produces a 10° block.
-        tiles_across_lon : int, default=10
-            Number of schema tiles to group together along the longitude dimension.
-
-        Returns
-        -------
-        Dict[Tuple[float, float, float, float], pd.DataFrame]
-            A dictionary where:
-            - the key is a tuple ``(lat_min, lat_max, lon_min, lon_max)`` aligned to the
-              underlying TileDB tile grid and expressed in degrees
-            - the value is a DataFrame containing all rows that fall inside that window
-
-        Notes
-        -----
-        - TileDB does not require writes to match the schema tile size, but performance
-          improves when writes align to **integer multiples** of those tiles.
-        - This function ensures alignment by computing block boundaries relative to
-          the **domain minima**, not zero. This prevents subtle misalignment when
-          domain offsets exist (e.g. `[−56°, +56°]` instead of `[−90°, +90°]`).
-        - Large spatial windows (e.g. 10×10°) combined with temporal batching (e.g.
-          weekly or monthly) tend to yield optimal performance for sparse LiDAR data.
-
-        Examples
-        --------
-        >>> # 1° tiled schema, but write in 10×10 degree blocks
-        >>> chunks = db.spatial_chunking(df, tiles_across_lat=10, tiles_across_lon=10)
-        >>> for bounds, subdf in chunks.items():
-        ...     db.write_granule(subdf)
-
-        This is especially effective in combination with spatial consolidation planned
-        at 10×10° (as used elsewhere in the gediDB ingest pipeline).
+        Yield ((lat_min, lat_max, lon_min, lon_max), view) pairs without
+        building a large dict. 'view' is a cheap row-subset of the original DataFrame.
         """
         if dataset.empty:
-            return {}
-
+            return
         if not {"latitude", "longitude"}.issubset(dataset.columns):
             raise ValueError("Dataset must contain 'latitude' and 'longitude' columns.")
 
-        # Source-of-truth: read actual tile sizes + domain minima from schema
         with tiledb.open(self.array_uri, "r", ctx=self.ctx) as A:
             dom = A.schema.domain
             dim_lat, dim_lon = dom.dim(0), dom.dim(1)
@@ -183,11 +138,9 @@ class GEDIDatabase:
                 dim_lon.domain[0]
             )
 
-        # Compute block sizes as integer multiples of schema tile
         block_lat = lat_tile * tiles_across_lat
         block_lon = lon_tile * tiles_across_lon
 
-        # Indices relative to domain minima to guarantee alignment
         lat_idx = np.floor(
             (dataset["latitude"].to_numpy() - lat_min_dom) / block_lat
         ).astype(int)
@@ -195,14 +148,13 @@ class GEDIDatabase:
             (dataset["longitude"].to_numpy() - lon_min_dom) / block_lon
         ).astype(int)
 
-        chunks: Dict[Tuple[float, float, float, float], pd.DataFrame] = {}
-        for (i_lat, i_lon), group in dataset.groupby([lat_idx, lon_idx]):
+        # Use groups' index arrays to avoid copying whole grouped frames
+        groups = dataset.groupby([lat_idx, lon_idx], sort=False).groups
+        for (i_lat, i_lon), idx in groups.items():
             lat0 = lat_min_dom + i_lat * block_lat
             lon0 = lon_min_dom + i_lon * block_lon
-            chunk_key = (lat0, lat0 + block_lat, lon0, lon0 + block_lon)
-            chunks[chunk_key] = group.reset_index(drop=True)
-
-        return chunks
+            bounds = (lat0, lat0 + block_lat, lon0, lon0 + block_lon)
+            yield bounds, dataset.take(idx)
 
     @retry(
         (tiledb.TileDBError, ConnectionError),
@@ -673,53 +625,111 @@ class GEDIDatabase:
             dims = tuple(coords[dim_name] for dim_name in dim_names)
             array[dims] = data
 
-    def write_granule(self, granule_data: pd.DataFrame) -> None:
+    def write_granule(
+        self,
+        granule_data: pd.DataFrame,
+        row_batch: int = 100_000,
+    ) -> None:
         """
-        Write the parsed GEDI granule data to the global TileDB arrays,
-        filtering out shots that are outside the spatial domain.
-
-        Parameters:
-        ----------
-        granule_data : pd.DataFrame
-            DataFrame containing the granule data, with variable names matching the configuration.
-
-        Raises:
-        -------
-        ValueError
-            If required dimension data or critical variables are missing.
+        Memory-lean write with row-only batching (no attribute batching).
+        Writes *all* attributes present in the schema for each row batch.
         """
         try:
-            # Remove duplicates (modify in place if possible)
-            granule_data = granule_data.drop_duplicates(
-                subset=["latitude", "longitude", "time"]
+            if granule_data.empty:
+                return
+
+            # --- Deduplicate (lat, lon, time) with minimal temporaries
+            latv = granule_data["latitude"].to_numpy(copy=False)
+            lonv = granule_data["longitude"].to_numpy(copy=False)
+            tv = granule_data["time"].to_numpy(copy=False)
+
+            # Fast-ish composite key; robust across dtypes
+            keys = pd.Index(
+                np._core.defchararray.add(
+                    np._core.defchararray.add(latv.astype("S"), b"|"),
+                    np._core.defchararray.add(
+                        lonv.astype("S"),
+                        np._core.defchararray.add(b"|", tv.astype("S")),
+                    ),
+                )
+            )
+            keep = ~keys.duplicated()
+
+            # --- Spatial mask (NumPy)
+            min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
+            in_box = (
+                (lonv >= min_lon)
+                & (lonv <= max_lon)
+                & (latv >= min_lat)
+                & (latv <= max_lat)
             )
 
-            if granule_data.empty:
-                logger.debug("Granule data is empty after deduplication")
+            sel = np.flatnonzero(keep & in_box)
+            if sel.size == 0:
                 return
 
-            # Validate required dimensions exist
-            self._validate_granule_data(granule_data)
+            view = granule_data.iloc[sel]  # one slice only
 
-            # Create spatial filter mask (avoids copying entire dataframe)
-            min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
-            mask = granule_data["longitude"].between(
-                min_lon, max_lon, inclusive="both"
-            ) & granule_data["latitude"].between(min_lat, max_lat, inclusive="both")
+            # --- Coords (precompute once)
+            coords_all: Dict[str, np.ndarray] = {}
+            for dim_name in self.dimension_names:
+                if dim_name == "time":
+                    tvals = view["time"].to_numpy(copy=False)
+                    coords_all["time"] = convert_to_days_since_epoch(tvals)
+                else:
+                    coords_all[dim_name] = view[dim_name].to_numpy(copy=False)
 
-            valid_count = mask.sum()
-            if valid_count == 0:
-                logger.debug("No shots within spatial domain for this granule")
-                return
+            # --- timestamp_ns once (avoid repeated to_datetime)
+            tcol = view["time"]
+            if is_datetime64_any_dtype(tcol):
+                if is_datetime64tz_dtype(tcol):
+                    timestamp_ns_all = tcol.astype("int64").to_numpy(copy=False)
+                else:
+                    timestamp_ns_all = tcol.to_numpy(copy=False).view("int64")
+            else:
+                timestamp_ns_all = (
+                    pd.to_datetime(tcol, utc=True).astype("int64").to_numpy()
+                )
 
-            logger.debug(f"Writing {valid_count} shots to TileDB")
+            # --- Figure out which attributes exist in both schema and frame
+            #     We will write *all* of them in each batch.
+            with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as A_ro:
+                schema_attrs = {
+                    A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)
+                }
 
-            # Use .loc[mask] for efficient view-based slicing
-            coords = self._prepare_coordinates(granule_data.loc[mask])
-            data = self._extract_variable_data(granule_data.loc[mask])
+            available_cols = set(view.columns)
+            attrs_all = [name for name in schema_attrs if name in available_cols]
 
-            # Write to TileDB with retry logic
-            self._write_to_tiledb(coords, data)
+            # Optional: dtype coercion (numeric only); safe to remove if annoying
+            for v in attrs_all:
+                info = self.variables_config.get(v.split("_")[0], {})
+                dtype_str = info.get("dtype", str(view[v].dtype))
+                try:
+                    target = np.dtype(dtype_str)
+                except TypeError:
+                    continue  # skip e.g. 'string[python]'
+                if view[v].dtype != target and target.kind in "fiu":
+                    view[v] = view[v].astype(target, copy=False)
+
+            # Some schemas include timestamp_ns as an attribute; add if present
+            write_timestamp = "timestamp_ns" in schema_attrs
+
+            # --- Row-only batching: build full data dict per batch and write once
+            n = len(view)
+            for r0 in range(0, n, row_batch):
+                r1 = min(r0 + row_batch, n)
+                coords = {k: v[r0:r1] for k, v in coords_all.items()}
+
+                data = {}
+                if write_timestamp:
+                    data["timestamp_ns"] = timestamp_ns_all[r0:r1]
+
+                # Slice each attr once (zero-copy view where possible)
+                for a in attrs_all:
+                    data[a] = view[a].to_numpy(copy=False)[r0:r1]
+
+                self._write_to_tiledb(coords, data)
 
         except Exception as e:
             logger.error(

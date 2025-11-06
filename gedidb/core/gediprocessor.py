@@ -438,10 +438,9 @@ class GEDIProcessor:
                     # write data then finalize report
                     if valid_dataframes:
                         concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-                        quadrants = self.database_writer.spatial_chunking(
+                        for _, data in self.database_writer.spatial_chunking(
                             concatenated_df
-                        )
-                        for data in quadrants.values():
+                        ):
                             self.database_writer.write_granule(data)
 
                     ledger.write_status_md()

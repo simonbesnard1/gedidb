@@ -121,63 +121,105 @@ class TestGEDIDatabase(unittest.TestCase):
         )
 
     def test_write_granule(self):
-        """Test the `write_granule` function to write data to TileDB."""
+        """Test the `write_granule` function to write data to TileDB with row batching."""
         granule_file = self.data_dir / "example_data.csv"
-
         if not granule_file.exists():
             raise FileNotFoundError(f"Granule file not found: {granule_file}")
 
         granule_data = pd.read_csv(granule_file)
-        self.gedi_db.write_granule(granule_data)
 
-        with tiledb.open(
-            self.gedi_db.array_uri, mode="r", ctx=self.gedi_db.ctx
-        ) as array:
-            shot_number = array.query(attrs=("shot_number",)).multi_index[:, :, :]
-            beam_type = array.query(attrs=("beam_type",)).multi_index[:, :, :]
-            beam_name = array.query(attrs=("beam_name",)).multi_index[:, :, :]
+        # Exercise batching explicitly (small batches)
+        self.gedi_db.write_granule(granule_data, row_batch=2)
 
-            print((shot_number["shot_number"]))
+        expected_shot = np.array(
+            [
+                84480000200057734,
+                84480000200057402,
+                84480000200057755,
+                84480000200057754,
+                84480000200057753,
+            ],
+            dtype=np.int64,
+        )
 
-            self.assertTrue(
-                np.array_equal(
-                    shot_number["shot_number"],
-                    [
-                        84480000200057734,
-                        84480000200057402,
-                        84480000200057755,
-                        84480000200057754,
-                        84480000200057753,
-                    ],
-                ),
-                "Shot number mismatch",
-            )
-            self.assertTrue(
-                np.array_equal(
-                    beam_type["beam_type"],
-                    [
-                        "coverage",
-                        "coverage",
-                        "coverage",
-                        "coverage",
-                        "coverage",
-                    ],
-                ),
-                "Beam type mismatch",
-            )
-            self.assertTrue(
-                np.array_equal(
-                    beam_name["beam_name"],
-                    [
-                        "/BEAM0000",
-                        "/BEAM0000",
-                        "/BEAM0000",
-                        "/BEAM0000",
-                        "/BEAM0000",
-                    ],
-                ),
-                "Beam name mismatch",
-            )
+        expected_type = np.array(
+            [
+                "coverage",
+                "coverage",
+                "coverage",
+                "coverage",
+                "coverage",
+            ],
+            dtype=object,
+        )
+
+        expected_name = np.array(
+            [
+                "/BEAM0000",
+                "/BEAM0000",
+                "/BEAM0000",
+                "/BEAM0000",
+                "/BEAM0000",
+            ],
+            dtype=object,
+        )
+
+        with tiledb.open(self.gedi_db.array_uri, mode="r", ctx=self.gedi_db.ctx) as A:
+            # Prefer pandas DataFrame API if available; it’s simpler and order-agnostic
+            try:
+                df = A.query(
+                    attrs=("shot_number", "beam_type", "beam_name"), dims=True
+                ).df[:]
+                # Ensure Python types (TileDB may return object dtype already, but be robust)
+                df = df.astype({"shot_number": "int64"})
+                df = df.sort_values("shot_number").reset_index(drop=True)
+
+                got_shot = df["shot_number"].to_numpy()
+                got_type = df["beam_type"].astype(object).to_numpy()
+                got_name = df["beam_name"].astype(object).to_numpy()
+
+            except Exception:
+                # Fallback to multi_index for older TileDB-Py
+                q = A.query(attrs=("shot_number", "beam_type", "beam_name"))
+                res = q.multi_index[:, :, :]  # full domain
+                # Build a small DataFrame for deterministic comparison
+                df = (
+                    pd.DataFrame(
+                        {
+                            "shot_number": np.asarray(
+                                res["shot_number"], dtype=np.int64
+                            ),
+                            "beam_type": res["beam_type"].astype(object),
+                            "beam_name": res["beam_name"].astype(object),
+                        }
+                    )
+                    .sort_values("shot_number")
+                    .reset_index(drop=True)
+                )
+
+                got_shot = df["shot_number"].to_numpy()
+                got_type = df["beam_type"].to_numpy()
+                got_name = df["beam_name"].to_numpy()
+
+        # Sort expected the same way for a fair comparison
+        order = np.argsort(expected_shot)
+        expected_shot_sorted = expected_shot[order]
+        expected_type_sorted = expected_type[order]
+        expected_name_sorted = expected_name[order]
+
+        # Assertions (clear messages on mismatch)
+        self.assertTrue(
+            np.array_equal(got_shot, expected_shot_sorted),
+            f"Shot number mismatch.\nExpected: {expected_shot_sorted}\nGot: {got_shot}",
+        )
+        self.assertTrue(
+            np.array_equal(got_type, expected_type_sorted),
+            f"Beam type mismatch.\nExpected: {expected_type_sorted}\nGot: {got_type}",
+        )
+        self.assertTrue(
+            np.array_equal(got_name, expected_name_sorted),
+            f"Beam name mismatch.\nExpected: {expected_name_sorted}\nGot: {got_name}",
+        )
 
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestGEDIDatabase)

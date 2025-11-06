@@ -396,12 +396,9 @@ def test_compute_processes_and_writes_with_executor(
     monkeypatch, config_file, earth_dir, simple_geom
 ):
     import concurrent.futures as cf
+    import types
 
-    # ---- Synchronous executor that passes isinstance(..., Executor) check
     class SyncExecutor(cf.Executor):
-        def __init__(self):
-            pass
-
         def __enter__(self):
             return self
 
@@ -422,6 +419,19 @@ def test_compute_processes_and_writes_with_executor(
     # ---- Fakes
     db = FakeDatabase()
 
+    # >>> ADDED: adapt fake chunker to new (bounds, df) protocol
+    orig_chunker = db.spatial_chunking
+
+    def chunker_with_bounds(self, dataset):
+        for chunk in orig_chunker(dataset):
+            if isinstance(chunk, tuple) and len(chunk) == 2:
+                yield chunk
+            else:
+                yield ((0.0, 1.0, 0.0, 1.0), chunk)
+
+    db.spatial_chunking = types.MethodType(chunker_with_bounds, db)
+    # <<<
+
     def DBFactory(config=None, credentials=None):
         return db
 
@@ -435,25 +445,19 @@ def test_compute_processes_and_writes_with_executor(
         geo=lambda gdf, simplify=True: gdf,
     )
 
-    # Pass our sync executor directly (no monkeypatching ThreadPoolExecutor)
     proc = GEDIProcessor(
         geometry=simple_geom,
         start_date="2020-01-01",
         end_date="2020-01-10",
         config_file=config_file,
         earth_data_dir=earth_dir,
-        parallel_engine=SyncExecutor(),  # <= key change
+        parallel_engine=SyncExecutor(),
     )
 
     proc.compute(consolidate=True, consolidation_type="default")
 
-    # We had two granules, each turned into a small DF; both should be marked processed
     assert set(db.marked) == {"G1", "G2"}
-
-    # One chunk written; total rows > 0
     assert sum(db.writes) > 0
-
-    # Consolidation called with requested type
     assert db.consolidations == ["default"]
 
 
