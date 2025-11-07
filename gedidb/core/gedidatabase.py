@@ -23,6 +23,8 @@ from gedidb.utils.geo_processing import (
     convert_to_days_since_epoch,
 )
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
+from gedidb.utils.filters import TileDBFilterPolicy
+
 
 # Configure the logger
 logger = logging.getLogger(__name__)
@@ -47,6 +49,7 @@ class GEDIDatabase:
         self.dimension_names = config["tiledb"]["dimensions"]
         self._spatial_bounds = self._get_tiledb_spatial_domain()
         storage_type = config["tiledb"].get("storage_type", "local").lower()
+        self.filter_policy = TileDBFilterPolicy(config.get("tiledb", {}))
 
         # Set array URIs based on storage type
         if storage_type == "s3":
@@ -358,21 +361,92 @@ class GEDIDatabase:
 
     def _create_domain(self) -> tiledb.Domain:
         """
-        Creates TileDB domain with FloatScaleFilter for lat/lon dimensions.
+        Create the TileDB domain for storing GEDI data, including spatial (latitude,
+        longitude) and temporal (time) dimensions with appropriate compression filters.
 
-        BENEFITS:
-        - Store as float64 (4 bytes), scale to int32 internally
-        - DoubleDelta compression works on scaled integers
-        - No manual conversion in query code
-        - Precision controlled by scale factor
+        Overview
+        --------
+        The GEDI data are georeferenced point observations with time stamps. To enable
+        efficient spatial–temporal indexing and compression, this function defines:
 
-        PRECISION OPTIONS:
-        factor=1e-6 → 0.11m precision (your current approach)
-        factor=1e-7 → 0.011m precision (matches float32)
-        factor=1e-5 → 1.1m precision (sufficient for GEDI)
+        • Latitude and longitude as float64 dimensions, internally stored as scaled
+          integers using a `FloatScaleFilter`. This allows high-precision spatial indexing
+          (≈ meter-level precision) while maintaining compact storage and fast compression.
+
+        • Time as an int64 dimension (days since epoch), compressed using `DoubleDelta`
+          and `Zstd`. The `DoubleDelta` filter is particularly efficient for monotonic or
+          near-monotonic sequences such as time steps.
+
+        The function reads spatial and temporal ranges, precision factors, and tiling
+        parameters from the TileDB section of the user configuration.
+
+        Configuration Parameters
+        ------------------------
+        The following keys are expected under `config["tiledb"]`:
+
+        **Spatial domain**
+            - ``spatial_range.lat_min`` : float
+                Minimum latitude (degrees north).
+            - ``spatial_range.lat_max`` : float
+                Maximum latitude (degrees north).
+            - ``spatial_range.lon_min`` : float
+                Minimum longitude (degrees east).
+            - ``spatial_range.lon_max`` : float
+                Maximum longitude (degrees east).
+
+        **Temporal domain**
+            - ``time_range.start_time`` : datetime-like or str
+                Start of temporal coverage. Converted to integer days since epoch.
+            - ``time_range.end_time`` : datetime-like or str
+                End of temporal coverage. Converted to integer days since epoch.
+
+        **Tiling and precision**
+            - ``scale_factor`` : float, optional
+                Precision factor for FloatScaleFilter (default = 1e-6).
+                A factor of 1e-6 corresponds to ≈0.11 m spatial precision.
+            - ``latitude_tile`` : int, optional
+                Tile size (number of cells) along the latitude dimension (default = 1).
+            - ``longitude_tile`` : int, optional
+                Tile size along the longitude dimension (default = 1).
+            - ``time_tile`` : int, optional
+                Tile size (in days) along the time dimension (default = 365).
+
+        Returns
+        -------
+        tiledb.Domain
+            A TileDB domain object with three dimensions:
+                ``latitude (float64)``, ``longitude (float64)``, and ``time (int64)``.
+            Each dimension has filters chosen for precision and compression efficiency.
+
+        Raises
+        ------
+        ValueError
+            If spatial or temporal ranges are missing, or if any of the ranges are invalid
+            (e.g., lat_min >= lat_max).
+
+        Notes
+        -----
+        **Why FloatScale + DoubleDelta?**
+        Storing spatial coordinates as scaled integers allows the `DoubleDeltaFilter`
+        to operate on predictable integer deltas, which yields much better compression
+        than raw 64-bit floats. The resulting TileDB column remains accessible as
+        float64 in queries, so no manual scaling is required by the user.
+
+        **Typical Compression Stack:**
+            Spatial:  FloatScale → DoubleDelta → BitWidthReduction → Zstd(level=3)
+            Temporal: DoubleDelta → Zstd(level=3)
+
+        Examples
+        --------
+        >>> domain = self._create_domain()
+        >>> list(domain)
+        [Dim(name='latitude',  domain=(-60.0, 60.0),  tile=1, dtype='float64'),
+         Dim(name='longitude', domain=(-180.0, 180.0), tile=1, dtype='float64'),
+         Dim(name='time',      domain=(18262, 18993), tile=365, dtype='int64')]
         """
-        spatial_range = self.config.get("tiledb", {}).get("spatial_range", {})
-        time_range = self.config.get("tiledb", {}).get("time_range", {})
+        cfg_td = self.config.get("tiledb", {})
+        spatial_range = cfg_td.get("spatial_range", {})
+        time_range = cfg_td.get("time_range", {})
 
         lat_min = spatial_range.get("lat_min")
         lat_max = spatial_range.get("lat_max")
@@ -382,7 +456,6 @@ class GEDIDatabase:
         time_min = _datetime_to_timestamp_days(time_range.get("start_time"))
         time_max = _datetime_to_timestamp_days(time_range.get("end_time"))
 
-        # Validate ranges
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
             raise ValueError(
                 "Spatial and temporal ranges must be fully specified in the configuration."
@@ -392,34 +465,14 @@ class GEDIDatabase:
                 "Invalid ranges: lat_min < lat_max, lon_min < lon_max, time_min < time_max required."
             )
 
-        # Precision factor for FloatScaleFilter
-        scale_factor = self.config.get("tiledb", {}).get("scale_factor", 1e-6)
+        scale_factor = cfg_td.get("scale_factor", 1e-6)
+        lat_tile = cfg_td.get("latitude_tile", 1)
+        lon_tile = cfg_td.get("longitude_tile", 1)
+        time_tile = cfg_td.get("time_tile", 365)
 
-        # Tile sizes
-        lat_tile = self.config.get("tiledb", {}).get("latitude_tile", 1)
-        lon_tile = self.config.get("tiledb", {}).get("longitude_tile", 1)
-        time_tile = self.config.get("tiledb", {}).get("time_tile", 365)
+        spatial_filters = self.filter_policy.spatial_dim_filters(scale_factor)
+        time_filters = self.filter_policy.time_dim_filters()
 
-        # Spatial filters: FloatScaleFilter + DoubleDelta compression
-        spatial_filters = tiledb.FilterList(
-            [
-                tiledb.FloatScaleFilter(
-                    factor=scale_factor,
-                    offset=0.0,
-                    bytewidth=4,  # int32 internal storage
-                ),
-                tiledb.DoubleDeltaFilter(),  # Excellent for spatial data
-                tiledb.BitWidthReductionFilter(),
-                tiledb.ZstdFilter(level=3),
-            ]
-        )
-
-        # Temporal filters: DoubleDelta works great for time series
-        time_filters = tiledb.FilterList(
-            [tiledb.DoubleDeltaFilter(), tiledb.ZstdFilter(level=3)]
-        )
-
-        # Create dimensions (dtype=float64 for user-facing API)
         dim_lat = tiledb.Dim(
             name="latitude",
             domain=(lat_min, lat_max),
@@ -427,7 +480,6 @@ class GEDIDatabase:
             dtype=np.float64,
             filters=spatial_filters,
         )
-
         dim_lon = tiledb.Dim(
             name="longitude",
             domain=(lon_min, lon_max),
@@ -435,7 +487,6 @@ class GEDIDatabase:
             dtype=np.float64,
             filters=spatial_filters,
         )
-
         dim_time = tiledb.Dim(
             name="time",
             domain=(time_min, time_max),
@@ -446,123 +497,154 @@ class GEDIDatabase:
 
         return tiledb.Domain(dim_lat, dim_lon, dim_time)
 
-    def filters_float(self, lvl=None):
-        lvl = (
-            int(self.config.get("tiledb", {}).get("profiles_zstd_level", 5))
-            if lvl is None
-            else lvl
-        )
-        return tiledb.FilterList(
-            [tiledb.ByteShuffleFilter(), tiledb.ZstdFilter(level=lvl)]
-        )
+    def _create_attributes(self) -> list[tiledb.Attr]:
+        """
+        Create TileDB attributes for all configured GEDI variables, assigning appropriate
+        compression filters based on their data type.
 
-    def filters_float64(self, lvl=None):
-        # slightly lower level if you care about speed
-        lvl = (
-            int(self.config.get("tiledb", {}).get("float64_zstd_level", 4))
-            if lvl is None
-            else lvl
-        )
-        return tiledb.FilterList(
-            [tiledb.ByteShuffleFilter(), tiledb.ZstdFilter(level=lvl)]
-        )
+        Overview
+        --------
+        Each variable from the GEDI product configuration (`self.variables_config`)
+        becomes a TileDB attribute in the output array schema. This includes both
+        scalar attributes (e.g., `lat_lowestmode`, `agbd`, `sensitivity`) and profile-type
+        variables (e.g., `rh_1`...`rh_101`) that represent vertical profiles or
+        multi-level values per shot.
 
-    def filters_flags(self, lvl=None):
-        lvl = (
-            int(self.config.get("tiledb", {}).get("flags_zstd_level", 3))
-            if lvl is None
-            else lvl
-        )
-        fl = [tiledb.RleFilter(), tiledb.ZstdFilter(level=lvl)]
-        # Optional: if your TileDB has BitWidthReductionFilter, prepend it
-        try:
-            fl.insert(0, tiledb.BitWidthReductionFilter())
-        except Exception:
-            pass
-        return tiledb.FilterList(fl)
+        The function delegates compression and filter selection to the
+        :class:`TileDBFilterPolicy` object (`self.filter_policy`), which determines the
+        optimal filter stack purely based on data type (`dtype`), avoiding the need for
+        variable-specific rules.
 
-    def filters_small_int(self, lvl=None):
-        lvl = (
-            int(self.config.get("tiledb", {}).get("int_zstd_level", 3))
-            if lvl is None
-            else lvl
-        )
-        fl = [tiledb.ZstdFilter(level=lvl)]
-        try:
-            fl.insert(0, tiledb.BitWidthReductionFilter())
-        except Exception:
-            pass
-        return tiledb.FilterList(fl)
+        Configuration Structure
+        -----------------------
+        The method expects a configuration dictionary in `self.variables_config`, typically
+        parsed from a YAML or JSON file, where each variable entry defines:
 
-    def filters_utf8(self, lvl=None):
-        lvl = (
-            int(self.config.get("tiledb", {}).get("string_zstd_level", 3))
-            if lvl is None
-            else lvl
-        )
-        return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
+        .. code-block:: yaml
 
-    def _create_attributes(self) -> List[tiledb.Attr]:
+            agbd:
+              dtype: float32
+              is_profile: false
+
+            rh:
+              dtype: float32
+              is_profile: true
+              profile_length: 101
+
+        Supported keys per variable:
+            - ``dtype`` : str or numpy dtype
+                Data type of the variable (e.g., "float32", "int16", "uint8").
+            - ``is_profile`` : bool, optional
+                Whether the variable represents a profile-type attribute.
+            - ``profile_length`` : int, optional
+                Number of vertical levels (required if `is_profile` is True).
+
+        Compression Strategy
+        --------------------
+        Compression filters are selected by :meth:`TileDBFilterPolicy.filters_for_dtype`
+        based on the variable's dtype:
+
+            | Type              | Filters applied
+            |-------------------|---------------------------------------------|
+            | float32 / float64 | ByteShuffle + Zstd(level from config)       |
+            | uint8 (flags)     | (BitWidthReduction) + RLE + Zstd            |
+            | int / uint types  | (BitWidthReduction) + Zstd                  |
+            | string (U)        | Zstd(level from config)                     |
+
+        Profile attributes are expanded into multiple attributes with numeric suffixes,
+        e.g. `rh_1`, `rh_2`, … `rh_N`.
+
+        An additional attribute `timestamp_ns` (int64) is optionally included to support
+        deduplication and versioning of records, compressed using BitWidthReduction +
+        Zstd(level=2). This behavior can be toggled in the configuration via:
+
+            ``tiledb.write_timestamp_ns: true``
+
+        Returns
+        -------
+        list[tiledb.Attr]
+            List of TileDB attribute definitions with dtype-specific compression filters.
+
+        Raises
+        ------
+        ValueError
+            If `variables_config` is missing, malformed, or if a profile variable has
+            an invalid `profile_length`.
+
+        Notes
+        -----
+        **Design rationale:**
+        - Filter assignment is entirely dtype-based for maintainability and scalability
+          (critical when handling >1000 GEDI variables).
+        - Profile variables are flattened into multiple attributes to support direct
+          columnar reads from TileDB, avoiding the need for nested array structures.
+        - The optional `timestamp_ns` field allows time-based filtering and ensures
+          deterministic merges of overlapping data writes.
+
+        Examples
+        --------
+        >>> attrs = self._create_attributes()
+        >>> attrs[:3]
+        [Attr(name='agbd', dtype='float32', filters=ByteShuffle+Zstd(5)),
+         Attr(name='degrade_flag', dtype='uint8', filters=RLE+Zstd(3)),
+         Attr(name='rh_1', dtype='float32', filters=ByteShuffle+Zstd(5))]
+
+        """
         if not self.variables_config:
             raise ValueError(
                 "Variable configuration is missing. Cannot create attributes."
             )
 
-        attributes: List[tiledb.Attr] = []
+        attrs: list[tiledb.Attr] = []
 
-        def choose_filters(var_name: str, dtype: np.dtype) -> tiledb.FilterList:
-            k = dtype.kind  # 'f', 'i', 'u', 'U'
-            if k == "f":
-                return (
-                    self.filters_float64()
-                    if dtype == np.float64
-                    else self.filters_float()
-                )
-            if k in ("i", "u"):
-                return (
-                    self.filters_flags()
-                    if dtype == np.uint8
-                    else self.filters_small_int()
-                )
-            if k == "U":
-                return self.filters_utf8()
-            return tiledb.FilterList([tiledb.ZstdFilter(level=3)])
-
-        # Non-profile attrs
+        # --- Scalar attributes (non-profile variables)
         for var_name, var_info in self.variables_config.items():
             if var_info.get("is_profile", False):
                 continue
-            dtype = np.dtype(var_info["dtype"])
-            fl = choose_filters(var_name, dtype)
-            attributes.append(tiledb.Attr(name=var_name, dtype=dtype, filters=fl))
 
-        # Profile attrs (…_1 .. …_N)
+            dtype = np.dtype(var_info["dtype"])
+            filters = self.filter_policy.filters_for_dtype(dtype)
+
+            attrs.append(
+                tiledb.Attr(
+                    name=var_name,
+                    dtype=dtype,
+                    filters=filters,
+                )
+            )
+
+        # --- Profile attributes (e.g. rh_1, rh_2, ..., rh_N)
         for var_name, var_info in self.variables_config.items():
             if not var_info.get("is_profile", False):
                 continue
+
             profile_length = int(var_info.get("profile_length", 1))
             if profile_length <= 0:
                 raise ValueError(f"{var_name}: profile_length must be >= 1")
+
             dtype = np.dtype(var_info["dtype"])
-            fl = choose_filters(var_name, dtype)
+            filters = self.filter_policy.filters_for_dtype(dtype)
+
             for i in range(profile_length):
-                attributes.append(
-                    tiledb.Attr(name=f"{var_name}_{i + 1}", dtype=dtype, filters=fl)
+                attrs.append(
+                    tiledb.Attr(
+                        name=f"{var_name}_{i + 1}",
+                        dtype=dtype,
+                        filters=filters,
+                    )
                 )
 
-        # Optional timestamp (ns) — robust to unordered/duplicate values
+        # --- Optional timestamp_ns attribute
         if self.config.get("tiledb", {}).get("write_timestamp_ns", True):
-            try:
-                ts_filters = tiledb.FilterList(
-                    [tiledb.BitWidthReductionFilter(), tiledb.ZstdFilter(level=2)]
+            attrs.append(
+                tiledb.Attr(
+                    name="timestamp_ns",
+                    dtype=np.int64,
+                    filters=self.filter_policy.timestamp_filters(),
                 )
-            except Exception:
-                ts_filters = tiledb.FilterList([tiledb.ZstdFilter(level=2)])
-            attributes.append(
-                tiledb.Attr(name="timestamp_ns", dtype="int64", filters=ts_filters)
             )
 
-        return attributes
+        return attrs
 
     def _add_variable_metadata(self) -> None:
         """
