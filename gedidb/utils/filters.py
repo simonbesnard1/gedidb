@@ -76,7 +76,7 @@ class TileDBFilterPolicy:
         )
 
     def _filters_float64(self) -> tiledb.FilterList:
-        lvl = int(self.cfg.get("float64_zstd_level", 4))
+        lvl = int(self.cfg.get("float64_zstd_level", 5))
         return tiledb.FilterList(
             [
                 tiledb.ByteShuffleFilter(),

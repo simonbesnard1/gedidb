@@ -9,7 +9,7 @@
 import concurrent.futures
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -64,42 +64,34 @@ class GEDIDatabase:
 
         # Set up TileDB context based on storage type
         if storage_type == "s3":
-            # S3 TileDB context with consolidation settings
+            # Optimize for write performance
             self.tiledb_config = tiledb.Config(
                 {
-                    # S3-specific configurations (if using S3)
+                    # S3 authentication
                     "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                     "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
                     "vfs.s3.endpoint_override": config["tiledb"]["url"],
                     "vfs.s3.region": "eu-central-1",
                     "vfs.s3.use_virtual_addressing": "true",
-                    "vfs.s3.max_parallel_ops": str(os.cpu_count() or 8),
-                    # S3 writting settings
-                    "sm.vfs.s3.connect_timeout_ms": config["tiledb"]["s3_settings"].get(
-                        "connect_timeout_ms", "10800"
-                    ),
-                    "sm.vfs.s3.request_timeout_ms": config["tiledb"]["s3_settings"].get(
-                        "request_timeout_ms", "3000"
-                    ),
-                    "sm.vfs.s3.connect_max_tries": config["tiledb"]["s3_settings"].get(
-                        "connect_max_tries", "5"
-                    ),
-                    "vfs.s3.backoff_scale": config["tiledb"]["s3_settings"].get(
-                        "backoff_scale", "2.0"
-                    ),  # Exponential backoff multiplier
-                    "vfs.s3.backoff_max_ms": config["tiledb"]["s3_settings"].get(
-                        "backoff_max_ms", "120000"
-                    ),  # Maximum backoff time of 120 seconds
-                    "vfs.s3.multipart_part_size": config["tiledb"]["s3_settings"].get(
-                        "multipart_part_size", "52428800"
-                    ),  # 50 MB
-                    # Memory budget settings
-                    "sm.memory_budget": config["tiledb"]["consolidation_settings"].get(
-                        "memory_budget", "5000000000"
-                    ),
-                    "sm.memory_budget_var": config["tiledb"][
-                        "consolidation_settings"
-                    ].get("memory_budget_var", "2000000000"),
+                    # CRITICAL: Increase parallelism for S3
+                    "vfs.s3.max_parallel_ops": str(min(os.cpu_count() * 2 or 16, 32)),
+                    # Increased timeouts for large writes
+                    "sm.vfs.s3.connect_timeout_ms": "30000",  # 30s instead of 10.8s
+                    "sm.vfs.s3.request_timeout_ms": "10000",  # 10s instead of 3s
+                    "sm.vfs.s3.connect_max_tries": "10",  # More retries
+                    # Optimized backoff strategy
+                    "vfs.s3.backoff_scale": "1.5",  # Less aggressive than 2.0
+                    "vfs.s3.backoff_max_ms": "60000",  # 60s max
+                    # CRITICAL: Increase multipart size for better throughput
+                    "vfs.s3.multipart_part_size": "104857600",  # 100 MB (was 50 MB)
+                    # Increase write buffer to reduce small writes
+                    "sm.mem.total_budget": "8589934592",  # 8 GB if available
+                    "sm.memory_budget": "6000000000",  # 6 GB for writes
+                    "sm.memory_budget_var": "4000000000",  # 4 GB for var-length
+                    # Enable parallel writes within fragments
+                    "sm.io_concurrency_level": str(os.cpu_count() or 8),
+                    # Optimize fragment size for S3
+                    "sm.consolidation.buffer_size": "2000000000",  # 2 GB
                 }
             )
         elif storage_type == "local":
@@ -720,98 +712,88 @@ class GEDIDatabase:
             if granule_data.empty:
                 return
 
-            # --- Deduplicate (lat, lon, time) with minimal temporaries
-            latv = granule_data["latitude"].to_numpy(copy=False)
-            lonv = granule_data["longitude"].to_numpy(copy=False)
-            tv = granule_data["time"].to_numpy(copy=False)
-
-            # Fast-ish composite key; robust across dtypes
-            keys = pd.Index(
-                np._core.defchararray.add(
-                    np._core.defchararray.add(latv.astype("S"), b"|"),
-                    np._core.defchararray.add(
-                        lonv.astype("S"),
-                        np._core.defchararray.add(b"|", tv.astype("S")),
-                    ),
-                )
-            )
-            keep = ~keys.duplicated()
-
-            # --- Spatial mask (NumPy)
-            min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
-            in_box = (
-                (lonv >= min_lon)
-                & (lonv <= max_lon)
-                & (latv >= min_lat)
-                & (latv <= max_lat)
+            # --- Fast deduplication using pandas native methods
+            # Much faster than string concatenation
+            subset_cols = ["latitude", "longitude", "time"]
+            granule_data = granule_data.drop_duplicates(
+                subset=subset_cols, keep="first"
             )
 
-            sel = np.flatnonzero(keep & in_box)
-            if sel.size == 0:
+            if granule_data.empty:
                 return
 
-            view = granule_data.iloc[sel]  # one slice only
+            # --- Spatial mask (vectorized, no intermediate arrays)
+            min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
+            spatial_mask = (
+                (granule_data["longitude"] >= min_lon)
+                & (granule_data["longitude"] <= max_lon)
+                & (granule_data["latitude"] >= min_lat)
+                & (granule_data["latitude"] <= max_lat)
+            )
 
-            # --- Coords (precompute once)
-            coords_all: Dict[str, np.ndarray] = {}
-            for dim_name in self.dimension_names:
-                if dim_name == "time":
-                    tvals = view["time"].to_numpy(copy=False)
-                    coords_all["time"] = convert_to_days_since_epoch(tvals)
-                else:
-                    coords_all[dim_name] = view[dim_name].to_numpy(copy=False)
+            view = granule_data[spatial_mask]
+            if view.empty:
+                return
 
-            # --- timestamp_ns once (avoid repeated to_datetime)
-            tcol = view["time"]
-            if is_datetime64_any_dtype(tcol):
-                if is_datetime64tz_dtype(tcol):
-                    timestamp_ns_all = tcol.astype("int64").to_numpy(copy=False)
-                else:
-                    timestamp_ns_all = tcol.to_numpy(copy=False).view("int64")
-            else:
-                timestamp_ns_all = (
-                    pd.to_datetime(tcol, utc=True).astype("int64").to_numpy()
-                )
-
-            # --- Figure out which attributes exist in both schema and frame
-            #     We will write *all* of them in each batch.
+            # --- Get schema attributes once (avoid repeated lookups)
             with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as A_ro:
                 schema_attrs = {
                     A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)
                 }
 
             available_cols = set(view.columns)
-            attrs_all = [name for name in schema_attrs if name in available_cols]
-
-            # Optional: dtype coercion (numeric only); safe to remove if annoying
-            for v in attrs_all:
-                info = self.variables_config.get(v.split("_")[0], {})
-                dtype_str = info.get("dtype", str(view[v].dtype))
-                try:
-                    target = np.dtype(dtype_str)
-                except TypeError:
-                    continue  # skip e.g. 'string[python]'
-                if view[v].dtype != target and target.kind in "fiu":
-                    view[v] = view[v].astype(target, copy=False)
-
-            # Some schemas include timestamp_ns as an attribute; add if present
+            attrs_to_write = [name for name in schema_attrs if name in available_cols]
             write_timestamp = "timestamp_ns" in schema_attrs
 
-            # --- Row-only batching: build full data dict per batch and write once
+            # --- Precompute ALL coordinates once (reuse for all batches)
+            coords_base = {}
+            for dim_name in self.dimension_names:
+                if dim_name == "time":
+                    coords_base["time"] = convert_to_days_since_epoch(
+                        view["time"].to_numpy(copy=False)
+                    )
+                else:
+                    coords_base[dim_name] = view[dim_name].to_numpy(copy=False)
+
+            # --- Precompute timestamp_ns once
+            if write_timestamp:
+                tcol = view["time"]
+                if is_datetime64_any_dtype(tcol):
+                    if is_datetime64tz_dtype(tcol):
+                        timestamp_ns_base = tcol.astype("int64").to_numpy(copy=False)
+                    else:
+                        timestamp_ns_base = tcol.to_numpy(copy=False).view("int64")
+                else:
+                    timestamp_ns_base = (
+                        pd.to_datetime(tcol, utc=True).astype("int64").to_numpy()
+                    )
+
+            # --- Precompute ALL attribute arrays once
+            attrs_data_base = {}
+            for attr in attrs_to_write:
+                attrs_data_base[attr] = view[attr].to_numpy(copy=False)
+
+            # --- CRITICAL: Open array ONCE for all batches
             n = len(view)
-            for r0 in range(0, n, row_batch):
-                r1 = min(r0 + row_batch, n)
-                coords = {k: v[r0:r1] for k, v in coords_all.items()}
+            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+                dim_names = [dim.name for dim in array.schema.domain]
 
-                data = {}
-                if write_timestamp:
-                    data["timestamp_ns"] = timestamp_ns_all[r0:r1]
+                for r0 in range(0, n, row_batch):
+                    r1 = min(r0 + row_batch, n)
 
-                # Slice each attr once (zero-copy view where possible)
-                for a in attrs_all:
-                    data[a] = view[a].to_numpy(copy=False)[r0:r1]
+                    # Slice precomputed arrays (zero-copy views)
+                    coords = {k: v[r0:r1] for k, v in coords_base.items()}
+                    dims = tuple(coords[dim_name] for dim_name in dim_names)
 
-                self._write_to_tiledb(coords, data)
+                    data = {}
+                    if write_timestamp:
+                        data["timestamp_ns"] = timestamp_ns_base[r0:r1]
+
+                    for attr in attrs_to_write:
+                        data[attr] = attrs_data_base[attr][r0:r1]
+
+                    # Write directly without reopening
+                    array[dims] = data
 
         except Exception as e:
             logger.error(
