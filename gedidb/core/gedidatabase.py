@@ -61,37 +61,32 @@ class GEDIDatabase:
 
         self.overwrite = config["tiledb"].get("overwrite", False)
         self.variables_config = self._load_variables_config(config)
+        cores = os.cpu_count() or 8
+        max_s3_ops = min(cores * 2, 32)
 
         # Set up TileDB context based on storage type
         if storage_type == "s3":
             # Optimize for write performance
             self.tiledb_config = tiledb.Config(
                 {
-                    # S3 authentication
                     "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                     "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
                     "vfs.s3.endpoint_override": config["tiledb"]["url"],
                     "vfs.s3.region": "eu-central-1",
                     "vfs.s3.use_virtual_addressing": "true",
-                    # CRITICAL: Increase parallelism for S3
-                    "vfs.s3.max_parallel_ops": str(min(os.cpu_count() * 2 or 16, 32)),
-                    # Increased timeouts for large writes
-                    "sm.vfs.s3.connect_timeout_ms": "30000",  # 30s instead of 10.8s
-                    "sm.vfs.s3.request_timeout_ms": "10000",  # 10s instead of 3s
-                    "sm.vfs.s3.connect_max_tries": "10",  # More retries
-                    # Optimized backoff strategy
-                    "vfs.s3.backoff_scale": "1.5",  # Less aggressive than 2.0
-                    "vfs.s3.backoff_max_ms": "60000",  # 60s max
-                    # CRITICAL: Increase multipart size for better throughput
-                    "vfs.s3.multipart_part_size": "104857600",  # 100 MB (was 50 MB)
-                    # Increase write buffer to reduce small writes
-                    "sm.mem.total_budget": "8589934592",  # 8 GB if available
-                    "sm.memory_budget": "6000000000",  # 6 GB for writes
-                    "sm.memory_budget_var": "4000000000",  # 4 GB for var-length
-                    # Enable parallel writes within fragments
-                    "sm.io_concurrency_level": str(os.cpu_count() or 8),
-                    # Optimize fragment size for S3
-                    "sm.consolidation.buffer_size": "2000000000",  # 2 GB
+                    "vfs.s3.max_parallel_ops": str(max_s3_ops),
+                    "vfs.s3.multipart_part_size": "104857600",  # 100 MB
+                    "sm.vfs.s3.connect_timeout_ms": "60000",
+                    "sm.vfs.s3.request_timeout_ms": "600000",
+                    "sm.vfs.s3.connect_max_tries": "10",
+                    "vfs.s3.backoff_scale": "1.5",
+                    "vfs.s3.backoff_max_ms": "60000",
+                    "sm.mem.total_budget": "10737418240",  # tune via config
+                    "sm.memory_budget": "6442450944",
+                    "sm.memory_budget_var": "4294967296",
+                    "sm.io_concurrency_level": str(cores),
+                    "sm.compute_concurrency_level": str(cores),
+                    "sm.consolidation.buffer_size": "2000000000",
                 }
             )
         elif storage_type == "local":

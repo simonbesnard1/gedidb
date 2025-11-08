@@ -70,26 +70,39 @@ class TileDBProvider:
     def _initialize_s3_context(
         self, credentials: Optional[dict], url: str, region: str
     ) -> tiledb.Ctx:
+
+        cores = os.cpu_count() or 8
+
+        # Reasonable caps
+        max_reader_threads = min(cores, 32)
+        max_s3_ops = min(cores * 2, 32)
+
         config = {
+            # Endpoint / region
             "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region,
-            # Memory optimizations
-            "py.init_buffer_bytes": str(16 * 1024**3),  # 16GB
-            "sm.tile_cache_size": str(16 * 1024**3),  # 16GB
-            # Thread optimizations
-            "sm.num_reader_threads": "64",
-            "sm.num_tiledb_threads": "64",
-            # S3 optimizations
-            "vfs.s3.max_parallel_ops": "32",
-            "vfs.s3.multipart_part_size": str(50 * 1024**2),  # 50MB parts
-            "vfs.s3.connect_timeout_ms": "10800000",  # 3 hours
-            "vfs.s3.request_timeout_ms": "10800000",  # 3 hours
-            "vfs.s3.use_virtual_addressing": "true",
             "vfs.s3.scheme": "https",
-            # Query optimization
+            "vfs.s3.use_virtual_addressing": "true",
+            # Parallel S3 I/O
+            "vfs.s3.max_parallel_ops": str(max_s3_ops),
+            # Multipart size:
+            # 8–16 MB is a good compromise for reads (not too many requests, not huge retries)
+            "vfs.s3.multipart_part_size": str(16 * 1024**2),  # 16 MB
+            # Timeouts: generous but not absurd
+            "vfs.s3.connect_timeout_ms": "60000",  # 60 s
+            "vfs.s3.request_timeout_ms": "600000",  # 10 min
+            # Threading: align TileDB with actual cores
+            "sm.compute_concurrency_level": str(max_reader_threads),
+            "sm.io_concurrency_level": str(max_reader_threads),
+            # Old-style knobs (TileDB still honors in some versions)
+            "sm.num_reader_threads": str(max_reader_threads),
+            "sm.num_tiledb_threads": str(max_reader_threads),
+            # Caches / buffers:
+            # Big enough to hold a decent number of tiles, not so big it bullies everything else.
+            "py.init_buffer_bytes": str(2 * 1024**3),  # 2 GB initial read buffers
+            "sm.tile_cache_size": str(2 * 1024**3),  # 2 GB tile cache
+            # Misc
             "sm.enable_signal_handlers": "false",
-            "sm.compute_concurrency_level": "64",
-            "sm.io_concurrency_level": "64",
         }
 
         if credentials:
