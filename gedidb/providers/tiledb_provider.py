@@ -100,9 +100,8 @@ class TileDBProvider:
             "sm.num_reader_threads": str(max_reader_threads),
             "sm.num_tiledb_threads": str(max_reader_threads),
             # Caches
-            "py.init_buffer_bytes": str(1 * 1024**3),  # 1 GiB,
+            "py.init_buffer_bytes": str(2 * 1024**3),  # 1 GiB,
             "sm.tile_cache_size": str(8 * 1024**3),  # 8 GB
-            "vfs.s3.max_read_ahead": "2",
             # Misc
             "sm.enable_signal_handlers": "false",
         }
