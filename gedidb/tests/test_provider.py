@@ -37,6 +37,9 @@ class TestGEDIProvider(unittest.TestCase):
         cls.gedi_db._create_arrays()  # Create the TileDB array for testing
         # write test data
         granule_data = pd.read_csv("data/example_data.csv")
+        granule_data["time"] = pd.to_datetime(
+            granule_data["time"], utc=True, errors="coerce"
+        )
         cls.gedi_db.write_granule(granule_data)
 
         cls.gedi_provider = GEDIProvider(

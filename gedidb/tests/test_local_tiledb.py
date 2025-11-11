@@ -127,6 +127,9 @@ class TestGEDIDatabase(unittest.TestCase):
             raise FileNotFoundError(f"Granule file not found: {granule_file}")
 
         granule_data = pd.read_csv(granule_file)
+        granule_data["time"] = pd.to_datetime(
+            granule_data["time"], utc=True, errors="coerce"
+        )
 
         # Exercise batching explicitly (small batches)
         self.gedi_db.write_granule(granule_data, row_batch=2)
