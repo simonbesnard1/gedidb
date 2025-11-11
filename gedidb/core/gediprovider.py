@@ -332,10 +332,34 @@ class GEDIProvider(TileDBProvider):
         scalar_data: Dict[str, np.ndarray],
         metadata: pd.DataFrame,
         profile_vars: Dict[str, List[str]],
+        sort: bool = True,
     ) -> xr.Dataset:
         """
         Convert to Xarray with optimized array operations.
+
+        Parameters
+        ----------
+        scalar_data : Dict[str, np.ndarray]
+            Dictionary of scalar data arrays
+        metadata : pd.DataFrame
+            Variable metadata
+        profile_vars : Dict[str, List[str]]
+            Profile variable component mapping
+        sort : bool, default True
+            Whether to sort by time. Set to False for ~10x speedup if order doesn't matter.
+
+        Returns
+        -------
+        xr.Dataset
+            Xarray dataset with coordinates and metadata
         """
+        # Pre-sort all arrays by time BEFORE creating xarray objects
+        if sort:
+            time_sort_indices = np.argsort(scalar_data["time"])
+            # Sort all arrays in-place
+            for key in scalar_data:
+                scalar_data[key] = scalar_data[key][time_sort_indices]
+
         # Extract profile variable components
         profile_var_components = [
             item for sublist in profile_vars.values() for item in sublist
@@ -350,40 +374,37 @@ class GEDIProvider(TileDBProvider):
             + profile_var_components
         ]
 
-        # Convert timestamps
+        # Convert timestamps (already sorted if sort=True)
         times = _timestamp_to_datetime(scalar_data["time"])
 
-        # Create scalar dataset
-        scalar_ds = xr.Dataset(
-            {
-                var: xr.DataArray(
-                    scalar_data[var],
-                    coords={"shot_number": scalar_data["shot_number"]},
-                    dims=["shot_number"],
-                )
-                for var in scalar_vars
-            }
-        )
+        # Create dataset with data_vars dict (faster than merging)
+        data_vars = {}
 
-        # Create profile dataset with pre-allocated arrays (OPTIMIZED)
-        profile_ds = xr.Dataset()
+        # Add scalar variables
+        for var in scalar_vars:
+            data_vars[var] = xr.DataArray(
+                scalar_data[var],
+                coords={"shot_number": scalar_data["shot_number"]},
+                dims=["shot_number"],
+            )
 
+        # Pre-allocate profile arrays (keep existing optimization)
         for base_var, components in profile_vars.items():
             num_profile_points = len(components)
             num_shots = len(scalar_data["shot_number"])
 
-            # Pre-allocate array (MUCH faster than building incrementally)
+            # Pre-allocate array
             profile_data = np.empty(
                 (num_shots, num_profile_points),
                 dtype=np.float32,
             )
 
-            # Vectorized fill (faster than loops)
+            # Vectorized fill
             for idx, comp in enumerate(components):
                 profile_data[:, idx] = scalar_data[comp]
 
-            # Add to dataset
-            profile_ds[base_var] = xr.DataArray(
+            # Add to data_vars dict
+            data_vars[base_var] = xr.DataArray(
                 profile_data,
                 coords={
                     "shot_number": scalar_data["shot_number"],
@@ -392,20 +413,16 @@ class GEDIProvider(TileDBProvider):
                 dims=["shot_number", "profile_points"],
             )
 
-        # Merge datasets
-        dataset = xr.merge([scalar_ds, profile_ds])
-
-        # Add coordinates
-        dataset = dataset.assign_coords(
-            {
+        # Create dataset once with all variables (no merge needed)
+        dataset = xr.Dataset(
+            data_vars=data_vars,
+            coords={
+                "shot_number": scalar_data["shot_number"],
                 "latitude": ("shot_number", scalar_data["latitude"]),
                 "longitude": ("shot_number", scalar_data["longitude"]),
                 "time": ("shot_number", times),
-            }
+            },
         )
-
-        # Sort by time
-        dataset = dataset.sortby("time")
 
         # Attach metadata
         self._attach_metadata(dataset, metadata)
