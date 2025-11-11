@@ -18,6 +18,7 @@ import geopandas as gpd
 from gedidb.providers.tiledb_provider import TileDBProvider
 from gedidb.utils.geo_processing import (
     _datetime_to_timestamp_days,
+    check_and_format_shape,
 )
 
 
@@ -39,16 +40,7 @@ def load_geometry_and_bbox(geojson_path: str):
     if gdf.empty:
         raise ValueError(f"No geometry found in {geojson_path}")
 
-    geom = gdf.unary_union
-    minx, miny, maxx, maxy = geom.bounds
-
-    bbox = {
-        "lon_min": float(minx),
-        "lon_max": float(maxx),
-        "lat_min": float(miny),
-        "lat_max": float(maxy),
-    }
-    return gdf, bbox
+    return gdf
 
 
 def estimate_bytes(df: pd.DataFrame) -> int:
@@ -125,7 +117,7 @@ def default_s3_benchmark_configs():
 
 
 def run_s3_benchmarks(
-    geojson_path: str,
+    geometry,
     start_time,
     end_time,
     variables,
@@ -134,13 +126,14 @@ def run_s3_benchmarks(
     region: str,
     credentials: dict = None,
     configs: dict = None,
-    use_polygon_filter: bool = True,
+    use_polygon_filter: bool = False,
 ) -> pd.DataFrame:
     """
     Run read-performance benchmarks for different S3 config variants.
     """
 
-    geometry, bbox = load_geometry_and_bbox(geojson_path)
+    geometry = check_and_format_shape(geometry, simplify=True)
+    lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
 
     start_ts = _parse_time(start_time)
     end_ts = _parse_time(end_time)
@@ -167,14 +160,13 @@ def run_s3_benchmarks(
         try:
             _ = provider.query_dataframe(
                 variables=variables,
-                lat_min=bbox["lat_min"],
-                lat_max=bbox["lat_max"],
-                lon_min=bbox["lon_min"],
-                lon_max=bbox["lon_max"],
+                lat_min=lat_min,
+                lat_max=lat_max,
+                lon_min=lon_min,
+                lon_max=lon_max,
                 start_time=start_ts,
                 end_time=end_ts,
-                geometry=geometry if use_polygon_filter else None,
-                use_polygon_filter=use_polygon_filter,
+                geometry=geometry,
             )
         except Exception as e:
             logger.error(f"[{name}] Warmup failed: {e}")
@@ -199,14 +191,13 @@ def run_s3_benchmarks(
         try:
             df = provider.query_dataframe(
                 variables=variables,
-                lat_min=bbox["lat_min"],
-                lat_max=bbox["lat_max"],
-                lon_min=bbox["lon_min"],
-                lon_max=bbox["lon_max"],
+                lat_min=lat_min,
+                lat_max=lat_max,
+                lon_min=lon_min,
+                lon_max=lon_max,
                 start_time=start_ts,
                 end_time=end_ts,
-                geometry=geometry if use_polygon_filter else None,
-                use_polygon_filter=use_polygon_filter,
+                geometry=geometry,
             )
         except Exception as e:
             t1 = time.perf_counter()
