@@ -39,28 +39,89 @@ def load_geometry_and_bbox(geojson_path: str):
     if gdf.empty:
         raise ValueError(f"No geometry found in {geojson_path}")
 
-    # Dissolve all to a single geometry, then use bounds as query bbox
     geom = gdf.unary_union
     minx, miny, maxx, maxy = geom.bounds
 
-    # Note: array expects [lat_min:lat_max, lon_min:lon_max]
     bbox = {
         "lon_min": float(minx),
         "lon_max": float(maxx),
         "lat_min": float(miny),
         "lat_max": float(maxy),
     }
-
     return gdf, bbox
 
 
 def estimate_bytes(df: pd.DataFrame) -> int:
-    """
-    Rough but consistent: sum column-wise memory usage.
-    """
     if df is None or df.empty:
         return 0
     return int(df.memory_usage(deep=True).sum())
+
+
+def default_s3_benchmark_configs():
+    """
+    Curated set of S3/TileDB configs to probe key performance dimensions:
+    - concurrency
+    - part size
+    - cache size
+    - addressing mode
+    """
+    return {
+        # Control
+        "baseline": {},
+        # 1) Concurrency variants
+        "more_threads_16": {
+            "sm.compute_concurrency_level": "16",
+            "sm.io_concurrency_level": "16",
+            "sm.num_reader_threads": "16",
+            "sm.num_tiledb_threads": "16",
+            "vfs.s3.max_parallel_ops": "16",
+        },
+        "more_threads_32": {
+            "sm.compute_concurrency_level": "32",
+            "sm.io_concurrency_level": "32",
+            "sm.num_reader_threads": "32",
+            "sm.num_tiledb_threads": "32",
+            "vfs.s3.max_parallel_ops": "32",
+        },
+        "single_thread": {
+            "sm.compute_concurrency_level": "1",
+            "sm.io_concurrency_level": "1",
+            "sm.num_reader_threads": "1",
+            "sm.num_tiledb_threads": "1",
+            "vfs.s3.max_parallel_ops": "4",
+        },
+        # 2) Multipart size variants
+        "part_8mb": {
+            "vfs.s3.multipart_part_size": str(8 * 1024**2),
+        },
+        "part_64mb": {
+            "vfs.s3.multipart_part_size": str(64 * 1024**2),
+        },
+        "part_128mb": {
+            "vfs.s3.multipart_part_size": str(128 * 1024**2),
+        },
+        # 3) Cache size variants
+        "cache_4gb": {
+            "sm.tile_cache_size": str(4 * 1024**3),
+        },
+        "cache_8gb": {
+            "sm.tile_cache_size": str(8 * 1024**3),
+        },
+        # 4) Combined "aggressive" profile
+        "high_parallel_high_cache": {
+            "sm.compute_concurrency_level": "32",
+            "sm.io_concurrency_level": "32",
+            "sm.num_reader_threads": "32",
+            "sm.num_tiledb_threads": "32",
+            "vfs.s3.max_parallel_ops": "32",
+            "sm.tile_cache_size": str(8 * 1024**3),
+            "vfs.s3.multipart_part_size": str(64 * 1024**2),
+        },
+        # 5) Path-style addressing toggle (just to check endpoint quirks)
+        "path_style_addressing": {
+            "vfs.s3.use_virtual_addressing": "false",
+        },
+    }
 
 
 def run_s3_benchmarks(
@@ -77,63 +138,22 @@ def run_s3_benchmarks(
 ) -> pd.DataFrame:
     """
     Run read-performance benchmarks for different S3 config variants.
-
-    Parameters
-    ----------
-    geojson_path : str
-        Path to GeoJSON defining AOI.
-    start_time, end_time :
-        Time range (anything pandas can parse).
-    variables : list of str
-        TileDB attribute names to query.
-    s3_bucket, url, region : str
-        S3 location & endpoint.
-    credentials : dict, optional
-        AWS-style credentials if needed.
-    configs : dict, optional
-        Mapping: name -> dict of TileDB S3 config overrides.
-        If None, a default set of sensible variants is used.
-    use_polygon_filter : bool
-        If True, apply polygon filtering inside bbox.
-
-    Returns
-    -------
-    pd.DataFrame
-        One row per config, including timing and throughput stats.
     """
 
     geometry, bbox = load_geometry_and_bbox(geojson_path)
-    start_time = _parse_time(start_time)
-    end_time = _parse_time(end_time)
+
+    start_ts = _parse_time(start_time)
+    end_ts = _parse_time(end_time)
 
     if configs is None:
-        # A small search space of meaningful variants (not random chaos)
-        configs = {
-            "baseline": {},
-            "more_threads": {
-                "sm.compute_concurrency_level": "32",
-                "sm.io_concurrency_level": "32",
-                "sm.num_reader_threads": "32",
-                "sm.num_tiledb_threads": "32",
-                "vfs.s3.max_parallel_ops": "32",
-            },
-            "bigger_parts": {
-                "vfs.s3.multipart_part_size": str(64 * 1024**2),  # 64 MB
-            },
-            "smaller_parts": {
-                "vfs.s3.multipart_part_size": str(8 * 1024**2),  # 8 MB
-            },
-            "larger_cache": {
-                "sm.tile_cache_size": str(8 * 1024**3),  # 8 GB
-            },
-        }
+        configs = default_s3_benchmark_configs()
 
     results = []
 
     for name, overrides in configs.items():
         cfg = deepcopy(overrides)
+        logger.info(f"[{name}] Testing config: {cfg}")
 
-        # Init provider with this config
         provider = TileDBProvider(
             storage_type="s3",
             s3_bucket=s3_bucket,
@@ -143,7 +163,7 @@ def run_s3_benchmarks(
             s3_config_overrides=cfg,
         )
 
-        # --- Warmup run (populate caches, stabilize connection)
+        # ---- Warmup (populate caches, JIT, etc.)
         try:
             _ = provider.query_dataframe(
                 variables=variables,
@@ -151,8 +171,8 @@ def run_s3_benchmarks(
                 lat_max=bbox["lat_max"],
                 lon_min=bbox["lon_min"],
                 lon_max=bbox["lon_max"],
-                start_time=start_time,
-                end_time=end_time,
+                start_time=start_ts,
+                end_time=end_ts,
                 geometry=geometry if use_polygon_filter else None,
                 use_polygon_filter=use_polygon_filter,
             )
@@ -174,7 +194,7 @@ def run_s3_benchmarks(
             )
             continue
 
-        # --- Timed run
+        # ---- Timed run
         t0 = time.perf_counter()
         try:
             df = provider.query_dataframe(
@@ -183,8 +203,8 @@ def run_s3_benchmarks(
                 lat_max=bbox["lat_max"],
                 lon_min=bbox["lon_min"],
                 lon_max=bbox["lon_max"],
-                start_time=start_time,
-                end_time=end_time,
+                start_time=start_ts,
+                end_time=end_ts,
                 geometry=geometry if use_polygon_filter else None,
                 use_polygon_filter=use_polygon_filter,
             )
@@ -210,13 +230,8 @@ def run_s3_benchmarks(
         t1 = time.perf_counter()
         provider.close()
 
-        if df is None or df.empty:
-            rows = 0
-            total_bytes = 0
-        else:
-            rows = int(len(df))
-            total_bytes = estimate_bytes(df)
-
+        rows = int(len(df)) if df is not None else 0
+        total_bytes = estimate_bytes(df)
         dt = max(t1 - t0, 1e-9)
         mb = total_bytes / (1024**2) if total_bytes > 0 else 0.0
 
@@ -234,4 +249,6 @@ def run_s3_benchmarks(
             }
         )
 
-    return pd.DataFrame(results).sort_values("mb_per_s", ascending=False)
+    df_res = pd.DataFrame(results)
+    df_res = df_res.sort_values(["ok", "mb_per_s"], ascending=[False, False])
+    return df_res
