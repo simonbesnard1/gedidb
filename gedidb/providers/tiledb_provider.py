@@ -23,8 +23,7 @@ DEFAULT_DIMS = ["shot_number"]
 
 class TileDBProvider:
     """
-    An optimized provider class for managing low-level interactions with TileDB arrays for GEDI data.
-    Supports irregular polygon filtering and efficient query building.
+    A base provider class for managing low-level interactions with TileDB arrays for GEDI data.
     """
 
     def __init__(
@@ -78,7 +77,7 @@ class TileDBProvider:
     ) -> tiledb.Ctx:
 
         cores = os.cpu_count() or 8
-        max_reader_threads = min(cores * 2, 32)
+        max_reader_threads = min(cores * 4, 64)
         max_s3_ops = min(cores * 8, 256)
 
         base_config = {
@@ -141,7 +140,6 @@ class TileDBProvider:
     def get_available_variables(self) -> pd.DataFrame:
         """
         Retrieve metadata for available variables in the scalar TileDB array.
-        Results are cached to avoid repeated array opens.
         """
         if self._metadata_cache is not None:
             return self._metadata_cache
@@ -179,7 +177,6 @@ class TileDBProvider:
     ) -> Tuple[List[str], Dict[str, List[str]]]:
         """
         Build attribute list and profile variable mapping efficiently.
-        Uses cached metadata to avoid repeated lookups.
         """
         attr_list = []
         profile_vars = {}
@@ -200,7 +197,6 @@ class TileDBProvider:
     def _build_condition_string(self, filters: Dict[str, str]) -> Optional[str]:
         """
         Build optimized TileDB query condition string from filter dictionary.
-        Handles compound conditions and validates operators.
         """
         if not filters:
             return None
@@ -248,7 +244,6 @@ class TileDBProvider:
     ) -> Dict[str, np.ndarray]:
         """
         Filter query results by irregular polygon using vectorized operations.
-        Much faster than point-by-point checking.
 
         Parameters
         ----------
@@ -301,29 +296,7 @@ class TileDBProvider:
         **filters: Dict[str, str],
     ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
         """
-        Execute an optimized query on a TileDB array with spatial, temporal, and polygon filters.
-
-        Parameters
-        ----------
-        variables : List[str]
-            Variables to query
-        lat_min, lat_max, lon_min, lon_max : float
-            Bounding box coordinates
-        start_time, end_time : Optional[np.datetime64]
-            Time range
-        geometry : Optional[gpd.GeoDataFrame]
-            If provided and use_polygon_filter=True, results will be filtered to this polygon
-        return_coords : bool
-            Whether to return coordinate arrays
-        use_polygon_filter : bool
-            If True, apply post-query polygon filtering (slower but handles irregular shapes)
-        **filters : Dict[str, str]
-            Additional attribute filters
-
-        Returns
-        -------
-        Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]
-            Query results and profile variable mapping
+        Execute a query on a TileDB array with spatial, temporal, and additional filters.
         """
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
@@ -368,8 +341,7 @@ class TileDBProvider:
 
     def _get_tiledb_spatial_domain(self) -> Tuple[float, float, float, float]:
         """
-        Retrieve the spatial domain (bounding box) from the TileDB array schema.
-        Results are cached to avoid repeated array opens.
+        Retrieve the spatial domain (bounding box) from the TileDB array schema
 
         Returns
         -------
