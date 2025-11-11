@@ -86,7 +86,7 @@ class TileDBProvider:
             "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region,
             "vfs.s3.scheme": "https",
-            "vfs.s3.use_virtual_addressing": "false",
+            "vfs.s3.use_virtual_addressing": "true",
             # Parallel S3 I/O
             "vfs.s3.max_parallel_ops": str(max_s3_ops),
             # Reasonable default part size for reads
