@@ -18,8 +18,6 @@ from scipy.spatial import cKDTree
 
 from gedidb.providers.tiledb_provider import TileDBProvider
 from gedidb.utils.geo_processing import (
-    _datetime_to_timestamp_days,
-    _timestamp_to_datetime,
     check_and_format_shape,
 )
 
@@ -135,10 +133,8 @@ class GEDIProvider(TileDBProvider):
 
         """
         scalar_vars = variables + DEFAULT_DIMS
-        start_timestamp = (
-            _datetime_to_timestamp_days(start_time) if start_time else None
-        )
-        end_timestamp = _datetime_to_timestamp_days(end_time) if end_time else None
+        start_timestamp = start_time if start_time else None
+        end_timestamp = end_time if end_time else None
 
         lon_min, lat_min = point[0] - radius, point[1] - radius
         lon_max, lat_max = point[0] + radius, point[1] + radius
@@ -228,14 +224,8 @@ class GEDIProvider(TileDBProvider):
         lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
 
         # Convert timestamps efficiently
-        start_timestamp = (
-            _datetime_to_timestamp_days(np.datetime64(start_time))
-            if start_time
-            else None
-        )
-        end_timestamp = (
-            _datetime_to_timestamp_days(np.datetime64(end_time)) if end_time else None
-        )
+        start_timestamp = np.datetime64(start_time) if start_time else None
+        end_timestamp = np.datetime64(end_time) if end_time else None
 
         # Auto-detect polygon filtering need
         if use_polygon_filter == "auto":
