@@ -18,10 +18,6 @@ from dask.distributed import Client
 from retry import retry
 from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
 
-from gedidb.utils.geo_processing import (
-    _datetime_to_timestamp_days,
-    convert_to_days_since_epoch,
-)
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 from gedidb.utils.filters import TileDBFilterPolicy
 
@@ -440,8 +436,8 @@ class GEDIDatabase:
         lon_min = spatial_range.get("lon_min")
         lon_max = spatial_range.get("lon_max")
 
-        time_min = _datetime_to_timestamp_days(time_range.get("start_time"))
-        time_max = _datetime_to_timestamp_days(time_range.get("end_time"))
+        time_min = np.datetime64(time_range.get("start_time"))
+        time_max = np.datetime64(time_range.get("end_time"))
 
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
             raise ValueError(
@@ -455,7 +451,7 @@ class GEDIDatabase:
         scale_factor = cfg_td.get("scale_factor", 1e-6)
         lat_tile = cfg_td.get("latitude_tile", 1)
         lon_tile = cfg_td.get("longitude_tile", 1)
-        time_tile = cfg_td.get("time_tile", 365)
+        time_tile = np.timedelta64(cfg_td.get("time_tile", 365), "D")
 
         spatial_filters = self.filter_policy.spatial_dim_filters(scale_factor)
         time_filters = self.filter_policy.time_dim_filters()
@@ -478,7 +474,7 @@ class GEDIDatabase:
             name="time",
             domain=(time_min, time_max),
             tile=time_tile,
-            dtype=np.int64,
+            dtype=np.datetime64("", "D").dtype,
             filters=time_filters,
         )
 
@@ -697,7 +693,7 @@ class GEDIDatabase:
     def write_granule(
         self,
         granule_data: pd.DataFrame,
-        row_batch: int = 100_000,
+        row_batch: int = 300_000,
     ) -> None:
         """
         Memory-lean write with row-only batching (no attribute batching).
@@ -727,6 +723,7 @@ class GEDIDatabase:
             )
 
             view = granule_data[spatial_mask]
+
             if view.empty:
                 return
 
@@ -744,8 +741,12 @@ class GEDIDatabase:
             coords_base = {}
             for dim_name in self.dimension_names:
                 if dim_name == "time":
-                    coords_base["time"] = convert_to_days_since_epoch(
-                        view["time"].to_numpy(copy=False)
+                    coords_base["time"] = (
+                        view["time"]
+                        .dt.tz_convert("UTC")
+                        .dt.tz_localize(None)
+                        .to_numpy(copy=False)
+                        .astype("datetime64[D]")
                     )
                 else:
                     coords_base[dim_name] = view[dim_name].to_numpy(copy=False)
@@ -763,12 +764,12 @@ class GEDIDatabase:
                         pd.to_datetime(tcol, utc=True).astype("int64").to_numpy()
                     )
 
-            # --- Precompute ALL attribute arrays once
+            # Precompute ALL attribute arrays once
             attrs_data_base = {}
             for attr in attrs_to_write:
                 attrs_data_base[attr] = view[attr].to_numpy(copy=False)
 
-            # --- CRITICAL: Open array ONCE for all batches
+            # Open array ONCE for all batches
             n = len(view)
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
                 dim_names = [dim.name for dim in array.schema.domain]
@@ -830,9 +831,8 @@ class GEDIDatabase:
 
         for dim_name in self.dimension_names:
             if dim_name == "time":
-                # Convert timestamps to days since epoch
-                coords[dim_name] = convert_to_days_since_epoch(
-                    granule_data[dim_name].values
+                coords[dim_name] = granule_data[dim_name].astype(
+                    "datetime64[D]", copy=False
                 )
             else:
                 # Latitude/longitude:

@@ -440,9 +440,6 @@ class GEDIProvider(TileDBProvider):
           alignment between the two datasets.
 
         """
-        # Convert timestamps efficiently
-        scalar_data["time"] = _timestamp_to_datetime(scalar_data["time"])
-
         # Create DataFrame (optimized with from_dict)
         scalar_df = pd.DataFrame.from_dict(scalar_data)
 
@@ -508,9 +505,6 @@ class GEDIProvider(TileDBProvider):
             + profile_var_components
         ]
 
-        # Convert timestamps
-        times = _timestamp_to_datetime(scalar_data["time"])
-
         # Create dataset with data_vars dict (faster than merging)
         data_vars = {}
 
@@ -547,7 +541,7 @@ class GEDIProvider(TileDBProvider):
                 "shot_number": scalar_data["shot_number"],
                 "latitude": ("shot_number", scalar_data["latitude"]),
                 "longitude": ("shot_number", scalar_data["longitude"]),
-                "time": ("shot_number", times),
+                "time": ("shot_number", scalar_data["time"]),
             },
         )
 
