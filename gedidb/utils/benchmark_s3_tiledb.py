@@ -156,68 +156,18 @@ def run_s3_benchmarks(
             s3_config_overrides=cfg,
         )
 
-        # ---- Warmup (populate caches, JIT, etc.)
-        try:
-            _ = provider.query_dataframe(
-                variables=variables,
-                lat_min=lat_min,
-                lat_max=lat_max,
-                lon_min=lon_min,
-                lon_max=lon_max,
-                start_time=start_ts,
-                end_time=end_ts,
-                geometry=geometry,
-            )
-        except Exception as e:
-            logger.error(f"[{name}] Warmup failed: {e}")
-            provider.close()
-            results.append(
-                {
-                    "config": name,
-                    "ok": False,
-                    "error": str(e),
-                    "rows": 0,
-                    "bytes": 0,
-                    "time_s": np.nan,
-                    "rows_per_s": np.nan,
-                    "mb_per_s": np.nan,
-                    "config_overrides": json.dumps(cfg),
-                }
-            )
-            continue
-
         # ---- Timed run
         t0 = time.perf_counter()
-        try:
-            df = provider.query_dataframe(
-                variables=variables,
-                lat_min=lat_min,
-                lat_max=lat_max,
-                lon_min=lon_min,
-                lon_max=lon_max,
-                start_time=start_ts,
-                end_time=end_ts,
-                geometry=geometry,
-            )
-        except Exception as e:
-            t1 = time.perf_counter()
-            logger.error(f"[{name}] Timed run failed: {e}")
-            provider.close()
-            results.append(
-                {
-                    "config": name,
-                    "ok": False,
-                    "error": str(e),
-                    "rows": 0,
-                    "bytes": 0,
-                    "time_s": t1 - t0,
-                    "rows_per_s": np.nan,
-                    "mb_per_s": np.nan,
-                    "config_overrides": json.dumps(cfg),
-                }
-            )
-            continue
-
+        df = provider.query_dataframe(
+            variables=variables,
+            lat_min=lat_min,
+            lat_max=lat_max,
+            lon_min=lon_min,
+            lon_max=lon_max,
+            start_time=start_ts,
+            end_time=end_ts,
+            geometry=geometry,
+        )
         t1 = time.perf_counter()
         provider.close()
 
