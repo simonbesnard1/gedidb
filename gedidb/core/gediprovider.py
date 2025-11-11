@@ -197,8 +197,8 @@ class GEDIProvider(TileDBProvider):
             lon_max,
             start_timestamp,
             end_timestamp,
-            # geometry=geometry,
-            # use_polygon_filter=use_polygon_filter,
+            geometry=geometry,
+            use_polygon_filter=use_polygon_filter,
             **quality_filters,
         )
 
