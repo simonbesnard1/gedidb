@@ -90,9 +90,9 @@ class TileDBProvider:
             # Parallel S3 I/O
             "vfs.s3.max_parallel_ops": str(max_s3_ops),
             # Reasonable default part size for reads
-            "vfs.s3.multipart_part_size": str(128 * 1024**2),  # 128 MB
+            "vfs.s3.multipart_part_size": str(64 * 1024**2),  # 64 MB
             # Timeouts
-            "vfs.s3.connect_timeout_ms": "1800000",  # 60 s
+            "vfs.s3.connect_timeout_ms": "60000",  # 60 s
             "vfs.s3.request_timeout_ms": "600000",  # 10 min
             # Threading
             "sm.compute_concurrency_level": str(max_reader_threads),
@@ -101,11 +101,10 @@ class TileDBProvider:
             "sm.num_tiledb_threads": str(max_reader_threads),
             # Caches
             "py.init_buffer_bytes": str(1 * 1024**3),  # 1 GiB,
-            "sm.tile_cache_size": str(16 * 1024**3),  # 8 GB
+            "sm.tile_cache_size": str(8 * 1024**3),  # 8 GB
             "vfs.s3.max_read_ahead": "2",
             # Misc
             "sm.enable_signal_handlers": "false",
-            "vfs.s3.max_retries": "10"
         }
 
         if credentials:
