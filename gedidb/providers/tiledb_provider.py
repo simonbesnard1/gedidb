@@ -74,63 +74,56 @@ class TileDBProvider:
         self._array_handle = None
 
     def _initialize_s3_context(
-            self, credentials: Optional[dict], url: str, region: str
-        ) -> tiledb.Ctx:
-    
-            cores = os.cpu_count() or 8
-            max_reader_threads = min(cores, 32)
-            max_s3_ops = min(cores * 2, 32)
-    
-            base_config = {
-                # Endpoint / region
-                "vfs.s3.endpoint_override": url,
-                "vfs.s3.region": region,
-                "vfs.s3.scheme": "https",
-                "vfs.s3.use_virtual_addressing": "true",
-    
-                # Parallel S3 I/O
-                "vfs.s3.max_parallel_ops": str(max_s3_ops),
-    
-                # Reasonable default part size for reads
-                "vfs.s3.multipart_part_size": str(16 * 1024**2),  # 16 MB
-    
-                # Timeouts
-                "vfs.s3.connect_timeout_ms": "60000",   # 60 s
-                "vfs.s3.request_timeout_ms": "600000",  # 10 min
-    
-                # Threading
-                "sm.compute_concurrency_level": str(max_reader_threads),
-                "sm.io_concurrency_level": str(max_reader_threads),
-                "sm.num_reader_threads": str(max_reader_threads),
-                "sm.num_tiledb_threads": str(max_reader_threads),
-    
-                # Caches
-                "py.init_buffer_bytes": str(2 * 1024**3),  # 2 GB
-                "sm.tile_cache_size": str(2 * 1024**3),    # 2 GB
-    
-                # Misc
-                "sm.enable_signal_handlers": "false",
-            }
-    
-            if credentials:
-                base_config.update(
-                    {
-                        "vfs.s3.aws_access_key_id": credentials.get("AccessKeyId", ""),
-                        "vfs.s3.aws_secret_access_key": credentials.get(
-                            "SecretAccessKey", ""
-                        ),
-                        "vfs.s3.aws_session_token": credentials.get("SessionToken", ""),
-                        "vfs.s3.no_sign_request": "false",
-                    }
-                )
-            else:
-                base_config["vfs.s3.no_sign_request"] = "true"
-    
-            # Allow targeted overrides (for experiments)
-            base_config.update(self.s3_config_overrides)
-    
-            return tiledb.Ctx(base_config)
+        self, credentials: Optional[dict], url: str, region: str
+    ) -> tiledb.Ctx:
 
+        cores = os.cpu_count() or 8
+        max_reader_threads = min(cores, 32)
+        max_s3_ops = min(cores * 2, 32)
+
+        base_config = {
+            # Endpoint / region
+            "vfs.s3.endpoint_override": url,
+            "vfs.s3.region": region,
+            "vfs.s3.scheme": "https",
+            "vfs.s3.use_virtual_addressing": "true",
+            # Parallel S3 I/O
+            "vfs.s3.max_parallel_ops": str(max_s3_ops),
+            # Reasonable default part size for reads
+            "vfs.s3.multipart_part_size": str(16 * 1024**2),  # 16 MB
+            # Timeouts
+            "vfs.s3.connect_timeout_ms": "60000",  # 60 s
+            "vfs.s3.request_timeout_ms": "600000",  # 10 min
+            # Threading
+            "sm.compute_concurrency_level": str(max_reader_threads),
+            "sm.io_concurrency_level": str(max_reader_threads),
+            "sm.num_reader_threads": str(max_reader_threads),
+            "sm.num_tiledb_threads": str(max_reader_threads),
+            # Caches
+            "py.init_buffer_bytes": str(2 * 1024**3),  # 2 GB
+            "sm.tile_cache_size": str(2 * 1024**3),  # 2 GB
+            # Misc
+            "sm.enable_signal_handlers": "false",
+        }
+
+        if credentials:
+            base_config.update(
+                {
+                    "vfs.s3.aws_access_key_id": credentials.get("AccessKeyId", ""),
+                    "vfs.s3.aws_secret_access_key": credentials.get(
+                        "SecretAccessKey", ""
+                    ),
+                    "vfs.s3.aws_session_token": credentials.get("SessionToken", ""),
+                    "vfs.s3.no_sign_request": "false",
+                }
+            )
+        else:
+            base_config["vfs.s3.no_sign_request"] = "true"
+
+        # Allow targeted overrides (for experiments)
+        base_config.update(self.s3_config_overrides)
+
+        return tiledb.Ctx(base_config)
 
     def _initialize_local_context(self) -> tiledb.Ctx:
         return tiledb.Ctx(
