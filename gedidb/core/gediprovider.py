@@ -198,7 +198,7 @@ class GEDIProvider(TileDBProvider):
             start_timestamp,
             end_timestamp,
             geometry=geometry,
-            use_polygon_filter=use_polygon_filter,
+            # use_polygon_filter=use_polygon_filter,
             **quality_filters,
         )
 
@@ -322,9 +322,6 @@ class GEDIProvider(TileDBProvider):
                     scalar_df[var_name] = scalar_df[profile_cols].values.tolist()
                     scalar_df = scalar_df.drop(columns=profile_cols)
 
-        # Sort once at the end
-        scalar_df = scalar_df.sort_values(by="time")
-
         return scalar_df
 
     def to_xarray(
@@ -344,8 +341,6 @@ class GEDIProvider(TileDBProvider):
             Variable metadata
         profile_vars : Dict[str, List[str]]
             Profile variable component mapping
-        sort : bool, default True
-            Whether to sort by time. Set to False for ~10x speedup if order doesn't matter.
 
         Returns
         -------
@@ -367,7 +362,7 @@ class GEDIProvider(TileDBProvider):
             + profile_var_components
         ]
 
-        # Convert timestamps (already sorted if sort=True)
+        # Convert timestamps
         times = _timestamp_to_datetime(scalar_data["time"])
 
         # Create dataset with data_vars dict (faster than merging)
