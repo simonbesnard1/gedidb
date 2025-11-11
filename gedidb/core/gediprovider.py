@@ -332,7 +332,6 @@ class GEDIProvider(TileDBProvider):
         scalar_data: Dict[str, np.ndarray],
         metadata: pd.DataFrame,
         profile_vars: Dict[str, List[str]],
-        sort: bool = True,
     ) -> xr.Dataset:
         """
         Convert to Xarray with optimized array operations.
@@ -353,12 +352,6 @@ class GEDIProvider(TileDBProvider):
         xr.Dataset
             Xarray dataset with coordinates and metadata
         """
-        # Pre-sort all arrays by time BEFORE creating xarray objects
-        if sort:
-            time_sort_indices = np.argsort(scalar_data["time"])
-            # Sort all arrays in-place
-            for key in scalar_data:
-                scalar_data[key] = scalar_data[key][time_sort_indices]
 
         # Extract profile variable components
         profile_var_components = [
