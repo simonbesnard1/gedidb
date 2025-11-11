@@ -224,8 +224,10 @@ class GEDIProvider(TileDBProvider):
         lon_min, lat_min, lon_max, lat_max = geometry.total_bounds
 
         # Convert timestamps efficiently
-        start_timestamp = np.datetime64(start_time) if start_time else None
-        end_timestamp = np.datetime64(end_time) if end_time else None
+        if start_time is not None:
+            start_time = np.datetime64(start_time, "D")
+        if end_time is not None:
+            end_time = np.datetime64(end_time, "D")
 
         # Auto-detect polygon filtering need
         if use_polygon_filter == "auto":
@@ -256,8 +258,8 @@ class GEDIProvider(TileDBProvider):
             lat_max,
             lon_min,
             lon_max,
-            start_timestamp,
-            end_timestamp,
+            start_time,
+            end_time,
             geometry=geometry,
             use_polygon_filter=use_polygon_filter,
             **quality_filters,
@@ -281,7 +283,7 @@ class GEDIProvider(TileDBProvider):
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
         Retrieve GEDI data based on spatial, temporal, and quality filters,
-        and return it in either Pandas or Xarray format.
+        and return it in either Pandas Dataframe or Xarray format.
 
         This function allows flexible querying of GEDI data, either by bounding box or
         nearest-point selection, with optional filtering based on time and quality criteria.
@@ -300,7 +302,7 @@ class GEDIProvider(TileDBProvider):
             End of the time range for filtering data. Should be in a format compatible
             with `np.datetime64`.
         return_type : str, default "xarray"
-            Format in which to return the data. Options are 'pandas' or 'xarray'.
+            Format in which to return the data. Options are 'dataframe' or 'xarray'.
         query_type : str, default "bounding_box"
             Type of query to perform. Options are:
             - "bounding_box": Retrieve data within the specified geometry or bounding box.
@@ -519,7 +521,9 @@ class GEDIProvider(TileDBProvider):
                 profile_data,
                 coords={
                     "shot_number": scalar_data["shot_number"],
-                    "profile_points": range(num_profile_points),
+                    "profile_points": np.arange(
+                        num_profile_points, dtype="int16" or "int32"
+                    ),
                 },
                 dims=["shot_number", "profile_points"],
             )
