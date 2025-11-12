@@ -16,6 +16,10 @@ import geopandas as gpd
 from shapely import contains_xy
 import tiledb
 
+from gedidb.utils.geo_processing import (
+    _datetime_to_timestamp_days,
+)
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_DIMS = ["shot_number"]
@@ -280,6 +284,23 @@ class TileDBProvider:
 
         return filtered_data
 
+    def _prepare_time_bounds(self, start_time, end_time, decode_time=False):
+
+        if start_time is not None:
+            start_time = np.datetime64(start_time, "D")
+        if end_time is not None:
+            end_time = np.datetime64(end_time, "D")
+        if decode_time:
+            start_time = (
+                _datetime_to_timestamp_days(start_time)
+                if start_time is not None
+                else None
+            )
+            end_time = (
+                _datetime_to_timestamp_days(end_time) if end_time is not None else None
+            )
+        return start_time, end_time
+
     def _query_array(
         self,
         variables: List[str],
@@ -289,6 +310,7 @@ class TileDBProvider:
         lon_max: float,
         start_time: Optional[np.datetime64] = None,
         end_time: Optional[np.datetime64] = None,
+        decode_time: bool = False,
         geometry: Optional[gpd.GeoDataFrame] = None,
         return_coords: bool = True,
         use_polygon_filter: bool = False,
@@ -298,6 +320,9 @@ class TileDBProvider:
         """
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
         """
+        start_time, end_time = self._prepare_time_bounds(
+            start_time, end_time, decode_time
+        )
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
                 # Build attribute list and profile variables (cached metadata)

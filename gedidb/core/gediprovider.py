@@ -18,6 +18,7 @@ from scipy.spatial import cKDTree
 
 from gedidb.providers.tiledb_provider import TileDBProvider
 from gedidb.utils.geo_processing import (
+    _timestamp_to_datetime,
     check_and_format_shape,
 )
 
@@ -91,6 +92,7 @@ class GEDIProvider(TileDBProvider):
         radius: float,
         start_time: Optional[np.datetime64] = None,
         end_time: Optional[np.datetime64] = None,
+        decode_time: bool = False,
         **quality_filters,
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
@@ -133,6 +135,7 @@ class GEDIProvider(TileDBProvider):
 
         """
         scalar_vars = variables + DEFAULT_DIMS
+
         start_timestamp = start_time if start_time else None
         end_timestamp = end_time if end_time else None
 
@@ -147,6 +150,7 @@ class GEDIProvider(TileDBProvider):
             lon_max,
             start_timestamp,
             end_timestamp,
+            decode_time,
             **quality_filters,
         )
 
@@ -181,6 +185,7 @@ class GEDIProvider(TileDBProvider):
         geometry: Optional[gpd.GeoDataFrame] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
+        decode_time: bool = False,
         use_polygon_filter: bool = "auto",
         **quality_filters,
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
@@ -260,6 +265,7 @@ class GEDIProvider(TileDBProvider):
             lon_max,
             start_time,
             end_time,
+            decode_time,
             geometry=geometry,
             use_polygon_filter=use_polygon_filter,
             **quality_filters,
@@ -279,6 +285,7 @@ class GEDIProvider(TileDBProvider):
         num_shots: Optional[int] = None,
         radius: Optional[float] = None,
         use_polygon_filter: bool = "auto",
+        decode_time: bool = False,
         **quality_filters,
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
@@ -372,6 +379,7 @@ class GEDIProvider(TileDBProvider):
                 radius,
                 start_time,
                 end_time,
+                decode_time,
                 **quality_filters,
             )
         elif query_type == "bounding_box":
@@ -380,6 +388,7 @@ class GEDIProvider(TileDBProvider):
                 geometry,
                 start_time,
                 end_time,
+                decode_time,
                 use_polygon_filter=use_polygon_filter,
                 **quality_filters,
             )
@@ -391,14 +400,17 @@ class GEDIProvider(TileDBProvider):
         # Return in requested format
         if return_type == "xarray":
             metadata = self.get_available_variables()
-            return self.to_xarray(scalar_data, metadata, profile_vars)
+            return self.to_xarray(
+                scalar_data, metadata, profile_vars, decode_time=decode_time
+            )
         elif return_type == "dataframe":
-            return self.to_dataframe(scalar_data, profile_vars)
+            return self.to_dataframe(scalar_data, profile_vars, decode_time=decode_time)
 
     def to_dataframe(
         self,
         scalar_data: Dict[str, np.ndarray],
         profile_vars: Dict[str, List[str]] = None,
+        decode_time: bool = False,
     ) -> pd.DataFrame:
         """
         Convert scalar and profile data dictionaries into a unified pandas DataFrame.
@@ -435,11 +447,14 @@ class GEDIProvider(TileDBProvider):
         # Create DataFrame (optimized with from_dict)
         scalar_df = pd.DataFrame.from_dict(scalar_data)
 
+        if decode_time and "time" in scalar_df:
+            scalar_df["time"] = _timestamp_to_datetime(scalar_df["time"])
+
         # Reconstruct profile variables if present
         if profile_vars:
             for var_name, profile_cols in profile_vars.items():
                 if all(col in scalar_df.columns for col in profile_cols):
-                    # Vectorized list creation (faster than iterrows)
+                    # Vectorized list creation
                     scalar_df[var_name] = scalar_df[profile_cols].values.tolist()
                     scalar_df = scalar_df.drop(columns=profile_cols)
 
@@ -450,6 +465,7 @@ class GEDIProvider(TileDBProvider):
         scalar_data: Dict[str, np.ndarray],
         metadata: pd.DataFrame,
         profile_vars: Dict[str, List[str]],
+        decode_time: bool = False,
     ) -> xr.Dataset:
         """
         Convert scalar and profile data to an Xarray Dataset, with metadata attached.
@@ -482,6 +498,11 @@ class GEDIProvider(TileDBProvider):
         - Profile data variables are reshaped to include the `profile_point` dimension alongside `shot_number`.
         - The Dataset is annotated with metadata (descriptions, units, etc.) from the provided metadata DataFrame.
         """
+
+        if decode_time:
+            time_coord = _timestamp_to_datetime(scalar_data["time"])
+        else:
+            time_coord = scalar_data["time"]
 
         # Extract profile variable components
         profile_var_components = [
@@ -535,7 +556,7 @@ class GEDIProvider(TileDBProvider):
                 "shot_number": scalar_data["shot_number"],
                 "latitude": ("shot_number", scalar_data["latitude"]),
                 "longitude": ("shot_number", scalar_data["longitude"]),
-                "time": ("shot_number", scalar_data["time"]),
+                "time": ("shot_number", time_coord),
             },
         )
 

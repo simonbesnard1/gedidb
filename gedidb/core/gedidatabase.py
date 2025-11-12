@@ -16,7 +16,8 @@ import pandas as pd
 import tiledb
 from dask.distributed import Client
 from retry import retry
-from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype
+from pandas.api.types import is_datetime64_any_dtype
+from pandas.core.dtypes.dtypes import DatetimeTZDtype  # new-style tz dtype check
 
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 from gedidb.utils.filters import TileDBFilterPolicy
@@ -754,15 +755,21 @@ class GEDIDatabase:
             # --- Precompute timestamp_ns once
             if write_timestamp:
                 tcol = view["time"]
-                if is_datetime64_any_dtype(tcol):
-                    if is_datetime64tz_dtype(tcol):
-                        timestamp_ns_base = tcol.astype("int64").to_numpy(copy=False)
-                    else:
-                        timestamp_ns_base = tcol.to_numpy(copy=False).view("int64")
-                else:
-                    timestamp_ns_base = (
-                        pd.to_datetime(tcol, utc=True).astype("int64").to_numpy()
-                    )
+
+                # 1) Ensure datetime dtype (parse strings/objects)
+                if not is_datetime64_any_dtype(tcol):
+                    tcol = pd.to_datetime(tcol, utc=True, errors="coerce")
+
+                # 2) If tz-aware, normalize to UTC and drop timezone
+                if isinstance(tcol.dtype, DatetimeTZDtype):
+                    # ensure UTC (usually already is), then drop tz to get naive ns
+                    tcol = tcol.dt.tz_convert("UTC").dt.tz_localize(None)
+
+                # 3) Cast to ns since epoch (int64)
+                #    .astype('int64') works for both naive and previously-tz-aware series.
+                timestamp_ns_base = tcol.astype("int64", copy=False).to_numpy(
+                    copy=False
+                )
 
             # Precompute ALL attribute arrays once
             attrs_data_base = {}
