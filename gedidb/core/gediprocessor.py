@@ -386,6 +386,7 @@ class GEDIProcessor:
                         future_map[fut] = gid
 
                     valid_dataframes = []
+                    processed_ids = []
                     counter = 0
                     for fut in as_completed(future_map):
                         gid = future_map[fut]
@@ -397,7 +398,7 @@ class GEDIProcessor:
                             if gdf is not None:
                                 valid_dataframes.append(gdf)
                             if ok:
-                                self.database_writer.mark_granule_as_processed(ids_)
+                                processed_ids.append(ids_)
                             row = Row(
                                 granule_id=gid,
                                 timeframe=timeframe,
@@ -438,10 +439,19 @@ class GEDIProcessor:
                     # write data then finalize report
                     if valid_dataframes:
                         concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-                        for _, data in self.database_writer.spatial_chunking(
-                            concatenated_df
-                        ):
-                            self.database_writer.write_granule(data)
+                        try:
+                            for _, data in self.database_writer.spatial_chunking(
+                                concatenated_df
+                            ):
+                                self.database_writer.write_granule(data)
+
+                            # only now mark them as processed
+                            for ids_ in processed_ids:
+                                self.database_writer.mark_granule_as_processed(ids_)
+                        except Exception as e:
+                            logger.error(
+                                f"Write phase failed for timeframe {timeframe}: {e}"
+                            )
 
                     ledger.write_status_md()
                     ledger.write_html()
@@ -464,6 +474,7 @@ class GEDIProcessor:
                     futures.append((gid, fut))
 
                 valid_dataframes = []
+                processed_ids = []
                 counter = 0
                 for gid, fut in futures:
                     started_ts = time.time()
@@ -474,7 +485,7 @@ class GEDIProcessor:
                         if gdf is not None:
                             valid_dataframes.append(gdf)
                         if ok:
-                            self.database_writer.mark_granule_as_processed(ids_)
+                            processed_ids.append(ids_)
                         row = Row(
                             granule_id=gid,
                             timeframe=timeframe,
@@ -512,11 +523,22 @@ class GEDIProcessor:
                             ledger.write_status_md()
                             ledger.write_html()
 
+                # write data then finalize report
                 if valid_dataframes:
                     concatenated_df = pd.concat(valid_dataframes, ignore_index=True)
-                    quadrants = self.database_writer.spatial_chunking(concatenated_df)
-                    for data in quadrants.values():
-                        self.database_writer.write_granule(data)
+                    try:
+                        for _, data in self.database_writer.spatial_chunking(
+                            concatenated_df
+                        ):
+                            self.database_writer.write_granule(data)
+
+                        # only now mark them as processed
+                        for ids_ in processed_ids:
+                            self.database_writer.mark_granule_as_processed(ids_)
+                    except Exception as e:
+                        logger.error(
+                            f"Write phase failed for timeframe {timeframe}: {e}"
+                        )
 
                 ledger.write_status_md()
                 ledger.write_html()
