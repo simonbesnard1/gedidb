@@ -8,10 +8,16 @@
 
 import logging
 import pathlib
-import time
 from collections import defaultdict
 from datetime import datetime
 from typing import Optional, Tuple
+import threading
+from retry import retry
+
+logger = logging.getLogger(__name__)
+
+# Thread-local storage for safe Sessions
+_thread_local = threading.local()
 
 import geopandas as gpd
 import requests
@@ -19,11 +25,9 @@ from requests.exceptions import (
     ChunkedEncodingError,
     ConnectionError,
     HTTPError,
-    ReadTimeout,
     RequestException,
     Timeout,
 )
-from retry import retry
 from urllib3.exceptions import NewConnectionError
 import h5py
 
@@ -59,6 +63,15 @@ def _normalize_entry(t):
         return (url, product, start_time, 0.0)
     else:
         raise ValueError(f"Unexpected granule tuple shape: {t!r}")
+
+
+def _get_session() -> requests.Session:
+    """Return a per-thread requests.Session (thread-safe)."""
+    if not hasattr(_thread_local, "session"):
+        s = requests.Session()
+        s.headers.update({"User-Agent": "gedidb/1.0"})
+        _thread_local.session = s
+    return _thread_local.session
 
 
 class GEDIDownloader:
@@ -222,24 +235,11 @@ class CMRDataDownloader(GEDIDownloader):
 
 class H5FileDownloader:
     """
-    Downloader for HDF5 files from URLs, with resume and retry support,
-    plus a temporary ".part" approach to ensure data integrity.
-
-    Files are downloaded to:
-        <download_path>/<granule_key>/<product_name>.h5
-
-    A temporary '<product_name>.h5.part' is used during download:
-        - Only renamed to '.h5' after a successful and validated download.
-        - Existing valid '.h5' files are reused and not re-downloaded.
+    Safe downloader for HDF5 files using thread-local Sessions
+    and non-streaming chunked reads to avoid SSL segfaults in threaded mode.
     """
 
     def __init__(self, download_path: str = ".") -> None:
-        """
-        Parameters
-        ----------
-        download_path : str, optional
-            Base directory where granule subfolders and HDF5 files are stored.
-        """
         self.download_path = pathlib.Path(download_path)
 
     @retry(
@@ -259,192 +259,83 @@ class H5FileDownloader:
         logger=logger,
     )
     def download(
-        self,
-        granule_key: str,
-        url: str,
-        product,
+        self, granule_key: str, url: str, product
     ) -> Tuple[str, Tuple[str, Optional[str]]]:
-        """
-        Download an HDF5 file for a specific granule and product with resume support
-        using a temporary '.part' file. Renames to '.h5' only upon successful download.
+        session = _get_session()
 
-        Parameters
-        ----------
-        granule_key : str
-            Identifier for the granule, used as a subdirectory name.
-        url : str
-            Remote URL of the HDF5 file.
-        product :
-            Product identifier. Typically an Enum with `.name` and `.value`,
-            but falls back to `str(product)` if those are not present.
-
-        Returns
-        -------
-        (granule_key, (product_value, file_path))
-            - product_value : str
-                A short product label (e.g. the Enum `.value` or the string form).
-            - file_path : str or None
-                Absolute path to the downloaded HDF5 file if successful, else None.
-
-        Raises
-        ------
-        ValueError, RequestException, OSError, etc.
-            These are handled by the retry decorator; after all retries are exhausted,
-            the last exception will be propagated.
-        """
         granule_dir = self.download_path / granule_key
         granule_dir.mkdir(parents=True, exist_ok=True)
 
-        # Normalize product representation
         product_name = getattr(product, "name", str(product))
         product_value = getattr(product, "value", str(product))
 
         final_path = granule_dir / f"{product_name}.h5"
         temp_path = granule_dir / f"{product_name}.h5.part"
 
-        # --- 1. Reuse existing valid file
+        # --- Reuse existing complete file ---
         if final_path.exists():
             if self._is_hdf5_valid(final_path):
                 return granule_key, (product_value, str(final_path))
-            logger.warning(
-                f"Corrupt HDF5 file detected: {final_path}. Deleting and retrying."
-            )
             final_path.unlink(missing_ok=True)
 
-        # --- 2. Check existing partial download
+        # --- Partial resume info ---
         downloaded_size = temp_path.stat().st_size if temp_path.exists() else 0
-
-        # --- 3. Try to get total size via a tiny ranged request
-        headers = {"Range": "bytes=0-1"}
         total_size: Optional[int] = None
 
+        # --- Query Content-Range for total size ---
         try:
-            # Only need headers; no streaming.
-            with requests.get(url, headers=headers, timeout=30) as partial_response:
-                partial_response.raise_for_status()
+            r = session.get(url, headers={"Range": "bytes=0-1"}, timeout=30)
+            r.raise_for_status()
+            cr = r.headers.get("Content-Range")
+            if cr:
+                try:
+                    total_size = int(cr.split("/")[-1])
+                except Exception:
+                    total_size = None
+        except Exception as e:
+            raise ValueError(f"Failed initial size request: {e}") from e
 
-                content_range = partial_response.headers.get("Content-Range")
-                if content_range:
-                    # Format: "bytes start-end/total"
-                    try:
-                        total_size = int(content_range.split("/")[-1])
-                    except (ValueError, IndexError):
-                        total_size = None
+        # --- Prepare range header ---
+        headers = {}
+        if downloaded_size > 0:
+            headers["Range"] = f"bytes={downloaded_size}-"
 
-                    # If partial file already matches full size, validate & finalize
-                    if total_size is not None and downloaded_size == total_size:
-                        temp_path.rename(final_path)
-                        if self._is_hdf5_valid(final_path):
-                            return granule_key, (product_value, str(final_path))
-                        logger.warning(
-                            f"Downloaded file {final_path} is corrupt. "
-                            f"Deleting and retrying."
-                        )
-                        final_path.unlink(missing_ok=True)
-                        # Force a retry via decorator
-                        raise ValueError("Invalid HDF5 file after download.")
-
-                    # Otherwise, resume from current size
-                    if downloaded_size > 0:
-                        headers["Range"] = f"bytes={downloaded_size}-"
-                    else:
-                        headers["Range"] = "bytes=0-"
-                else:
-                    # No Range support; restart from scratch
-                    headers = {}
-        except RequestException as e:
-            # Let retry handle transient header/connection issues
-            raise ValueError(f"Failed to get Content-Range from server: {e}") from e
-
-        # --- 4. Main download (or resume) to .part
+        # --- Main download (NO STREAMING) ---
         try:
-            with requests.get(url, headers=headers, stream=True, timeout=30) as r:
-                if r.status_code == 416:
-                    # "Requested Range Not Satisfiable": invalid partial, restart cleanly
-                    if temp_path.exists():
-                        temp_path.unlink(missing_ok=True)
-                    raise ValueError("Invalid byte range for resume; restarting.")
+            r = session.get(url, headers=headers, timeout=30, stream=False)
+            r.raise_for_status()
 
-                r.raise_for_status()
-
-                mode = "ab" if headers.get("Range", "").startswith("bytes=") else "wb"
-                with open(temp_path, mode) as f:
-                    for chunk in r.iter_content(chunk_size=8 * 1024 * 1024):
-                        if chunk:
-                            f.write(chunk)
-
-            # --- 5. Validate size if known
-            final_downloaded_size = temp_path.stat().st_size
-            if total_size is not None and final_downloaded_size != total_size:
-                logger.warning(
-                    f"Size mismatch for {temp_path}: "
-                    f"expected {total_size}, got {final_downloaded_size}. "
-                    f"Deleting and retrying."
-                )
-                temp_path.unlink(missing_ok=True)
-                raise ValueError("Downloaded final size mismatch with expected size.")
-
-            # --- 6. Promote to final name
-            temp_path.rename(final_path)
-
-            # --- 7. Validate HDF5 integrity
-            if not self._is_hdf5_valid(final_path):
-                logger.warning(
-                    f"Downloaded file {final_path} is corrupt. Deleting and retrying."
-                )
-                final_path.unlink(missing_ok=True)
-                raise ValueError("Invalid HDF5 file after download.")
-
-            return granule_key, (product_value, str(final_path))
-
-        except (
-            HTTPError,
-            ConnectionError,
-            ChunkedEncodingError,
-            ReadTimeout,
-            Timeout,
-            OSError,
-            ValueError,
-            RequestException,
-        ) as e:
-            # Handle FD exhaustion explicitly, but still propagate for retry.
-            if isinstance(e, OSError) and e.errno == 24:
-                logger.error(
-                    f"Too many open files for {product_name} of granule {granule_key}: {e}. "
-                    f"Pausing briefly before retry."
-                )
-                time.sleep(5)
-
-            logger.error(
-                f"Error encountered for {product_name} of granule {granule_key}: {e}. "
-                f"Retrying..."
-            )
-            raise
+            mode = "ab" if downloaded_size else "wb"
+            with open(temp_path, mode) as f:
+                CHUNK = 8 * 1024 * 1024
+                data = r.content  # safe, non-streaming TLS read
+                f.write(data)
 
         except Exception as e:
-            # Truly unexpected errors: log and let the retry decorator see them.
-            logger.error(
-                f"Unexpected error while downloading {product_name} of "
-                f"granule {granule_key}: {e}"
-            )
+            logger.error(f"Download error for {product_name} ({granule_key}): {e}")
             raise
 
+        # --- Size validation ---
+        final_downloaded_size = temp_path.stat().st_size
+        if total_size is not None and final_downloaded_size != total_size:
+            temp_path.unlink(missing_ok=True)
+            raise ValueError(
+                f"Size mismatch: expected {total_size}, got {final_downloaded_size}"
+            )
+
+        # --- Promote to final ---
+        temp_path.rename(final_path)
+
+        # --- HDF5 validity ---
+        if not self._is_hdf5_valid(final_path):
+            final_path.unlink(missing_ok=True)
+            raise ValueError("Invalid HDF5 file after download.")
+
+        return granule_key, (product_value, str(final_path))
+
     def _is_hdf5_valid(self, file_path: pathlib.Path) -> bool:
-        """
-        Check if an HDF5 file is valid and can be opened.
-
-        Parameters
-        ----------
-        file_path : pathlib.Path
-            Path to the HDF5 file to validate.
-
-        Returns
-        -------
-        bool
-            True if the file can be opened as HDF5, False otherwise.
-        """
+        """Lightweight HDF5 validation."""
         try:
-            with h5py.File(file_path, "r"):
-                return True
-        except OSError:
+            return h5py.is_hdf5(file_path)
+        except Exception:
             return False

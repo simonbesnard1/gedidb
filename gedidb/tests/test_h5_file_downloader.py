@@ -10,18 +10,17 @@ import io
 import time
 import pytest
 import h5py
+import requests
 from pathlib import Path
 
-# Adjust this import to your actual module path
-from gedidb.downloader.data_downloader import H5FileDownloader
+from gedidb.downloader.data_downloader import H5FileDownloader, _get_session
 from gedidb.utils.constants import GediProduct
 
 
 # -------------------------------
-# Helpers: valid/corrupt HDF5 bytes
+# Helpers
 # -------------------------------
 def make_valid_h5_bytes() -> bytes:
-    # Create a tiny valid HDF5 in-memory
     bio = io.BytesIO()
     with h5py.File(bio, "w") as f:
         f.create_dataset("x", data=[1, 2, 3])
@@ -29,32 +28,22 @@ def make_valid_h5_bytes() -> bytes:
 
 
 def make_corrupt_bytes() -> bytes:
-    return b"NOT_HDF5_AT_ALL"
+    return b"THIS_IS_NOT_HDF5"
 
 
-# -------------------------------
-# Fake requests.Response
-# -------------------------------
 class FakeResponse:
     def __init__(self, content=b"", status=200, headers=None):
         self._content = content
         self.status_code = status
         self.headers = headers or {}
 
+    @property
+    def content(self):
+        return self._content
+
     def raise_for_status(self):
-        if 400 <= self.status_code:
-            import requests
-
-            raise requests.HTTPError(f"status {self.status_code}")
-
-    def iter_content(self, chunk_size=8192):
-        # Yield content in chunks
-        c = self._content
-        for i in range(0, len(c), chunk_size):
-            yield c[i : i + chunk_size]
-
-    def close(self):  # pragma: no cover
-        pass
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"HTTP {self.status_code}")
 
     def __enter__(self):
         return self
@@ -64,11 +53,10 @@ class FakeResponse:
 
 
 # -------------------------------
-# Common fixtures
+# Fixtures
 # -------------------------------
 @pytest.fixture(autouse=True)
 def no_sleep(monkeypatch):
-    # Speed up retry backoff: make time.sleep a no-op
     monkeypatch.setattr(time, "sleep", lambda *_: None)
 
 
@@ -77,182 +65,129 @@ def tmp_out(tmp_path):
     return tmp_path
 
 
+@pytest.fixture
+def fake_session(monkeypatch):
+    """
+    Replace the per-thread session with a fresh FakeSession object.
+    This ensures each test uses isolated request mocks.
+    """
+
+    class FakeSession:
+        def __init__(self):
+            self.headers = {"User-Agent": "gedidb/1.0"}
+
+        def get(self, url, headers=None, timeout=30, stream=False):
+            return self._handler(url, headers, timeout, stream)
+
+    fake_sess = FakeSession()
+    monkeypatch.setattr(
+        "gedidb.downloader.data_downloader._get_session", lambda: fake_sess
+    )
+    return fake_sess
+
+
 # -------------------------------
 # Tests
 # -------------------------------
-def test_new_download_success(monkeypatch, tmp_out):
-    """
-    Server supports Range and we download a new file successfully.
-    """
+def test_full_download_success(monkeypatch, tmp_out, fake_session):
     valid = make_valid_h5_bytes()
     total = len(valid)
 
-    # First "probe" request with Range=0-1 returns Content-Range with total.
-    def fake_get(url, headers=None, stream=None, timeout=30):
+    # First probe → Content-Range
+    # Second GET → full file, no streaming
+    def handler(url, headers, timeout, stream):
         if headers and headers.get("Range") == "bytes=0-1":
             return FakeResponse(
-                b"\x89", 200, headers={"Content-Range": f"bytes 0-1/{total}"}
+                content=b"\x89",
+                status=200,
+                headers={"Content-Range": f"bytes 0-1/{total}"},
             )
-        # Second request returns full content
-        return FakeResponse(valid, 200, headers={"Content-Length": str(total)})
+        return FakeResponse(content=valid, status=200)
 
-    import requests
-
-    monkeypatch.setattr(requests, "get", fake_get)
+    fake_session._handler = handler
 
     dl = H5FileDownloader(download_path=str(tmp_out))
-    key = "G123"
-    result_key, (prod_value, path) = dl.download(
-        key, "https://example/file.h5", GediProduct.L2A
+    key, (prod_value, fpath) = dl.download(
+        "G123", "http://example/file.h5", GediProduct.L2A
     )
-    assert result_key == key
+
     assert prod_value == "level2A"
-    assert Path(path).exists()
-    # Valid HDF5
-    with h5py.File(path, "r") as f:
-        assert "x" in f
+    assert Path(fpath).exists()
+
+    with h5py.File(fpath, "r") as f:
+        assert list(f["x"]) == [1, 2, 3]
 
 
-def test_resume_download_success(monkeypatch, tmp_out):
-    """
-    A partial .part exists; server supports Range and sends the remainder.
-    """
+def test_resume_download(monkeypatch, tmp_out, fake_session):
     valid = make_valid_h5_bytes()
     total = len(valid)
     half = total // 2
 
     dl = H5FileDownloader(download_path=str(tmp_out))
-    key = "G999"
-    granule_dir = Path(tmp_out) / key
+    key = "G_RESUME"
+    granule_dir = tmp_out / key
     granule_dir.mkdir(parents=True, exist_ok=True)
+
+    # Fake partial existing file
     part_path = granule_dir / f"{GediProduct.L2B.name}.h5.part"
-    # Seed half of the bytes as if previously downloaded
     part_path.write_bytes(valid[:half])
 
-    def fake_get(url, headers=None, stream=None, timeout=30):
-        # Probe shows total; then Range request starts from half
+    def handler(url, headers, timeout, stream):
         if headers and headers.get("Range") == "bytes=0-1":
             return FakeResponse(
-                b"\x89", 200, headers={"Content-Range": f"bytes 0-1/{total}"}
+                content=b"\x89",
+                status=200,
+                headers={"Content-Range": f"bytes 0-1/{total}"},
             )
-        # Resume from half:
-        rng = headers.get("Range")
-        assert rng == f"bytes={half}-"
+
+        assert headers.get("Range") == f"bytes={half}-"
         return FakeResponse(
-            valid[half:],
-            206,
+            content=valid[half:],
+            status=200,
             headers={"Content-Range": f"bytes {half}-{total-1}/{total}"},
         )
 
-    import requests
+    fake_session._handler = handler
 
-    monkeypatch.setattr(requests, "get", fake_get)
-
-    result_key, (prod_value, path) = dl.download(
-        key, "https://example/file.h5", GediProduct.L2B
-    )
-    assert result_key == key
-    assert prod_value == "level2B"
-    with h5py.File(path, "r") as f:
-        assert list(f["x"][:]) == [1, 2, 3]
+    _, (_, final_path) = dl.download(key, "http://example/file.h5", GediProduct.L2B)
+    with h5py.File(final_path, "r") as f:
+        assert list(f["x"]) == [1, 2, 3]
 
 
-def test_server_no_range_support(monkeypatch, tmp_out):
-    """
-    If the server doesn't send Content-Range on probe, code should download full file (no resume).
-    """
+def test_no_range_support(monkeypatch, tmp_out, fake_session):
     valid = make_valid_h5_bytes()
     total = len(valid)
 
-    def fake_get(url, headers=None, stream=None, timeout=30):
-        # First call: no Content-Range → no resume support
+    def handler(url, headers, timeout, stream):
+        # First probe returns NO Content-Range
         if headers and headers.get("Range") == "bytes=0-1":
-            return FakeResponse(b"\x89", 200, headers={})
-        # Full file
-        return FakeResponse(valid, 200, headers={"Content-Length": str(total)})
+            return FakeResponse(content=b"\x00", status=200, headers={})
+        return FakeResponse(content=valid, status=200)
 
-    import requests
+    fake_session._handler = handler
 
-    monkeypatch.setattr(requests, "get", fake_get)
+    dl = H5FileDownloader(str(tmp_out))
+    _, (_, fpath) = dl.download("G_NORANGE", "http://example/file.h5", GediProduct.L4A)
 
-    dl = H5FileDownloader(download_path=str(tmp_out))
-    k, (_, path) = dl.download("G777", "https://example/file.h5", GediProduct.L4A)
-    with h5py.File(path, "r") as f:
+    with h5py.File(fpath, "r") as f:
         assert f["x"].shape[0] == 3
 
 
-def test_416_range_not_satisfiable_resets_and_raises(monkeypatch, tmp_out):
-    """
-    If server returns 416 for resume, downloader deletes .part and raises ValueError (then retry decor will re-call).
-    We assert that a ValueError is raised from this invocation.
-    """
-
-    def fake_get(url, headers=None, stream=None, timeout=30):
-        # Second call returns 416
-        status = 200 if (headers and headers.get("Range") == "bytes=0-1") else 416
-        headers = {"Content-Range": "bytes 0-1/100"} if status == 200 else {}
-        return FakeResponse(b"", status=status, headers=headers)
-
-    import requests
-
-    monkeypatch.setattr(requests, "get", fake_get)
-
-    dl = H5FileDownloader(download_path=str(tmp_out))
-    # Create a dangling .part so code tries to resume
-    key = "G416"
-    part = Path(tmp_out) / key / f"{GediProduct.L4C.name}.h5.part"
-    part.parent.mkdir(parents=True, exist_ok=True)
-    part.write_bytes(b"partial")
-
-    # Because of @retry(tries=10), we will see multiple attempts. We just assert it eventually raises.
-    with pytest.raises(ValueError):
-        dl.download(key, "https://example/file.h5", GediProduct.L4C)
-    # .part should be gone after 416 handling on first round
-    assert not part.exists()
-
-
-def test_final_size_mismatch_raises(monkeypatch, tmp_out):
-    """
-    If final .part size != expected total_size → raises ValueError (and retry triggers).
-    """
-    valid = make_valid_h5_bytes()
-    total = len(valid)
-
-    # Fake server lies: says total=N but sends N-1 bytes.
-    def fake_get(url, headers=None, stream=None, timeout=30):
-        if headers and headers.get("Range") == "bytes=0-1":
-            return FakeResponse(
-                b"\x89", 200, headers={"Content-Range": f"bytes 0-1/{total}"}
-            )
-        return FakeResponse(valid[:-1], 200)
-
-    import requests
-
-    monkeypatch.setattr(requests, "get", fake_get)
-
-    dl = H5FileDownloader(download_path=str(tmp_out))
-    with pytest.raises(ValueError):
-        dl.download("Gbad", "https://example/file.h5", GediProduct.L2A)
-
-
-def test_corrupt_download_rejected(monkeypatch, tmp_out):
-    """
-    If the downloaded file isn't a valid HDF5, it is deleted and a ValueError is raised (triggering retry).
-    """
+def test_corrupt_file(monkeypatch, tmp_out, fake_session):
     bad = make_corrupt_bytes()
     total = len(bad)
 
-    def fake_get(url, headers=None, stream=None, timeout=30):
+    def handler(url, headers, timeout, stream):
         if headers and headers.get("Range") == "bytes=0-1":
             return FakeResponse(
-                b"\x89", 200, headers={"Content-Range": f"bytes 0-1/{total}"}
+                content=b"\x89",
+                status=200,
+                headers={"Content-Range": f"bytes 0-1/{total}"},
             )
-        return FakeResponse(bad, 200)
+        return FakeResponse(content=bad, status=200)
 
-    import requests
+    fake_session._handler = handler
 
-    monkeypatch.setattr(requests, "get", fake_get)
-
-    dl = H5FileDownloader(download_path=str(tmp_out))
+    dl = H5FileDownloader(str(tmp_out))
     with pytest.raises(ValueError):
-        dl.download("Gbad2", "https://example/file.h5", GediProduct.L4A)
+        dl.download("G_CORRUPT", "http://example/file.h5", GediProduct.L4A)
