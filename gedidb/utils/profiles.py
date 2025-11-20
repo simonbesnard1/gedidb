@@ -9,14 +9,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple, Optional
 import numpy as np
-from numba import njit, prange
+from numba import njit
 
 # ----------------------------
 # Numba helpers (JIT hot loops)
 # ----------------------------
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, fastmath=True)
 def _derivative_variable_dz(y2d: np.ndarray, z2d: np.ndarray) -> np.ndarray:
     """
     Compute ∂y/∂z row-wise when z is per-row (variable, 2-D).
@@ -26,7 +26,7 @@ def _derivative_variable_dz(y2d: np.ndarray, z2d: np.ndarray) -> np.ndarray:
     n, m = y2d.shape
     out = np.empty((n, m), dtype=np.float64)
 
-    for i in prange(n):
+    for i in range(n):
         yi = y2d[i]
         zi = z2d[i]
         oi = out[i]
@@ -159,7 +159,7 @@ def _interp1d_monotonic_edgefill(
     return out
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, fastmath=True)
 def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     """
     PAVD = -d(PAI)/dz with per-row non-uniform z (both (n, m)).
@@ -167,7 +167,7 @@ def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     """
     n, m = pai.shape
     out = np.empty((n, m), dtype=np.float64)
-    for i in prange(n):
+    for i in range(n):
         # left edge
         dz0 = z[i, 1] - z[i, 0]
         if dz0 == 0.0 or not (
@@ -202,7 +202,7 @@ def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     return out
 
 
-@njit(cache=True, fastmath=True, parallel=True)
+@njit(cache=True, fastmath=True)
 def _resample_profiles_to_rh101_per_shot_jit(
     height_2d: np.ndarray,
     cover_z: np.ndarray,
@@ -241,7 +241,7 @@ def _resample_profiles_to_rh101_per_shot_jit(
     for k in range(101):
         rh_axis[k] = float(k)
 
-    for i in prange(n):
+    for i in range(n):
         Hi = H[i]
 
         # init row with NaNs
