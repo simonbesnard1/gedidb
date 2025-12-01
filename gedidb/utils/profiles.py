@@ -4,6 +4,7 @@
 # SPDX-FileCopyrightText: 2025 Felix Dombrowski
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
+# Optimized version
 
 from __future__ import annotations
 
@@ -11,25 +12,26 @@ from dataclasses import dataclass
 from typing import Tuple, Optional, Union
 
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 
 # ============================================================
-# Low-level helpers (all Numba-jitted, no parallel=True)
+# Low-level helpers (Numba-jitted with parallel where beneficial)
 # ============================================================
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, parallel=True)
 def _derivative_variable_dz(y2d: np.ndarray, z2d: np.ndarray) -> np.ndarray:
     """
     Compute ∂y/∂z row-wise when z is per-row (variable, 2-D).
     Central difference where possible; fallback to forward/backward.
     NaNs propagate.
+
     """
     n, m = y2d.shape
     out = np.empty((n, m), dtype=np.float64)
 
-    for i in range(n):
+    for i in prange(n):  # PARALLEL
         yi = y2d[i]
         zi = z2d[i]
         oi = out[i]
@@ -102,15 +104,16 @@ def _scatter_waveform_jit(
             break
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, parallel=True)
 def _finite_max_rowwise(h: np.ndarray) -> np.ndarray:
     """
     Rowwise max that returns NaN for all-NaN rows.
+
     """
     n, m = h.shape
     H = np.empty(n, dtype=np.float64)
 
-    for i in range(n):
+    for i in prange(n):  # PARALLEL
         has_val = False
         mx = -np.inf
         for j in range(m):
@@ -169,15 +172,16 @@ def _interp1d_monotonic_edgefill(
     return out
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, parallel=True)
 def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     """
     PAVD = -d(PAI)/dz with per-row non-uniform z (both (n, m)).
+
     """
     n, m = pai.shape
     out = np.empty((n, m), dtype=np.float64)
 
-    for i in range(n):
+    for i in prange(n):  # PARALLEL
         # left edge
         dz0 = z[i, 1] - z[i, 0]
         if dz0 == 0.0 or not (
@@ -213,12 +217,117 @@ def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     return out
 
 
+@njit(cache=True, fastmath=True, parallel=True)
+def _compute_pai_and_pavd_fused(
+    pgap: np.ndarray,
+    mu: np.ndarray,
+    G: np.ndarray,
+    O: np.ndarray,
+    z: np.ndarray,
+    eps: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Fused computation of PAI and PAVD from pgap in a single pass.
+
+    Assumes z is 2D (n_shots, nz).
+    """
+    n, m = pgap.shape
+    pai = np.empty((n, m), dtype=np.float64)
+    pavd = np.empty((n, m), dtype=np.float64)
+
+    for i in prange(n):  # PARALLEL
+        # Compute PAI for this row
+        for j in range(m):
+            p = pgap[i, j]
+
+            # Clip
+            if p < eps:
+                p = eps
+            elif p > 1.0 - eps:
+                p = 1.0 - eps
+
+            # PAI = -log(pgap) * mu / (G * O)
+            denom = G[i, j] * O[i, j]
+            pai[i, j] = -np.log(p) * mu[i, j] / denom
+
+        # Compute PAVD = -d(PAI)/dz for this row
+        # left edge
+        dz0 = z[i, 1] - z[i, 0]
+        if dz0 == 0.0 or not (
+            np.isfinite(pai[i, 1]) and np.isfinite(pai[i, 0]) and np.isfinite(dz0)
+        ):
+            pavd[i, 0] = np.nan
+        else:
+            pavd[i, 0] = -(pai[i, 1] - pai[i, 0]) / dz0
+
+        # interior
+        for j in range(1, m - 1):
+            dzc = z[i, j + 1] - z[i, j - 1]
+            if dzc == 0.0 or not (
+                np.isfinite(pai[i, j + 1])
+                and np.isfinite(pai[i, j - 1])
+                and np.isfinite(dzc)
+            ):
+                pavd[i, j] = np.nan
+            else:
+                pavd[i, j] = -(pai[i, j + 1] - pai[i, j - 1]) / dzc
+
+        # right edge
+        dzN = z[i, m - 1] - z[i, m - 2]
+        if dzN == 0.0 or not (
+            np.isfinite(pai[i, m - 1])
+            and np.isfinite(pai[i, m - 2])
+            and np.isfinite(dzN)
+        ):
+            pavd[i, m - 1] = np.nan
+        else:
+            pavd[i, m - 1] = -(pai[i, m - 1] - pai[i, m - 2]) / dzN
+
+    return pai, pavd
+
+
+@njit(cache=True, fastmath=True, parallel=True)
+def _apply_masks_fused(
+    pavd: np.ndarray,
+    height: np.ndarray,
+    nan_mask: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Apply multiple masks in a single fused kernel.
+
+    Combines NaN propagation, fill value handling, and
+    below-ground masking in one pass.
+    """
+    n, m = pavd.shape
+    pavd_out = np.empty((n, m), dtype=np.float64)
+    height_out = np.empty((n, m), dtype=np.float64)
+
+    for i in prange(n):  # PARALLEL
+        for j in range(m):
+            h = height[i, j]
+            p = pavd[i, j]
+
+            # Check masks
+            is_nan_input = nan_mask[i, j]
+            is_fill = h < -1000.0
+            is_below_ground = h < 0.0
+
+            if is_nan_input or is_fill or is_below_ground:
+                pavd_out[i, j] = np.nan
+                height_out[i, j] = np.nan if is_fill else h
+            else:
+                pavd_out[i, j] = p
+                height_out[i, j] = h
+
+    return pavd_out, height_out
+
+
 # ============================================================
-# RH-resampling kernel (only PAVD + height + H)
+# RH-resampling kernel (OPTIMIZED with parallel)
 # ============================================================
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True, parallel=True)
 def _resample_pavd_height_to_rh101_jit(
     height_2d: np.ndarray,
     pavd_z: np.ndarray,
@@ -226,29 +335,33 @@ def _resample_pavd_height_to_rh101_jit(
     """
     Resample PAVD and height profiles from z-space to RH=0..100 (101 points).
 
-    Inputs
-    ------
-    height_2d : (n_shots, nz), height above ground (NaN where invalid)
-    pavd_z    : (n_shots, nz), PAVD per meter at each z (NaN where invalid)
-
-    Returns
-    -------
-    pavd_rh   : (n_shots, 101), PAVD vs RH, converted back to per-meter
-    height_rh : (n_shots, 101), height vs RH
-    H         : (n_shots,), max canopy height per shot
+    Each shot is processed independently.
     """
     n, m = height_2d.shape
 
     pavd_rh = np.empty((n, 101), dtype=np.float64)
     height_rh = np.empty((n, 101), dtype=np.float64)
-    H = _finite_max_rowwise(height_2d)
 
-    # RH axis 0..100
+    # Compute H first (parallel)
+    H = np.empty(n, dtype=np.float64)
+    for i in prange(n):
+        has_val = False
+        mx = -np.inf
+        for j in range(m):
+            v = height_2d[i, j]
+            if np.isfinite(v):
+                has_val = True
+                if v > mx:
+                    mx = v
+        H[i] = mx if has_val else np.nan
+
+    # RH axis 0..100 (shared across all shots)
     rh_axis = np.empty(101, dtype=np.float64)
     for k in range(101):
         rh_axis[k] = float(k)
 
-    for i in range(n):
+    # Process each shot in parallel
+    for i in prange(n):  # PARALLEL
         Hi = H[i]
 
         # init row with NaNs
@@ -263,7 +376,7 @@ def _resample_pavd_height_to_rh101_jit(
         zi = height_2d[i, :]
         pzi = pavd_z[i, :]
 
-        # count finite z (only height, like original)
+        # count finite z
         count = 0
         for j in range(m):
             if np.isfinite(zi[j]):
@@ -273,8 +386,9 @@ def _resample_pavd_height_to_rh101_jit(
             continue
 
         # temp arrays (monotonic in RH)
-        r = np.empty(count, dtype=np.float64)
-        ypav = np.empty(count, dtype=np.float64)
+        # Pre-allocate to max possible size
+        r = np.empty(m, dtype=np.float64)
+        ypav = np.empty(m, dtype=np.float64)
 
         q = 0
         invH = 100.0 / Hi
@@ -289,19 +403,29 @@ def _resample_pavd_height_to_rh101_jit(
                     rr = 100.0
 
                 r[q] = rr
-                ypav[q] = pzi[j]  # may be NaN; interpolation handles it
+                ypav[q] = pzi[j]
                 q += 1
-                if q >= count:
-                    break
 
-        # sort by RH
-        order = np.argsort(r)
-        r = r[order]
-        ypav = ypav[order]
+        # Trim to actual size
+        r = r[:q]
+        ypav = ypav[:q]
+
+        # sort by RH (using simple insertion sort for small arrays)
+        # More cache-friendly than argsort for small n
+        for j in range(1, q):
+            key_r = r[j]
+            key_y = ypav[j]
+            k = j - 1
+            while k >= 0 and r[k] > key_r:
+                r[k + 1] = r[k]
+                ypav[k + 1] = ypav[k]
+                k -= 1
+            r[k + 1] = key_r
+            ypav[k + 1] = key_y
 
         # deduplicate r (keep first)
         w = 1
-        for j in range(1, r.shape[0]):
+        for j in range(1, q):
             if r[j] != r[w - 1]:
                 r[w] = r[j]
                 ypav[w] = ypav[j]
@@ -324,6 +448,75 @@ def _resample_pavd_height_to_rh101_jit(
         height_rh[i, 0] = 0.0
 
     return pavd_rh, height_rh, H
+
+
+@njit(cache=True, fastmath=True, parallel=True)
+def _fill_pgap_grid(
+    pgap_grid: np.ndarray,
+    pgap_theta: np.ndarray,
+    rx_start: np.ndarray,
+    rx_count: np.ndarray,
+    flat_pgap: np.ndarray,
+    start_offset: int,
+) -> None:
+    """
+    Fill pgap_grid efficiently with Numba parallelization.
+
+    """
+    n_shots = pgap_grid.shape[0]
+    nz = pgap_grid.shape[1]
+
+    for j in prange(n_shots):  # PARALLEL
+        # Fill baseline
+        baseline = pgap_theta[j]
+        for k in range(nz):
+            pgap_grid[j, k] = baseline
+
+        # Fill start_offset with 1.0
+        if start_offset > 0:
+            for k in range(min(start_offset, nz)):
+                pgap_grid[j, k] = 1.0
+
+        # Fill actual data
+        s = rx_start[j]
+        c = rx_count[j]
+        e = s + c
+
+        if c <= 0 or s < 0 or e > flat_pgap.shape[0]:
+            continue  # leave shot as baseline/NaN
+
+        n_valid = min(c, e - s, nz - start_offset)
+
+        for k in range(n_valid):
+            if s + k < flat_pgap.shape[0]:
+                pgap_grid[j, start_offset + k] = flat_pgap[s + k]
+
+
+@njit(cache=True, fastmath=True, parallel=True)
+def _compute_height_grid(
+    height_ag: np.ndarray,
+    h0: np.ndarray,
+    hL: np.ndarray,
+    rx_count: np.ndarray,
+    start_offset: int,
+) -> None:
+    """
+    Compute height_above_ground grid efficiently.
+
+    """
+    n_shots = height_ag.shape[0]
+    nz = height_ag.shape[1]
+
+    for j in prange(n_shots):  # PARALLEL
+        c = rx_count[j]
+        if c <= 0:
+            continue
+
+        denom = max(c - 1, 1)
+        v = (h0[j] - hL[j]) / denom
+
+        for k in range(nz):
+            height_ag[j, k] = h0[j] - k * v + start_offset * v
 
 
 # ============================================================
@@ -357,6 +550,7 @@ class GEDIVerticalProfiler:
         Robust pgap_theta_z reader that tolerates corrupted GEDI granules.
         Invalid shots are skipped (set to NaN) instead of raising errors.
         Output shapes: (n_shots, nz)
+
         """
 
         # Load SDS
@@ -398,38 +592,26 @@ class GEDIVerticalProfiler:
 
         nz = max_len
 
-        # Initialize pgap grid base with pgap_theta baseline fill
+        # Initialize grids with NaN
         pgap_grid = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
-        for j in range(n_shots):
-            pgap_grid[j, :] = pgap_theta[j]
-
-        if start_offset > 0:
-            pgap_grid[:, :start_offset] = 1.0
-
-        # Output height grid
         height_ag = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
 
-        # Fill per shot
-        for j in range(n_shots):
-            s = rx_start[j]
-            c = rx_count[j]
-            e = s + c
+        _fill_pgap_grid(
+            pgap_grid,
+            pgap_theta.astype(np.float32),
+            rx_start,
+            rx_count,
+            flat_pgap,
+            start_offset,
+        )
 
-            # Validate shot
-            if c <= 0 or s < 0 or e > flat_pgap.shape[0]:
-                continue  # leave shot as NaN
-
-            seg = flat_pgap[s:e]
-            n_valid = min(len(seg), c)
-
-            if n_valid > 0:
-                pgap_grid[j, start_offset : start_offset + n_valid] = seg[:n_valid]
-
-            # Compute height_above_ground for this shot
-            denom = max(c - 1, 1)
-            v = (h0[j] - hL[j]) / denom
-            for k in range(nz):
-                height_ag[j, k] = h0[j] - k * v + start_offset * v
+        _compute_height_grid(
+            height_ag,
+            h0,
+            hL,
+            rx_count,
+            start_offset,
+        )
 
         return pgap_grid, height_ag
 
@@ -453,12 +635,10 @@ class GEDIVerticalProfiler:
         height_rh : (n_shots, 101)  # cp_height
         H         : (n_shots,)      # canopy height per shot
         """
-        # ---- inputs & numerics ----
+        # ---- inputs & validation ----
         pgap = np.asarray(pgap_theta_z, dtype=np.float64)
         if pgap.ndim != 2:
             raise ValueError("pgap_theta_z must be 2D (n_shots, nz).")
-
-        pgap_clipped = np.clip(pgap, self._eps, 1.0 - self._eps)
 
         # Height array
         z_in = np.asarray(height, dtype=np.float64)
@@ -471,7 +651,7 @@ class GEDIVerticalProfiler:
             raise ValueError("local_beam_elevation length must match n_shots.")
 
         mu = np.abs(np.sin(elev))[:, None]
-        mu = np.broadcast_to(mu, pgap.shape)
+        mu = np.broadcast_to(mu, pgap.shape).copy()  # ensure contiguous
 
         # Broadcast G and Ω
         G = np.asarray(rossg, dtype=np.float64)
@@ -485,75 +665,52 @@ class GEDIVerticalProfiler:
         if G.shape[0] != pgap.shape[0] or O.shape[0] != pgap.shape[0]:
             raise ValueError("rossg and omega must have length n_shots or be scalar.")
 
-        G = np.broadcast_to(G[:, None], pgap.shape)
-        O = np.broadcast_to(O[:, None], pgap.shape)
+        G = np.broadcast_to(G[:, None], pgap.shape).copy()
+        O = np.broadcast_to(O[:, None], pgap.shape).copy()
 
+        # Validate denominator
         denom = G * O
         if not np.all(np.isfinite(denom)) or np.any(denom <= 0):
             raise ValueError("`rossg * omega` must be positive and finite everywhere.")
 
-        # ---- PAI in z-domain ----
-        pai_z = (-np.log(pgap_clipped) * mu / denom).astype(np.float64, copy=False)
-
-        # ---- PAVD = -d(PAI)/dz ----
+        # ---- Handle height dimensions ----
         if z_in.ndim == 1:
-            dPAI_dz = np.gradient(
-                pai_z, z_in, axis=-1, edge_order=min(self.gradient_edge_order, 2)
-            )
-            pavd_z = (-dPAI_dz).astype(np.float64, copy=False)
             height_2d = np.broadcast_to(
                 z_in[None, :], (pgap.shape[0], z_in.shape[0])
-            ).astype(np.float64, copy=False)
+            ).copy()
         elif z_in.ndim == 2:
-            if z_in.shape != pai_z.shape:
+            if z_in.shape != pgap.shape:
                 raise ValueError(
-                    "height (n_shots, nz) must match pgap/pai shapes (n_shots, nz)."
+                    "height (n_shots, nz) must match pgap shapes (n_shots, nz)."
                 )
-            pai_c = np.ascontiguousarray(pai_z, dtype=np.float64)
-            z_c = np.ascontiguousarray(z_in, dtype=np.float64)
-            pavd_z = _pavd_from_pai_variable_dz(pai_c, z_c)
-            height_2d = z_c
+            height_2d = np.ascontiguousarray(z_in, dtype=np.float64)
         else:
             raise ValueError("height must be 1D or 2D.")
 
-        # ---- propagate NaNs from original pgap (pre-clip) ----
-        nan_mask = ~np.isfinite(pgap_theta_z)
-        if np.any(nan_mask):
-            pavd_z = np.where(nan_mask, np.nan, pavd_z)
-
-        # ---- treat GEDI fill values (e.g. -9999) as NaN ----
-        # real heights will be in [-100, 100] range; anything << -100 is fill
-        fill_mask = height_2d < -1000.0
-        if np.any(fill_mask):
-            height_2d[fill_mask] = np.nan
-            pavd_z[fill_mask] = np.nan
-
-        # ---- mask height < 0 (below-ground) ----
-        h = height_2d.astype(np.float64, copy=False)
-        mask = ~(h >= 0.0)
-
-        h_masked = h.copy()
-        h_masked[mask] = np.nan
-
-        pavd_m = pavd_z.copy()
-        pavd_m[mask] = np.nan
-
-        # Ensure contiguous arrays for Numba
-        h_masked = np.ascontiguousarray(h_masked, dtype=np.float64)
-        pavd_m = np.ascontiguousarray(pavd_m, dtype=np.float64)
-
-        pavd_rh64, height_rh64, H64 = _resample_pavd_height_to_rh101_jit(
-            h_masked, pavd_m
+        # Fused PAI + PAVD computation ----
+        pai_z, pavd_z = _compute_pai_and_pavd_fused(
+            np.ascontiguousarray(pgap, dtype=np.float64),
+            mu,
+            G,
+            O,
+            height_2d,
+            self._eps,
         )
 
-        # enforce ground conditions ONLY for valid shots
-        for i in range(pavd_rh64.shape[0]):
-            Hi = H64[i]
-            if np.isfinite(Hi) and Hi > 0:
-                pavd_rh64[i, 0] = 0.0
-                height_rh64[i, 0] = 0.0
-            # else leave NaN (fully invalid profile)
+        # Fused masking ----
+        nan_mask = ~np.isfinite(pgap_theta_z)
+        pavd_masked, height_masked = _apply_masks_fused(
+            pavd_z,
+            height_2d,
+            nan_mask,
+        )
 
+        # ---- Resample to RH space ----
+        pavd_rh64, height_rh64, H64 = _resample_pavd_height_to_rh101_jit(
+            height_masked, pavd_masked
+        )
+
+        # Convert to output dtype
         pavd_rh = pavd_rh64.astype(self.out_dtype, copy=False)
         height_rh = height_rh64.astype(self.out_dtype, copy=False)
         H = H64.astype(self.out_dtype, copy=False)
