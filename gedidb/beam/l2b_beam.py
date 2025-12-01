@@ -57,7 +57,7 @@ class L2BBeam(beam_handler):
         data: Dict[str, np.ndarray] = {}
 
         # Populate data dictionary with fields from field mapping
-        cp_keys = {"cp_cover", "cp_pai", "cp_pavd", "cp_height", "cp_waveform"}
+        cp_keys = {"cp_pavd", "cp_height"}
         for key, source in self.field_mapper.items():
             if key in cp_keys:
                 continue
@@ -85,21 +85,15 @@ class L2BBeam(beam_handler):
             rossg = np.asarray(self["rossg"][()], dtype=np.float32)
             omega = np.asarray(self["omega"][()], dtype=np.float32)
 
-            cov_rh, pai_rh, pavd_rh, height_ag, waveform_rh, H = prof.compute_profiles(
+            pavd_rh, height_ag, _ = prof.compute_profiles(
                 pgap, height, elev, rossg, omega
             )
 
             # attach *only* those requested
-            if "cp_cover" in self.field_mapper:
-                data["cp_cover"] = cov_rh
-            if "cp_pai" in self.field_mapper:
-                data["cp_pai"] = pai_rh
             if "cp_pavd" in self.field_mapper:
                 data["cp_pavd"] = pavd_rh
             if "cp_height" in self.field_mapper:
                 data["cp_height"] = height_ag
-            if "cp_waveform" in self.field_mapper:
-                data["cp_waveform"] = waveform_rh
 
         # Apply quality filters and store filtered index
         self._filtered_index = self.apply_filter(

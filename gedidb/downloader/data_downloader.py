@@ -261,6 +261,7 @@ class H5FileDownloader:
     def download(
         self, granule_key: str, url: str, product
     ) -> Tuple[str, Tuple[str, Optional[str]]]:
+
         session = _get_session()
 
         granule_dir = self.download_path / granule_key
@@ -272,61 +273,66 @@ class H5FileDownloader:
         final_path = granule_dir / f"{product_name}.h5"
         temp_path = granule_dir / f"{product_name}.h5.part"
 
-        # --- Reuse existing complete file ---
-        if final_path.exists():
-            if self._is_hdf5_valid(final_path):
-                return granule_key, (product_value, str(final_path))
-            final_path.unlink(missing_ok=True)
+        # -----------------------------
+        # Fast path: valid existing file
+        # -----------------------------
+        if final_path.exists() and self._is_hdf5_valid(final_path):
+            return granule_key, (product_value, str(final_path))
 
-        # --- Partial resume info ---
+        # ensure stale files are removed
+        final_path.unlink(missing_ok=True)
+
+        # -----------------------------
+        # Determine total size via HEAD-range
+        # -----------------------------
         downloaded_size = temp_path.stat().st_size if temp_path.exists() else 0
         total_size: Optional[int] = None
 
-        # --- Query Content-Range for total size ---
-        try:
-            r = session.get(url, headers={"Range": "bytes=0-1"}, timeout=30)
-            r.raise_for_status()
-            cr = r.headers.get("Content-Range")
-            if cr:
-                try:
-                    total_size = int(cr.split("/")[-1])
-                except Exception:
-                    total_size = None
-        except Exception as e:
-            raise ValueError(f"Failed initial size request: {e}") from e
+        r = session.get(url, headers={"Range": "bytes=0-1"}, timeout=30)
+        r.raise_for_status()
 
-        # --- Prepare range header ---
+        cr = r.headers.get("Content-Range")
+        if cr:
+            try:
+                total_size = int(cr.split("/")[-1])
+            except Exception:
+                total_size = None
+
+        # -----------------------------
+        # Prepare resume header
+        # -----------------------------
         headers = {}
         if downloaded_size > 0:
             headers["Range"] = f"bytes={downloaded_size}-"
 
-        # --- Main download (NO STREAMING) ---
-        try:
-            r = session.get(url, headers=headers, timeout=30, stream=False)
-            r.raise_for_status()
+        # -----------------------------
+        # Main download — no streaming
+        # -----------------------------
+        r = session.get(url, headers=headers, timeout=45, stream=False)
+        r.raise_for_status()
 
-            mode = "ab" if downloaded_size else "wb"
-            with open(temp_path, mode) as f:
-                CHUNK = 8 * 1024 * 1024
-                data = r.content  # safe, non-streaming TLS read
-                f.write(data)
+        mode = "ab" if downloaded_size else "wb"
+        with open(temp_path, mode) as f:
+            data = r.content
+            f.write(data)
 
-        except Exception as e:
-            logger.error(f"Download error for {product_name} ({granule_key}): {e}")
-            raise
+        # -----------------------------
+        # Validate size for complete files
+        # -----------------------------
+        final_size = temp_path.stat().st_size
 
-        # --- Size validation ---
-        final_downloaded_size = temp_path.stat().st_size
-        if total_size is not None and final_downloaded_size != total_size:
+        if total_size is not None and final_size != total_size:
             temp_path.unlink(missing_ok=True)
-            raise ValueError(
-                f"Size mismatch: expected {total_size}, got {final_downloaded_size}"
-            )
+            raise ValueError(f"Size mismatch: expected {total_size}, got {final_size}")
 
-        # --- Promote to final ---
+        # -----------------------------
+        # Promote part → final
+        # -----------------------------
         temp_path.rename(final_path)
 
-        # --- HDF5 validity ---
+        # -----------------------------
+        # Validate HDF5 integrity
+        # -----------------------------
         if not self._is_hdf5_valid(final_path):
             final_path.unlink(missing_ok=True)
             raise ValueError("Invalid HDF5 file after download.")

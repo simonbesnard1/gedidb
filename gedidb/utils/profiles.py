@@ -82,9 +82,6 @@ def _scatter_waveform_jit(
     """
     In-place scatter from a flat concatenation into out_2d rows
     [start_offset:start_offset+c, j].
-
-    Assumes flat_values is ordered by shots (segments concatenated in the same
-    order as columns). This is intentionally simple and defensive.
     """
     cursor = 0
     n_shots = counts.shape[0]
@@ -94,7 +91,6 @@ def _scatter_waveform_jit(
         if c <= 0:
             continue
 
-        # guard: don't walk off the flat buffer
         if cursor + c > flat_values.shape[0]:
             c = max(0, flat_values.shape[0] - cursor)
 
@@ -109,8 +105,7 @@ def _scatter_waveform_jit(
 @njit(cache=True, fastmath=True)
 def _finite_max_rowwise(h: np.ndarray) -> np.ndarray:
     """
-    Rowwise max that returns NaN for all-NaN rows
-    (np.nanmax would warn / propagate).
+    Rowwise max that returns NaN for all-NaN rows.
     """
     n, m = h.shape
     H = np.empty(n, dtype=np.float64)
@@ -135,10 +130,6 @@ def _interp1d_monotonic_edgefill(
 ) -> np.ndarray:
     """
     Simple linear interpolation for strictly increasing x with 'edge' fill.
-
-    Preconditions:
-      - len(x) == len(y) >= 1
-      - x strictly increasing (deduped)
     """
     nq = xq.shape[0]
     out = np.empty(nq, dtype=np.float64)
@@ -159,7 +150,6 @@ def _interp1d_monotonic_edgefill(
             out[i] = y[-1]
             continue
 
-        # binary search
         lo = 0
         hi = x.shape[0] - 1
         while hi - lo > 1:
@@ -183,7 +173,6 @@ def _interp1d_monotonic_edgefill(
 def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     """
     PAVD = -d(PAI)/dz with per-row non-uniform z (both (n, m)).
-    Central differences for interior, forward/backward at edges.
     """
     n, m = pai.shape
     out = np.empty((n, m), dtype=np.float64)
@@ -224,37 +213,34 @@ def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     return out
 
 
+# ============================================================
+# RH-resampling kernel (only PAVD + height + H)
+# ============================================================
+
+
 @njit(cache=True, fastmath=True)
-def _resample_profiles_to_rh101_per_shot_jit(
+def _resample_pavd_height_to_rh101_jit(
     height_2d: np.ndarray,
-    cover_z: np.ndarray,
-    pai_z: np.ndarray,
     pavd_z: np.ndarray,
-    waveform_z: np.ndarray,
-    out_dtype_code: int,
-) -> tuple:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Numba per-shot resampling to RH=0..100 (101 points).
+    Resample PAVD and height profiles from z-space to RH=0..100 (101 points).
 
-    Returns:
-      (cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H)
+    Inputs
+    ------
+    height_2d : (n_shots, nz), height above ground (NaN where invalid)
+    pavd_z    : (n_shots, nz), PAVD per meter at each z (NaN where invalid)
 
-    Notes:
-      - 'waveform_z' is assumed per-height (1/m), already in z-domain.
-      - Waveform is normalized per shot so that ∫ w(z) dz = 1 (GEDI L1B-style).
-      - PAVD is converted from per-RH to per-meter via H/100.
-      - No minimum canopy-height gating; only non-finite H is skipped.
-      - out_dtype_code is kept for future extensions; currently unused
-        (everything is float64 here; caller casts once at the end).
+    Returns
+    -------
+    pavd_rh   : (n_shots, 101), PAVD vs RH, converted back to per-meter
+    height_rh : (n_shots, 101), height vs RH
+    H         : (n_shots,), max canopy height per shot
     """
     n, m = height_2d.shape
 
-    cov_rh = np.empty((n, 101), dtype=np.float64)
-    pai_rh = np.empty((n, 101), dtype=np.float64)
     pavd_rh = np.empty((n, 101), dtype=np.float64)
     height_rh = np.empty((n, 101), dtype=np.float64)
-    waveform_rh = np.empty((n, 101), dtype=np.float64)
-
     H = _finite_max_rowwise(height_2d)
 
     # RH axis 0..100
@@ -267,22 +253,17 @@ def _resample_profiles_to_rh101_per_shot_jit(
 
         # init row with NaNs
         for k in range(101):
-            cov_rh[i, k] = np.nan
-            pai_rh[i, k] = np.nan
             pavd_rh[i, k] = np.nan
             height_rh[i, k] = np.nan
-            waveform_rh[i, k] = np.nan
 
-        if not np.isfinite(Hi):
+        # no valid canopy → leave as NaN
+        if not (np.isfinite(Hi) and Hi > 0.0):
             continue
 
         zi = height_2d[i, :]
-        czi = cover_z[i, :]
-        paii = pai_z[i, :]
         pzi = pavd_z[i, :]
-        wzi = waveform_z[i, :]
 
-        # count finite z
+        # count finite z (only height, like original)
         count = 0
         for j in range(m):
             if np.isfinite(zi[j]):
@@ -293,10 +274,7 @@ def _resample_profiles_to_rh101_per_shot_jit(
 
         # temp arrays (monotonic in RH)
         r = np.empty(count, dtype=np.float64)
-        yc = np.empty(count, dtype=np.float64)
-        ypai = np.empty(count, dtype=np.float64)
         ypav = np.empty(count, dtype=np.float64)
-        ywav = np.empty(count, dtype=np.float64)
 
         q = 0
         invH = 100.0 / Hi
@@ -311,10 +289,7 @@ def _resample_profiles_to_rh101_per_shot_jit(
                     rr = 100.0
 
                 r[q] = rr
-                yc[q] = czi[j]
-                ypai[q] = paii[j]
-                ypav[q] = pzi[j]
-                ywav[q] = wzi[j]
+                ypav[q] = pzi[j]  # may be NaN; interpolation handles it
                 q += 1
                 if q >= count:
                     break
@@ -322,61 +297,33 @@ def _resample_profiles_to_rh101_per_shot_jit(
         # sort by RH
         order = np.argsort(r)
         r = r[order]
-        yc = yc[order]
-        ypai = ypai[order]
         ypav = ypav[order]
-        ywav = ywav[order]
 
         # deduplicate r (keep first)
         w = 1
         for j in range(1, r.shape[0]):
             if r[j] != r[w - 1]:
                 r[w] = r[j]
-                yc[w] = yc[j]
-                ypai[w] = ypai[j]
                 ypav[w] = ypav[j]
-                ywav[w] = ywav[j]
                 w += 1
 
         r = r[:w]
-        yc = yc[:w]
-        ypai = ypai[:w]
         ypav = ypav[:w]
-        ywav = ywav[:w]
 
         # interpolate to 0..100 RH
-        cov_r = _interp1d_monotonic_edgefill(rh_axis, r, yc)
-        pai_r = _interp1d_monotonic_edgefill(rh_axis, r, ypai)
         pav_r = _interp1d_monotonic_edgefill(rh_axis, r, ypav)
-        wav_r = _interp1d_monotonic_edgefill(rh_axis, r, ywav)
 
-        # fill outputs (convert pavd to per-m via H/100)
+        # convert pavd to per-meter via H/100
+        scale = Hi / 100.0
         for k in range(101):
-            cov_rh[i, k] = cov_r[k]
-            pai_rh[i, k] = pai_r[k]
-            pavd_rh[i, k] = pav_r[k] * (Hi / 100.0)
+            pavd_rh[i, k] = pav_r[k] * scale
             height_rh[i, k] = Hi * (rh_axis[k] / 100.0)
 
-        # waveform normalization (∫ w(z) dz = 1)
-        pos_sum = 0.0
-        for k in range(101):
-            wk = wav_r[k]
-            if np.isfinite(wk) and wk > 0.0:
-                pos_sum += wk
-            else:
-                wav_r[k] = 0.0
+        # enforce ground conditions
+        pavd_rh[i, 0] = 0.0
+        height_rh[i, 0] = 0.0
 
-        area = pos_sum * (Hi / 100.0)
-
-        if np.isfinite(area) and area > 0.0:
-            inv_area = 1.0 / area
-            for k in range(101):
-                waveform_rh[i, k] = wav_r[k] * inv_area
-        else:
-            for k in range(101):
-                waveform_rh[i, k] = np.nan
-
-    return cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H
+    return pavd_rh, height_rh, H
 
 
 # ============================================================
@@ -391,7 +338,7 @@ class GEDIVerticalProfiler:
 
     Methods:
       - read_pgap_theta_z(beam_obj, ...) → (pgap_theta_z, height)
-      - compute_profiles(pgap_theta_z, height, elev, rossg, omega)
+      - compute_profiles(...) → cp_pavd, cp_height, H
     """
 
     out_dtype: np.dtype = np.float32
@@ -405,96 +352,86 @@ class GEDIVerticalProfiler:
         finish: Optional[int] = None,
         minlength: Optional[int] = None,
         start_offset: int = 0,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ):
         """
-        Expand pgap_theta_z (flat) + per-shot geometry into 2D arrays:
-
-          - pgap_profile: (n_shots, nz)
-          - height_ag:    (n_shots, nz)
-
-        Parameters
-        ----------
-        beam_obj : an L2B-like beam object exposing the GEDI SDS:
-           - rx_sample_start_index
-           - rx_sample_count
-           - pgap_theta_z
-           - pgap_theta
-           - geolocation/height_bin0
-           - geolocation/height_lastbin
+        Robust pgap_theta_z reader that tolerates corrupted GEDI granules.
+        Invalid shots are skipped (set to NaN) instead of raising errors.
+        Output shapes: (n_shots, nz)
         """
-        rx_start_idx = np.asarray(beam_obj["rx_sample_start_index"][()], dtype=np.int64)
+
+        # Load SDS
+        rx_start = np.asarray(beam_obj["rx_sample_start_index"][()], dtype=np.int64)
         rx_count = np.asarray(beam_obj["rx_sample_count"][()], dtype=np.int64)
+        flat_pgap = np.asarray(beam_obj["pgap_theta_z"][()], dtype=self.out_dtype)
 
-        n_total = rx_start_idx.shape[0]
+        h0 = np.asarray(beam_obj["geolocation/height_bin0"][()], dtype=np.float64)
+        hL = np.asarray(beam_obj["geolocation/height_lastbin"][()], dtype=np.float64)
+        pgap_theta = np.asarray(beam_obj["pgap_theta"][()], dtype=self.out_dtype)
+
+        n_total = rx_start.shape[0]
+
         if finish is None:
             finish = n_total
 
+        # Validate range
         if not (0 <= start < finish <= n_total):
-            raise ValueError("Invalid start/finish slice in read_pgap_theta_z().")
+            raise ValueError("Invalid start/finish in read_pgap_theta_z()")
 
-        start_indices = rx_start_idx[start:finish] - 1  # 0-based index
-        counts = rx_count[start:finish]
-        n_shots = counts.shape[0]
+        # Slice per user selection
+        rx_start = rx_start[start:finish]
+        rx_count = rx_count[start:finish]
+        h0 = h0[start:finish]
+        hL = hL[start:finish]
+        pgap_theta = pgap_theta[start:finish]
 
-        # Guard: empty selection
+        n_shots = len(rx_start)
         if n_shots == 0:
             return (
                 np.zeros((0, 0), dtype=self.out_dtype),
                 np.zeros((0, 0), dtype=self.out_dtype),
             )
 
-        # ---- flat slices into pgap_theta_z ----
-        first = int(start_indices[0])
-        last_end = int(start_indices[-1] + counts[-1])
-        if first < 0 or last_end <= first:
-            raise ValueError(
-                "Inconsistent rx_sample_start_index/rx_sample_count for pgap_theta_z."
-            )
-
-        flat_pgap_prof = np.asarray(
-            beam_obj["pgap_theta_z"][first:last_end], dtype=self.out_dtype
-        )
-
-        max_count = int(np.max(counts) + start_offset)
+        # Determine max bins across shots
+        max_len = int(rx_count.max() + start_offset)
         if minlength is not None:
-            max_count = max(int(minlength), max_count)
+            max_len = max(max_len, int(minlength))
 
-        # Base fill with per-shot pgap_theta; pad head with ones if requested
-        pgap_theta = np.asarray(
-            beam_obj["pgap_theta"][start:finish], dtype=self.out_dtype
-        )  # (N,)
-        out_shape = (max_count, n_shots)  # (M, N)
-        out_pgap_profile = np.broadcast_to(pgap_theta, out_shape).copy()
+        nz = max_len
+
+        # Initialize pgap grid base with pgap_theta baseline fill
+        pgap_grid = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
+        for j in range(n_shots):
+            pgap_grid[j, :] = pgap_theta[j]
 
         if start_offset > 0:
-            out_pgap_profile[:start_offset, :] = 1.0
+            pgap_grid[:, :start_offset] = 1.0
 
-        # JIT scatter
-        _scatter_waveform_jit(
-            start_offset,
-            counts.astype(np.int64),
-            flat_pgap_prof.astype(np.float32, copy=False),
-            out_pgap_profile,
-        )
+        # Output height grid
+        height_ag = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
 
-        # ---- height-above-ground per bin ----
-        h0 = np.asarray(
-            beam_obj["geolocation/height_bin0"][start:finish], dtype=np.float64
-        )
-        hL = np.asarray(
-            beam_obj["geolocation/height_lastbin"][start:finish], dtype=np.float64
-        )
+        # Fill per shot
+        for j in range(n_shots):
+            s = rx_start[j]
+            c = rx_count[j]
+            e = s + c
 
-        denom = np.maximum(counts - 1, 1)
-        v = (h0 - hL) / denom  # per-shot spacing
+            # Validate shot
+            if c <= 0 or s < 0 or e > flat_pgap.shape[0]:
+                continue  # leave shot as NaN
 
-        bin_idx = np.arange(max_count, dtype=np.float64)[:, None]
-        height_ag = (
-            h0[None, :] - bin_idx * v[None, :] + start_offset * v[None, :]
-        ).astype(self.out_dtype, copy=False)
+            seg = flat_pgap[s:e]
+            n_valid = min(len(seg), c)
 
-        # return as (n_shots, nz)
-        return out_pgap_profile.T, height_ag.T
+            if n_valid > 0:
+                pgap_grid[j, start_offset : start_offset + n_valid] = seg[:n_valid]
+
+            # Compute height_above_ground for this shot
+            denom = max(c - 1, 1)
+            v = (h0[j] - hL[j]) / denom
+            for k in range(nz):
+                height_ag[j, k] = h0[j] - k * v + start_offset * v
+
+        return pgap_grid, height_ag
 
     # ----------------------------
     # z-space -> RH-space pipeline
@@ -506,29 +443,21 @@ class GEDIVerticalProfiler:
         local_beam_elevation: Union[np.ndarray, float],
         rossg: Union[np.ndarray, float],
         omega: Union[np.ndarray, float],
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Main high-level profile computation.
 
-        Parameters
-        ----------
-        pgap_theta_z : array, shape (n_shots, nz)
-        height       : array, shape (nz,) or (n_shots, nz)
-        local_beam_elevation : scalar or (n_shots,)
-        rossg : scalar or (n_shots,)
-        omega : scalar or (n_shots,)
-
         Returns
         -------
-        cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H
-        all shaped (n_shots, 101), except H (n_shots,)
+        pavd_rh   : (n_shots, 101)  # cp_pavd
+        height_rh : (n_shots, 101)  # cp_height
+        H         : (n_shots,)      # canopy height per shot
         """
         # ---- inputs & numerics ----
         pgap = np.asarray(pgap_theta_z, dtype=np.float64)
         if pgap.ndim != 2:
             raise ValueError("pgap_theta_z must be 2D (n_shots, nz).")
 
-        # Clip pgap for numeric stability
         pgap_clipped = np.clip(pgap, self._eps, 1.0 - self._eps)
 
         # Height array
@@ -541,7 +470,7 @@ class GEDIVerticalProfiler:
         elif elev.shape[0] != pgap.shape[0]:
             raise ValueError("local_beam_elevation length must match n_shots.")
 
-        mu = np.abs(np.sin(elev))[:, None]  # (n_shots, 1)
+        mu = np.abs(np.sin(elev))[:, None]
         mu = np.broadcast_to(mu, pgap.shape)
 
         # Broadcast G and Ω
@@ -563,13 +492,11 @@ class GEDIVerticalProfiler:
         if not np.all(np.isfinite(denom)) or np.any(denom <= 0):
             raise ValueError("`rossg * omega` must be positive and finite everywhere.")
 
-        # ---- z-domain cover & PAI ----
-        cover_z = (mu * (1.0 - pgap_clipped)).astype(np.float64, copy=False)
+        # ---- PAI in z-domain ----
         pai_z = (-np.log(pgap_clipped) * mu / denom).astype(np.float64, copy=False)
 
         # ---- PAVD = -d(PAI)/dz ----
         if z_in.ndim == 1:
-            # global 1D height axis
             dPAI_dz = np.gradient(
                 pai_z, z_in, axis=-1, edge_order=min(self.gradient_edge_order, 2)
             )
@@ -582,7 +509,6 @@ class GEDIVerticalProfiler:
                 raise ValueError(
                     "height (n_shots, nz) must match pgap/pai shapes (n_shots, nz)."
                 )
-            # ensure contiguous
             pai_c = np.ascontiguousarray(pai_z, dtype=np.float64)
             z_c = np.ascontiguousarray(z_in, dtype=np.float64)
             pavd_z = _pavd_from_pai_variable_dz(pai_c, z_c)
@@ -593,76 +519,43 @@ class GEDIVerticalProfiler:
         # ---- propagate NaNs from original pgap (pre-clip) ----
         nan_mask = ~np.isfinite(pgap_theta_z)
         if np.any(nan_mask):
-            cover_z = np.where(nan_mask, np.nan, cover_z)
-            pai_z = np.where(nan_mask, np.nan, pai_z)
             pavd_z = np.where(nan_mask, np.nan, pavd_z)
 
-        # ---- waveform from d(pgap)/dz ----
-        if z_in.ndim == 1:
-            # use np.gradient in Python space (simpler)
-            dpgap_dz = np.gradient(
-                pgap_clipped, z_in, axis=-1, edge_order=min(self.gradient_edge_order, 2)
-            )
-        else:
-            # ensure contiguous for Numba
-            pgap_c = np.ascontiguousarray(pgap_clipped, dtype=np.float64)
-            z_c = np.ascontiguousarray(z_in, dtype=np.float64)
-            dpgap_dz = _derivative_variable_dz(pgap_c, z_c)
+        # ---- treat GEDI fill values (e.g. -9999) as NaN ----
+        # real heights will be in [-100, 100] range; anything << -100 is fill
+        fill_mask = height_2d < -1000.0
+        if np.any(fill_mask):
+            height_2d[fill_mask] = np.nan
+            pavd_z[fill_mask] = np.nan
 
-        waveform_z = (dpgap_dz * mu / denom).astype(np.float64, copy=False)
-        waveform_z = np.where(waveform_z > 0.0, waveform_z, 0.0)
-
-        # ---- mask height < 0 ----
+        # ---- mask height < 0 (below-ground) ----
         h = height_2d.astype(np.float64, copy=False)
         mask = ~(h >= 0.0)
 
         h_masked = h.copy()
         h_masked[mask] = np.nan
 
-        waveform_m = waveform_z.copy()
-        waveform_m[mask] = np.nan
-
-        cover_m = cover_z.copy()
-        cover_m[mask] = np.nan
-
-        pai_m = pai_z.copy()
-        pai_m[mask] = np.nan
-
         pavd_m = pavd_z.copy()
         pavd_m[mask] = np.nan
 
-        # Ensure contiguous arrays and consistent dtype for Numba
+        # Ensure contiguous arrays for Numba
         h_masked = np.ascontiguousarray(h_masked, dtype=np.float64)
-        cover_m = np.ascontiguousarray(cover_m, dtype=np.float64)
-        pai_m = np.ascontiguousarray(pai_m, dtype=np.float64)
         pavd_m = np.ascontiguousarray(pavd_m, dtype=np.float64)
-        waveform_m = np.ascontiguousarray(waveform_m, dtype=np.float64)
 
-        # Determine JIT dtype code
-        out_dtype_code = 0 if self.out_dtype == np.float32 else 1
-
-        # Call JIT kernel using **positional arguments**
-        cov_rh64, pai_rh64, pavd_rh64, height_rh64, waveform_rh64, H64 = (
-            _resample_profiles_to_rh101_per_shot_jit(
-                h_masked, cover_m, pai_m, pavd_m, waveform_m, out_dtype_code
-            )
+        pavd_rh64, height_rh64, H64 = _resample_pavd_height_to_rh101_jit(
+            h_masked, pavd_m
         )
 
-        # enforce ground conditions at RH=0
-        nshots = cov_rh64.shape[0]
-        if nshots > 0:
-            cov_rh64[:, 0] = 0.0
-            pai_rh64[:, 0] = 0.0
-            pavd_rh64[:, 0] = 0.0
-            waveform_rh64[:, 0] = 0.0
-            height_rh64[:, 0] = 0.0
+        # enforce ground conditions ONLY for valid shots
+        for i in range(pavd_rh64.shape[0]):
+            Hi = H64[i]
+            if np.isfinite(Hi) and Hi > 0:
+                pavd_rh64[i, 0] = 0.0
+                height_rh64[i, 0] = 0.0
+            # else leave NaN (fully invalid profile)
 
-        # final cast
-        cov_rh = cov_rh64.astype(self.out_dtype, copy=False)
-        pai_rh = pai_rh64.astype(self.out_dtype, copy=False)
         pavd_rh = pavd_rh64.astype(self.out_dtype, copy=False)
         height_rh = height_rh64.astype(self.out_dtype, copy=False)
-        waveform_rh = waveform_rh64.astype(self.out_dtype, copy=False)
         H = H64.astype(self.out_dtype, copy=False)
 
-        return cov_rh, pai_rh, pavd_rh, height_rh, waveform_rh, H
+        return pavd_rh, height_rh, H

@@ -58,34 +58,36 @@ class GEDIDatabase:
 
         self.overwrite = config["tiledb"].get("overwrite", False)
         self.variables_config = self._load_variables_config(config)
-        cores = os.cpu_count() or 8
-        max_s3_ops = min(cores * 2, 32)
 
         # Set up TileDB context based on storage type
         if storage_type == "s3":
-            # Optimize for write performance
             self.tiledb_config = tiledb.Config(
                 {
                     "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                     "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
                     "vfs.s3.endpoint_override": config["tiledb"]["url"],
-                    "vfs.s3.region": "eu-central-1",
-                    "vfs.s3.use_virtual_addressing": "true",
-                    "vfs.s3.max_parallel_ops": str(max_s3_ops),
-                    "vfs.s3.multipart_part_size": "104857600",  # 100 MB
+                    # --- CRITICAL FIXES FOR GFZ DOG S3 ---
+                    "vfs.s3.use_virtual_addressing": "false",  # must be false for dotted buckets
+                    "vfs.s3.enable_upload_file_buffer": "false",  # avoids range PUTs
+                    "vfs.s3.use_multipart_upload": "true",
+                    "vfs.s3.multipart_part_size": "16777216",  # 16MB
+                    "vfs.s3.multipart_threshold": "16777216",  # 16MB
+                    "vfs.s3.max_parallel_ops": "8",  # keep DOG healthy
+                    "vfs.s3.region": "eu-central-1",  # region ignored by Ceph but required
+                    # Avoid TileDB automatic retry storms
                     "sm.vfs.s3.connect_timeout_ms": "60000",
                     "sm.vfs.s3.request_timeout_ms": "600000",
-                    "sm.vfs.s3.connect_max_tries": "10",
-                    "vfs.s3.backoff_scale": "1.5",
-                    "vfs.s3.backoff_max_ms": "60000",
-                    "sm.mem.total_budget": "10737418240",  # tune via config
+                    "sm.vfs.s3.connect_max_tries": "5",
+                    # TileDB internal concurrency budgets (safer for S3)
+                    "sm.io_concurrency_level": "8",
+                    "sm.compute_concurrency_level": "8",
+                    # Memory tuning stays as you have it
+                    "sm.mem.total_budget": "10737418240",
                     "sm.memory_budget": "6442450944",
                     "sm.memory_budget_var": "4294967296",
-                    "sm.io_concurrency_level": str(cores),
-                    "sm.compute_concurrency_level": str(cores),
-                    "sm.consolidation.buffer_size": "2000000000",
                 }
             )
+
         elif storage_type == "local":
             # Local TileDB context with consolidation settings
             self.tiledb_config = tiledb.Config(
@@ -694,27 +696,27 @@ class GEDIDatabase:
     def write_granule(
         self,
         granule_data: pd.DataFrame,
-        row_batch: int = 300_000,
+        row_batch: int = 1_000_000,
     ) -> None:
         """
         Memory-lean write with row-only batching (no attribute batching).
         Writes *all* attributes present in the schema for each row batch.
+        This version delegates all TileDB writes to `_write_to_tiledb()`,
+        which includes retry logic.
         """
         try:
             if granule_data.empty:
                 return
 
-            # --- Fast deduplication using pandas native methods
-            # Much faster than string concatenation
+            # --- Deduplicate rows on key dimensions
             subset_cols = ["latitude", "longitude", "time"]
             granule_data = granule_data.drop_duplicates(
                 subset=subset_cols, keep="first"
             )
-
             if granule_data.empty:
                 return
 
-            # --- Spatial mask (vectorized, no intermediate arrays)
+            # --- Spatial mask (fast, vectorized)
             min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
             spatial_mask = (
                 (granule_data["longitude"] >= min_lon)
@@ -722,13 +724,11 @@ class GEDIDatabase:
                 & (granule_data["latitude"] >= min_lat)
                 & (granule_data["latitude"] <= max_lat)
             )
-
             view = granule_data[spatial_mask]
-
             if view.empty:
                 return
 
-            # --- Get schema attributes once (avoid repeated lookups)
+            # --- Determine available attributes in the schema
             with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as A_ro:
                 schema_attrs = {
                     A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)
@@ -738,7 +738,7 @@ class GEDIDatabase:
             attrs_to_write = [name for name in schema_attrs if name in available_cols]
             write_timestamp = "timestamp_ns" in schema_attrs
 
-            # --- Precompute ALL coordinates once (reuse for all batches)
+            # --- Precompute coordinate arrays
             coords_base = {}
             for dim_name in self.dimension_names:
                 if dim_name == "time":
@@ -752,52 +752,38 @@ class GEDIDatabase:
                 else:
                     coords_base[dim_name] = view[dim_name].to_numpy(copy=False)
 
-            # --- Precompute timestamp_ns once
+            # --- Precompute timestamp_ns
             if write_timestamp:
                 tcol = view["time"]
-
-                # 1) Ensure datetime dtype (parse strings/objects)
                 if not is_datetime64_any_dtype(tcol):
                     tcol = pd.to_datetime(tcol, utc=True, errors="coerce")
-
-                # 2) If tz-aware, normalize to UTC and drop timezone
                 if isinstance(tcol.dtype, DatetimeTZDtype):
-                    # ensure UTC (usually already is), then drop tz to get naive ns
                     tcol = tcol.dt.tz_convert("UTC").dt.tz_localize(None)
-
-                # 3) Cast to ns since epoch (int64)
-                #    .astype('int64') works for both naive and previously-tz-aware series.
                 timestamp_ns_base = tcol.astype("int64", copy=False).to_numpy(
                     copy=False
                 )
 
-            # Precompute ALL attribute arrays once
-            attrs_data_base = {}
-            for attr in attrs_to_write:
-                attrs_data_base[attr] = view[attr].to_numpy(copy=False)
+            # --- Precompute attribute arrays
+            attrs_data_base = {
+                attr: view[attr].to_numpy(copy=False) for attr in attrs_to_write
+            }
 
-            # Open array ONCE for all batches
+            # --- Row batching (TileDB writes are delegated to the retry-decorated writer)
             n = len(view)
-            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
-                dim_names = [dim.name for dim in array.schema.domain]
+            row_batch = self._choose_dynamic_batch_size(n)
 
-                for r0 in range(0, n, row_batch):
-                    r1 = min(r0 + row_batch, n)
+            for r0 in range(0, n, row_batch):
+                r1 = min(r0 + row_batch, n)
+                coords = {k: v[r0:r1] for k, v in coords_base.items()}
+                data = {}
 
-                    # Slice precomputed arrays (zero-copy views)
-                    coords = {k: v[r0:r1] for k, v in coords_base.items()}
-                    dims = tuple(coords[dim_name] for dim_name in dim_names)
+                if write_timestamp:
+                    data["timestamp_ns"] = timestamp_ns_base[r0:r1]
 
-                    data = {}
-                    if write_timestamp:
-                        data["timestamp_ns"] = timestamp_ns_base[r0:r1]
+                for attr in attrs_to_write:
+                    data[attr] = attrs_data_base[attr][r0:r1]
 
-                    for attr in attrs_to_write:
-                        data[attr] = attrs_data_base[attr][r0:r1]
-
-                    # Write directly without reopening
-                    array[dims] = data
-
+                self._write_to_tiledb(coords, data)
         except Exception as e:
             logger.error(
                 f"Failed to process and write granule data: {e}", exc_info=True
@@ -1015,3 +1001,17 @@ class GEDIDatabase:
         max_lon = spatial_config["lon_max"]
 
         return min_lon, max_lon, min_lat, max_lat
+
+    def _choose_dynamic_batch_size(self, n_rows: int) -> int:
+        """
+        Adaptive batching:
+          - Small windows → one big write
+          - Medium windows → large batches
+          - Huge windows (Amazon, SE Asia) → safe modest batches
+        """
+        if n_rows <= 400_000:
+            return n_rows  # write whole window
+        elif n_rows <= 2_000_000:
+            return 500_000  # efficient medium batching
+        else:
+            return 300_000  # conservative for huge windows
