@@ -27,6 +27,7 @@ def _derivative_variable_dz(y2d: np.ndarray, z2d: np.ndarray) -> np.ndarray:
     Central difference where possible; fallback to forward/backward.
     NaNs propagate.
 
+    OPTIMIZED: Added parallel=True for row-wise parallelism.
     """
     n, m = y2d.shape
     out = np.empty((n, m), dtype=np.float64)
@@ -109,6 +110,7 @@ def _finite_max_rowwise(h: np.ndarray) -> np.ndarray:
     """
     Rowwise max that returns NaN for all-NaN rows.
 
+    OPTIMIZED: Added parallel=True for row-wise parallelism.
     """
     n, m = h.shape
     H = np.empty(n, dtype=np.float64)
@@ -177,6 +179,7 @@ def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     """
     PAVD = -d(PAI)/dz with per-row non-uniform z (both (n, m)).
 
+    OPTIMIZED: Added parallel=True for row-wise parallelism.
     """
     n, m = pai.shape
     out = np.empty((n, m), dtype=np.float64)
@@ -217,6 +220,11 @@ def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     return out
 
 
+# ============================================================
+# NEW: Fused operations to reduce intermediate arrays
+# ============================================================
+
+
 @njit(cache=True, fastmath=True, parallel=True)
 def _compute_pai_and_pavd_fused(
     pgap: np.ndarray,
@@ -228,6 +236,9 @@ def _compute_pai_and_pavd_fused(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Fused computation of PAI and PAVD from pgap in a single pass.
+
+    OPTIMIZED: Combines clipping, log, PAI computation, and derivative
+    to avoid materializing intermediate arrays.
 
     Assumes z is 2D (n_shots, nz).
     """
@@ -295,7 +306,7 @@ def _apply_masks_fused(
     """
     Apply multiple masks in a single fused kernel.
 
-    Combines NaN propagation, fill value handling, and
+    OPTIMIZED: Combines NaN propagation, fill value handling, and
     below-ground masking in one pass.
     """
     n, m = pavd.shape
@@ -335,6 +346,7 @@ def _resample_pavd_height_to_rh101_jit(
     """
     Resample PAVD and height profiles from z-space to RH=0..100 (101 points).
 
+    OPTIMIZED: Added parallel=True for shot-wise parallelism.
     Each shot is processed independently.
     """
     n, m = height_2d.shape
@@ -450,6 +462,11 @@ def _resample_pavd_height_to_rh101_jit(
     return pavd_rh, height_rh, H
 
 
+# ============================================================
+# NEW: Optimized pgap_grid filling
+# ============================================================
+
+
 @njit(cache=True, fastmath=True, parallel=True)
 def _fill_pgap_grid(
     pgap_grid: np.ndarray,
@@ -462,6 +479,7 @@ def _fill_pgap_grid(
     """
     Fill pgap_grid efficiently with Numba parallelization.
 
+    OPTIMIZED: Numba-accelerated grid filling with parallel processing.
     """
     n_shots = pgap_grid.shape[0]
     nz = pgap_grid.shape[1]
@@ -503,6 +521,7 @@ def _compute_height_grid(
     """
     Compute height_above_ground grid efficiently.
 
+    OPTIMIZED: Numba-accelerated with parallel processing.
     """
     n_shots = height_ag.shape[0]
     nz = height_ag.shape[1]
@@ -529,6 +548,12 @@ class GEDIVerticalProfiler:
     """
     High-level interface to build GEDI-style RH profiles from pgap_theta_z.
 
+    OPTIMIZED VERSION with:
+    - Parallel processing in all major kernels
+    - Fused operations to reduce intermediate arrays
+    - Optimized memory access patterns
+    - Numba-accelerated grid filling
+
     Methods:
       - read_pgap_theta_z(beam_obj, ...) → (pgap_theta_z, height)
       - compute_profiles(...) → cp_pavd, cp_height, H
@@ -551,6 +576,7 @@ class GEDIVerticalProfiler:
         Invalid shots are skipped (set to NaN) instead of raising errors.
         Output shapes: (n_shots, nz)
 
+        OPTIMIZED: Uses Numba-accelerated grid filling.
         """
 
         # Load SDS
@@ -596,6 +622,7 @@ class GEDIVerticalProfiler:
         pgap_grid = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
         height_ag = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
 
+        # OPTIMIZED: Use Numba-accelerated filling
         _fill_pgap_grid(
             pgap_grid,
             pgap_theta.astype(np.float32),
@@ -628,6 +655,8 @@ class GEDIVerticalProfiler:
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Main high-level profile computation.
+
+        OPTIMIZED: Uses fused kernels and parallel processing.
 
         Returns
         -------
@@ -687,7 +716,7 @@ class GEDIVerticalProfiler:
         else:
             raise ValueError("height must be 1D or 2D.")
 
-        # Fused PAI + PAVD computation ----
+        # ---- OPTIMIZED: Fused PAI + PAVD computation ----
         pai_z, pavd_z = _compute_pai_and_pavd_fused(
             np.ascontiguousarray(pgap, dtype=np.float64),
             mu,
@@ -697,7 +726,7 @@ class GEDIVerticalProfiler:
             self._eps,
         )
 
-        # Fused masking ----
+        # ---- OPTIMIZED: Fused masking ----
         nan_mask = ~np.isfinite(pgap_theta_z)
         pavd_masked, height_masked = _apply_masks_fused(
             pavd_z,
