@@ -71,38 +71,53 @@ class L2BBeam(beam_handler):
             else:
                 data[key] = np.array(self[sds_name][()])
 
-        # --- only compute CP stuff if any cp_* key is requested ---
-        if any(k in self.field_mapper for k in cp_keys):
-            prof = GEDIVerticalProfiler()
-
-            # read pgap + per-shot height-above-ground grids (both shaped (n_shots, nz))
-            pgap, height = prof.read_pgap_theta_z(self)
-
-            # compute profiles (elevation can be scalar or (n_shots,))
-            elev = np.asarray(
-                self["geolocation/local_beam_elevation"][()], dtype=np.float32
-            )
-            rossg = np.asarray(self["rossg"][()], dtype=np.float32)
-            omega = np.asarray(self["omega"][()], dtype=np.float32)
-
-            pavd_rh, height_ag, _ = prof.compute_profiles(
-                pgap, height, elev, rossg, omega
-            )
-
-            # attach *only* those requested
-            if "cp_pavd" in self.field_mapper:
-                data["cp_pavd"] = pavd_rh
-            if "cp_height" in self.field_mapper:
-                data["cp_height"] = height_ag
-
-        # Apply quality filters and store filtered index
+        # -----------------------------------------
+        # 1. Apply quality filters on simple fields
+        # -----------------------------------------
         self._filtered_index = self.apply_filter(
             data, filters=self.DEFAULT_QUALITY_FILTERS
         )
 
-        # Filter the data based on the quality filters
+        # Filter simple fields (everything except CP)
         filtered_data = {
             key: value[self._filtered_index] for key, value in data.items()
         }
+
+        # -----------------------------------------
+        # 2. Compute CP metrics only if requested
+        # -----------------------------------------
+        if any(k in self.field_mapper for k in cp_keys):
+            prof = GEDIVerticalProfiler()
+
+            # Read full pgap + height arrays (unfiltered)
+            pgap_all, height_all = prof.read_pgap_theta_z(self)
+
+            # Slice to filtered shots
+            pgap = pgap_all[self._filtered_index]
+            height = height_all[self._filtered_index]
+
+            # Elevation, rossg, omega also need slicing
+            elev_all = np.asarray(
+                self["geolocation/local_beam_elevation"][()], dtype=np.float32
+            )
+            rossg_all = np.asarray(self["rossg"][()], dtype=np.float32)
+            omega_all = np.asarray(self["omega"][()], dtype=np.float32)
+
+            elev = elev_all[self._filtered_index]
+            rossg = rossg_all[self._filtered_index]
+            omega = omega_all[self._filtered_index]
+
+            # -----------------------------------------
+            # 3. Compute profiles only for filtered shots
+            # -----------------------------------------
+            pavd_rh, height_ag, _ = prof.compute_profiles(
+                pgap, height, elev, rossg, omega
+            )
+
+            # Add outputs to filtered_data
+            if "cp_pavd" in self.field_mapper:
+                filtered_data["cp_pavd"] = pavd_rh
+            if "cp_height" in self.field_mapper:
+                filtered_data["cp_height"] = height_ag
 
         return filtered_data if filtered_data else None
