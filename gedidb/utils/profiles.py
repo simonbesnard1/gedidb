@@ -622,7 +622,7 @@ class GEDIVerticalProfiler:
         pgap_grid = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
         height_ag = np.full((n_shots, nz), np.nan, dtype=self.out_dtype)
 
-        # OPTIMIZED: Use Numba-accelerated filling
+        # Use Numba-accelerated filling
         _fill_pgap_grid(
             pgap_grid,
             pgap_theta.astype(np.float32),
@@ -668,6 +668,25 @@ class GEDIVerticalProfiler:
         pgap = np.asarray(pgap_theta_z, dtype=np.float64)
         if pgap.ndim != 2:
             raise ValueError("pgap_theta_z must be 2D (n_shots, nz).")
+
+        # Handle empty input gracefully
+        n_shots, nz = pgap.shape
+
+        # Case 1: No shots at all (n_shots == 0)
+        if n_shots == 0:
+            return (
+                np.full((0, 101), np.nan, dtype=self.out_dtype),
+                np.full((0, 101), np.nan, dtype=self.out_dtype),
+                np.full((0,), np.nan, dtype=self.out_dtype),
+            )
+
+        # Case 2: Shots exist but pgap has zero bins (nz == 0)
+        if nz == 0:
+            return (
+                np.full((n_shots, 101), np.nan, dtype=self.out_dtype),  # cp_pavd
+                np.full((n_shots, 101), np.nan, dtype=self.out_dtype),  # cp_height
+                np.full((n_shots,), np.nan, dtype=self.out_dtype),  # H
+            )
 
         # Height array
         z_in = np.asarray(height, dtype=np.float64)
@@ -716,7 +735,7 @@ class GEDIVerticalProfiler:
         else:
             raise ValueError("height must be 1D or 2D.")
 
-        # ---- OPTIMIZED: Fused PAI + PAVD computation ----
+        # Fused PAI + PAVD computation ----
         pai_z, pavd_z = _compute_pai_and_pavd_fused(
             np.ascontiguousarray(pgap, dtype=np.float64),
             mu,
