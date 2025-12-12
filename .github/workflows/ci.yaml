@@ -81,7 +81,7 @@ jobs:
 
       - name: Restore Hypothesis Cache
         id: cache-hypothesis
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .hypothesis/
           key: cache-hypothesis
@@ -96,7 +96,7 @@ jobs:
 
       - name: Save Hypothesis Cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .hypothesis/
           key: cache-hypothesis
