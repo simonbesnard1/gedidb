@@ -701,15 +701,17 @@ class GEDIDatabase:
         try:
             if granule_data is None or granule_data.empty:
                 return
-    
+
             # --- Optional deduplication on dimensions (keep if intentional)
             # WARNING: for true GEDI shot storage this discards collisions.
             subset_cols = ["latitude", "longitude", "time"]
             if all(c in granule_data.columns for c in subset_cols):
-                granule_data = granule_data.drop_duplicates(subset=subset_cols, keep="first")
+                granule_data = granule_data.drop_duplicates(
+                    subset=subset_cols, keep="first"
+                )
                 if granule_data.empty:
                     return
-    
+
             # --- Spatial mask (vectorized)
             min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
             mask = (
@@ -721,17 +723,21 @@ class GEDIDatabase:
             view = granule_data.loc[mask]
             if view.empty:
                 return
-    
+
             # --- Read schema attributes once
             with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as A_ro:
-                schema_attrs = {A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)}
+                schema_attrs = {
+                    A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)
+                }
                 dim_names = [dim.name for dim in A_ro.schema.domain]
-    
+
             available_cols = set(view.columns)
             # Avoid double-writing timestamp_ns if you also have it as a DataFrame column
-            attrs_to_write = [a for a in schema_attrs if a in available_cols and a != "timestamp_ns"]
+            attrs_to_write = [
+                a for a in schema_attrs if a in available_cols and a != "timestamp_ns"
+            ]
             write_timestamp = "timestamp_ns" in schema_attrs
-    
+
             # --- Build coords dict in schema dimension order
             coords = {}
             for dim_name in dim_names:
@@ -744,14 +750,16 @@ class GEDIDatabase:
                         t = t.dt.tz_convert("UTC").dt.tz_localize(None)
                     else:
                         # tz-naive: interpret as UTC (or leave as-is if already UTC by convention)
-                        t = pd.to_datetime(t, utc=True, errors="coerce").dt.tz_localize(None)
+                        t = pd.to_datetime(t, utc=True, errors="coerce").dt.tz_localize(
+                            None
+                        )
                     coords["time"] = t.to_numpy(copy=False).astype("datetime64[D]")
                 else:
                     coords[dim_name] = view[dim_name].to_numpy(copy=False)
-    
+
             # --- Build data dict (attrs)
             data = {a: view[a].to_numpy(copy=False) for a in attrs_to_write}
-    
+
             # --- Optional timestamp_ns attribute
             if write_timestamp:
                 tcol = view["time"]
@@ -760,16 +768,21 @@ class GEDIDatabase:
                 if isinstance(tcol.dtype, DatetimeTZDtype):
                     tcol = tcol.dt.tz_convert("UTC").dt.tz_localize(None)
                 else:
-                    tcol = pd.to_datetime(tcol, utc=True, errors="coerce").dt.tz_localize(None)
-                data["timestamp_ns"] = tcol.astype("int64", copy=False).to_numpy(copy=False)
-    
+                    tcol = pd.to_datetime(
+                        tcol, utc=True, errors="coerce"
+                    ).dt.tz_localize(None)
+                data["timestamp_ns"] = tcol.astype("int64", copy=False).to_numpy(
+                    copy=False
+                )
+
             # --- Single write (delegates retry logic + correct dim ordering)
             self._write_to_tiledb(coords, data)
-    
-        except Exception as e:
-            logger.error(f"Failed to process and write granule data: {e}", exc_info=True)
-            raise
 
+        except Exception as e:
+            logger.error(
+                f"Failed to process and write granule data: {e}", exc_info=True
+            )
+            raise
 
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
         """

@@ -354,218 +354,252 @@ class GEDIProcessor:
         }
 
         return unprocessed_granules
-            
-        def _process_granules(self, unprocessed_cmr_data: dict):
+
+    def _process_granules(self, unprocessed_cmr_data: dict):
+        """
+        Process unprocessed granules in parallel, then write to TileDB in a
+        fragment-friendly way: accumulate per spatial window and write once per window.
+        """
+        temporal_batching = self.data_info["tiledb"].get("temporal_batching", None)
+        if temporal_batching in ("daily", "weekly"):
+            batches = _temporal_tiling(unprocessed_cmr_data, temporal_batching)
+        elif temporal_batching is None:
+            batches = {"all": unprocessed_cmr_data}
+        else:
+            raise ValueError("Invalid temporal batching option.")
+
+        def _append_ledger_row(
+            ledger,
+            gid,
+            timeframe,
+            started_ts,
+            finished_ts,
+            status,
+            metrics=None,
+            error_msg=None,
+        ):
+            metrics = metrics or {}
+            row = Row(
+                granule_id=gid,
+                timeframe=timeframe,
+                submitted_ts=ledger._submits.get(gid, finished_ts),
+                started_ts=metrics.get("started_ts", started_ts),
+                finished_ts=finished_ts,
+                duration_s=finished_ts - metrics.get("started_ts", started_ts),
+                status=status,
+                n_records=metrics.get("n_records"),
+                bytes_downloaded=metrics.get("bytes_downloaded"),
+                products=(
+                    ",".join(metrics.get("products", []))
+                    if metrics.get("products")
+                    else None
+                ),
+                error_msg=error_msg,
+            )
+            ledger.append(row)
+
+        def _buffer_by_window(buffers, df: pd.DataFrame):
             """
-            Process unprocessed granules in parallel, then write to TileDB in a
-            fragment-friendly way: accumulate per spatial window and write once per window.
+            Split one DF into spatial windows and append each sub-DF to buffers.
+            buffers key is (i_lat, i_lon) or bounds tuple; we use bounds as key for simplicity.
             """
-            temporal_batching = self.data_info["tiledb"].get("temporal_batching", None)
-            if temporal_batching in ("daily", "weekly"):
-                batches = _temporal_tiling(unprocessed_cmr_data, temporal_batching)
-            elif temporal_batching is None:
-                batches = {"all": unprocessed_cmr_data}
-            else:
-                raise ValueError("Invalid temporal batching option.")
-        
-            def _append_ledger_row(ledger, gid, timeframe, started_ts, finished_ts, status, metrics=None, error_msg=None):
-                metrics = metrics or {}
-                row = Row(
-                    granule_id=gid,
-                    timeframe=timeframe,
-                    submitted_ts=ledger._submits.get(gid, finished_ts),
-                    started_ts=metrics.get("started_ts", started_ts),
-                    finished_ts=finished_ts,
-                    duration_s=finished_ts - metrics.get("started_ts", started_ts),
-                    status=status,
-                    n_records=metrics.get("n_records"),
-                    bytes_downloaded=metrics.get("bytes_downloaded"),
-                    products=",".join(metrics.get("products", [])) if metrics.get("products") else None,
-                    error_msg=error_msg,
-                )
-                ledger.append(row)
-        
-            def _buffer_by_window(buffers, df: pd.DataFrame):
-                """
-                Split one DF into spatial windows and append each sub-DF to buffers.
-                buffers key is (i_lat, i_lon) or bounds tuple; we use bounds as key for simplicity.
-                """
-                for bounds, sub in self.database_writer.spatial_chunking(df):
-                    if sub is None or sub.empty:
-                        continue
-                    buffers[bounds].append(sub)
-        
-            def _flush_buffers(buffers, processed_ids, timeframe):
-                """
-                Concatenate per-window buffers and write once per window (or a small capped number).
-                Only mark processed after successful write.
-                """
-                if not buffers:
-                    return
-        
-                try:
-                    for bounds, parts in buffers.items():
-                        if not parts:
-                            continue
-                        window_df = pd.concat(parts, ignore_index=True)
-        
-                        self.database_writer.write_granule(window_df)
-        
-                    # mark processed only after all window writes succeed
-                    for ids_ in processed_ids:
-                        self.database_writer.mark_granule_as_processed(ids_)
-        
-                except Exception as e:
-                    logger.error(f"Write phase failed for timeframe {timeframe}: {e}", exc_info=True)
-                    raise
-        
-            # ---- Executor path ----
-            if isinstance(self.parallel_engine, concurrent.futures.Executor):
-                with self.parallel_engine as executor:
-                    for timeframe, granules in batches.items():
-                        ledger = ProgressLedger(os.path.join(self.progress_dir, timeframe), timeframe)
-        
-                        # Submit tasks
-                        future_map = {}
-                        for gid, pinf in granules.items():
-                            ledger.note_submit(gid)
-                            fut = executor.submit(
-                                GEDIProcessor.process_single_granule,
-                                gid,
-                                pinf,
-                                self.data_info,
-                                self.download_path,
-                            )
-                            future_map[fut] = gid
-        
-                        # Per-window buffers (bounds -> list[df])
-                        buffers = defaultdict(list)
-                        processed_ids = []
-                        counter = 0
-        
-                        # Collect + buffer streaming (no global concat)
-                        for fut in as_completed(future_map):
-                            gid = future_map[fut]
-                            started_ts = time.time()
-                            try:
-                                ids_, gdf, metrics = fut.result()
-                                finished_ts = time.time()
-                                ok = ids_ is not None
-        
-                                if ok:
-                                    processed_ids.append(ids_)
-        
-                                if gdf is not None and not gdf.empty:
-                                    _buffer_by_window(buffers, gdf)
-        
-                                _append_ledger_row(
-                                    ledger, gid, timeframe, started_ts, finished_ts,
-                                    status="ok" if ok else "fail",
-                                    metrics=metrics,
-                                    error_msg=None,
-                                )
-        
-                            except Exception as e:
-                                finished_ts = time.time()
-                                tb = traceback.format_exc()
-                                ledger.write_error(gid, tb)
-                                _append_ledger_row(
-                                    ledger, gid, timeframe, started_ts, finished_ts,
-                                    status="fail",
-                                    metrics={},
-                                    error_msg=str(e),
-                                )
-                                logger.error(f"Granule {gid} failed: {e}")
-        
-                            finally:
-                                counter += 1
-                                if counter % self.report_every == 0:
-                                    ledger.write_status_md()
-                                    ledger.write_html()
-        
-                        # Flush to TileDB once per window
-                        if buffers:
-                            try:
-                                _flush_buffers(buffers, processed_ids, timeframe)
-                            except Exception:
-                                # already logged; keep ledger finalization
-                                pass
-        
-                        ledger.write_status_md()
-                        ledger.write_html()
+            for bounds, sub in self.database_writer.spatial_chunking(df):
+                if sub is None or sub.empty:
+                    continue
+                buffers[bounds].append(sub)
+
+        def _flush_buffers(buffers, processed_ids, timeframe):
+            """
+            Concatenate per-window buffers and write once per window (or a small capped number).
+            Only mark processed after successful write.
+            """
+            if not buffers:
                 return
-        
-            # ---- Dask path ----
-            if isinstance(self.parallel_engine, Client):
+
+            try:
+                for bounds, parts in buffers.items():
+                    if not parts:
+                        continue
+                    window_df = pd.concat(parts, ignore_index=True)
+
+                    self.database_writer.write_granule(window_df)
+
+                # mark processed only after all window writes succeed
+                for ids_ in processed_ids:
+                    self.database_writer.mark_granule_as_processed(ids_)
+
+            except Exception as e:
+                logger.error(
+                    f"Write phase failed for timeframe {timeframe}: {e}", exc_info=True
+                )
+                raise
+
+        # ---- Executor path ----
+        if isinstance(self.parallel_engine, concurrent.futures.Executor):
+            with self.parallel_engine as executor:
                 for timeframe, granules in batches.items():
-                    ledger = ProgressLedger(os.path.join(self.progress_dir, timeframe), timeframe)
-        
-                    futures = []
+                    ledger = ProgressLedger(
+                        os.path.join(self.progress_dir, timeframe), timeframe
+                    )
+
+                    # Submit tasks
+                    future_map = {}
                     for gid, pinf in granules.items():
                         ledger.note_submit(gid)
-                        fut = self.parallel_engine.submit(
+                        fut = executor.submit(
                             GEDIProcessor.process_single_granule,
                             gid,
                             pinf,
                             self.data_info,
                             self.download_path,
                         )
-                        futures.append((gid, fut))
-        
+                        future_map[fut] = gid
+
+                    # Per-window buffers (bounds -> list[df])
                     buffers = defaultdict(list)
                     processed_ids = []
                     counter = 0
-        
-                    for gid, fut in futures:
+
+                    # Collect + buffer streaming (no global concat)
+                    for fut in as_completed(future_map):
+                        gid = future_map[fut]
                         started_ts = time.time()
                         try:
-                            ids_, gdf, metrics = self.parallel_engine.gather(fut)
+                            ids_, gdf, metrics = fut.result()
                             finished_ts = time.time()
                             ok = ids_ is not None
-        
+
                             if ok:
                                 processed_ids.append(ids_)
-        
+
                             if gdf is not None and not gdf.empty:
                                 _buffer_by_window(buffers, gdf)
-        
+
                             _append_ledger_row(
-                                ledger, gid, timeframe, started_ts, finished_ts,
+                                ledger,
+                                gid,
+                                timeframe,
+                                started_ts,
+                                finished_ts,
                                 status="ok" if ok else "fail",
                                 metrics=metrics,
                                 error_msg=None,
                             )
-        
+
                         except Exception as e:
                             finished_ts = time.time()
                             tb = traceback.format_exc()
                             ledger.write_error(gid, tb)
                             _append_ledger_row(
-                                ledger, gid, timeframe, started_ts, finished_ts,
+                                ledger,
+                                gid,
+                                timeframe,
+                                started_ts,
+                                finished_ts,
                                 status="fail",
                                 metrics={},
                                 error_msg=str(e),
                             )
-                            logger.error(f"Dask task for {gid} failed: {e}")
-        
+                            logger.error(f"Granule {gid} failed: {e}")
+
                         finally:
                             counter += 1
                             if counter % self.report_every == 0:
                                 ledger.write_status_md()
                                 ledger.write_html()
-        
+
+                    # Flush to TileDB once per window
                     if buffers:
                         try:
                             _flush_buffers(buffers, processed_ids, timeframe)
                         except Exception:
+                            # already logged; keep ledger finalization
                             pass
-        
+
                     ledger.write_status_md()
                     ledger.write_html()
-                return
-        
-            raise ValueError("Unsupported parallel engine.")
+            return
 
+        # ---- Dask path ----
+        if isinstance(self.parallel_engine, Client):
+            for timeframe, granules in batches.items():
+                ledger = ProgressLedger(
+                    os.path.join(self.progress_dir, timeframe), timeframe
+                )
+
+                futures = []
+                for gid, pinf in granules.items():
+                    ledger.note_submit(gid)
+                    fut = self.parallel_engine.submit(
+                        GEDIProcessor.process_single_granule,
+                        gid,
+                        pinf,
+                        self.data_info,
+                        self.download_path,
+                    )
+                    futures.append((gid, fut))
+
+                buffers = defaultdict(list)
+                processed_ids = []
+                counter = 0
+
+                for gid, fut in futures:
+                    started_ts = time.time()
+                    try:
+                        ids_, gdf, metrics = self.parallel_engine.gather(fut)
+                        finished_ts = time.time()
+                        ok = ids_ is not None
+
+                        if ok:
+                            processed_ids.append(ids_)
+
+                        if gdf is not None and not gdf.empty:
+                            _buffer_by_window(buffers, gdf)
+
+                        _append_ledger_row(
+                            ledger,
+                            gid,
+                            timeframe,
+                            started_ts,
+                            finished_ts,
+                            status="ok" if ok else "fail",
+                            metrics=metrics,
+                            error_msg=None,
+                        )
+
+                    except Exception as e:
+                        finished_ts = time.time()
+                        tb = traceback.format_exc()
+                        ledger.write_error(gid, tb)
+                        _append_ledger_row(
+                            ledger,
+                            gid,
+                            timeframe,
+                            started_ts,
+                            finished_ts,
+                            status="fail",
+                            metrics={},
+                            error_msg=str(e),
+                        )
+                        logger.error(f"Dask task for {gid} failed: {e}")
+
+                    finally:
+                        counter += 1
+                        if counter % self.report_every == 0:
+                            ledger.write_status_md()
+                            ledger.write_html()
+
+                if buffers:
+                    try:
+                        _flush_buffers(buffers, processed_ids, timeframe)
+                    except Exception:
+                        pass
+
+                ledger.write_status_md()
+                ledger.write_html()
+            return
+
+        raise ValueError("Unsupported parallel engine.")
 
     @staticmethod
     def process_single_granule(granule_id, product_info, data_info, download_path):

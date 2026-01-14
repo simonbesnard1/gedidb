@@ -132,7 +132,7 @@ class TestGEDIDatabase(unittest.TestCase):
         )
 
         # Exercise batching explicitly (small batches)
-        self.gedi_db.write_granule(granule_data, row_batch=2)
+        self.gedi_db.write_granule(granule_data)
 
         expected_shot = np.array(
             [

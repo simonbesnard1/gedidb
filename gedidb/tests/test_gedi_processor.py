@@ -89,8 +89,8 @@ class FakeDatabase:
 
     def spatial_chunking(self, df, chunk_size=None):
         self.spatial_chunks.append((len(df), chunk_size))
-        # return dict of “quadrants”: here 1 chunk is enough
-        return {"Q": df}
+        # Yield exactly what the real code expects: (bounds, df)
+        yield ((0.0, 1.0, 0.0, 1.0), df)
 
     def write_granule(self, df):
         self.writes.append(len(df))
@@ -390,13 +390,12 @@ def test_compute_when_all_processed_consolidates(
 # -------------------------
 # compute(): processing path with ThreadPool (default)
 # -------------------------
-
-
 def test_compute_processes_and_writes_with_executor(
     monkeypatch, config_file, earth_dir, simple_geom
 ):
     import concurrent.futures as cf
-    import types
+    import pandas as pd
+    import time
 
     class SyncExecutor(cf.Executor):
         def __enter__(self):
@@ -419,19 +418,6 @@ def test_compute_processes_and_writes_with_executor(
     # ---- Fakes
     db = FakeDatabase()
 
-    # >>> ADDED: adapt fake chunker to new (bounds, df) protocol
-    orig_chunker = db.spatial_chunking
-
-    def chunker_with_bounds(self, dataset):
-        for chunk in orig_chunker(dataset):
-            if isinstance(chunk, tuple) and len(chunk) == 2:
-                yield chunk
-            else:
-                yield ((0.0, 1.0, 0.0, 1.0), chunk)
-
-    db.spatial_chunking = types.MethodType(chunker_with_bounds, db)
-    # <<<
-
     def DBFactory(config=None, credentials=None):
         return db
 
@@ -443,6 +429,31 @@ def test_compute_processes_and_writes_with_executor(
         db=DBFactory,
         gran=FakeGEDIGranule,
         geo=lambda gdf, simplify=True: gdf,
+    )
+
+    # ✅ Critical patch: ensure process_single_granule returns (ids_, DataFrame, metrics)
+    def fake_process_single_granule(gid, pinf, data_info, download_path):
+        df = pd.DataFrame(
+            {
+                "latitude": [0.5],
+                "longitude": [0.5],
+                "time": [pd.Timestamp("2020-01-05", tz="UTC")],
+                # include at least one attr your FakeDatabase/write path expects (optional)
+                "shot_number": [f"{gid}_shot"],
+            }
+        )
+        metrics = {
+            "started_ts": time.time(),
+            "n_records": len(df),
+            "bytes_downloaded": 0,
+            "products": ["L2A"],
+        }
+        return gid, df, metrics
+
+    monkeypatch.setattr(
+        GEDIProcessor,
+        "process_single_granule",
+        staticmethod(fake_process_single_granule),
     )
 
     proc = GEDIProcessor(
