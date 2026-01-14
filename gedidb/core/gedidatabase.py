@@ -107,8 +107,8 @@ class GEDIDatabase:
     def spatial_chunking(
         self,
         dataset: pd.DataFrame,
-        tiles_across_lat: int = 10,
-        tiles_across_lon: int = 10,
+        tiles_across_lat: int = 5,
+        tiles_across_lon: int = 5,
     ):
         """
         Yield ((lat_min, lat_max, lon_min, lon_max), view) pairs without
@@ -454,7 +454,7 @@ class GEDIDatabase:
         scale_factor = cfg_td.get("scale_factor", 1e-6)
         lat_tile = cfg_td.get("latitude_tile", 1)
         lon_tile = cfg_td.get("longitude_tile", 1)
-        time_tile = np.timedelta64(cfg_td.get("time_tile", 365), "D")
+        time_tile = np.timedelta64(cfg_td.get("time_tile", 14), "D")
 
         spatial_filters = self.filter_policy.spatial_dim_filters(scale_factor)
         time_filters = self.filter_policy.time_dim_filters()
@@ -693,102 +693,83 @@ class GEDIDatabase:
             dims = tuple(coords[dim_name] for dim_name in dim_names)
             array[dims] = data
 
-    def write_granule(
-        self,
-        granule_data: pd.DataFrame,
-        row_batch: int = 1_000_000,
-    ) -> None:
+    def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
-        Memory-lean write with row-only batching (no attribute batching).
-        Writes *all* attributes present in the schema for each row batch.
-        This version delegates all TileDB writes to `_write_to_tiledb()`,
-        which includes retry logic.
+        Single-shot write: one TileDB write (=> one fragment) per call.
+        Assumes granule_data comfortably fits in memory for this write.
         """
         try:
-            if granule_data.empty:
+            if granule_data is None or granule_data.empty:
                 return
-
-            # --- Deduplicate rows on key dimensions
+    
+            # --- Optional deduplication on dimensions (keep if intentional)
+            # WARNING: for true GEDI shot storage this discards collisions.
             subset_cols = ["latitude", "longitude", "time"]
-            granule_data = granule_data.drop_duplicates(
-                subset=subset_cols, keep="first"
-            )
-            if granule_data.empty:
-                return
-
-            # --- Spatial mask (fast, vectorized)
+            if all(c in granule_data.columns for c in subset_cols):
+                granule_data = granule_data.drop_duplicates(subset=subset_cols, keep="first")
+                if granule_data.empty:
+                    return
+    
+            # --- Spatial mask (vectorized)
             min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
-            spatial_mask = (
+            mask = (
                 (granule_data["longitude"] >= min_lon)
                 & (granule_data["longitude"] <= max_lon)
                 & (granule_data["latitude"] >= min_lat)
                 & (granule_data["latitude"] <= max_lat)
             )
-            view = granule_data[spatial_mask]
+            view = granule_data.loc[mask]
             if view.empty:
                 return
-
-            # --- Determine available attributes in the schema
+    
+            # --- Read schema attributes once
             with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as A_ro:
-                schema_attrs = {
-                    A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)
-                }
-
+                schema_attrs = {A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)}
+                dim_names = [dim.name for dim in A_ro.schema.domain]
+    
             available_cols = set(view.columns)
-            attrs_to_write = [name for name in schema_attrs if name in available_cols]
+            # Avoid double-writing timestamp_ns if you also have it as a DataFrame column
+            attrs_to_write = [a for a in schema_attrs if a in available_cols and a != "timestamp_ns"]
             write_timestamp = "timestamp_ns" in schema_attrs
-
-            # --- Precompute coordinate arrays
-            coords_base = {}
-            for dim_name in self.dimension_names:
+    
+            # --- Build coords dict in schema dimension order
+            coords = {}
+            for dim_name in dim_names:
                 if dim_name == "time":
-                    coords_base["time"] = (
-                        view["time"]
-                        .dt.tz_convert("UTC")
-                        .dt.tz_localize(None)
-                        .to_numpy(copy=False)
-                        .astype("datetime64[D]")
-                    )
+                    t = view["time"]
+                    # Normalize to tz-naive UTC, then day precision for the dim
+                    if not is_datetime64_any_dtype(t):
+                        t = pd.to_datetime(t, utc=True, errors="coerce")
+                    if isinstance(t.dtype, DatetimeTZDtype):
+                        t = t.dt.tz_convert("UTC").dt.tz_localize(None)
+                    else:
+                        # tz-naive: interpret as UTC (or leave as-is if already UTC by convention)
+                        t = pd.to_datetime(t, utc=True, errors="coerce").dt.tz_localize(None)
+                    coords["time"] = t.to_numpy(copy=False).astype("datetime64[D]")
                 else:
-                    coords_base[dim_name] = view[dim_name].to_numpy(copy=False)
-
-            # --- Precompute timestamp_ns
+                    coords[dim_name] = view[dim_name].to_numpy(copy=False)
+    
+            # --- Build data dict (attrs)
+            data = {a: view[a].to_numpy(copy=False) for a in attrs_to_write}
+    
+            # --- Optional timestamp_ns attribute
             if write_timestamp:
                 tcol = view["time"]
                 if not is_datetime64_any_dtype(tcol):
                     tcol = pd.to_datetime(tcol, utc=True, errors="coerce")
                 if isinstance(tcol.dtype, DatetimeTZDtype):
                     tcol = tcol.dt.tz_convert("UTC").dt.tz_localize(None)
-                timestamp_ns_base = tcol.astype("int64", copy=False).to_numpy(
-                    copy=False
-                )
-
-            # --- Precompute attribute arrays
-            attrs_data_base = {
-                attr: view[attr].to_numpy(copy=False) for attr in attrs_to_write
-            }
-
-            # --- Row batching (TileDB writes are delegated to the retry-decorated writer)
-            n = len(view)
-            row_batch = self._choose_dynamic_batch_size(n)
-
-            for r0 in range(0, n, row_batch):
-                r1 = min(r0 + row_batch, n)
-                coords = {k: v[r0:r1] for k, v in coords_base.items()}
-                data = {}
-
-                if write_timestamp:
-                    data["timestamp_ns"] = timestamp_ns_base[r0:r1]
-
-                for attr in attrs_to_write:
-                    data[attr] = attrs_data_base[attr][r0:r1]
-
-                self._write_to_tiledb(coords, data)
+                else:
+                    tcol = pd.to_datetime(tcol, utc=True, errors="coerce").dt.tz_localize(None)
+                data["timestamp_ns"] = tcol.astype("int64", copy=False).to_numpy(copy=False)
+    
+            # --- Single write (delegates retry logic + correct dim ordering)
+            self._write_to_tiledb(coords, data)
+    
         except Exception as e:
-            logger.error(
-                f"Failed to process and write granule data: {e}", exc_info=True
-            )
+            logger.error(f"Failed to process and write granule data: {e}", exc_info=True)
             raise
+
 
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
         """
