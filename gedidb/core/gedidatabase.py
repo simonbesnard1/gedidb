@@ -16,8 +16,6 @@ import pandas as pd
 import tiledb
 from dask.distributed import Client
 from retry import retry
-from pandas.api.types import is_datetime64_any_dtype
-from pandas.core.dtypes.dtypes import DatetimeTZDtype  # new-style tz dtype check
 
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 from gedidb.utils.filters import TileDBFilterPolicy
@@ -410,18 +408,6 @@ class GEDIDatabase:
             If spatial or temporal ranges are missing, or if any of the ranges are invalid
             (e.g., lat_min >= lat_max).
 
-        Notes
-        -----
-        **Why FloatScale + DoubleDelta?**
-        Storing spatial coordinates as scaled integers allows the `DoubleDeltaFilter`
-        to operate on predictable integer deltas, which yields much better compression
-        than raw 64-bit floats. The resulting TileDB column remains accessible as
-        float64 in queries, so no manual scaling is required by the user.
-
-        **Typical Compression Stack:**
-            Spatial:  FloatScale → DoubleDelta → BitWidthReduction → Zstd(level=3)
-            Temporal: DoubleDelta → Zstd(level=3)
-
         Examples
         --------
         >>> domain = self._create_domain()
@@ -557,16 +543,6 @@ class GEDIDatabase:
             If `variables_config` is missing, malformed, or if a profile variable has
             an invalid `profile_length`.
 
-        Notes
-        -----
-        **Design rationale:**
-        - Filter assignment is entirely dtype-based for maintainability and scalability
-          (critical when handling >1000 GEDI variables).
-        - Profile variables are flattened into multiple attributes to support direct
-          columnar reads from TileDB, avoiding the need for nested array structures.
-        - The optional `timestamp_ns` field allows time-based filtering and ensures
-          deterministic merges of overlapping data writes.
-
         Examples
         --------
         >>> attrs = self._create_attributes()
@@ -693,89 +669,128 @@ class GEDIDatabase:
             dims = tuple(coords[dim_name] for dim_name in dim_names)
             array[dims] = data
 
-    def write_granule(self, granule_data: pd.DataFrame) -> None:
+    def write_granule(self, df: pd.DataFrame) -> None:
         """
-        Single-shot write: one TileDB write (=> one fragment) per call.
-        Assumes granule_data comfortably fits in memory for this write.
+        Write a DataFrame of GEDI shots into the TileDB sparse array, enforcing:
+          - spatial domain clipping
+          - UTC time parsing
+          - day-flooring for the TileDB datetime64[D] time dimension
+          - time-domain clipping
+          - schema-consistent attribute selection
+          - optional timestamp_ns (true UTC nanoseconds)
         """
         try:
-            if granule_data is None or granule_data.empty:
+
+            if df is None or df.empty:
                 return
 
-            # --- Optional deduplication on dimensions (keep if intentional)
-            # WARNING: for true GEDI shot storage this discards collisions.
-            subset_cols = ["latitude", "longitude", "time"]
-            if all(c in granule_data.columns for c in subset_cols):
-                granule_data = granule_data.drop_duplicates(
-                    subset=subset_cols, keep="first"
+            # ---- required columns
+            required = {"latitude", "longitude", "time"}
+            missing = required - set(df.columns)
+            if missing:
+                raise ValueError(
+                    f"write_granule: missing required columns: {sorted(missing)}"
                 )
-                if granule_data.empty:
-                    return
 
-            # --- Spatial mask (vectorized)
+            # ---- spatial mask (fast, vectorized) + copy to avoid SettingWithCopy issues
             min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
-            mask = (
-                (granule_data["longitude"] >= min_lon)
-                & (granule_data["longitude"] <= max_lon)
-                & (granule_data["latitude"] >= min_lat)
-                & (granule_data["latitude"] <= max_lat)
+            m_spatial = (
+                (df["longitude"] >= min_lon)
+                & (df["longitude"] <= max_lon)
+                & (df["latitude"] >= min_lat)
+                & (df["latitude"] <= max_lat)
             )
-            view = granule_data.loc[mask]
-            if view.empty:
+            if not bool(m_spatial.any()):
                 return
+            df = df.loc[m_spatial].copy()
 
-            # --- Read schema attributes once
-            with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as A_ro:
+            # ---- open once: domain + schema attrs
+            with tiledb.open(self.array_uri, "r", ctx=self.ctx) as A_ro:
+                dom = A_ro.schema.domain
+                tmin_dom, tmax_dom = dom.dim("time").domain
                 schema_attrs = {
                     A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)
                 }
-                dim_names = [dim.name for dim in A_ro.schema.domain]
 
-            available_cols = set(view.columns)
-            # Avoid double-writing timestamp_ns if you also have it as a DataFrame column
-            attrs_to_write = [
-                a for a in schema_attrs if a in available_cols and a != "timestamp_ns"
-            ]
-            write_timestamp = "timestamp_ns" in schema_attrs
+            # ---- time parsing (UTC) -> day-floor -> numpy datetime64[D]
+            # parse first (handles strings, naive, tz-aware)
+            t = pd.to_datetime(df["time"], utc=True, errors="coerce")
 
-            # --- Build coords dict in schema dimension order
-            coords = {}
-            for dim_name in dim_names:
-                if dim_name == "time":
-                    t = view["time"]
-                    # Normalize to tz-naive UTC, then day precision for the dim
-                    if not is_datetime64_any_dtype(t):
-                        t = pd.to_datetime(t, utc=True, errors="coerce")
-                    if isinstance(t.dtype, DatetimeTZDtype):
-                        t = t.dt.tz_convert("UTC").dt.tz_localize(None)
-                    else:
-                        # tz-naive: interpret as UTC (or leave as-is if already UTC by convention)
-                        t = pd.to_datetime(t, utc=True, errors="coerce").dt.tz_localize(
-                            None
+            # build a single mask: valid time + within domain
+            m_time_valid = t.notna()
+            if not bool(m_time_valid.any()):
+                return
+
+            t_day = t.dt.floor("D")  # explicit choice: map timestamps to their UTC day
+            # remove tz for numpy, then cast to datetime64[D]
+            tD = t_day.dt.tz_localize(None).to_numpy(dtype="datetime64[D]")
+
+            # domain clip on day values
+            m_in_domain = (tD >= tmin_dom) & (tD <= tmax_dom)
+
+            m = m_time_valid.to_numpy(dtype=bool) & m_in_domain
+            if not bool(m.any()):
+                return
+
+            # apply mask once, using positional boolean mask to avoid index alignment gotchas
+            df = df.iloc[np.flatnonzero(m)].copy()
+            t = t.iloc[np.flatnonzero(m)]
+            tD = tD[m]
+
+            n = len(df)
+            if n == 0:
+                return
+
+            # ---- coords (must all be same length n)
+            coords = {
+                "latitude": df["latitude"].to_numpy(copy=False),
+                "longitude": df["longitude"].to_numpy(copy=False),
+                "time": tD,
+            }
+
+            # ---- build data dict: only attrs in schema, excluding dims
+            dim_names = {"latitude", "longitude", "time"}
+            data = {}
+
+            # deterministic order (helps debugging)
+            for name in sorted(schema_attrs):
+                if name in dim_names:
+                    continue
+                if name == "timestamp_ns":
+                    continue
+                if name in df.columns:
+                    arr = df[name].to_numpy(copy=False)
+                    # Optional: try to coerce object columns to numeric if possible
+                    if arr.dtype == object:
+                        try:
+                            arr_num = pd.to_numeric(df[name])
+                            arr = arr_num.to_numpy(copy=False)
+                        except (ValueError, TypeError):
+                            # keep original object array (e.g. strings)
+                            arr = df[name].to_numpy(copy=False)
+                    if len(arr) != n:
+                        raise ValueError(
+                            f"Attribute '{name}' length {len(arr)} != n={n}"
                         )
-                    coords["time"] = t.to_numpy(copy=False).astype("datetime64[D]")
-                else:
-                    coords[dim_name] = view[dim_name].to_numpy(copy=False)
+                    data[name] = arr
 
-            # --- Build data dict (attrs)
-            data = {a: view[a].to_numpy(copy=False) for a in attrs_to_write}
+            # ---- timestamp_ns: always true UTC ns (not day)
+            if "timestamp_ns" in schema_attrs:
+                # ensure int64 ns since epoch UTC
+                ts_ns = t.astype("int64", copy=False).to_numpy(copy=False)
+                if len(ts_ns) != n:
+                    raise ValueError(f"timestamp_ns length {len(ts_ns)} != n={n}")
+                data["timestamp_ns"] = ts_ns
 
-            # --- Optional timestamp_ns attribute
-            if write_timestamp:
-                tcol = view["time"]
-                if not is_datetime64_any_dtype(tcol):
-                    tcol = pd.to_datetime(tcol, utc=True, errors="coerce")
-                if isinstance(tcol.dtype, DatetimeTZDtype):
-                    tcol = tcol.dt.tz_convert("UTC").dt.tz_localize(None)
-                else:
-                    tcol = pd.to_datetime(
-                        tcol, utc=True, errors="coerce"
-                    ).dt.tz_localize(None)
-                data["timestamp_ns"] = tcol.astype("int64", copy=False).to_numpy(
-                    copy=False
-                )
+            if not data:
+                return
 
-            # --- Single write (delegates retry logic + correct dim ordering)
+            # ---- final sanity: coords lengths
+            for k, v in coords.items():
+                if len(v) != n:
+                    raise ValueError(f"Coord '{k}' length {len(v)} != n={n}")
+
+            # ---- write (retry happens inside)
             self._write_to_tiledb(coords, data)
 
         except Exception as e:
@@ -995,17 +1010,3 @@ class GEDIDatabase:
         max_lon = spatial_config["lon_max"]
 
         return min_lon, max_lon, min_lat, max_lat
-
-    def _choose_dynamic_batch_size(self, n_rows: int) -> int:
-        """
-        Adaptive batching:
-          - Small windows → one big write
-          - Medium windows → large batches
-          - Huge windows (Amazon, SE Asia) → safe modest batches
-        """
-        if n_rows <= 400_000:
-            return n_rows  # write whole window
-        elif n_rows <= 2_000_000:
-            return 500_000  # efficient medium batching
-        else:
-            return 300_000  # conservative for huge windows
