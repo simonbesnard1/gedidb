@@ -64,7 +64,6 @@ class GEDIDatabase:
                     "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                     "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
                     "vfs.s3.endpoint_override": config["tiledb"]["url"],
-                    # --- CRITICAL FIXES FOR GFZ DOG S3 ---
                     "vfs.s3.use_virtual_addressing": "false",  # must be false for dotted buckets
                     "vfs.s3.enable_upload_file_buffer": "false",  # avoids range PUTs
                     "vfs.s3.use_multipart_upload": "true",
@@ -72,14 +71,11 @@ class GEDIDatabase:
                     "vfs.s3.multipart_threshold": "16777216",  # 16MB
                     "vfs.s3.max_parallel_ops": "8",  # keep DOG healthy
                     "vfs.s3.region": "eu-central-1",  # region ignored by Ceph but required
-                    # Avoid TileDB automatic retry storms
                     "sm.vfs.s3.connect_timeout_ms": "60000",
                     "sm.vfs.s3.request_timeout_ms": "600000",
                     "sm.vfs.s3.connect_max_tries": "5",
-                    # TileDB internal concurrency budgets (safer for S3)
                     "sm.io_concurrency_level": "8",
                     "sm.compute_concurrency_level": "8",
-                    # Memory tuning stays as you have it
                     "sm.mem.total_budget": "10737418240",
                     "sm.memory_budget": "6442450944",
                     "sm.memory_budget_var": "4294967296",
