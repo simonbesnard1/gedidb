@@ -71,6 +71,7 @@ class GEDIDatabase:
                     "vfs.s3.multipart_threshold": "16777216",  # 16MB
                     "vfs.s3.max_parallel_ops": "8",  # keep DOG healthy
                     "vfs.s3.region": "eu-central-1",  # region ignored by Ceph but required
+                    "vfs.s3.scheme": "https",
                     "sm.vfs.s3.connect_timeout_ms": "60000",
                     "sm.vfs.s3.request_timeout_ms": "600000",
                     "sm.vfs.s3.connect_max_tries": "5",
@@ -97,6 +98,7 @@ class GEDIDatabase:
             )
 
         self.ctx = tiledb.Ctx(self.tiledb_config)
+        self._schema_cache = None
 
     def spatial_chunking(
         self,
@@ -317,6 +319,7 @@ class GEDIDatabase:
         if tiledb.array_exists(uri, ctx=self.ctx):
             if self.overwrite:
                 tiledb.remove(uri, ctx=self.ctx)
+                self._schema_cache = None
                 logger.info(f"Overwritten existing TileDB array at {uri}")
             else:
                 logger.info(f"TileDB array already exists at {uri}. Skipping creation.")
@@ -343,22 +346,6 @@ class GEDIDatabase:
         """
         Create the TileDB domain for storing GEDI data, including spatial (latitude,
         longitude) and temporal (time) dimensions with appropriate compression filters.
-
-        Overview
-        --------
-        The GEDI data are georeferenced point observations with time stamps. To enable
-        efficient spatial–temporal indexing and compression, this function defines:
-
-        • Latitude and longitude as float64 dimensions, internally stored as scaled
-          integers using a `FloatScaleFilter`. This allows high-precision spatial indexing
-          (≈ meter-level precision) while maintaining compact storage and fast compression.
-
-        • Time as an int64 dimension (days since epoch), compressed using `DoubleDelta`
-          and `Zstd`. The `DoubleDelta` filter is particularly efficient for monotonic or
-          near-monotonic sequences such as time steps.
-
-        The function reads spatial and temporal ranges, precision factors, and tiling
-        parameters from the TileDB section of the user configuration.
 
         Configuration Parameters
         ------------------------
@@ -421,8 +408,8 @@ class GEDIDatabase:
         lon_min = spatial_range.get("lon_min")
         lon_max = spatial_range.get("lon_max")
 
-        time_min = np.datetime64(time_range.get("start_time"))
-        time_max = np.datetime64(time_range.get("end_time"))
+        time_min = np.datetime64(time_range.get("start_time"), "D")
+        time_max = np.datetime64(time_range.get("end_time"), "D")
 
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
             raise ValueError(
@@ -469,43 +456,6 @@ class GEDIDatabase:
         """
         Create TileDB attributes for all configured GEDI variables, assigning appropriate
         compression filters based on their data type.
-
-        Overview
-        --------
-        Each variable from the GEDI product configuration (`self.variables_config`)
-        becomes a TileDB attribute in the output array schema. This includes both
-        scalar attributes (e.g., `lat_lowestmode`, `agbd`, `sensitivity`) and profile-type
-        variables (e.g., `rh_1`...`rh_101`) that represent vertical profiles or
-        multi-level values per shot.
-
-        The function delegates compression and filter selection to the
-        :class:`TileDBFilterPolicy` object (`self.filter_policy`), which determines the
-        optimal filter stack purely based on data type (`dtype`), avoiding the need for
-        variable-specific rules.
-
-        Configuration Structure
-        -----------------------
-        The method expects a configuration dictionary in `self.variables_config`, typically
-        parsed from a YAML or JSON file, where each variable entry defines:
-
-        .. code-block:: yaml
-
-            agbd:
-              dtype: float32
-              is_profile: false
-
-            rh:
-              dtype: float32
-              is_profile: true
-              profile_length: 101
-
-        Supported keys per variable:
-            - ``dtype`` : str or numpy dtype
-                Data type of the variable (e.g., "float32", "int16", "uint8").
-            - ``is_profile`` : bool, optional
-                Whether the variable represents a profile-type attribute.
-            - ``profile_length`` : int, optional
-                Number of vertical levels (required if `is_profile` is True).
 
         Compression Strategy
         --------------------
@@ -665,18 +615,65 @@ class GEDIDatabase:
             dims = tuple(coords[dim_name] for dim_name in dim_names)
             array[dims] = data
 
+    def _get_schema_cache(self):
+        """
+        Read schema domain + attr names once (lazy), cache on the instance.
+        """
+        if getattr(self, "_schema_cache", None) is not None:
+            return self._schema_cache
+
+        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as A:
+            dom = A.schema.domain
+            tmin_dom, tmax_dom = dom.dim("time").domain
+            schema_attrs = {A.schema.attr(i).name for i in range(A.schema.nattr)}
+
+            # Cache dtype per attribute from schema (authoritative)
+            schema_attr_dtypes = {
+                A.schema.attr(i).name: np.dtype(A.schema.attr(i).dtype)
+                for i in range(A.schema.nattr)
+            }
+
+        self._schema_cache = {
+            "tmin": tmin_dom,
+            "tmax": tmax_dom,
+            "attrs": schema_attrs,
+            "attr_dtypes": schema_attr_dtypes,
+        }
+        return self._schema_cache
+
+    def _coerce_series_for_attr(
+        self, name: str, s: pd.Series, target_dtype: np.dtype
+    ) -> np.ndarray:
+        """
+        Coerce a pandas Series to a NumPy array compatible with the TileDB attribute dtype.
+        This is *schema-driven* (not heuristic).
+        """
+        dt = np.dtype(target_dtype)
+
+        # String attributes: produce clean fixed-width unicode/bytes arrays (no object dtype)
+        if dt.kind in ("U", "S"):
+            # Normalize bytes/None/NaN -> string, then cast to schema dtype (Uxx or Sxx)
+            out = s.astype("string").fillna("")
+            return out.to_numpy(dtype=dt)
+
+        # Datetime attributes (rare as attrs, but handle)
+        if dt.kind == "M":
+            t = pd.to_datetime(s, utc=True, errors="coerce")
+            return t.dt.tz_localize(None).to_numpy(dtype=dt)
+
+        return s.to_numpy(dtype=dt, copy=False)
+
     def write_granule(self, df: pd.DataFrame) -> None:
         """
-        Write a DataFrame of GEDI shots into the TileDB sparse array, enforcing:
-          - spatial domain clipping
+        Write GEDI shots into the TileDB sparse array, enforcing:
+          - spatial bounds clipping
           - UTC time parsing
-          - day-flooring for the TileDB datetime64[D] time dimension
+          - flooring to UTC day for the time dimension (datetime64[D])
           - time-domain clipping
-          - schema-consistent attribute selection
-          - optional timestamp_ns (true UTC nanoseconds)
+          - schema-consistent attribute selection + dtype coercion (incl. fixed-width strings)
+          - optional timestamp_ns attribute (int64 ns)
         """
         try:
-
             if df is None or df.empty:
                 return
 
@@ -688,7 +685,7 @@ class GEDIDatabase:
                     f"write_granule: missing required columns: {sorted(missing)}"
                 )
 
-            # ---- spatial mask (fast, vectorized) + copy to avoid SettingWithCopy issues
+            # ---- spatial clip
             min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
             m_spatial = (
                 (df["longitude"] >= min_lon)
@@ -700,80 +697,65 @@ class GEDIDatabase:
                 return
             df = df.loc[m_spatial].copy()
 
-            # ---- open once: domain + schema attrs
-            with tiledb.open(self.array_uri, "r", ctx=self.ctx) as A_ro:
-                dom = A_ro.schema.domain
-                tmin_dom, tmax_dom = dom.dim("time").domain
-                schema_attrs = {
-                    A_ro.schema.attr(i).name for i in range(A_ro.schema.nattr)
-                }
+            # ---- schema cache (domain + attr names + attr dtypes)
+            cache = self._get_schema_cache()
+            tmin_dom, tmax_dom = cache["tmin"], cache["tmax"]
+            schema_attrs = cache["attrs"]
+            schema_attr_dtypes = cache["attr_dtypes"]
 
-            # ---- time parsing (UTC) -> day-floor -> numpy datetime64[D]
-            # parse first (handles strings, naive, tz-aware)
+            # ---- time parsing (UTC) -> floor to day -> numpy datetime64[D]
             t = pd.to_datetime(df["time"], utc=True, errors="coerce")
-
-            # build a single mask: valid time + within domain
-            m_time_valid = t.notna()
-            if not bool(m_time_valid.any()):
+            m_valid = t.notna()
+            if not bool(m_valid.any()):
                 return
 
-            t_day = t.dt.floor("D")  # explicit choice: map timestamps to their UTC day
-            # remove tz for numpy, then cast to datetime64[D]
+            t_day = t.dt.floor("D")
             tD = t_day.dt.tz_localize(None).to_numpy(dtype="datetime64[D]")
 
-            # domain clip on day values
-            m_in_domain = (tD >= tmin_dom) & (tD <= tmax_dom)
-
-            m = m_time_valid.to_numpy(dtype=bool) & m_in_domain
+            # ---- time-domain clip
+            m_in = (tD >= tmin_dom) & (tD <= tmax_dom)
+            m = m_valid.to_numpy(dtype=bool) & m_in
             if not bool(m.any()):
                 return
 
-            # apply mask once, using positional boolean mask to avoid index alignment gotchas
-            df = df.iloc[np.flatnonzero(m)].copy()
-            t = t.iloc[np.flatnonzero(m)]
+            idx = np.flatnonzero(m)
+            df = df.iloc[idx].copy()
+            t = t.iloc[idx]
             tD = tD[m]
 
             n = len(df)
             if n == 0:
                 return
 
-            # ---- coords (must all be same length n)
+            # ---- coords
             coords = {
-                "latitude": df["latitude"].to_numpy(copy=False),
-                "longitude": df["longitude"].to_numpy(copy=False),
+                "latitude": df["latitude"].to_numpy(dtype=np.float64, copy=False),
+                "longitude": df["longitude"].to_numpy(dtype=np.float64, copy=False),
                 "time": tD,
             }
 
-            # ---- build data dict: only attrs in schema, excluding dims
+            # ---- data dict: only schema attrs, excluding dims
             dim_names = {"latitude", "longitude", "time"}
-            data = {}
+            data: dict[str, np.ndarray] = {}
 
-            # deterministic order (helps debugging)
             for name in sorted(schema_attrs):
                 if name in dim_names:
                     continue
                 if name == "timestamp_ns":
                     continue
-                if name in df.columns:
-                    arr = df[name].to_numpy(copy=False)
-                    # Optional: try to coerce object columns to numeric if possible
-                    if arr.dtype == object:
-                        try:
-                            arr_num = pd.to_numeric(df[name])
-                            arr = arr_num.to_numpy(copy=False)
-                        except (ValueError, TypeError):
-                            # keep original object array (e.g. strings)
-                            arr = df[name].to_numpy(copy=False)
-                    if len(arr) != n:
-                        raise ValueError(
-                            f"Attribute '{name}' length {len(arr)} != n={n}"
-                        )
-                    data[name] = arr
+                if name not in df.columns:
+                    continue
 
-            # ---- timestamp_ns: always true UTC ns (not day)
+                target_dtype = schema_attr_dtypes[name]
+                arr = self._coerce_series_for_attr(name, df[name], target_dtype)
+
+                if len(arr) != n:
+                    raise ValueError(f"Attribute '{name}' length {len(arr)} != n={n}")
+                data[name] = arr
+
+            # ---- timestamp_ns (true UTC ns)
             if "timestamp_ns" in schema_attrs:
-                # ensure int64 ns since epoch UTC
-                ts_ns = t.astype("int64", copy=False).to_numpy(copy=False)
+                ts_ns = t.astype("int64").to_numpy(copy=False)  # ns since epoch UTC
                 if len(ts_ns) != n:
                     raise ValueError(f"timestamp_ns length {len(ts_ns)} != n={n}")
                 data["timestamp_ns"] = ts_ns
@@ -781,12 +763,11 @@ class GEDIDatabase:
             if not data:
                 return
 
-            # ---- final sanity: coords lengths
+            # ---- sanity: coords lengths
             for k, v in coords.items():
                 if len(v) != n:
                     raise ValueError(f"Coord '{k}' length {len(v)} != n={n}")
 
-            # ---- write (retry happens inside)
             self._write_to_tiledb(coords, data)
 
         except Exception as e:
@@ -794,110 +775,6 @@ class GEDIDatabase:
                 f"Failed to process and write granule data: {e}", exc_info=True
             )
             raise
-
-    def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
-        """
-        Validate the granule data to ensure it meets the requirements for writing.
-
-        Parameters:
-        ----------
-        granule_data : pd.DataFrame
-            The DataFrame containing granule data.
-
-        Raises:
-        -------
-        ValueError
-            If required dimensions or critical variables are missing.
-        """
-        # Use set operations for efficient membership testing
-        required_dims = set(self.dimension_names)
-        available_cols = set(granule_data.columns)
-        missing_dims = required_dims - available_cols
-
-        if missing_dims:
-            raise ValueError(
-                f"Granule data is missing required dimensions: {sorted(missing_dims)}"
-            )
-
-    def _prepare_coordinates(self, granule_data: pd.DataFrame) -> Dict[str, np.ndarray]:
-        """
-        Prepare coordinate data for dimensions based on the granule DataFrame.
-        Converts latitude/longitude from float degrees to integer quantized degrees
-        for consistency with the TileDB domain.
-        """
-        coords = {}
-
-        for dim_name in self.dimension_names:
-            if dim_name == "time":
-                coords[dim_name] = granule_data[dim_name].astype(
-                    "datetime64[D]", copy=False
-                )
-            else:
-                # Latitude/longitude:
-                coords[dim_name] = granule_data[dim_name].values.astype(
-                    np.float64, copy=False
-                )
-
-        return coords
-
-    def _extract_variable_data(
-        self, granule_data: pd.DataFrame
-    ) -> Dict[str, np.ndarray]:
-        """
-        Extract scalar and profile variable data from the granule DataFrame.
-
-        Parameters:
-        ----------
-        granule_data : pd.DataFrame
-            The DataFrame containing granule data.
-
-        Returns:
-        --------
-        Dict[str, np.ndarray]
-            A dictionary of variable data for writing to TileDB.
-        """
-        data = {}
-        available_cols = set(granule_data.columns)
-
-        # Separate scalar and profile variables for more efficient processing
-        scalar_vars = []
-        profile_vars = []
-
-        for var_name, var_info in self.variables_config.items():
-            if var_info.get("is_profile", False):
-                profile_vars.append((var_name, var_info))
-            else:
-                scalar_vars.append(var_name)
-
-        # Extract scalar variables in batch
-        scalar_vars_present = [v for v in scalar_vars if v in available_cols]
-        if scalar_vars_present:
-            # Batch extract using dict comprehension
-            data.update({var: granule_data[var].values for var in scalar_vars_present})
-
-        # Extract profile variables
-        for var_name, var_info in profile_vars:
-            profile_length = var_info.get("profile_length", 1)
-
-            # Generate all profile column names
-            profile_cols = [f"{var_name}_{i + 1}" for i in range(profile_length)]
-
-            # Find which profile columns actually exist
-            existing_profile_cols = [
-                col for col in profile_cols if col in available_cols
-            ]
-
-            if existing_profile_cols:
-                # Batch extract all layers at once
-                for col in existing_profile_cols:
-                    data[col] = granule_data[col].values
-
-        # Add timestamp (convert to microseconds since epoch)
-        data["timestamp_ns"] = (
-            pd.to_datetime(granule_data["time"]).astype("int64")
-        ).values
-
-        return data
 
     def check_granules_status(self, granule_ids: list) -> dict:
         """
