@@ -78,7 +78,7 @@ For any questions or inquiries, please contact:
 - Amelia Holcomb (ah2174@cam.ac.uk)
 
 ## Acknowledgments
-We acknowledge funding support by the European Union through the [FORWARDS](https://forwards-project.eu/) project. We would also like to thank the R2D2 Workshop (March 2024, GFZ Potsdam) for providing the opportunity to meet and discuss GEDI data processing.
+The development of gediDB was supported by the European Union through the [FORWARDS](https://forwards-project.eu/) and [NextGenCarbon](https://www.nextgencarbon-project.eu/) projects, and by the Helmholtz Association via the Helmholtz Foundation Model Initiative ([3D-ABC project](https://www.3d-abc.ai/)). Amelia Holcomb acknowledges funding from the Harding Distinguished Postgraduate Scholarship. We would also like to thank the R2D2 Workshop (March 2024, GFZ Potsdam) for providing the opportunity to meet and discuss GEDI data processing.
 
 ## License
 This project is licensed under the EUROPEAN UNION PUBLIC LICENCE v.1.2 License - see the LICENSE file for details.
