@@ -34,6 +34,7 @@ dependencies:
   - pytest-timeout
   - requests
   - retry
+  - setuptools
   - scipy
   - xarray
   - pip:
