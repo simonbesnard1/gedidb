@@ -14,7 +14,6 @@ from typing import Tuple, Optional, Union
 import numpy as np
 from numba import njit, prange
 
-
 # ============================================================
 # Low-level helpers (Numba-jitted with parallel where beneficial)
 # ============================================================

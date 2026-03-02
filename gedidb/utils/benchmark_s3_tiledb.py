@@ -20,7 +20,6 @@ from gedidb.utils.geo_processing import (
     check_and_format_shape,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

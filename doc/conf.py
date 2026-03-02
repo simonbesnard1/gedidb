@@ -264,9 +264,7 @@ latex_documents = [
 latex_elements = {}
 
 # Additional stuff for the LaTeX preamble.
-latex_elements[
-    "preamble"
-] = r"""
+latex_elements["preamble"] = r"""
 \newfontfamily\FontForChinese{FandolSong-Regular}[Extension=.otf]
 \catcode`琴\active\protected\def琴{{\FontForChinese\string琴}}
 \catcode`春\active\protected\def春{{\FontForChinese\string春}}

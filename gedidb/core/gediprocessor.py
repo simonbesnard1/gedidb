@@ -30,7 +30,6 @@ from gedidb.utils.constants import GediProduct
 from gedidb.utils.geo_processing import _temporal_tiling, check_and_format_shape
 from gedidb.utils.progress_ledger import ProgressLedger, Row
 
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

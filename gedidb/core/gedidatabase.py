@@ -20,7 +20,6 @@ from retry import retry
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 from gedidb.utils.filters import TileDBFilterPolicy
 
-
 # Configure the logger
 logger = logging.getLogger(__name__)
 

@@ -84,13 +84,11 @@ def test_read_credentials_fallback_regex_on_parse_error(auth_tmpdir, monkeypatch
     """
     # Write a "malformed" netrc but with a valid single-line stanza inside
     malformed = auth_tmpdir / ".netrc"
-    malformed.write_text(
-        f"""
+    malformed.write_text(f"""
 # bad header !!
 machine {URS_HOST} login dave password s3cr3t
 garbage garbage
-"""
-    )
+""")
 
     # Monkeypatch the imported netrc constructor in the module to raise NetrcParseError
     import gedidb.downloader.authentication as auth_mod
