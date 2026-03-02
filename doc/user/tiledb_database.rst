@@ -238,17 +238,16 @@ Here are some example use cases:
 
    .. code-block:: python
 
+      quality_filters = {"sensitivity": ">= 0.9 and <= 1.0", "beam_type": "== 'full'"}
+
       gedi_data = provider.get_data(
           variables=["rh"],
           query_type="bounding_box",
           geometry=region_of_interest,
           start_time="2018-01-01",
           end_time="2024-07-25",
-          quality_filters = {
-                            'sensitivity': '>= 0.9 and <= 1.0',
-                            'beam_type': "== 'full'"
-                            },
-          return_type='xarray')
+          return_type='xarray',
+          **quality_filters)
 
 Resources
 ---------
