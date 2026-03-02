@@ -55,29 +55,25 @@ jobs:
           create-args: >-
             python=3.10
 
-      - name: Activate Conda & Install gedidb
-        shell: bash -l {0}
+      - name: Install gedidb (editable, no deps)
         run: |
-          micromamba activate gedidb-tests
-          python -m pip install --no-deps -e .
+          micromamba run -n gedidb-tests python -m pip install --no-deps -e .
 
-      - name: Check Installed Packages
-        shell: bash -l {0}
+      - name: Debug env + pkg_resources
         run: |
-          micromamba activate gedidb-tests
-          python -c "import pkg_resources; print([d.project_name for d in pkg_resources.working_set])"
+          micromamba run -n gedidb-tests which python
+          micromamba run -n gedidb-tests python -c "import sys; print(sys.executable)"
+          micromamba run -n gedidb-tests python -c "import setuptools; print('setuptools', setuptools.__version__)"
+          micromamba run -n gedidb-tests python -c "import pkg_resources; print('pkg_resources ok')"
+          micromamba run -n gedidb-tests python -c "import pkg_resources; print(sorted({d.project_name for d in pkg_resources.working_set})[:50])"
 
       - name: Verify gedidb Import
-        shell: bash -l {0}
         run: |
-          micromamba activate gedidb-tests
-          python -c "import gedidb"
+          micromamba run -n gedidb-tests python -c "import gedidb"
 
       - name: Version info
-        shell: bash -l {0}
         run: |
-          micromamba activate gedidb-tests
-          python gedidb/utils/print_versions.py
+          micromamba run -n gedidb-tests python gedidb/utils/print_versions.py
 
       - name: Restore Hypothesis Cache
         id: cache-hypothesis
@@ -88,11 +84,9 @@ jobs:
           enableCrossOsArchive: true
 
       - name: Run tests
-        shell: bash -l {0}
         run: |
-          micromamba activate gedidb-tests
-          python -m pytest -n 4 --timeout 180 \
-          --cov=gedidb --cov-report=xml --junitxml=pytest.xml
+          micromamba run -n gedidb-tests python -m pytest -n 4 --timeout 180 \
+            --cov=gedidb --cov-report=xml --junitxml=pytest.xml
 
       - name: Save Hypothesis Cache
         if: always()
@@ -106,7 +100,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Test results for ${{ runner.os }}-${{ matrix.python-version }} ${{ matrix.env }}
+          name: Test results for ${{ runner.os }}-py3.10
           path: pytest.xml
 
       - name: Upload code coverage to Codecov
@@ -130,5 +124,3 @@ jobs:
         with:
           name: Event File
           path: ${{ github.event_path }}
-
-
