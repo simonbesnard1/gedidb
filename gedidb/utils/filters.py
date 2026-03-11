@@ -4,7 +4,6 @@
 # SPDX-FileCopyrightText: 2025 Felix Dombrowski
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-#
 
 import numpy as np
 import tiledb
@@ -13,11 +12,41 @@ from typing import Any, Dict, Optional
 
 class TileDBFilterPolicy:
     """
-    Encapsulates TileDB filter selection logic for attributes and dimensions.
+    Encapsulates TileDB filter selection for GEDI attributes and dimensions.
 
-    Uses:
-    - Config to control Zstd levels / tuning.
-    - Dtype-based rules to avoid per-variable special cases.
+    Filter design principles
+    ------------------------
+    Each filter in a chain must earn its place. The rules applied here:
+
+    1. One pre-processing transform + one entropy coder is usually optimal.
+       Stacking multiple transforms rarely helps and always costs CPU time.
+
+    2. Pre-processing transforms (ByteShuffle, DoubleDelta, FloatScale) make
+       data more compressible for the entropy coder (Zstd). They don't compress
+       by themselves — Zstd must follow them to realise the gain.
+
+    3. ByteShuffle is the right pre-processor for floats: it separates the
+       exponent bytes from the mantissa bytes, so Zstd sees better repetition.
+       It is NOT useful for integers — Zstd already handles those well directly.
+
+    4. DoubleDelta is the right pre-processor for monotonically increasing
+       integers (timestamps, time dimensions). It stores second-order differences
+       which are often near-zero, dramatically reducing entropy. It should NOT be
+       applied to lat/lon after Hilbert sort — those are not monotonic.
+
+    5. BitWidthReduction is only worth applying to narrow integers (≤ 4 bytes)
+       that don't use their full range. Applying it to int64 timestamps or
+       post-FloatScale values is a no-op or counterproductive.
+
+    6. RLE is only worth applying before Zstd when long runs of identical values
+       are expected. For GEDI quality flags this is unlikely — Zstd handles
+       short repetitions directly and doesn't need RLE as a pre-pass.
+
+    Zstd level guidance
+    -------------------
+    Level 1–2 : fastest writes, ~60-70 % of level-9 ratio. Good for timestamps.
+    Level 3–4 : balanced. Recommended default for float attributes.
+    Level 9+  : diminishing returns past level 5 for most geophysical data.
     """
 
     def __init__(self, cfg: Optional[Dict[str, Any]] = None) -> None:
@@ -25,149 +54,118 @@ class TileDBFilterPolicy:
         Parameters
         ----------
         cfg : dict, optional
-            Sub-dictionary of your global config relevant to TileDB.
-            Typically `config.get("tiledb", {})`.
+            TileDB sub-dictionary of the global config, i.e. config.get("tiledb", {}).
         """
         self.cfg = cfg or {}
 
-    # ---------- Dimension filters (if you want them here too) ----------
+    # ------------------------------------------------------------------ #
+    # Dimension filters
+    # ------------------------------------------------------------------ #
 
     def spatial_dim_filters(self, scale_factor: float = 1e-6) -> tiledb.FilterList:
         """
-        Filters for latitude/longitude dimensions:
-        - FloatScale (to int32)
-        - DoubleDelta
-        - BitWidthReduction
-        - Zstd(level=3)
+        Filters for latitude / longitude dimensions.
+
+        Chain: Zstd
         """
-        return tiledb.FilterList(
-            [
-                tiledb.FloatScaleFilter(
-                    factor=scale_factor,
-                    offset=0.0,
-                    bytewidth=4,
-                ),
-                tiledb.DoubleDeltaFilter(),
-                tiledb.BitWidthReductionFilter(),
-                tiledb.ZstdFilter(level=3),
-            ]
-        )
+        lvl = int(self.cfg.get("spatial_zstd_level", 3))
+        return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
 
     def time_dim_filters(self) -> tiledb.FilterList:
         """
-        Filters for time dimension (int64, monotonic-ish).
+        Filters for the time dimension (int64 days-since-epoch).
+
+        GEDI granules are ingested roughly in chronological order, so time
+        values within a fragment are quasi-monotonic. DoubleDelta reduces
+        the stream to near-zero second differences before Zstd.
+        BitWidthReduction is omitted: day-since-epoch values (~19 000 for
+        2019+) need at least 15 bits, so headroom for bit reduction is minimal.
+
+        Chain: DoubleDelta → Zstd
         """
+        lvl = int(self.cfg.get("time_zstd_level", 3))
         return tiledb.FilterList(
             [
                 tiledb.DoubleDeltaFilter(),
-                tiledb.ZstdFilter(level=3),
-            ]
-        )
-
-    # ---------- Attribute filters (dtype-based) ----------
-
-    def _filters_float32(self) -> tiledb.FilterList:
-        lvl = int(self.cfg.get("float32_zstd_level", 4))
-        return tiledb.FilterList(
-            [
-                tiledb.ByteShuffleFilter(),
                 tiledb.ZstdFilter(level=lvl),
             ]
         )
 
-    def _filters_float64(self) -> tiledb.FilterList:
-        lvl = int(self.cfg.get("float64_zstd_level", 4))
-        return tiledb.FilterList(
-            [
-                tiledb.ByteShuffleFilter(),
-                tiledb.ZstdFilter(level=lvl),
-            ]
-        )
-
-    def _filters_flags_uint8(self) -> tiledb.FilterList:
-        """
-        Flags / enums:
-        - BitWidthReduction (if available)
-        - RLE
-        - Zstd
-        """
-        lvl = int(self.cfg.get("flags_zstd_level", 3))
-        fl = []
-        try:
-            fl.append(tiledb.BitWidthReductionFilter())
-        except Exception:
-            pass
-        fl.extend(
-            [
-                tiledb.RleFilter(),
-                tiledb.ZstdFilter(level=lvl),
-            ]
-        )
-        return tiledb.FilterList(fl)
-
-    def _filters_int_generic(self) -> tiledb.FilterList:
-        """
-        Generic ints:
-        - BitWidthReduction (if available)
-        - Zstd
-        """
-        lvl = int(self.cfg.get("int_zstd_level", 3))
-        fl = []
-        try:
-            fl.append(tiledb.BitWidthReductionFilter())
-        except Exception:
-            pass
-        fl.append(tiledb.ZstdFilter(level=lvl))
-        return tiledb.FilterList(fl)
-
-    def _filters_utf8(self) -> tiledb.FilterList:
-        lvl = int(self.cfg.get("string_zstd_level", 3))
-        return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
+    # ------------------------------------------------------------------ #
+    # Attribute filters (dtype-based)
+    # ------------------------------------------------------------------ #
 
     def filters_for_dtype(self, dtype: Any) -> tiledb.FilterList:
         """
-        Return a TileDB FilterList for a given dtype.
+        Return a FilterList appropriate for the given dtype.
 
-        Rules
-        -----
-        - float32 → ByteShuffle + Zstd (high-ish level)
-        - float64 → ByteShuffle + Zstd (slightly lower)
-        - uint8  → flags-style compression: (BitWidthReduction) + RLE + Zstd
-        - other ints → (BitWidthReduction) + Zstd
-        - unicode strings → Zstd
-        - fallback → Zstd(level=3)
+        Dispatch table
+        --------------
+        float32 / float64
+            ByteShuffle + Zstd.
+            ByteShuffle separates exponent and mantissa bytes so Zstd sees
+            much better byte-level repetition — the same strategy validated
+            by HDF5/NetCDF for geophysical floating-point data.
+
+        int8 / int16 / int32 / uint8 / uint16 / uint32  (narrow integers)
+            BitWidthReduction + Zstd.
+            These are likely narrow-range values (quality flags, beam IDs,
+            shot counts) where BitWidthReduction genuinely reclaims unused
+            high bits before Zstd finalises the compression.
+            Note: RLE is dropped — it only helps with long identical runs,
+            which GEDI flag fields don't reliably produce.
+
+        int64 / uint64  (wide integers)
+            Zstd only.
+            BitWidthReduction on 64-bit values with large absolute magnitudes
+            (e.g. shot numbers ~10¹⁸) is a no-op. Zstd alone is correct here.
+
+        unicode strings
+            Zstd only. No useful byte-level pre-processor exists for
+            variable-length UTF-8 strings.
+
+        fallback
+            Zstd(level=3).
         """
         dt = np.dtype(dtype)
-        kind = dt.kind  # 'f', 'i', 'u', 'b', 'U', ...
 
-        if kind == "f":
-            if dt == np.float32:
-                return self._filters_float32()
-            if dt == np.float64:
-                return self._filters_float64()
-            return self._filters_float64()
+        if dt.kind == "f":
+            lvl = int(self.cfg.get("float_zstd_level", 4))
+            return tiledb.FilterList(
+                [
+                    tiledb.ByteShuffleFilter(),
+                    tiledb.ZstdFilter(level=lvl),
+                ]
+            )
 
-        if kind in ("i", "u"):
-            if dt == np.uint8:
-                return self._filters_flags_uint8()
-            return self._filters_int_generic()
-
-        if kind == "U":
-            return self._filters_utf8()
-
-        # bools, bytes, other oddballs
-        return tiledb.FilterList([tiledb.ZstdFilter(level=3)])
-
-    def timestamp_filters(self) -> tiledb.FilterList:
-        """
-        Filters for `timestamp_ns` attribute.
-        """
-        try:
+        if dt.kind in ("i", "u") and dt.itemsize <= 4:
+            lvl = int(self.cfg.get("int_zstd_level", 3))
             return tiledb.FilterList(
                 [
                     tiledb.BitWidthReductionFilter(),
-                    tiledb.ZstdFilter(level=2),
+                    tiledb.ZstdFilter(level=lvl),
                 ]
             )
-        except Exception:
-            return tiledb.FilterList([tiledb.ZstdFilter(level=2)])
+
+        # Wide integers (int64/uint64) and strings
+        lvl = int(self.cfg.get("default_zstd_level", 3))
+        return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
+
+    def timestamp_filters(self) -> tiledb.FilterList:
+        """
+        Filters for the ``timestamp_ns`` attribute (int64 nanoseconds since epoch).
+
+        timestamp_ns values are large (~1.7 × 10¹⁸) and quasi-monotonic within
+        a fragment. DoubleDelta reduces the stream to near-zero second differences
+        before Zstd. BitWidthReduction (the old choice) cannot reduce 64-bit
+        values with large absolute magnitudes and is replaced here.
+
+        Chain: DoubleDelta → Zstd
+        """
+        lvl = int(self.cfg.get("timestamp_zstd_level", 2))
+        return tiledb.FilterList(
+            [
+                tiledb.DoubleDeltaFilter(),
+                tiledb.ZstdFilter(level=lvl),
+            ]
+        )
