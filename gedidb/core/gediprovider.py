@@ -434,9 +434,8 @@ class GEDIProvider(TileDBProvider):
 
         """
         # Create DataFrame (optimized with from_dict)
+        scalar_data["time"] = _timestamp_to_datetime(scalar_data["time"])
         scalar_df = pd.DataFrame.from_dict(scalar_data)
-
-        scalar_df["time"] = _timestamp_to_datetime(scalar_df["time"])
 
         # Reconstruct profile variables if present
         if profile_vars:
