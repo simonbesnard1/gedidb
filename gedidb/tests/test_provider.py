@@ -17,6 +17,7 @@ from pandas import DataFrame
 from xarray import Dataset
 
 from gedidb import GEDIDatabase, GEDIProvider
+from gedidb.utils.geo_processing import _datetime_to_timestamp_days
 
 
 class TestGEDIProvider(unittest.TestCase):
