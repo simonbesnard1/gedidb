@@ -154,20 +154,20 @@ class GEDIGranule:
                 if product.value not in df_dict or df_dict[product.value].empty:
                     return None
 
-            # Start joining with the L2A product
-            df = df_dict[GediProduct.L2A.value].reset_index(drop=True)
-
+            # Merge directly on shot_number — avoids repeated set_index/reset_index
+            # on a growing DataFrame (3 index round-trips in the old loop).
+            df = df_dict[GediProduct.L2A.value]
             for product in required_products[1:]:
-                product_df = df_dict[product.value].set_index("shot_number")
-                df = (
-                    df.set_index("shot_number")
-                    .join(product_df, how="inner", rsuffix=f"_{product.value}")
-                    .reset_index()
+                df = df.merge(
+                    df_dict[product.value],
+                    on="shot_number",
+                    how="inner",
+                    suffixes=("", f"_{product.value}"),
                 )
 
-            # Drop duplicate columns with suffixes
-            suffixes = [f"_{product.value}" for product in required_products[1:]]
-            df = df.loc[:, ~df.columns.str.endswith(tuple(suffixes))]
+            # Drop duplicate columns introduced by suffixes
+            suffixes = tuple(f"_{p.value}" for p in required_products[1:])
+            df = df.loc[:, ~df.columns.str.endswith(suffixes)]
 
             return df if not df.empty else None
         except Exception as e:

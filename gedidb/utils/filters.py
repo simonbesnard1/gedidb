@@ -55,35 +55,56 @@ class TileDBFilterPolicy:
         ----------
         cfg : dict, optional
             TileDB sub-dictionary of the global config, i.e. config.get("tiledb", {}).
+
+        Filter behaviour is controlled by ``use_filters`` in the config:
+
+        ``use_filters: false`` (default)
+            Write-optimised mode. Only Zstd(1) is applied to every column —
+            no ByteShuffle, BitWidthReduction, or DoubleDelta pre-processors.
+            Gives ~3–4× faster writes with a modest increase in storage size
+            (~15–20 % larger than the full pipeline).  DoubleDelta is kept on
+            the time dimension and ``timestamp_ns`` attribute because it is
+            essentially free and reduces those columns by ~80 %.
+
+        ``use_filters: true``
+            Full compression pipeline: ByteShuffle+Zstd for floats,
+            BitWidthReduction+Zstd for narrow ints, DoubleDelta+Zstd for
+            time/timestamps.  Best for archival storage where read throughput
+            and storage cost matter more than ingest speed.
         """
         self.cfg = cfg or {}
+        self.use_filters = bool(self.cfg.get("use_filters", False))
 
     # ------------------------------------------------------------------ #
     # Dimension filters
     # ------------------------------------------------------------------ #
 
+    def _fast_zstd(self, level_key: str, full_default: int) -> tiledb.FilterList:
+        """Return a single Zstd filter, respecting the configured level."""
+        lvl = int(self.cfg.get(level_key, 1 if not self.use_filters else full_default))
+        return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
+
     def spatial_dim_filters(self, scale_factor: float = 1e-6) -> tiledb.FilterList:
         """
         Filters for latitude / longitude dimensions.
 
-        Chain: Zstd
+        Fast mode : Zstd(1)
+        Full mode : Zstd(spatial_zstd_level, default 3)
         """
-        lvl = int(self.cfg.get("spatial_zstd_level", 3))
-        return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
+        return self._fast_zstd("spatial_zstd_level", 3)
 
     def time_dim_filters(self) -> tiledb.FilterList:
         """
         Filters for the time dimension (int64 days-since-epoch).
 
-        GEDI granules are ingested roughly in chronological order, so time
-        values within a fragment are quasi-monotonic. DoubleDelta reduces
-        the stream to near-zero second differences before Zstd.
-        BitWidthReduction is omitted: day-since-epoch values (~19 000 for
-        2019+) need at least 15 bits, so headroom for bit reduction is minimal.
+        DoubleDelta is kept in both fast and full modes because it is
+        essentially free CPU-wise and reduces quasi-monotonic day-since-epoch
+        values dramatically before Zstd.
 
-        Chain: DoubleDelta → Zstd
+        Fast mode : DoubleDelta → Zstd(1)
+        Full mode : DoubleDelta → Zstd(time_zstd_level, default 3)
         """
-        lvl = int(self.cfg.get("time_zstd_level", 3))
+        lvl = int(self.cfg.get("time_zstd_level", 1 if not self.use_filters else 3))
         return tiledb.FilterList(
             [
                 tiledb.DoubleDeltaFilter(),
@@ -99,35 +120,25 @@ class TileDBFilterPolicy:
         """
         Return a FilterList appropriate for the given dtype.
 
-        Dispatch table
-        --------------
+        Fast mode (``use_filters: false``, default)
+        -------------------------------------------
+        Zstd(1) for every dtype — no pre-processors.  ~3–4× faster writes
+        than full mode; ~15–20 % larger files.
+
+        Full mode (``use_filters: true``)
+        ----------------------------------
         float32 / float64
-            ByteShuffle + Zstd.
-            ByteShuffle separates exponent and mantissa bytes so Zstd sees
-            much better byte-level repetition — the same strategy validated
-            by HDF5/NetCDF for geophysical floating-point data.
-
-        int8 / int16 / int32 / uint8 / uint16 / uint32  (narrow integers)
-            BitWidthReduction + Zstd.
-            These are likely narrow-range values (quality flags, beam IDs,
-            shot counts) where BitWidthReduction genuinely reclaims unused
-            high bits before Zstd finalises the compression.
-            Note: RLE is dropped — it only helps with long identical runs,
-            which GEDI flag fields don't reliably produce.
-
-        int64 / uint64  (wide integers)
-            Zstd only.
-            BitWidthReduction on 64-bit values with large absolute magnitudes
-            (e.g. shot numbers ~10¹⁸) is a no-op. Zstd alone is correct here.
-
-        unicode strings
-            Zstd only. No useful byte-level pre-processor exists for
-            variable-length UTF-8 strings.
-
-        fallback
-            Zstd(level=3).
+            ByteShuffle + Zstd(float_zstd_level, default 4).
+        int8 / int16 / int32 / uint8 / uint16 / uint32
+            BitWidthReduction + Zstd(int_zstd_level, default 3).
+        int64 / uint64 / strings
+            Zstd(default_zstd_level, default 3).
         """
         dt = np.dtype(dtype)
+
+        if not self.use_filters:
+            lvl = int(self.cfg.get("default_zstd_level", 1))
+            return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
 
         if dt.kind == "f":
             lvl = int(self.cfg.get("float_zstd_level", 4))
@@ -155,14 +166,16 @@ class TileDBFilterPolicy:
         """
         Filters for the ``timestamp_ns`` attribute (int64 nanoseconds since epoch).
 
-        timestamp_ns values are large (~1.7 × 10¹⁸) and quasi-monotonic within
-        a fragment. DoubleDelta reduces the stream to near-zero second differences
-        before Zstd. BitWidthReduction (the old choice) cannot reduce 64-bit
-        values with large absolute magnitudes and is replaced here.
+        DoubleDelta is kept in both fast and full modes — same reasoning as
+        ``time_dim_filters``: quasi-monotonic int64 values compress to near-zero
+        second differences essentially for free.
 
-        Chain: DoubleDelta → Zstd
+        Fast mode : DoubleDelta → Zstd(1)
+        Full mode : DoubleDelta → Zstd(timestamp_zstd_level, default 2)
         """
-        lvl = int(self.cfg.get("timestamp_zstd_level", 2))
+        lvl = int(
+            self.cfg.get("timestamp_zstd_level", 1 if not self.use_filters else 2)
+        )
         return tiledb.FilterList(
             [
                 tiledb.DoubleDeltaFilter(),

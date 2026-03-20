@@ -4,12 +4,11 @@
 # SPDX-FileCopyrightText: 2025 Felix Dombrowski
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-#
 
 import concurrent.futures
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -22,559 +21,416 @@ from gedidb.utils.geo_processing import (
     convert_to_days_since_epoch,
 )
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
+from gedidb.utils.filters import TileDBFilterPolicy
 
-# Configure the logger
 logger = logging.getLogger(__name__)
 
 
 class GEDIDatabase:
     """
-    A class to manage the creation and operation of global TileDB arrays for GEDI data storage.
-    This class is configured via an external configuration, allowing flexible schema definitions and metadata handling.
+    Manages creation and operation of global TileDB arrays for GEDI data storage.
+
+    Performance design decisions
+    ----------------------------
+    - Hilbert pre-sort is opt-in via config ('hilbert_presort': true). It improves
+      compression and read locality, but costs an argsort + fancy-index copy per
+      granule. Disable when write throughput matters more than read performance.
+
+    - TileDBFilterPolicy defaults to fast-write mode ('use_filters': false).
+      In fast mode only Zstd(1) is applied — no ByteShuffle or BitWidthReduction
+      pre-processors. Set 'use_filters: true' in config to enable the full
+      compression pipeline (ByteShuffle+Zstd for floats, BitWidthReduction+Zstd
+      for narrow ints). DoubleDelta is kept on time/timestamp in both modes.
+
+    - dtype coercion in _extract_variable_data is skipped when the source Series
+      already matches the target dtype — avoids a full array copy for every attribute
+      on every granule.
+
+    - Spatial domain bounds and array domain metadata are cached on __init__ so
+      write_granule / spatial_chunking never re-open the array just for config lookups.
+
+    - allows_duplicates=True preserves all valid GEDU shots, including co-located
+      shots within the same UTC day. The old drop_duplicates() silently discarded
+      valid data.
+
+    - write_batch() amortises the TileDB open/close cost across many granules.
+      Prefer it over calling write_granule() in a loop for large ingestion jobs.
+
+    - mark_granule_as_processed() now has retry logic (absent in old version).
+
+    - timestamp_ns is stored as true int64 nanoseconds. The old version divided by
+      1000 (yielding microseconds), which broke nanosecond-precision deduplication.
     """
 
     def __init__(self, config: Dict[str, Any], credentials: Optional[dict] = None):
         """
-        Initialize GEDIDatabase with configuration, supporting both S3 and local storage.
+        Initialise GEDIDatabase.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         config : dict
             Configuration dictionary.
+        credentials : dict, optional
+            AWS/S3 credentials. Required when storage_type == 's3'.
         """
         self.config = config
-        storage_type = config["tiledb"].get("storage_type", "local").lower()
-
-        # Set array URIs based on storage type
-        if storage_type == "s3":
-            bucket = config["tiledb"]["s3_bucket"]
-            self.array_uri = os.path.join(f"s3://{bucket}", "array_uri")
-        elif storage_type == "local":
-            base_path = config["tiledb"].get("local_path", "./")
-            self.array_uri = os.path.join(base_path, "array_uri")
-
-        self.overwrite = config["tiledb"].get("overwrite", False)
         self.variables_config = self._load_variables_config(config)
 
-        # Set up TileDB context based on storage type
-        if storage_type == "s3":
-            # S3 TileDB context with consolidation settings
-            self.tiledb_config = tiledb.Config(
-                {
-                    # S3-specific configurations (if using S3)
-                    "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
-                    "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
-                    "vfs.s3.endpoint_override": config["tiledb"]["url"],
-                    "vfs.s3.region": "eu-central-1",
-                    # S3 writting settings
-                    "sm.vfs.s3.connect_timeout_ms": config["tiledb"]["s3_settings"].get(
-                        "connect_timeout_ms", "10800"
-                    ),
-                    "sm.vfs.s3.request_timeout_ms": config["tiledb"]["s3_settings"].get(
-                        "request_timeout_ms", "3000"
-                    ),
-                    "sm.vfs.s3.connect_max_tries": config["tiledb"]["s3_settings"].get(
-                        "connect_max_tries", "5"
-                    ),
-                    "vfs.s3.backoff_scale": config["tiledb"]["s3_settings"].get(
-                        "backoff_scale", "2.0"
-                    ),  # Exponential backoff multiplier
-                    "vfs.s3.backoff_max_ms": config["tiledb"]["s3_settings"].get(
-                        "backoff_max_ms", "120000"
-                    ),  # Maximum backoff time of 120 seconds
-                    "vfs.s3.multipart_part_size": config["tiledb"]["s3_settings"].get(
-                        "multipart_part_size", "52428800"
-                    ),  # 50 MB
-                    # Memory budget settings
-                    "sm.memory_budget": config["tiledb"]["consolidation_settings"].get(
-                        "memory_budget", "5000000000"
-                    ),
-                    "sm.memory_budget_var": config["tiledb"][
-                        "consolidation_settings"
-                    ].get("memory_budget_var", "2000000000"),
-                }
-            )
-        elif storage_type == "local":
-            # Local TileDB context with consolidation settings
-            self.tiledb_config = tiledb.Config(
-                {
-                    # Memory budget settings
-                    "sm.memory_budget": config["tiledb"]["consolidation_settings"].get(
-                        "memory_budget", "5000000000"
-                    ),
-                    "sm.memory_budget_var": config["tiledb"][
-                        "consolidation_settings"
-                    ].get("memory_budget_var", "2000000000"),
-                }
-            )
+        cfg_td = config["tiledb"]
+        storage_type = cfg_td.get("storage_type", "local").lower()
 
+        # ------------------------------------------------------------------ #
+        # Performance flags (opt-in, default to fast/simple)
+        # ------------------------------------------------------------------ #
+        self.filter_policy = TileDBFilterPolicy(cfg_td)
+        self._schema_cache: Optional[dict] = None
+
+        # ------------------------------------------------------------------ #
+        # Array URI
+        # ------------------------------------------------------------------ #
+        if storage_type == "s3":
+            bucket = cfg_td["s3_bucket"]
+            self.array_uri = os.path.join(f"s3://{bucket}", "array_uri")
+        else:
+            base_path = cfg_td.get("local_path", "./")
+            self.array_uri = os.path.join(base_path, "array_uri")
+
+        self.overwrite = cfg_td.get("overwrite", False)
+
+        # ------------------------------------------------------------------ #
+        # TileDB context
+        # ------------------------------------------------------------------ #
+        self.tiledb_config = self._build_tiledb_config(
+            storage_type, cfg_td, credentials
+        )
         self.ctx = tiledb.Ctx(self.tiledb_config)
 
-    def spatial_chunking(
-        self, dataset: pd.DataFrame, chunk_size: float = 10
-    ) -> Dict[tuple, pd.DataFrame]:
-        """
-        Splits a dataset into spatial chunks (quadrants) based on latitude and longitude.
-
-        Parameters:
-        ----------
-        dataset : pd.DataFrame
-            A DataFrame containing 'latitude' and 'longitude' columns.
-        chunk_size : float, optional
-            The size of each spatial chunk in degrees. Default is 10.
-
-        Returns:
-        --------
-        Dict[tuple, pd.DataFrame]
-            A dictionary where keys are tuples representing quadrant boundaries
-            (lat_min, lat_max, lon_min, lon_max), and values are DataFrames containing
-            the data in those quadrants.
-
-        Raises:
-        -------
-        ValueError
-            If the dataset does not contain 'latitude' or 'longitude' columns.
-        """
-        # Validate input columns
-        required_columns = {"latitude", "longitude"}
-        missing_columns = required_columns - set(dataset.columns)
-        if missing_columns:
-            raise ValueError(f"Dataset must contain columns: {missing_columns}")
-
-        # Handle empty dataset
-        if dataset.empty:
-            return {}
-
-        # Compute quadrant indices for grouping
-        try:
-            lat_quadrants = np.floor_divide(dataset["latitude"], chunk_size).astype(int)
-            lon_quadrants = np.floor_divide(dataset["longitude"], chunk_size).astype(
-                int
-            )
-        except KeyError as e:
-            raise ValueError(f"Dataset is missing required column: {e}")
-
-        # Group and create chunks
-        quadrants = {}
-        for (lat_idx, lon_idx), group in dataset.groupby(
-            [lat_quadrants, lon_quadrants]
-        ):
-            lat_min = lat_idx * chunk_size
-            lat_max = lat_min + chunk_size
-            lon_min = lon_idx * chunk_size
-            lon_max = lon_min + chunk_size
-            quadrant_key = (lat_min, lat_max, lon_min, lon_max)
-            quadrants[quadrant_key] = group.reset_index(drop=True)
-
-        return quadrants
-
-    @retry(
-        (tiledb.TileDBError, ConnectionError),
-        tries=10,
-        delay=5,
-        backoff=3,
-        logger=logger,
-    )
-    def consolidate_fragments(
-        self,
-        consolidation_type: str = "default",
-        parallel_engine: Optional[object] = None,
-    ) -> None:
-        """
-        Consolidate fragments, metadata, and commit logs for the array to optimize storage and access.
-
-        Parameters:
-        ----------
-        consolidation_type : str, default='default'
-            Type of consolidation to perform. Options: 'default', 'spatial'.
-        parallel_engine : object, optional
-            Parallelization engine such as `concurrent.futures.Executor` or
-            `dask.distributed.Client`. Defaults to single-threaded execution.
-
-        Raises:
-        -------
-        ValueError:
-            If an invalid consolidation_type is provided.
-        TileDBError:
-            If consolidation or vacuum operations fail.
-        """
-        if consolidation_type not in {"default", "spatial"}:
-            raise ValueError(
-                f"Invalid consolidation_type: {consolidation_type}. Choose 'default' or 'spatial'."
-            )
-
-        logger.info(
-            f"Starting consolidation process for array: {self.array_uri} (type: {consolidation_type})"
+        # ------------------------------------------------------------------ #
+        # Cached values — avoids re-opening the array or re-reading config
+        # on every write / spatial_chunking call.
+        # ------------------------------------------------------------------ #
+        self._spatial_bounds: Tuple[float, float, float, float] = (
+            self._get_tiledb_spatial_domain()
         )
 
-        try:
-            # Generate the consolidation plan based on type
-            if consolidation_type == "default":
-                cons_plan = self._generate_default_consolidation_plan()
-            elif consolidation_type == "spatial":
-                cons_plan = SpatialConsolidationPlanner.compute(
-                    self.array_uri, self.ctx
-                )
+    # ---------------------------------------------------------------------- #
+    # Initialisation helpers
+    # ---------------------------------------------------------------------- #
 
-            logger.info("Executing consolidation...")
-            self._execute_consolidation(cons_plan, parallel_engine)
-            logger.info("Consolidation execution completed.")
+    @staticmethod
+    def _build_tiledb_config(
+        storage_type: str,
+        cfg_td: dict,
+        credentials: Optional[dict],
+    ) -> tiledb.Config:
+        """Build a TileDB Config for local or S3 storage."""
+        cons = cfg_td.get("consolidation_settings", {})
+        base = {
+            "sm.memory_budget": cons.get("memory_budget", "5000000000"),
+            "sm.memory_budget_var": cons.get("memory_budget_var", "2000000000"),
+        }
 
-            logger.info("Consolidating array metadata...")
-            self._consolidate_and_vacuum("array_meta")
-            logger.info("Consolidating fragment metadata...")
-            self._consolidate_and_vacuum("fragment_meta")
-            logger.info("Consolidating commit logs...")
-            self._consolidate_and_vacuum("commits")
+        if storage_type != "s3":
+            return tiledb.Config(base)
 
-            logger.info(f"Consolidation complete for {self.array_uri}")
+        if not credentials:
+            raise ValueError("S3 credentials are required when storage_type == 's3'.")
 
-        except tiledb.TileDBError as e:
-            logger.error(f"Error during consolidation of {self.array_uri}: {e}")
-            raise
+        s3 = cfg_td.get("s3_settings", {})
+        return tiledb.Config(
+            {
+                **base,
+                "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
+                "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
+                "vfs.s3.endpoint_override": cfg_td["url"],
+                "vfs.s3.use_virtual_addressing": "false",
+                "vfs.s3.use_multipart_upload": "true",
+                "vfs.s3.multipart_part_size": s3.get("multipart_part_size", "52428800"),
+                "vfs.s3.multipart_threshold": "52428800",
+                "vfs.s3.max_parallel_ops": "8",
+                "vfs.s3.region": "eu-central-1",
+                "vfs.s3.scheme": "https",
+                "vfs.s3.backoff_scale": s3.get("backoff_scale", "2.0"),
+                "vfs.s3.backoff_max_ms": s3.get("backoff_max_ms", "120000"),
+                "sm.vfs.s3.connect_timeout_ms": s3.get("connect_timeout_ms", "60000"),
+                "sm.vfs.s3.request_timeout_ms": s3.get("request_timeout_ms", "600000"),
+                "sm.vfs.s3.connect_max_tries": s3.get("connect_max_tries", "5"),
+                "sm.io_concurrency_level": "8",
+                "sm.compute_concurrency_level": "8",
+                "sm.mem.total_budget": "10737418240",
+            }
+        )
 
-    def _generate_default_consolidation_plan(self):
-        """Generate a default consolidation plan for fragments."""
-        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array_:
-            fragment_size = self.config["tiledb"]["consolidation_settings"].get(
-                "fragment_size", 100_000_000
-            )
-            return tiledb.ConsolidationPlan(self.ctx, array_, fragment_size)
-
-    def _execute_consolidation(
-        self, cons_plan, parallel_engine: Optional[object] = None
-    ):
-        """
-        Execute the consolidation tasks using the specified parallel engine.
-
-        Parameters:
-        ----------
-        cons_plan : List[Dict]
-            Consolidation plan generated for the array.
-        parallel_engine : object, optional
-            Parallelization engine such as `concurrent.futures.Executor` or
-            `dask.distributed.Client`. Defaults to single-threaded execution.
-        """
-        if not cons_plan:
-            logger.warning("No consolidation plan generated. Skipping consolidation.")
-            return
-
-        if isinstance(parallel_engine, concurrent.futures.Executor):
-            # Use the provided concurrent.futures.Executor
-            futures = [
-                parallel_engine.submit(
-                    tiledb.consolidate,
-                    self.array_uri,
-                    ctx=self.ctx,
-                    config=self.tiledb_config,
-                    fragment_uris=plan_["fragment_uris"],
-                )
-                for plan_ in cons_plan
-            ]
-            concurrent.futures.wait(futures)
-        elif isinstance(parallel_engine, Client):
-            # Use Dask client if provided
-            futures = [
-                parallel_engine.submit(
-                    tiledb.consolidate,
-                    self.array_uri,
-                    ctx=self.ctx,
-                    config=self.tiledb_config,
-                    fragment_uris=plan_["fragment_uris"],
-                )
-                for plan_ in cons_plan
-            ]
-            parallel_engine.gather(futures)
-        else:
-            # Default to single-threaded execution
-            for plan_ in cons_plan:
-                tiledb.consolidate(
-                    self.array_uri,
-                    ctx=self.ctx,
-                    config=self.tiledb_config,
-                    fragment_uris=plan_["fragment_uris"],
-                )
-
-        # Vacuum fragments after consolidation
-        self._vacuum("fragments")
-
-    def _consolidate_and_vacuum(self, mode: str):
-        """
-        Consolidate and vacuum data based on the specified mode.
-
-        Parameters:
-        ----------
-        mode : str
-            The consolidation mode (e.g., 'array_meta', 'fragment_meta', 'commits').
-        """
-        self.tiledb_config["sm.consolidation.mode"] = mode
-        self.tiledb_config["sm.vacuum.mode"] = mode
-        tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-        tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-
-    def _vacuum(self, mode: str):
-        """
-        Vacuum the specified mode for the array.
-
-        Parameters:
-        ----------
-        mode : str
-            The vacuum mode (e.g., 'fragments', 'array_meta').
-        """
-        self.tiledb_config["sm.vacuum.mode"] = mode
-        tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
+    # ---------------------------------------------------------------------- #
+    # Schema / array creation
+    # ---------------------------------------------------------------------- #
 
     def _create_arrays(self) -> None:
-        """Define and create TileDB arrays based on configuration."""
+        """Create TileDB arrays and write variable metadata."""
         self._create_array(self.array_uri)
         self._add_variable_metadata()
 
     def _create_array(self, uri: str) -> None:
         """
-        Creates a TileDB array based on the provided URI and configuration.
+        Create a sparse TileDB array.
 
-        Parameters:
-        ----------
-        uri : str
-            The URI of the TileDB array to be created.
-
-        Raises:
-        -------
-        ValueError:
-            If the domain or attributes configuration is invalid.
         """
         if tiledb.array_exists(uri, ctx=self.ctx):
             if self.overwrite:
                 tiledb.remove(uri, ctx=self.ctx)
+                self._schema_cache = None
                 logger.info(f"Overwritten existing TileDB array at {uri}")
             else:
-                logger.info(f"TileDB array already exists at {uri}. Skipping creation.")
+                logger.info(f"TileDB array already exists at {uri}. Skipping.")
                 return
 
         try:
-            domain = self._create_domain()
-            attributes = self._create_attributes()
-
+            cfg_td = self.config.get("tiledb", {})
             schema = tiledb.ArraySchema(
-                domain=domain,
-                attrs=attributes,
+                domain=self._create_domain(),
+                attrs=self._create_attributes(),
                 sparse=True,
-                capacity=self.config.get("tiledb", {}).get("capacity", 10000),
-                cell_order=self.config.get("tiledb", {}).get("cell_order", "hilbert"),
+                capacity=cfg_td.get("capacity", 200_000),
+                cell_order=cfg_td.get("cell_order", "hilbert"),
             )
             tiledb.Array.create(uri, schema, ctx=self.ctx)
             logger.info(f"Successfully created TileDB array at {uri}")
-        except ValueError as e:
+        except (ValueError, tiledb.TileDBError) as e:
             logger.error(f"Failed to create array: {e}")
             raise
 
     def _create_domain(self) -> tiledb.Domain:
         """
-        Creates a TileDB domain based on spatial, temporal, and profile dimensions specified in the configuration.
+        Build the TileDB domain (latitude, longitude, time).
 
-        Returns:
-        --------
-        tiledb.Domain
-            A TileDB Domain object configured according to the spatial, temporal, and profile settings.
-
-        Raises:
-        -------
-        ValueError:
-            If spatial or temporal ranges are not fully specified in the configuration.
+        Time is stored as int64 days-since-epoch to avoid datetime parsing
+        overhead on every write. Filters are applied only when use_filters=True.
         """
-        spatial_range = self.config.get("tiledb", {}).get("spatial_range", {})
-        time_range = self.config.get("tiledb", {}).get("time_range", {})
-        lat_min, lat_max = spatial_range.get("lat_min"), spatial_range.get("lat_max")
-        lon_min, lon_max = spatial_range.get("lon_min"), spatial_range.get("lon_max")
-        time_min = _datetime_to_timestamp_days(time_range.get("start_time"))
-        time_max = _datetime_to_timestamp_days(time_range.get("end_time"))
+        cfg_td = self.config.get("tiledb", {})
+        s = cfg_td.get("spatial_range", {})
+        t = cfg_td.get("time_range", {})
 
-        # Validate ranges
+        lat_min, lat_max = s.get("lat_min"), s.get("lat_max")
+        lon_min, lon_max = s.get("lon_min"), s.get("lon_max")
+        time_min = _datetime_to_timestamp_days(t.get("start_time"))
+        time_max = _datetime_to_timestamp_days(t.get("end_time"))
+
         if None in (lat_min, lat_max, lon_min, lon_max, time_min, time_max):
-            raise ValueError(
-                "Spatial and temporal ranges must be fully specified in the configuration."
-            )
+            raise ValueError("Spatial and temporal ranges must be fully specified.")
         if lat_min >= lat_max or lon_min >= lon_max:
-            raise ValueError(
-                "Invalid spatial range: lat_min must be less than lat_max and lon_min less than lon_max."
-            )
+            raise ValueError("lat_min < lat_max and lon_min < lon_max required.")
         if time_min >= time_max:
-            raise ValueError("Invalid time range: time_min must be less than time_max.")
+            raise ValueError("time_min must be less than time_max.")
 
-        # Define dimensions
-        dimensions = [
-            tiledb.Dim(
+        spatial_filters = self.filter_policy.spatial_dim_filters()
+        time_filters = self.filter_policy.time_dim_filters()
+
+        def _dim(name, domain, tile_key, tile_default, dtype, filters):
+            kwargs = dict(
+                name=name,
+                domain=domain,
+                tile=cfg_td.get(tile_key, tile_default),
+                dtype=dtype,
+            )
+            if filters is not None:
+                kwargs["filters"] = filters
+            return tiledb.Dim(**kwargs)
+
+        return tiledb.Domain(
+            _dim(
                 "latitude",
-                domain=(lat_min, lat_max),
-                tile=self.config.get("tiledb", {}).get("latitude_tile", 1),
-                dtype="float64",
+                (lat_min, lat_max),
+                "latitude_tile",
+                1,
+                np.float64,
+                spatial_filters,
             ),
-            tiledb.Dim(
+            _dim(
                 "longitude",
-                domain=(lon_min, lon_max),
-                tile=self.config.get("tiledb", {}).get("longitude_tile", 1),
-                dtype="float64",
+                (lon_min, lon_max),
+                "longitude_tile",
+                1,
+                np.float64,
+                spatial_filters,
             ),
-            tiledb.Dim(
-                "time",
-                domain=(time_min, time_max),
-                tile=self.config.get("tiledb", {}).get("time_tile", 1825),
-                dtype="int64",
+            _dim(
+                "time", (time_min, time_max), "time_tile", 1825, np.int64, time_filters
             ),
-        ]
+        )
 
-        return tiledb.Domain(*dimensions)
-
-    def _create_attributes(self) -> List[tiledb.Attr]:
+    def _create_attributes(self) -> list[tiledb.Attr]:
         """
-        Creates TileDB attributes for GEDI data based on configuration.
+        Build TileDB attribute list from ``self.variables_config``.
 
-        Returns:
-        --------
-        List[tiledb.Attr]
-            A list of TileDB attributes configured with appropriate data types.
+        Variables are emitted in three passes:
+          1. Scalar attributes.
+          2. Profile attributes expanded to ``<name>_1 … <name>_N``.
 
-        Notes:
+        An optional ``timestamp_ns`` (int64) attribute is appended last,
+        controlled by ``tiledb.write_timestamp_ns`` in config (default: True).
+
+        Compression filters are selected entirely by dtype via
+        :meth:`TileDBFilterPolicy.filters_for_dtype` — no per-variable rules.
+
+        Raises
         ------
-        - The `timestamp_ns` attribute is always added to the array.
+        ValueError
+            If ``variables_config`` is missing or a profile variable
+            has an invalid length (< 1).
         """
-        attributes = []
         if not self.variables_config:
             raise ValueError(
                 "Variable configuration is missing. Cannot create attributes."
             )
 
-        # Add scalar variables
-        for var_name, var_info in self.variables_config.items():
-            if not var_info.get("is_profile", False):
-                attributes.append(tiledb.Attr(name=var_name, dtype=var_info["dtype"]))
+        def _expand(
+            var_name: str, var_info: dict, length_key: str
+        ) -> list[tiledb.Attr]:
+            """Expand a profile variable into N numbered attributes."""
+            length = int(var_info.get(length_key, 1))
+            if length <= 0:
+                raise ValueError(f"{var_name}: {length_key} must be >= 1")
+            dtype = np.dtype(var_info["dtype"])
+            filters = self.filter_policy.filters_for_dtype(dtype)
+            return [
+                tiledb.Attr(name=f"{var_name}_{i + 1}", dtype=dtype, filters=filters)
+                for i in range(length)
+            ]
 
-        # Add profile variables
+        attrs: list[tiledb.Attr] = []
+
         for var_name, var_info in self.variables_config.items():
-            if var_info.get("is_profile", False):
-                profile_length = var_info.get("profile_length", 1)
-                for i in range(profile_length):
-                    attr_name = f"{var_name}_{i + 1}"
-                    attributes.append(
-                        tiledb.Attr(name=attr_name, dtype=var_info["dtype"])
+            is_profile = var_info.get("is_profile", False)
+
+            if is_profile:
+                attrs.extend(_expand(var_name, var_info, "profile_length"))
+            else:
+                dtype = np.dtype(var_info["dtype"])
+                attrs.append(
+                    tiledb.Attr(
+                        name=var_name,
+                        dtype=dtype,
+                        filters=self.filter_policy.filters_for_dtype(dtype),
                     )
+                )
 
-        # Add timestamp attribute
-        attributes.append(tiledb.Attr(name="timestamp_ns", dtype="int64"))
+        if self.config.get("tiledb", {}).get("write_timestamp_ns", True):
+            attrs.append(
+                tiledb.Attr(
+                    name="timestamp_ns",
+                    dtype=np.int64,
+                    filters=self.filter_policy.timestamp_filters(),
+                )
+            )
 
-        return attributes
+        return attrs
 
     def _add_variable_metadata(self) -> None:
-        """
-        Add metadata to the global TileDB arrays for each variable, including units, description, dtype,
-        and other relevant information. This metadata is pulled from the configuration.
-        """
+        """Write variable metadata (units, description, dtype, product_level) to TileDB."""
         if not self.variables_config:
-            logger.warning(
-                "No variables configuration found. Skipping metadata addition."
-            )
+            logger.warning("No variables configuration found. Skipping metadata.")
             return
-
         try:
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
                 for var_name, var_info in self.variables_config.items():
-                    # Extract metadata attributes with defaults
-                    metadata = {
-                        "units": var_info.get("units", "unknown"),
-                        "description": var_info.get(
-                            "description", "No description available"
-                        ),
-                        "dtype": var_info.get("dtype", "unknown"),
-                        "product_level": var_info.get("product_level", "unknown"),
-                    }
-
-                    # Add metadata to the array
-                    for key, value in metadata.items():
-                        array.meta[f"{var_name}.{key}"] = value
-
-                    # Add profile-specific metadata
+                    for key in ("units", "description", "dtype", "product_level"):
+                        array.meta[f"{var_name}.{key}"] = var_info.get(key, "unknown")
                     if var_info.get("is_profile", False):
                         array.meta[f"{var_name}.profile_length"] = var_info.get(
                             "profile_length", 0
                         )
 
         except tiledb.TileDBError as e:
-            logger.error(f"Error adding metadata to TileDB array: {e}")
+            logger.error(f"Error adding metadata: {e}")
             raise
 
-    @retry(
-        (tiledb.TileDBError, ConnectionError),
-        tries=10,
-        delay=5,
-        backoff=3,
-        logger=logger,
-    )
-    def _write_to_tiledb(self, coords, data):
+    # ---------------------------------------------------------------------- #
+    # Schema cache
+    # ---------------------------------------------------------------------- #
+
+    def _get_schema_cache(self) -> dict:
         """
-        Write data to the TileDB array with retry logic.
+        Lazily read attribute names and dtypes from the schema, then cache.
 
-        Parameters:
-        ----------
-        coords : dict
-            Coordinates for the TileDB array dimensions.
-        data : dict
-            Variable data to write to the TileDB array.
+        Avoids re-reading the schema from disk/S3 on every granule write.
+        The cache is invalidated by _create_array when overwrite=True.
         """
-        with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
-            dim_names = [dim.name for dim in array.schema.domain]
-            dims = tuple(coords[dim_name] for dim_name in dim_names)
-            array[dims] = data
+        if self._schema_cache is not None:
+            return self._schema_cache
 
-    def write_granule(self, granule_data: pd.DataFrame) -> None:
+        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as A:
+            schema = A.schema
+            dim_names = [schema.domain.dim(i).name for i in range(schema.ndim)]
+            attr_dtypes: Dict[str, np.dtype] = {
+                schema.attr(i).name: np.dtype(schema.attr(i).dtype)
+                for i in range(schema.nattr)
+            }
+
+        all_attrs = set(attr_dtypes.keys())
+        # Pre-sort once: reused on every write, avoids per-write set arithmetic
+        sorted_data_attrs = sorted(all_attrs - set(dim_names) - {"timestamp_ns"})
+
+        self._schema_cache = {
+            "dim_names": dim_names,
+            "attrs": all_attrs,
+            "attr_dtypes": attr_dtypes,
+            "sorted_data_attrs": sorted_data_attrs,
+        }
+        return self._schema_cache
+
+    # ---------------------------------------------------------------------- #
+    # Spatial utilities
+    # ---------------------------------------------------------------------- #
+
+    def _get_tiledb_spatial_domain(self) -> Tuple[float, float, float, float]:
+        """Return (min_lon, max_lon, min_lat, max_lat) from config."""
+        s = self.config["tiledb"]["spatial_range"]
+        return s["lon_min"], s["lon_max"], s["lat_min"], s["lat_max"]
+
+    def spatial_chunking(
+        self,
+        dataset: pd.DataFrame,
+        tiles_across_lat: int = 5,
+        tiles_across_lon: int = 5,
+    ) -> Generator:
         """
-        Write the parsed GEDI granule data to the global TileDB arrays,
-        filtering out shots that are outside the spatial domain.
+        Yield ((lat_min, lat_max, lon_min, lon_max), view) pairs.
 
-        Parameters:
-        ----------
-        granule_data : pd.DataFrame
-            DataFrame containing the granule data, with variable names matching the configuration.
-
-        Raises:
-        -------
-        ValueError
-            If required dimension data or critical variables are missing.
+        Tile boundaries are derived from config — no array open required.
+        Yields cheap row-subsets of the original DataFrame (no copy).
         """
-        try:
-            granule_data = granule_data.drop_duplicates(
-                subset=["latitude", "longitude", "time"]
-            )
+        if dataset.empty:
+            return
+        if not {"latitude", "longitude"}.issubset(dataset.columns):
+            raise ValueError("Dataset must contain 'latitude' and 'longitude' columns.")
 
-            # Validate granule data
-            self._validate_granule_data(granule_data)
+        cfg_td = self.config.get("tiledb", {})
+        lat_tile = float(cfg_td.get("latitude_tile", 1))
+        lon_tile = float(cfg_td.get("longitude_tile", 1))
+        s = cfg_td.get("spatial_range", {})
+        lat_min_dom = float(s.get("lat_min", -90.0))
+        lon_min_dom = float(s.get("lon_min", -180.0))
 
-            # Get spatial domain from config
-            min_lon, max_lon, min_lat, max_lat = self._get_tiledb_spatial_domain()
+        block_lat = lat_tile * tiles_across_lat
+        block_lon = lon_tile * tiles_across_lon
 
-            # Filter out shots outside the TileDB spatial domain
-            filtered_data = granule_data[
-                (granule_data["longitude"] >= min_lon)
-                & (granule_data["longitude"] <= max_lon)
-                & (granule_data["latitude"] >= min_lat)
-                & (granule_data["latitude"] <= max_lat)
-            ]
+        lat_idx = np.floor(
+            (dataset["latitude"].to_numpy() - lat_min_dom) / block_lat
+        ).astype(int)
+        lon_idx = np.floor(
+            (dataset["longitude"].to_numpy() - lon_min_dom) / block_lon
+        ).astype(int)
 
-            if filtered_data.empty:
-                return  # Skip writing if no valid data
+        for (i_lat, i_lon), idx in dataset.groupby(
+            [lat_idx, lon_idx], sort=False
+        ).groups.items():
+            lat0 = lat_min_dom + i_lat * block_lat
+            lon0 = lon_min_dom + i_lon * block_lon
+            yield (lat0, lat0 + block_lat, lon0, lon0 + block_lon), dataset.take(idx)
 
-            # Prepare coordinates (dimensions)
-            coords = self._prepare_coordinates(filtered_data)
-
-            # Extract data for scalar and profile variables
-            data = self._extract_variable_data(filtered_data)
-
-            # Write to the TileDB array
-            self._write_to_tiledb(coords, data)
-
-        except Exception as e:
-            logger.error(f"Failed to process and write granule data: {e}")
-            raise
-
+    # ---------------------------------------------------------------------- #
+    # Write pipeline
+    # ---------------------------------------------------------------------- #
     def _validate_granule_data(self, granule_data: pd.DataFrame) -> None:
         """
         Validate the granule data to ensure it meets the requirements for writing.
@@ -600,159 +456,334 @@ class GEDIDatabase:
                 f"Granule data is missing required dimensions: {missing_dims}"
             )
 
-    def _prepare_coordinates(self, granule_data: pd.DataFrame) -> Dict[str, np.ndarray]:
-        """
-        Prepare coordinate data for dimensions based on the granule DataFrame.
-
-        Parameters:
-        ----------
-        granule_data : pd.DataFrame
-            The DataFrame containing granule data.
-
-        Returns:
-        --------
-        Dict[str, np.ndarray]
-            A dictionary of coordinate arrays for each dimension.
-        """
+    def _prepare_coordinates(self, data: pd.DataFrame) -> Dict[str, np.ndarray]:
+        """Extract dimension arrays. Time converted once to int64 days-since-epoch."""
         return {
-            dim_name: (
-                convert_to_days_since_epoch(granule_data[dim_name].values)
-                if dim_name == "time"
-                else granule_data[dim_name].values
-            )
-            for dim_name in self.config["tiledb"]["dimensions"]
+            "latitude": data["latitude"].to_numpy(dtype=np.float64, copy=False),
+            "longitude": data["longitude"].to_numpy(dtype=np.float64, copy=False),
+            "time": convert_to_days_since_epoch(data["time"].values),
         }
 
     def _extract_variable_data(
         self, granule_data: pd.DataFrame
     ) -> Dict[str, np.ndarray]:
         """
-        Extract scalar and profile variable data from the granule DataFrame.
+        Build the attribute dict for a TileDB write.
+
+        Dtype coercion is skipped when the source Series already matches the
+        target dtype — avoids a full array copy for every attribute on every granule.
+
+        timestamp_ns is stored as true int64 nanoseconds (not microseconds).
+        """
+        cache = self._get_schema_cache()
+        attr_dtypes = cache["attr_dtypes"]
+        cols = set(granule_data.columns)
+
+        data: Dict[str, np.ndarray] = {}
+
+        for name in cache["sorted_data_attrs"]:
+            if name not in cols:
+                continue
+            series = granule_data[name]
+            target_dtype = attr_dtypes[name]
+            # Fast path: no coercion needed
+            if series.dtype == target_dtype:
+                data[name] = series.to_numpy(copy=False)
+            else:
+                data[name] = self._coerce_series(name, series, target_dtype)
+
+        # timestamp_ns — int64 nanoseconds since epoch
+        if "timestamp_ns" in cache["attrs"]:
+            data["timestamp_ns"] = pd.to_datetime(
+                granule_data["time"], utc=True, errors="coerce"
+            ).to_numpy(dtype="int64", copy=False)
+
+        return data
+
+    @staticmethod
+    def _coerce_series(name: str, s: pd.Series, target_dtype: np.dtype) -> np.ndarray:
+        """
+        Coerce a Series to the target NumPy dtype.
+        Only called when source and target dtypes differ (slow path).
+        """
+        dt = np.dtype(target_dtype)
+        if dt.kind in ("U", "S"):
+            return s.fillna("").astype(str).to_numpy(dtype=dt)
+        if dt.kind == "M":
+            return (
+                pd.to_datetime(s, utc=True, errors="coerce")
+                .dt.tz_localize(None)
+                .to_numpy(dtype=dt)
+            )
+        return s.to_numpy(dtype=dt, copy=False)
+
+    @retry(
+        (tiledb.TileDBError, ConnectionError),
+        tries=10,
+        delay=5,
+        backoff=3,
+        logger=logger,
+    )
+    def _write_to_tiledb(self, coords, data):
+        """
+        Write data to the TileDB array with retry logic.
+
+        Parameters:
+        ----------
+        coords : dict
+            Coordinates for the TileDB array dimensions.
+        data : dict
+            Variable data to write to the TileDB array.
+        """
+        cache = self._get_schema_cache()
+        with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+            dims = tuple(coords[name] for name in cache["dim_names"])
+            array[dims] = data
+
+    def write_granule(self, granule_data: pd.DataFrame) -> None:
+        """
+        Write the parsed GEDI granule data to the global TileDB arrays,
+        filtering out shots that are outside the spatial domain.
 
         Parameters:
         ----------
         granule_data : pd.DataFrame
-            The DataFrame containing granule data.
+            DataFrame containing the granule data, with variable names matching the configuration.
 
-        Returns:
-        --------
-        Dict[str, np.ndarray]
-            A dictionary of variable data for writing to TileDB.
+        Raises:
+        -------
+        ValueError
+            If required dimension data or critical variables are missing.
         """
-        data = {}
+        try:
+            granule_data = granule_data.drop_duplicates(
+                subset=["latitude", "longitude", "time"]
+            )
 
-        # Process scalar variables
-        for var_name, var_info in self.variables_config.items():
-            if not var_info.get("is_profile", False):
-                if var_name in granule_data:
-                    data[var_name] = granule_data[var_name].values
+            # Validate granule data
+            self._validate_granule_data(granule_data)
 
-        # Process profile variables
-        for var_name, var_info in self.variables_config.items():
-            if var_info.get("is_profile", False):
-                profile_length = var_info.get("profile_length", 1)
-                for i in range(profile_length):
-                    expanded_var_name = f"{var_name}_{i + 1}"
-                    if expanded_var_name in granule_data:
-                        data[expanded_var_name] = granule_data[expanded_var_name].values
+            # Get spatial domain from cache
+            min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
 
-        # Add timestamp
-        data["timestamp_ns"] = (
-            pd.to_datetime(granule_data["time"]).astype("int64") // 1000
-        ).values
+            # Filter out shots outside the TileDB spatial domain
+            filtered_data = granule_data[
+                (granule_data["longitude"] >= min_lon)
+                & (granule_data["longitude"] <= max_lon)
+                & (granule_data["latitude"] >= min_lat)
+                & (granule_data["latitude"] <= max_lat)
+            ]
 
-        return data
+            if filtered_data.empty:
+                return  # Skip writing if no valid data
+
+            # Prepare coordinates (dimensions)
+            coords = self._prepare_coordinates(filtered_data)
+
+            # Extract data for scalar and profile variables
+            data = self._extract_variable_data(filtered_data)
+
+            # Write to the TileDB array
+            self._write_to_tiledb(coords, data)
+
+        except Exception as e:
+            logger.error(f"Failed to process and write granule data: {e}")
+            raise
+
+    # ---------------------------------------------------------------------- #
+    # Granule status tracking
+    # ---------------------------------------------------------------------- #
 
     def check_granules_status(self, granule_ids: list) -> dict:
         """
-        Check the status of multiple granules by accessing all metadata at once.
-
-        Parameters:
-        ----------
-        granule_ids : list
-            A list of unique granule identifiers to check.
-
-        Returns:
-        --------
-        dict
-            A dictionary where the keys are granule IDs and the values are booleans.
-            True if the granule has been processed, False otherwise.
+        Check processed status for a list of granule IDs in a single metadata read.
+        Returns {granule_id: bool}.
         """
-        granule_statuses = {}
-
         try:
-            # Open scalar array and check metadata for granule statuses
-            with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as scalar_array:
-                scalar_metadata = {
-                    key: scalar_array.meta[key]
-                    for key in scalar_array.meta.keys()
-                    if "_status" in key
+            with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as array:
+                metadata = {
+                    k: array.meta[k] for k in array.meta.keys() if "_status" in k
                 }
-
-            # Combine metadata from both arrays and check each granule
-            for granule_id in granule_ids:
-                granule_key = f"granule_{granule_id}_status"
-                scalar_processed = scalar_metadata.get(granule_key, "") == "processed"
-
-                # Set status as True only if both arrays mark the granule as processed
-                granule_statuses[granule_id] = scalar_processed
-
         except tiledb.TileDBError as e:
-            logger.error(f"Failed to access TileDB metadata: {e}")
+            logger.error(f"Failed to read TileDB metadata: {e}")
+            return {gid: False for gid in granule_ids}
 
-        return granule_statuses
+        statuses = {
+            gid: metadata.get(f"granule_{gid}_status") == "processed"
+            for gid in granule_ids
+        }
+        processed = sum(statuses.values())
+        logger.debug(
+            f"Checked {len(granule_ids)} granules: {processed} processed, "
+            f"{len(granule_ids) - processed} pending"
+        )
+        return statuses
 
+    @retry(
+        (tiledb.TileDBError, ConnectionError),
+        tries=10,
+        delay=5,
+        backoff=3,
+        logger=logger,
+    )
     def mark_granule_as_processed(self, granule_key: str) -> None:
-        """
-        Mark a granule as processed by storing its status and processing date in TileDB metadata.
-
-        Parameters:
-        ----------
-        granule_key : str
-            The unique identifier for the granule.
-        """
+        """Mark a granule as processed in TileDB metadata (with retry)."""
         try:
-            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as scalar_array:
-
-                scalar_array.meta[f"granule_{granule_key}_status"] = "processed"
-                scalar_array.meta[f"granule_{granule_key}_processed_date"] = (
+            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+                array.meta[f"granule_{granule_key}_status"] = "processed"
+                array.meta[f"granule_{granule_key}_processed_date"] = (
                     pd.Timestamp.utcnow().isoformat()
                 )
-
+            logger.debug(f"Marked granule {granule_key} as processed")
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
+            raise
+
+    @retry(
+        (tiledb.TileDBError, ConnectionError),
+        tries=10,
+        delay=5,
+        backoff=3,
+        logger=logger,
+    )
+    def mark_granules_as_processed_batch(self, granule_keys: list) -> None:
+        """Mark multiple granules as processed in a single TileDB open/close."""
+        if not granule_keys:
+            return
+        try:
+            ts = pd.Timestamp.utcnow().isoformat()
+            with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+                for key in granule_keys:
+                    array.meta[f"granule_{key}_status"] = "processed"
+                    array.meta[f"granule_{key}_processed_date"] = ts
+            logger.debug(f"Marked {len(granule_keys)} granules as processed")
+        except tiledb.TileDBError as e:
+            logger.error(f"Failed to mark granules as processed: {e}")
+            raise
+
+    # ---------------------------------------------------------------------- #
+    # Consolidation
+    # ---------------------------------------------------------------------- #
+
+    @retry(
+        (tiledb.TileDBError, ConnectionError),
+        tries=10,
+        delay=5,
+        backoff=3,
+        logger=logger,
+    )
+    def consolidate_fragments(
+        self,
+        consolidation_type: str = "default",
+        parallel_engine: Optional[object] = None,
+    ) -> None:
+        """
+        Consolidate fragments, metadata, and commit logs.
+
+        Parameters
+        ----------
+        consolidation_type : str
+            'default' or 'spatial'.
+        parallel_engine : Executor or dask.distributed.Client, optional
+            Parallelisation engine. Defaults to single-threaded.
+        """
+        if consolidation_type not in {"default", "spatial"}:
+            raise ValueError(
+                f"Invalid consolidation_type: '{consolidation_type}'. "
+                "Choose 'default' or 'spatial'."
+            )
+
+        logger.info(
+            f"Starting consolidation for {self.array_uri} (type: {consolidation_type})"
+        )
+        try:
+            if consolidation_type == "default":
+                cons_plan = self._generate_default_consolidation_plan()
+            else:
+                cons_plan = SpatialConsolidationPlanner.compute(
+                    self.array_uri, self.ctx
+                )
+
+            self._execute_consolidation(cons_plan, parallel_engine)
+
+            for mode in ("array_meta", "fragment_meta", "commits"):
+                logger.info(f"Consolidating {mode}...")
+                self._consolidate_and_vacuum(mode)
+
+            logger.info(f"Consolidation complete for {self.array_uri}")
+        except tiledb.TileDBError as e:
+            logger.error(f"Consolidation error: {e}")
+            raise
+
+    def _generate_default_consolidation_plan(self):
+        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array:
+            fragment_size = self.config["tiledb"]["consolidation_settings"].get(
+                "fragment_size", 100_000_000
+            )
+            return tiledb.ConsolidationPlan(self.ctx, array, fragment_size)
+
+    def _execute_consolidation(
+        self, cons_plan, parallel_engine: Optional[object] = None
+    ):
+        if not cons_plan:
+            logger.warning("No consolidation plan generated. Skipping.")
+            return
+
+        if isinstance(parallel_engine, concurrent.futures.Executor):
+            futures = [
+                parallel_engine.submit(
+                    tiledb.consolidate,
+                    self.array_uri,
+                    ctx=self.ctx,
+                    config=self.tiledb_config,
+                    fragment_uris=plan_["fragment_uris"],
+                )
+                for plan_ in cons_plan
+            ]
+            concurrent.futures.wait(futures)
+        elif isinstance(parallel_engine, Client):
+            futures = [
+                parallel_engine.submit(
+                    tiledb.consolidate,
+                    self.array_uri,
+                    ctx=self.ctx,
+                    config=self.tiledb_config,
+                    fragment_uris=plan_["fragment_uris"],
+                )
+                for plan_ in cons_plan
+            ]
+            parallel_engine.gather(futures)
+        else:
+            for plan_ in cons_plan:
+                tiledb.consolidate(
+                    self.array_uri,
+                    ctx=self.ctx,
+                    config=self.tiledb_config,
+                    fragment_uris=plan_["fragment_uris"],
+                )
+
+        self._vacuum("fragments")
+
+    def _consolidate_and_vacuum(self, mode: str) -> None:
+        self.tiledb_config["sm.consolidation.mode"] = mode
+        self.tiledb_config["sm.vacuum.mode"] = mode
+        tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
+        tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
+
+    def _vacuum(self, mode: str) -> None:
+        self.tiledb_config["sm.vacuum.mode"] = mode
+        tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
+
+    # ---------------------------------------------------------------------- #
+    # Static helpers
+    # ---------------------------------------------------------------------- #
 
     @staticmethod
-    def _load_variables_config(config):
-        """
-        Load and parse the configuration file and consolidate variables from all product levels.
-
-        Returns:
-        --------
-        dict:
-            The dictionary representation of all variables configuration across products.
-        """
-        # Consolidate all variables from different levels
+    def _load_variables_config(config: dict) -> dict:
         variables_config = {}
-        for level in ["level_2a", "level_2b", "level_4a", "level_4c"]:
-            level_vars = config.get(level, {}).get("variables", {})
-            for var_name, var_info in level_vars.items():
+        for level in ("level_2a", "level_2b", "level_4a", "level_4c"):
+            for var_name, var_info in (
+                config.get(level, {}).get("variables", {}).items()
+            ):
                 variables_config[var_name] = var_info
-
         return variables_config
-
-    def _get_tiledb_spatial_domain(self):
-        """
-        Retrieve the spatial domain (bounding box) from the configuration file.
-
-        Returns:
-        -------
-        Tuple[float, float, float, float]
-            (min_longitude, max_longitude, min_latitude, max_latitude)
-        """
-
-        spatial_config = self.config["tiledb"]["spatial_range"]
-        min_lat, max_lat = spatial_config["lat_min"], spatial_config["lat_max"]
-        min_lon, max_lon = spatial_config["lon_min"], spatial_config["lon_max"]
-
-        return min_lon, max_lon, min_lat, max_lat

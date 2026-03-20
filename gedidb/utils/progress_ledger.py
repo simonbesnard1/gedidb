@@ -38,6 +38,8 @@ class ProgressLedger:
         self.html_path = os.path.join(self.out_dir, "report.html")
         self._rows: List[Row] = []
         self._submits: Dict[str, float] = {}
+        self._ok = 0
+        self._fail = 0
         if not os.path.exists(self.csv_path):
             with open(self.csv_path, "w", newline="") as f:
                 w = csv.writer(f)
@@ -62,6 +64,10 @@ class ProgressLedger:
 
     def append(self, r: Row):
         self._rows.append(r)
+        if r.status == "ok":
+            self._ok += 1
+        else:
+            self._fail += 1
         with open(self.csv_path, "a", newline="") as f:
             w = csv.writer(f)
             w.writerow(
@@ -159,11 +165,11 @@ th,td{{border:1px solid #ddd;padding:6px 8px;font-size:14px;}}
 
     @property
     def ok_count(self):
-        return sum(r.status == "ok" for r in self._rows)
+        return self._ok
 
     @property
     def fail_count(self):
-        return sum(r.status == "fail" for r in self._rows)
+        return self._fail
 
     @property
     def total(self):  # unknown at start; we infer from assigned submits + rows

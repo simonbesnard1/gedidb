@@ -12,7 +12,7 @@ import numpy as np
 
 from gedidb.beam.Beam import beam_handler
 from gedidb.granule.Granule import granule_handler
-#from gedidb.utils.profiles import GEDIVerticalProfiler
+from gedidb.utils.profiles import GEDIVerticalProfiler
 
 
 class L2BBeam(beam_handler):
@@ -83,41 +83,41 @@ class L2BBeam(beam_handler):
             key: value[self._filtered_index] for key, value in data.items()
         }
 
-        # # -----------------------------------------
-        # # 2. Compute CP metrics only if requested
-        # # -----------------------------------------
-        # if any(k in self.field_mapper for k in cp_keys):
-        #     prof = GEDIVerticalProfiler()
+        # -----------------------------------------
+        # 2. Compute CP metrics only if requested
+        # -----------------------------------------
+        if any(k in self.field_mapper for k in cp_keys):
+            prof = GEDIVerticalProfiler()
 
-        #     # Read full pgap + height arrays (unfiltered)
-        #     pgap_all, height_all = prof.read_pgap_theta_z(self)
+            # Read full pgap + height arrays (unfiltered)
+            pgap_all, height_all = prof.read_pgap_theta_z(self)
 
-        #     # Slice to filtered shots
-        #     pgap = pgap_all[self._filtered_index]
-        #     height = height_all[self._filtered_index]
+            # Slice to filtered shots
+            pgap = pgap_all[self._filtered_index]
+            height = height_all[self._filtered_index]
 
-        #     # Elevation, rossg, omega also need slicing
-        #     elev_all = np.asarray(
-        #         self["geolocation/local_beam_elevation"][()], dtype=np.float32
-        #     )
-        #     rossg_all = np.asarray(self["rossg"][()], dtype=np.float32)
-        #     omega_all = np.asarray(self["omega"][()], dtype=np.float32)
+            # Elevation, rossg, omega also need slicing
+            elev_all = np.asarray(
+                self["geolocation/local_beam_elevation"][()], dtype=np.float32
+            )
+            rossg_all = np.asarray(self["rossg"][()], dtype=np.float32)
+            omega_all = np.asarray(self["omega"][()], dtype=np.float32)
 
-        #     elev = elev_all[self._filtered_index]
-        #     rossg = rossg_all[self._filtered_index]
-        #     omega = omega_all[self._filtered_index]
+            elev = elev_all[self._filtered_index]
+            rossg = rossg_all[self._filtered_index]
+            omega = omega_all[self._filtered_index]
 
-        #     # -----------------------------------------
-        #     # 3. Compute profiles only for filtered shots
-        #     # -----------------------------------------
-        #     pavd_rh, height_ag, _ = prof.compute_profiles(
-        #         pgap, height, elev, rossg, omega
-        #     )
+            # -----------------------------------------
+            # 3. Compute profiles only for filtered shots
+            # -----------------------------------------
+            pavd_rh, height_ag, _ = prof.compute_profiles(
+                pgap, height, elev, rossg, omega
+            )
 
-        #     # Add outputs to filtered_data
-        #     if "cp_pavd" in self.field_mapper:
-        #         filtered_data["cp_pavd"] = pavd_rh
-        #     if "cp_height" in self.field_mapper:
-        #         filtered_data["cp_height"] = height_ag
+            # Add outputs to filtered_data
+            if "cp_pavd" in self.field_mapper:
+                filtered_data["cp_pavd"] = pavd_rh
+            if "cp_height" in self.field_mapper:
+                filtered_data["cp_height"] = height_ag
 
         return filtered_data if filtered_data else None

@@ -130,6 +130,7 @@ class CMRDataDownloader(GEDIDownloader):
 
         # 1) Query per product and stage everything (include size for post-intersection sum)
         for product in GediProduct:
+
             try:
                 granule_query = GranuleQuery(
                     product,

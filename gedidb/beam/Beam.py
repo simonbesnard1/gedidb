@@ -69,6 +69,67 @@ class beam_handler(h5py.Group):
                 continue  # Skip filters that are missing in the granule
         return mask
 
+    @staticmethod
+    def _clean_profile_array(arr, lo=None, hi=None):
+        arr = np.asarray(arr, dtype=np.float64)
+
+        # kill extreme junk
+        arr[np.abs(arr) > 1e6] = np.nan
+
+        # enforce valid numeric ranges if known
+        if lo is not None:
+            arr[arr < lo] = np.nan
+        if hi is not None:
+            arr[arr > hi] = np.nan
+
+        # replace infs
+        arr[~np.isfinite(arr)] = np.nan
+
+        return arr.astype(np.float32, copy=False)
+
+    @staticmethod
+    def _sanitize_sds(arr, config_entry, sds_obj):
+        """
+        Sanitize based ONLY on SDS metadata:
+          - Keep strings untouched
+          - For numeric types:
+              * replace fill_value/missing_value with NaN
+              * enforce valid_range from HDF5 metadata
+        """
+
+        # Always convert to numpy array first
+        arr = np.asarray(arr)
+
+        # ------------------------------------------------------------------
+        # 1. STRING VARIABLES — do nothing except cast to declared dtype
+        # ------------------------------------------------------------------
+        declared_dtype = np.dtype(config_entry.get("dtype", "float32"))
+        if declared_dtype.kind in {"U", "S", "O"}:
+            return arr.astype(declared_dtype, copy=False)
+
+        # ------------------------------------------------------------------
+        # 2. NUMERIC SDS — based *only* on HDF5 metadata
+        # ------------------------------------------------------------------
+        # Work in float64 for safe NaN handling
+        arr = arr.astype("float64", copy=False)
+
+        # ---- Handle fill_value / missing_value ----
+        mv = sds_obj.attrs.get("_FillValue")
+        if mv is None:
+            mv = sds_obj.attrs.get("missing_value")
+
+        if mv is not None:
+            arr = np.where(arr == mv, np.nan, arr)
+
+        # ---- Handle valid_range (strict) ----
+        vr = sds_obj.attrs.get("valid_range")
+        if vr is not None and len(vr) == 2:
+            lo, hi = float(vr[0]), float(vr[1])
+            mask_bad = (arr < lo) | (arr > hi)
+            arr = np.where(mask_bad, np.nan, arr)
+
+        return arr
+
     @property
     def n_shots(self) -> int:
         """
