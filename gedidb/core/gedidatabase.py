@@ -21,7 +21,7 @@ from gedidb.utils.geo_processing import (
     convert_to_days_since_epoch,
 )
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
-from gedidb.utils.filters import TileDBFilterPolicy
+#from gedidb.utils.filters import TileDBFilterPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ class GEDIDatabase:
         # ------------------------------------------------------------------ #
         # Performance flags (opt-in, default to fast/simple)
         # ------------------------------------------------------------------ #
-        self.filter_policy = TileDBFilterPolicy(cfg_td)
+        #self.filter_policy = TileDBFilterPolicy(cfg_td)
         self._schema_cache: Optional[dict] = None
 
         # ------------------------------------------------------------------ #
@@ -225,8 +225,8 @@ class GEDIDatabase:
             raise ValueError("time_min must be less than time_max.")
 
         # Filters — only applied when explicitly enabled
-        spatial_filters = self.filter_policy.spatial_dim_filters()
-        time_filters = self.filter_policy.time_dim_filters()
+        #spatial_filters = self.filter_policy.spatial_dim_filters()
+        #time_filters = self.filter_policy.time_dim_filters()
 
         def _dim(name, domain, tile_key, tile_default, dtype, filters):
             kwargs = dict(
@@ -246,7 +246,8 @@ class GEDIDatabase:
                 "latitude_tile",
                 1,
                 np.float64,
-                spatial_filters,
+                None
+                #spatial_filters,
             ),
             _dim(
                 "longitude",
@@ -254,10 +255,11 @@ class GEDIDatabase:
                 "longitude_tile",
                 1,
                 np.float64,
-                spatial_filters,
+                None
+                #spatial_filters,
             ),
             _dim(
-                "time", (time_min, time_max), "time_tile", 1825, np.int64, time_filters
+                "time", (time_min, time_max), "time_tile", 1825, np.int64, None#time_filters
             ),
         )
 
@@ -279,7 +281,7 @@ class GEDIDatabase:
             return tiledb.Attr(
                 name=name,
                 dtype=dtype,
-                filters=self.filter_policy.filters_for_dtype(dtype),
+                #filters=self.filter_policy.filters_for_dtype(dtype),
             )
 
         # Scalar variables
@@ -302,7 +304,7 @@ class GEDIDatabase:
             tiledb.Attr(
                 name="timestamp_ns",
                 dtype=np.int64,
-                filters=self.filter_policy.timestamp_filters(),
+                #filters=self.filter_policy.timestamp_filters(),
             )
         )
 
