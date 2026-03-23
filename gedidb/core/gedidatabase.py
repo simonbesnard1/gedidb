@@ -190,6 +190,7 @@ class GEDIDatabase:
                 domain=self._create_domain(),
                 attrs=self._create_attributes(),
                 sparse=True,
+                allows_duplicates=True,
                 capacity=cfg_td.get("capacity", 200_000),
                 cell_order=cfg_td.get("cell_order", "hilbert"),
             )
