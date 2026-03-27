@@ -157,17 +157,26 @@ class GEDIGranule:
             # Merge directly on shot_number — avoids repeated set_index/reset_index
             # on a growing DataFrame (3 index round-trips in the old loop).
             df = df_dict[GediProduct.L2A.value]
+            duplicate_cols: list[str] = []
             for product in required_products[1:]:
+                suffix = f"_{product.value}"
+                before = set(df.columns)
                 df = df.merge(
                     df_dict[product.value],
                     on="shot_number",
                     how="inner",
-                    suffixes=("", f"_{product.value}"),
+                    suffixes=("", suffix),
+                )
+                # Track exact duplicate columns introduced by this merge
+                duplicate_cols.extend(
+                    col
+                    for col in df.columns
+                    if col not in before and col.endswith(suffix)
                 )
 
-            # Drop duplicate columns introduced by suffixes
-            suffixes = tuple(f"_{p.value}" for p in required_products[1:])
-            df = df.loc[:, ~df.columns.str.endswith(suffixes)]
+            # Drop only the exact duplicate columns produced by the merges
+            if duplicate_cols:
+                df = df.drop(columns=duplicate_cols)
 
             return df if not df.empty else None
         except Exception as e:

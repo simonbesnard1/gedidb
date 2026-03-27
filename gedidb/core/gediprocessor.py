@@ -35,7 +35,7 @@ logging.basicConfig(
 )
 logging.getLogger("distributed").setLevel(logging.WARNING)
 logging.getLogger("tornado").setLevel(logging.WARNING)
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class GEDIProcessor:
@@ -132,7 +132,7 @@ class GEDIProcessor:
             os.makedirs(log_dir, exist_ok=True)
             log_file = os.path.join(
                 log_dir,
-                f"icesat2processor_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
+                f"gediprocessor_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log",
             )
 
             # Create a FileHandler and set its level and format
@@ -492,8 +492,10 @@ class GEDIProcessor:
                                     _flush_buffers(buffers, processed_ids, timeframe)
                                     buffers.clear()
                                     processed_ids.clear()
-                                except Exception:
-                                    pass  # already logged in _flush_buffers
+                                except Exception as flush_exc:
+                                    logger.error(
+                                        f"Periodic flush failed (will retry at next flush): {flush_exc}"
+                                    )
                             if counter % self.report_every == 0:
                                 ledger.write_status_md()
                                 ledger.write_html()
@@ -502,9 +504,10 @@ class GEDIProcessor:
                     if buffers:
                         try:
                             _flush_buffers(buffers, processed_ids, timeframe)
-                        except Exception:
-                            # already logged; keep ledger finalization
-                            pass
+                        except Exception as flush_exc:
+                            logger.error(
+                                f"Final flush failed for timeframe {timeframe}: {flush_exc}"
+                            )
 
                     ledger.write_status_md()
                     ledger.write_html()
@@ -580,8 +583,10 @@ class GEDIProcessor:
                                 _flush_buffers(buffers, processed_ids, timeframe)
                                 buffers.clear()
                                 processed_ids.clear()
-                            except Exception:
-                                pass  # already logged in _flush_buffers
+                            except Exception as flush_exc:
+                                logger.error(
+                                    f"Periodic flush failed (will retry at next flush): {flush_exc}"
+                                )
                         if counter % self.report_every == 0:
                             ledger.write_status_md()
                             ledger.write_html()
@@ -589,8 +594,10 @@ class GEDIProcessor:
                 if buffers:
                     try:
                         _flush_buffers(buffers, processed_ids, timeframe)
-                    except Exception:
-                        pass
+                    except Exception as flush_exc:
+                        logger.error(
+                            f"Final flush failed for timeframe {timeframe}: {flush_exc}"
+                        )
 
                 ledger.write_status_md()
                 ledger.write_html()

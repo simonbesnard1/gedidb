@@ -148,7 +148,7 @@ class GEDIDatabase:
                 "vfs.s3.multipart_part_size": s3.get("multipart_part_size", "52428800"),
                 "vfs.s3.multipart_threshold": "52428800",
                 "vfs.s3.max_parallel_ops": "8",
-                "vfs.s3.region": "eu-central-1",
+                "vfs.s3.region": s3.get("region", "eu-central-1"),
                 "vfs.s3.scheme": "https",
                 "vfs.s3.backoff_scale": s3.get("backoff_scale", "2.0"),
                 "vfs.s3.backoff_max_ms": s3.get("backoff_max_ms", "120000"),

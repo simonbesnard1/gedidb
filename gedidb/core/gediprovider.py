@@ -8,7 +8,7 @@
 import logging
 from collections import defaultdict
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import geopandas as gpd
 import numpy as np
@@ -23,6 +23,7 @@ from gedidb.utils.geo_processing import (
     check_and_format_shape,
 )
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -184,7 +185,7 @@ class GEDIProvider(TileDBProvider):
         geometry: Optional[gpd.GeoDataFrame] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
-        use_polygon_filter: bool = "auto",
+        use_polygon_filter: Union[bool, Literal["auto"]] = "auto",
         **quality_filters,
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
         """
@@ -279,7 +280,7 @@ class GEDIProvider(TileDBProvider):
         point: Optional[Tuple[float, float]] = None,
         num_shots: Optional[int] = None,
         radius: Optional[float] = None,
-        use_polygon_filter: bool = "auto",
+        use_polygon_filter: Union[bool, Literal["auto"]] = "auto",
         **quality_filters,
     ) -> Union[pd.DataFrame, xr.Dataset, None]:
         """
@@ -525,9 +526,7 @@ class GEDIProvider(TileDBProvider):
                 profile_data,
                 coords={
                     "shot_number": scalar_data["shot_number"],
-                    "profile_points": np.arange(
-                        num_profile_points, dtype="int16" or "int32"
-                    ),
+                    "profile_points": np.arange(num_profile_points, dtype="int16"),
                 },
                 dims=["shot_number", "profile_points"],
             )

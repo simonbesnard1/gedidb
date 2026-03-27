@@ -7,7 +7,6 @@
 
 import logging
 import os
-from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -140,7 +139,6 @@ class TileDBProvider:
             }
         )
 
-    @lru_cache(maxsize=1)
     def get_available_variables(self) -> pd.DataFrame:
         """
         Retrieve metadata for available variables in the scalar TileDB array.

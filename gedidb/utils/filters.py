@@ -84,7 +84,7 @@ class TileDBFilterPolicy:
         lvl = int(self.cfg.get(level_key, 1 if not self.use_filters else full_default))
         return tiledb.FilterList([tiledb.ZstdFilter(level=lvl)])
 
-    def spatial_dim_filters(self, scale_factor: float = 1e-6) -> tiledb.FilterList:
+    def spatial_dim_filters(self) -> tiledb.FilterList:
         """
         Filters for latitude / longitude dimensions.
 
