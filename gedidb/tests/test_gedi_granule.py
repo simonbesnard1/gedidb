@@ -53,10 +53,10 @@ def test_join_dfs_happy_path_ordering():
     assert list(out["shot_number"]) == ["1", "2"]
 
     # Non-overlapping columns from all products are present
-    assert "h_can" in out.columns   # from L2A
-    assert "qa" in out.columns      # from L2A
-    assert "snr" in out.columns     # from L2B (not in L2A)
-    assert "lai" in out.columns     # unique to L4A
+    assert "h_can" in out.columns  # from L2A
+    assert "qa" in out.columns  # from L2A
+    assert "snr" in out.columns  # from L2B (not in L2A)
+    assert "lai" in out.columns  # unique to L4A
     assert "biomass" in out.columns  # unique to L4C
 
     # Suffixed duplicate columns are dropped (overlap resolution keeps L2A version)
@@ -67,8 +67,8 @@ def test_join_dfs_happy_path_ordering():
     # Value checks — L2A values win for overlapping columns
     r0 = out.iloc[0].to_dict()
     assert r0["h_can"] == 10.0  # L2A value kept
-    assert r0["qa"] == 1        # L2A value kept
-    assert r0["snr"] == 5.0     # L2B (only source)
+    assert r0["qa"] == 1  # L2A value kept
+    assert r0["snr"] == 5.0  # L2B (only source)
 
     # Column ordering: [shot_number] + L2A columns first
     l2a_cols = [c for c in l2a.columns if c != "shot_number"]
