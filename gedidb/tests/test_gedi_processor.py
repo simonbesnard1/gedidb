@@ -98,6 +98,9 @@ class FakeDatabase:
     def mark_granule_as_processed(self, gid):
         self.marked.append(gid)
 
+    def mark_granules_as_processed_batch(self, gids):
+        self.marked.extend(gids)
+
     def consolidate_fragments(self, consolidation_type="spatial", parallel_engine=None):
         self.consolidations.append(consolidation_type)
 
@@ -535,10 +538,10 @@ def test_process_single_granule_calls_download_and_process(monkeypatch, tmp_path
 
     data_info = {"data_dir": str(tmp_path)}
     product_info = [
-        ("https://u/1", "level2A", None),
-        ("https://u/2", "level2B", None),
-        ("https://u/3", "level4A", None),
-        ("https://u/4", "level4C", None),
+        ("https://u/1", "level2A", None, 0.0),
+        ("https://u/2", "level2B", None, 0.0),
+        ("https://u/3", "level4A", None, 0.0),
+        ("https://u/4", "level4C", None, 0.0),
     ]
     gid, df, _ = GEDIProcessor.process_single_granule(
         "GZ", product_info, data_info, str(tmp_path / "dl")

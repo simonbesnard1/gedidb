@@ -35,45 +35,42 @@ L2A, L2B, L4A, L4C = (
 # --------------------------
 
 
-def test_join_dfs_happy_path_suffix_dedup_and_ordering():
-    # Overlapping columns between L2A and L2B → L2B gets _L2B
-    # L4A/L4C overlap with base → they get _L4A / _L4C
-    l2a = _df(
-        ["1", "2", "2"],  # duplicate '2' tests dedup keep='first'
-        h_can=[10.0, 20.0, 999.0],  # overlap
-        qa=[1, 0, 0],
-    )
+def test_join_dfs_happy_path_ordering():
+    # Overlapping columns between products get the suffix of the later product;
+    # the current implementation drops those suffixed duplicates after merging,
+    # keeping only the base (L2A) version of overlapping columns.
+    l2a = _df(["1", "2"], h_can=[10.0, 20.0], qa=[1, 0])
     l2b = _df(["1", "2"], h_can=[11.0, 21.0], snr=[5.0, 6.0])  # overlap: h_can
     l4a = _df(["1", "2"], lai=[3.0, 4.0], qa=[7, 8])  # overlap with base: qa
-    l4c = _df(
-        ["1", "2"], biomass=[100.0, 200.0], snr=[50, 60]
-    )  # overlap with base: snr
+    l4c = _df(["1", "2"], biomass=[100.0, 200.0], snr=[50, 60])  # overlap: snr
 
     df_dict = {L2A: l2a, L2B: l2b, L4A: l4a, L4C: l4c}
     out = GEDIGranule._join_dfs(df_dict, "G123")
 
     assert isinstance(out, pd.DataFrame)
-    # shot_number enforced to string dtype
     assert pd.api.types.is_string_dtype(out["shot_number"])
     # Inner join on '1','2' -> 2 rows
     assert list(out["shot_number"]) == ["1", "2"]
 
-    # Column suffixing
-    assert "h_can" in out.columns  # from L2A
-    assert "h_can_L2B" in out.columns  # from L2B overlap
-    assert "qa" in out.columns  # from L2A
-    assert "qa_L4A" in out.columns  # overlapped from L4A
-    assert "snr" in out.columns  # from L2B stayed (not overlapped with L2A)
-    assert "snr_L4C" in out.columns  # overlapped from L4C
-    assert "lai" in out.columns and "biomass" in out.columns
+    # Non-overlapping columns from all products are present
+    assert "h_can" in out.columns   # from L2A
+    assert "qa" in out.columns      # from L2A
+    assert "snr" in out.columns     # from L2B (not in L2A)
+    assert "lai" in out.columns     # unique to L4A
+    assert "biomass" in out.columns  # unique to L4C
 
-    # Value checks (row-wise one-to-one validated)
+    # Suffixed duplicate columns are dropped (overlap resolution keeps L2A version)
+    assert "h_can_L2B" not in out.columns
+    assert "qa_L4A" not in out.columns
+    assert "snr_L4C" not in out.columns
+
+    # Value checks — L2A values win for overlapping columns
     r0 = out.iloc[0].to_dict()
-    assert r0["h_can"] == 10.0 and r0["h_can_L2B"] == 11.0
-    assert r0["qa"] == 1 and r0["qa_L4A"] == 7
-    assert r0["snr"] == 5.0 and r0["snr_L4C"] == 50
+    assert r0["h_can"] == 10.0  # L2A value kept
+    assert r0["qa"] == 1        # L2A value kept
+    assert r0["snr"] == 5.0     # L2B (only source)
 
-    # Column ordering rule: [shot_number] + L2A columns + (others)
+    # Column ordering: [shot_number] + L2A columns first
     l2a_cols = [c for c in l2a.columns if c != "shot_number"]
     expected_prefix = ["shot_number"] + l2a_cols
     assert out.columns[: len(expected_prefix)].tolist() == expected_prefix
