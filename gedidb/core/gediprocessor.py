@@ -399,17 +399,19 @@ class GEDIProcessor:
 
         def _flush_buffers(buffers, processed_ids, timeframe):
             """
-            Concatenate all buffered DataFrames and write in a single TileDB
-            open/close cycle, then mark all granules processed in one more.
+            Concatenate buffered DataFrames, split into spatial tiles, and write
+            one TileDB fragment per tile so consolidation preserves tile boundaries.
+            Granules are marked processed only after all tiles succeed.
             """
             if not buffers:
                 return
 
             try:
                 combined = pd.concat(buffers, ignore_index=True)
-                self.database_writer.write_granule(combined)
+                for _, tile_df in self.database_writer.spatial_chunking(combined):
+                    self.database_writer.write_granule(tile_df)
 
-                # mark processed only after write succeeds
+                # mark processed only after all tiles succeed
                 if processed_ids:
                     self.database_writer.mark_granules_as_processed_batch(processed_ids)
 
