@@ -178,15 +178,15 @@ def _temporal_tiling(
     unprocessed_cmr_data: dict, time_granularity: str = "weekly"
 ) -> dict:
     """
-    Separate the granules into temporal tiles by either daily or weekly.
+    Separate the granules into temporal tiles by daily, weekly, or annual batches.
 
     Parameters:
     ----------
     unprocessed_cmr_data : dict
         Dictionary of unprocessed granules from the CMR API.
     time_granularity : str
-        A string that defines the granularity of temporal tiling. Can be 'daily' or 'weekly'.
-        Default is 'weekly'.
+        A string that defines the granularity of temporal tiling. Can be 'daily',
+        'weekly', or 'annual'. Default is 'weekly'.
 
     Returns:
     --------
@@ -220,5 +220,11 @@ def _temporal_tiling(
                 day_start = get_day_start(start_date)
                 day_key = day_start.date().isoformat()
                 grouped_data[day_key][granule_id].append((url, product, date_str, size))
+
+            elif time_granularity == "annual":
+                year_key = str(start_date.year)
+                grouped_data[year_key][granule_id].append(
+                    (url, product, date_str, size)
+                )
 
     return grouped_data

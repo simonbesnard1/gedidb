@@ -360,7 +360,7 @@ class GEDIProcessor:
         fragment-friendly way: accumulate per spatial window and write once per window.
         """
         temporal_batching = self.data_info["tiledb"].get("temporal_batching", None)
-        if temporal_batching in ("daily", "weekly"):
+        if temporal_batching in ("daily", "weekly", "annual"):
             batches = _temporal_tiling(unprocessed_cmr_data, temporal_batching)
         elif temporal_batching is None:
             batches = {"all": unprocessed_cmr_data}
