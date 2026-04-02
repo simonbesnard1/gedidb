@@ -6,6 +6,8 @@
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
 #
 
+import ctypes
+import gc
 import logging
 import os
 import traceback
@@ -36,6 +38,18 @@ logging.basicConfig(
 logging.getLogger("distributed").setLevel(logging.WARNING)
 logging.getLogger("tornado").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+
+def _release_memory() -> None:
+    """
+    Force Python GC and ask the C allocator to return freed pages to the OS.
+    The malloc_trim call is Linux-only; on other platforms it is silently skipped.
+    """
+    gc.collect()
+    try:
+        ctypes.cdll.LoadLibrary("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
 
 
 class GEDIProcessor:
@@ -447,7 +461,9 @@ class GEDIProcessor:
                     counter = 0
 
                     for fut in as_completed(future_map):
-                        gid = future_map[fut]
+                        # Pop immediately so the future (and its result) can be
+                        # GC'd once we're done with its data below.
+                        gid = future_map.pop(fut)
                         started_ts = time.time()
                         try:
                             ids_, gdf, metrics = fut.result()
@@ -494,6 +510,7 @@ class GEDIProcessor:
                                     _flush_buffers(buffers, processed_ids, timeframe)
                                     buffers.clear()
                                     processed_ids.clear()
+                                    _release_memory()
                                 except Exception as flush_exc:
                                     logger.error(
                                         f"Periodic flush failed (will retry at next flush): {flush_exc}"
@@ -513,6 +530,9 @@ class GEDIProcessor:
 
                     ledger.write_status_md()
                     ledger.write_html()
+                    # Return pages from this year's allocation back to the OS
+                    # before starting the next temporal batch.
+                    _release_memory()
             return
 
         # ---- Dask path ----
@@ -585,6 +605,7 @@ class GEDIProcessor:
                                 _flush_buffers(buffers, processed_ids, timeframe)
                                 buffers.clear()
                                 processed_ids.clear()
+                                _release_memory()
                             except Exception as flush_exc:
                                 logger.error(
                                     f"Periodic flush failed (will retry at next flush): {flush_exc}"
@@ -603,6 +624,7 @@ class GEDIProcessor:
 
                 ledger.write_status_md()
                 ledger.write_html()
+                _release_memory()
             return
 
         raise ValueError("Unsupported parallel engine.")
