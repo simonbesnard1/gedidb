@@ -7,12 +7,13 @@
 
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely import contains_xy
+from shapely.geometry.base import BaseGeometry
 import tiledb
 
 from gedidb.utils.geo_processing import (
@@ -22,6 +23,11 @@ from gedidb.utils.geo_processing import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_DIMS = ["shot_number"]
+
+# Pre-sorted once: longest operators first so "==" is checked before "="
+_SORTED_OPS: Tuple[str, ...] = tuple(
+    sorted({">=", "<=", "==", "!=", ">", "<", "="}, key=len, reverse=True)
+)
 
 
 class TileDBProvider:
@@ -74,6 +80,8 @@ class TileDBProvider:
         self._schema_cache = None
         self._metadata_cache = None
         self._array_handle = None
+        # Cached profile lengths: populated on first query, never changes after array creation
+        self._profile_lengths: Optional[Dict[str, int]] = None
 
     def _initialize_s3_context(
         self, credentials: Optional[dict], url: str, region: str
@@ -128,14 +136,16 @@ class TileDBProvider:
         return tiledb.Ctx(base_config)
 
     def _initialize_local_context(self) -> tiledb.Ctx:
+        cores = os.cpu_count() or 8
+        threads = str(min(cores * 4, 64))
         return tiledb.Ctx(
             {
                 "py.init_buffer_bytes": str(4 * 1024**3),  # 4GB
                 "sm.tile_cache_size": str(4 * 1024**3),  # 4GB
-                "sm.num_reader_threads": "32",
-                "sm.num_tiledb_threads": "32",
-                "sm.compute_concurrency_level": "32",
-                "sm.io_concurrency_level": "32",
+                "sm.num_reader_threads": threads,
+                "sm.num_tiledb_threads": threads,
+                "sm.compute_concurrency_level": threads,
+                "sm.io_concurrency_level": threads,
             }
         )
 
@@ -175,20 +185,22 @@ class TileDBProvider:
             raise
 
     def _build_profile_attrs(
-        self, variables: List[str], array_meta
+        self, variables: List[str]
     ) -> Tuple[List[str], Dict[str, List[str]]]:
         """
-        Build attribute list and profile variable mapping efficiently.
+        Build attribute list and profile variable mapping from cached profile lengths.
+
+        Profile lengths are immutable after array creation, so they are read from
+        array metadata once and cached in ``self._profile_lengths`` for all subsequent
+        queries.
         """
         attr_list = []
         profile_vars = {}
 
         for var in variables:
-            profile_key = f"{var}.profile_length"
-            if profile_key in array_meta:
-                profile_length = array_meta[profile_key]
-                # Pre-allocate list with list comprehension (faster than append)
-                profile_attrs = [f"{var}_{i}" for i in range(1, profile_length + 1)]
+            length = self._profile_lengths.get(var) if self._profile_lengths else None
+            if length is not None:
+                profile_attrs = [f"{var}_{i}" for i in range(1, length + 1)]
                 attr_list.extend(profile_attrs)
                 profile_vars[var] = profile_attrs
             else:
@@ -203,8 +215,6 @@ class TileDBProvider:
         if not filters:
             return None
 
-        # Pre-compile valid operators for faster lookup
-        valid_ops = {">=", "<=", "==", "!=", ">", "<", "="}
         cond_list = []
 
         for key, condition in filters.items():
@@ -215,10 +225,7 @@ class TileDBProvider:
                 parts = condition.lower().split(" and ")
                 for part in parts:
                     part = part.strip()
-                    # Find operator and build condition
-                    for op in sorted(
-                        valid_ops, key=len, reverse=True
-                    ):  # Check longest first
+                    for op in _SORTED_OPS:
                         if op in part:
                             value = part.split(op, 1)[1].strip()
                             cond_list.append(f"{key} {op} {value}")
@@ -226,7 +233,7 @@ class TileDBProvider:
             else:
                 # Simple condition
                 found_op = False
-                for op in sorted(valid_ops, key=len, reverse=True):
+                for op in _SORTED_OPS:
                     if op in condition:
                         cond_list.append(f"{key} {condition}")
                         found_op = True
@@ -242,7 +249,7 @@ class TileDBProvider:
     def _filter_by_polygon(
         self,
         data: Dict[str, np.ndarray],
-        geometry: gpd.GeoDataFrame,
+        geom_union: BaseGeometry,
     ) -> Dict[str, np.ndarray]:
         """
         Filter query results by irregular polygon using vectorized operations.
@@ -251,8 +258,8 @@ class TileDBProvider:
         ----------
         data : Dict[str, np.ndarray]
             Query results from TileDB
-        geometry : gpd.GeoDataFrame
-            Polygon(s) to filter by
+        geom_union : BaseGeometry
+            Pre-resolved shapely geometry (unary union already computed by caller).
 
         Returns
         -------
@@ -262,15 +269,11 @@ class TileDBProvider:
         if data is None or len(data.get("shot_number", [])) == 0:
             return data
 
-        # Get lon/lat from data
         lons = data["longitude"]
         lats = data["latitude"]
 
-        # Get the geometry (handle MultiPolygon or single Polygon)
-        geom = geometry.unary_union if len(geometry) > 1 else geometry.geometry.iloc[0]
-
         # Vectorized point-in-polygon test (MUCH faster than iterating)
-        mask = contains_xy(geom, lons, lats)
+        mask = contains_xy(geom_union, lons, lats)
 
         # Apply mask to all arrays
         filtered_data = {key: value[mask] for key, value in data.items()}
@@ -295,17 +298,31 @@ class TileDBProvider:
         return_coords: bool = True,
         use_polygon_filter: bool = False,
         quantization_factor: float = 1e6,
+        _geom_union: Optional[Any] = None,
         **filters: Dict[str, str],
     ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
         """
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
+
+        Parameters
+        ----------
+        _geom_union : shapely geometry, optional
+            Pre-computed unary union of ``geometry``. When provided (e.g. already
+            computed by ``query_data`` for the auto-detect area check), it is reused
+            directly and the union is not computed a second time inside
+            ``_filter_by_polygon``.
         """
         try:
             with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
-                # Build attribute list and profile variables (cached metadata)
-                attr_list, profile_vars = self._build_profile_attrs(
-                    variables, array.meta
-                )
+                # Populate profile-length cache on first query (immutable after creation)
+                if self._profile_lengths is None:
+                    self._profile_lengths = {
+                        k[: -len(".profile_length")]: int(v)
+                        for k, v in array.meta.items()
+                        if k.endswith(".profile_length")
+                    }
+
+                attr_list, profile_vars = self._build_profile_attrs(variables)
 
                 # Build condition string
                 cond_string = self._build_condition_string(filters)
@@ -329,9 +346,15 @@ class TileDBProvider:
 
                 # Apply polygon filter if requested
                 if use_polygon_filter and geometry is not None:
-                    data = self._filter_by_polygon(data, geometry)
+                    # Compute union once; reuse pre-computed union when available
+                    if _geom_union is None:
+                        _geom_union = (
+                            geometry.unary_union
+                            if len(geometry) > 1
+                            else geometry.geometry.iloc[0]
+                        )
+                    data = self._filter_by_polygon(data, _geom_union)
 
-                    # Check again after polygon filter
                     if len(data.get("shot_number", [])) == 0:
                         return None, profile_vars
 
@@ -429,5 +452,6 @@ class TileDBProvider:
         """Clean up resources."""
         self._schema_cache = None
         self._metadata_cache = None
+        self._profile_lengths = None
         if self._array_handle is not None:
             self._array_handle = None

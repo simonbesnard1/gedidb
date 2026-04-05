@@ -31,6 +31,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DIMS = ["shot_number"]
 
+# Compiled once — used in _attach_metadata for every variable in every to_xarray call
+_PERCENTILE_RE = re.compile(r"^(.+?)_(\d+)$")
+
+# Dimensions that are stored as coords in the Xarray Dataset, not as data variables
+_COORD_DIMS: frozenset = frozenset(["latitude", "longitude", "time", "shot_number"])
+
 
 class GEDIProvider(TileDBProvider):
     """
@@ -231,21 +237,19 @@ class GEDIProvider(TileDBProvider):
         start_time = _datetime_to_timestamp_days(start_time) if start_time else None
         end_time = _datetime_to_timestamp_days(end_time) if end_time else None
 
-        # Auto-detect polygon filtering need
+        # Auto-detect polygon filtering need.
+        # Compute the union here so it can be reused in _filter_by_polygon without
+        # a second unary_union call on the same geometry.
+        geom_union = None
         if use_polygon_filter == "auto":
-
-            # Check if geometry is complex (not just a rectangle)
-            geom = (
+            geom_union = (
                 geometry.unary_union if len(geometry) > 1 else geometry.geometry.iloc[0]
             )
             bbox_area = (lon_max - lon_min) * (lat_max - lat_min)
-            geom_area = geom.area
-
-            # If geometry fills less than 80% of bbox, use polygon filter
+            geom_area = geom_union.area
             use_polygon_filter = (
                 (geom_area / bbox_area) < 0.9 if bbox_area > 0 else False
             )
-
             if use_polygon_filter:
                 logger.info(
                     f"Auto-enabled polygon filter (geometry covers "
@@ -264,6 +268,7 @@ class GEDIProvider(TileDBProvider):
             end_time,
             geometry=geometry,
             use_polygon_filter=use_polygon_filter,
+            _geom_union=geom_union,
             **quality_filters,
         )
 
@@ -488,19 +493,13 @@ class GEDIProvider(TileDBProvider):
 
         time_coord = _timestamp_to_datetime(scalar_data["time"])
 
-        # Extract profile variable components
-        profile_var_components = [
+        # Build exclusion set once: coord dims + all expanded profile component names
+        exclude = _COORD_DIMS | frozenset(
             item for sublist in profile_vars.values() for item in sublist
-        ]
+        )
 
         # Identify scalar variables
-        scalar_vars = [
-            var
-            for var in scalar_data
-            if var
-            not in ["latitude", "longitude", "time", "shot_number"]
-            + profile_var_components
-        ]
+        scalar_vars = [var for var in scalar_data if var not in exclude]
 
         # Create dataset with data_vars dict (faster than merging)
         data_vars = {}
@@ -592,7 +591,7 @@ class GEDIProvider(TileDBProvider):
             var_metadata = metadata_dict.get(var, default_metadata)
 
             # Check for percentile variants (e.g., rh_95)
-            match = re.match(r"^(.+?)_(\d+)$", var)
+            match = _PERCENTILE_RE.match(var)
             if match:
                 base_var = match.group(1)
                 percentile = match.group(2)
