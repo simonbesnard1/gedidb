@@ -39,8 +39,8 @@ L2A Product Quality Filtering
 The `L2ABeam` class applies several filters to ensure data quality for Level 2A data:
 
 - **`quality_flag`**: Retains data where `quality_flag` is `1`, ensuring high-quality measurements.
-- **`sensitivity_a0`**: Keeps data with `sensitivity_a0` between `0.9` and `1.0`.
-- **`sensitivity_a2`**: Selects data with `sensitivity_a2` between `0.95` and `1.0`.
+- **`sensitivity_a0`**: Keeps data with `sensitivity_a0` between `0.5` and `1.0`.
+- **`sensitivity_a2`**: Selects data with `sensitivity_a2` between `0.7` and `1.0`.
 - **`degrade_flag`**: Excludes data with `degrade_flag` values indicating degraded data quality.
 - **`surface_flag`**: Retains data where `surface_flag` is `1`, indicating reliable surface measurements.
 - **`elevation_difference_tdx`**: Retains data where the difference between `elev_lowestmode` and `digital_elevation_model` is within `-150` to `150` meters.

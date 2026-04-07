@@ -33,7 +33,7 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "cover_z", "Cumulative canopy cover vertical profile", "Percent", "L2B"
    "rh", "Relative height metrics at 1% interval", "Meters", "L2A"
    "wsci", "Waveform Structural Complexity Index", "adimensional", "L4C"
-   "rh100", "Height above ground of the received waveform signal start", "Meters", "L2B"
+   "rh100", "Height above ground of the received waveform signal start", "cm", "L2B"
    "fhd_normal", "Foliage Height Diversity", "adimensional", "L2B"
    "pai", "Total Plant Area Index", "m²/m²", "L2B"
    "pavd_z", "Plant Area Volume Density profile", "m²/m³", "L2B"

@@ -14,7 +14,7 @@ The :py:class:`gedidb.GEDIProcessor` class handles the following tasks:
 - **Initialization**: Sets up paths, configurations, and database connections.
 - **Granule downloading**: Automatically downloads `.h5` granule files for multiple GEDI products (L2A, L2B, L4A, and L4C).
 - **Data processing**: Applies quality filtering, merges products, and prepares data for storage.
-- **Database writing**: Stores processed data in a tileSB array with proper metadata for easy querying.
+- **Database writing**: Stores processed data in a TileDB array with proper metadata for easy querying.
 
 Example usage
 -------------
