@@ -239,11 +239,11 @@ class GEDIProvider(TileDBProvider):
 
         # Auto-detect polygon filtering need.
         # Compute the union here so it can be reused in _filter_by_polygon without
-        # a second unary_union call on the same geometry.
+        # a second union_all call on the same geometry.
         geom_union = None
         if use_polygon_filter == "auto":
             geom_union = (
-                geometry.unary_union if len(geometry) > 1 else geometry.geometry.iloc[0]
+                geometry.union_all() if len(geometry) > 1 else geometry.geometry.iloc[0]
             )
             bbox_area = (lon_max - lon_min) * (lat_max - lat_min)
             geom_area = geom_union.area
@@ -256,7 +256,9 @@ class GEDIProvider(TileDBProvider):
                     f"{100 * geom_area / bbox_area:.1f}% of bounding box)"
                 )
 
-        # Query with optimized filtering
+        # Pass the pre-computed union as geometry so _filter_by_polygon reuses it
+        # directly (no second union_all call). Falls back to the GeoDataFrame when
+        # no pre-computation was needed (use_polygon_filter=False or explicit True).
         scalar_vars = variables + DEFAULT_DIMS
         scalar_data, profile_vars = self._query_array(
             scalar_vars,
@@ -266,9 +268,12 @@ class GEDIProvider(TileDBProvider):
             lon_max,
             start_time,
             end_time,
-            geometry=geometry,
+            geometry=(
+                geom_union
+                if use_polygon_filter and geom_union is not None
+                else geometry
+            ),
             use_polygon_filter=use_polygon_filter,
-            _geom_union=geom_union,
             **quality_filters,
         )
 

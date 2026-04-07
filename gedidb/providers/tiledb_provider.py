@@ -7,13 +7,13 @@
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 from shapely import contains_xy
-from shapely.geometry.base import BaseGeometry
 import tiledb
 
 from gedidb.utils.geo_processing import (
@@ -80,8 +80,6 @@ class TileDBProvider:
         self._schema_cache = None
         self._metadata_cache = None
         self._array_handle = None
-        # Cached profile lengths: populated on first query, never changes after array creation
-        self._profile_lengths: Optional[Dict[str, int]] = None
 
     def _initialize_s3_context(
         self, credentials: Optional[dict], url: str, region: str
@@ -110,7 +108,7 @@ class TileDBProvider:
             "sm.num_reader_threads": str(max_reader_threads),
             "sm.num_tiledb_threads": str(max_reader_threads),
             # Caches
-            "py.init_buffer_bytes": str(2 * 1024**3),  # 1 GiB,
+            "py.init_buffer_bytes": str(2 * 1024**3),  # 1 GiB
             "sm.tile_cache_size": str(8 * 1024**3),  # 8 GB
             # Misc
             "sm.enable_signal_handlers": "false",
@@ -149,6 +147,18 @@ class TileDBProvider:
             }
         )
 
+    def _get_array(self) -> tiledb.Array:
+        """
+        Return a persistently open read handle to the scalar array.
+        Opening a TileDB array on S3 requires multiple metadata round-trips;
+        reusing the same handle across calls eliminates that overhead.
+        """
+        if self._array_handle is None or not self._array_handle.isopen:
+            self._array_handle = tiledb.open(
+                self.scalar_array_uri, mode="r", ctx=self.ctx
+            )
+        return self._array_handle
+
     def get_available_variables(self) -> pd.DataFrame:
         """
         Retrieve metadata for available variables in the scalar TileDB array.
@@ -157,50 +167,45 @@ class TileDBProvider:
             return self._metadata_cache
 
         try:
-            with tiledb.open(
-                self.scalar_array_uri, mode="r", ctx=self.ctx
-            ) as scalar_array:
-                metadata = {
-                    k: scalar_array.meta[k]
-                    for k in scalar_array.meta
-                    if not k.startswith("granule_") and "array_type" not in k
-                }
+            # Reuse the persistent handle — avoids a second S3 open/close.
+            scalar_array = self._get_array()
+            metadata = {
+                k: scalar_array.meta[k]
+                for k in scalar_array.meta
+                if not k.startswith("granule_") and "array_type" not in k
+            }
 
-                from collections import defaultdict
+            organized_metadata = defaultdict(dict)
+            for key, value in metadata.items():
+                if "." in key:
+                    var_name, attr_type = key.split(".", 1)
+                    organized_metadata[var_name][attr_type] = value
 
-                organized_metadata = defaultdict(dict)
-                for key, value in metadata.items():
-                    if "." in key:
-                        var_name, attr_type = key.split(".", 1)
-                        organized_metadata[var_name][attr_type] = value
-
-                result = pd.DataFrame.from_dict(
-                    dict(organized_metadata), orient="index"
-                )
-                self._metadata_cache = result
-                return result
+            result = pd.DataFrame.from_dict(dict(organized_metadata), orient="index")
+            self._metadata_cache = result
+            return result
 
         except Exception as e:
             logger.error(f"Failed to retrieve variables from TileDB: {e}")
             raise
 
     def _build_profile_attrs(
-        self, variables: List[str]
+        self,
+        variables: List[str],
+        array_meta,
     ) -> Tuple[List[str], Dict[str, List[str]]]:
         """
-        Build attribute list and profile variable mapping from cached profile lengths.
-
-        Profile lengths are immutable after array creation, so they are read from
-        array metadata once and cached in ``self._profile_lengths`` for all subsequent
-        queries.
+        Build attribute list and profile variable mapping efficiently.
         """
-        attr_list = []
-        profile_vars = {}
+        attr_list: List[str] = []
+        profile_vars: Dict[str, List[str]] = {}
 
         for var in variables:
-            length = self._profile_lengths.get(var) if self._profile_lengths else None
-            if length is not None:
-                profile_attrs = [f"{var}_{i}" for i in range(1, length + 1)]
+            profile_key = f"{var}.profile_length"
+            if profile_key in array_meta:
+                profile_attrs = [
+                    f"{var}_{i}" for i in range(1, array_meta[profile_key] + 1)
+                ]
                 attr_list.extend(profile_attrs)
                 profile_vars[var] = profile_attrs
             else:
@@ -231,7 +236,6 @@ class TileDBProvider:
                             cond_list.append(f"{key} {op} {value}")
                             break
             else:
-                # Simple condition
                 found_op = False
                 for op in _SORTED_OPS:
                     if op in condition:
@@ -249,7 +253,7 @@ class TileDBProvider:
     def _filter_by_polygon(
         self,
         data: Dict[str, np.ndarray],
-        geom_union: BaseGeometry,
+        geometry,
     ) -> Dict[str, np.ndarray]:
         """
         Filter query results by irregular polygon using vectorized operations.
@@ -257,14 +261,16 @@ class TileDBProvider:
         Parameters
         ----------
         data : Dict[str, np.ndarray]
-            Query results from TileDB
-        geom_union : BaseGeometry
-            Pre-resolved shapely geometry (unary union already computed by caller).
+            Query results from TileDB.
+        geometry : gpd.GeoDataFrame or shapely geometry
+            Polygon(s) to filter by. Accepts either a GeoDataFrame or a
+            pre-computed shapely geometry (e.g. passed from ``query_data``
+            to avoid computing the union twice).
 
         Returns
         -------
         Dict[str, np.ndarray]
-            Filtered data containing only points within the polygon
+            Filtered data containing only points within the polygon.
         """
         if data is None or len(data.get("shot_number", [])) == 0:
             return data
@@ -272,10 +278,17 @@ class TileDBProvider:
         lons = data["longitude"]
         lats = data["latitude"]
 
-        # Vectorized point-in-polygon test (MUCH faster than iterating)
-        mask = contains_xy(geom_union, lons, lats)
+        # Resolve to a single shapely geometry (caller may pass a precomputed union)
+        if hasattr(geometry, "union_all"):
+            geom = (
+                geometry.union_all() if len(geometry) > 1 else geometry.geometry.iloc[0]
+            )
+        else:
+            geom = geometry  # already a shapely geometry
 
-        # Apply mask to all arrays
+        # Vectorized point-in-polygon test
+        mask = contains_xy(geom, lons, lats)
+
         filtered_data = {key: value[mask] for key, value in data.items()}
 
         logger.info(
@@ -294,71 +307,44 @@ class TileDBProvider:
         lon_max: float,
         start_time: Optional[np.datetime64] = None,
         end_time: Optional[np.datetime64] = None,
-        geometry: Optional[gpd.GeoDataFrame] = None,
+        geometry=None,
         return_coords: bool = True,
         use_polygon_filter: bool = False,
         quantization_factor: float = 1e6,
-        _geom_union: Optional[Any] = None,
         **filters: Dict[str, str],
     ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
         """
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
 
-        Parameters
-        ----------
-        _geom_union : shapely geometry, optional
-            Pre-computed unary union of ``geometry``. When provided (e.g. already
-            computed by ``query_data`` for the auto-detect area check), it is reused
-            directly and the union is not computed a second time inside
-            ``_filter_by_polygon``.
+        ``geometry`` may be a GeoDataFrame or a pre-computed shapely geometry;
+        both are accepted by ``_filter_by_polygon``.
         """
         try:
-            with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
-                # Populate profile-length cache on first query (immutable after creation)
-                if self._profile_lengths is None:
-                    self._profile_lengths = {
-                        k[: -len(".profile_length")]: int(v)
-                        for k, v in array.meta.items()
-                        if k.endswith(".profile_length")
-                    }
+            array = self._get_array()
 
-                attr_list, profile_vars = self._build_profile_attrs(variables)
+            attr_list, profile_vars = self._build_profile_attrs(variables, array.meta)
+            cond_string = self._build_condition_string(filters)
 
-                # Build condition string
-                cond_string = self._build_condition_string(filters)
+            query = array.query(
+                attrs=attr_list,
+                cond=cond_string,
+                coords=return_coords,
+                return_incomplete=False,
+            )
 
-                # Execute query with optimized settings
-                query = array.query(
-                    attrs=attr_list,
-                    cond=cond_string,
-                    coords=return_coords,
-                    return_incomplete=False,
-                )
+            data = query.multi_index[
+                lat_min:lat_max, lon_min:lon_max, start_time:end_time
+            ]
 
-                # Use multi_index for efficient spatial-temporal slicing
-                data = query.multi_index[
-                    lat_min:lat_max, lon_min:lon_max, start_time:end_time
-                ]
+            if not data or len(data.get("shot_number", [])) == 0:
+                return None, profile_vars
 
-                # Early return if no data
-                if not data or len(data.get("shot_number", [])) == 0:
+            if use_polygon_filter and geometry is not None:
+                data = self._filter_by_polygon(data, geometry)
+                if len(data.get("shot_number", [])) == 0:
                     return None, profile_vars
 
-                # Apply polygon filter if requested
-                if use_polygon_filter and geometry is not None:
-                    # Compute union once; reuse pre-computed union when available
-                    if _geom_union is None:
-                        _geom_union = (
-                            geometry.unary_union
-                            if len(geometry) > 1
-                            else geometry.geometry.iloc[0]
-                        )
-                    data = self._filter_by_polygon(data, _geom_union)
-
-                    if len(data.get("shot_number", [])) == 0:
-                        return None, profile_vars
-
-                return data, profile_vars
+            return data, profile_vars
 
         except Exception as e:
             logger.error(f"Error querying TileDB array '{self.scalar_array_uri}': {e}")
@@ -366,20 +352,15 @@ class TileDBProvider:
 
     def _get_tiledb_spatial_domain(self) -> Tuple[float, float, float, float]:
         """
-        Retrieve the spatial domain (bounding box) from the TileDB array schema
-
-        Returns
-        -------
-        Tuple[float, float, float, float]
-            (min_longitude, max_longitude, min_latitude, max_latitude)
+        Retrieve the spatial domain (bounding box) from the TileDB array schema.
         """
         if self._schema_cache is not None:
             return self._schema_cache
 
-        with tiledb.open(self.scalar_array_uri, mode="r", ctx=self.ctx) as array:
-            domain = array.schema.domain
-            min_lon, max_lon = domain.dim(1).domain
-            min_lat, max_lat = domain.dim(0).domain
+        array = self._get_array()
+        domain = array.schema.domain
+        min_lon, max_lon = domain.dim(1).domain
+        min_lat, max_lat = domain.dim(0).domain
 
         result = (min_lon, max_lon, min_lat, max_lat)
         self._schema_cache = result
@@ -394,32 +375,12 @@ class TileDBProvider:
         lon_max: float,
         start_time: Optional[np.datetime64] = None,
         end_time: Optional[np.datetime64] = None,
-        geometry: Optional[gpd.GeoDataFrame] = None,
+        geometry=None,
         use_polygon_filter: bool = False,
         **filters: Dict[str, str],
     ) -> Optional[pd.DataFrame]:
         """
         Query TileDB and return results as a pandas DataFrame.
-
-        Parameters
-        ----------
-        variables : List[str]
-            Variables to retrieve
-        lat_min, lat_max, lon_min, lon_max : float
-            Bounding box
-        start_time, end_time : Optional[np.datetime64]
-            Time range
-        geometry : Optional[gpd.GeoDataFrame]
-            Polygon for filtering (if use_polygon_filter=True)
-        use_polygon_filter : bool
-            Whether to apply polygon filtering after bbox query
-        **filters : Dict[str, str]
-            Additional filters
-
-        Returns
-        -------
-        Optional[pd.DataFrame]
-            Query results or None if no data found
         """
         data, profile_vars = self._query_array(
             variables,
@@ -437,10 +398,8 @@ class TileDBProvider:
         if data is None:
             return None
 
-        # Convert to DataFrame
         df = pd.DataFrame(data)
 
-        # Reconstruct profile variables if needed
         for var_name, profile_cols in profile_vars.items():
             if all(col in df.columns for col in profile_cols):
                 df[var_name] = df[profile_cols].values.tolist()
@@ -448,10 +407,11 @@ class TileDBProvider:
 
         return df
 
-    def close(self):
-        """Clean up resources."""
+    def close(self) -> None:
+        """Close the persistent array handle and clear caches."""
         self._schema_cache = None
         self._metadata_cache = None
-        self._profile_lengths = None
         if self._array_handle is not None:
+            if self._array_handle.isopen:
+                self._array_handle.close()
             self._array_handle = None

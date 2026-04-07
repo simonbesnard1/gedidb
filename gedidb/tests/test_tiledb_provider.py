@@ -59,6 +59,7 @@ class FakeArrayCtxMgr:
         self.meta = meta
         self._data = data_dict
         self.schema = schema
+        self.isopen = True
 
     def __enter__(self):
         return self
@@ -226,10 +227,9 @@ def test_get_available_variables_and_cache(monkeypatch, tmp_path):
 
 def test_build_profile_attrs():
     prov = TileDBProvider(storage_type="local", local_path=".")
-    # Inject profile lengths directly (mirrors what _query_array populates on first open)
-    prov._profile_lengths = {"pai": 3, "pavd": 2}
     vars_in = ["pai", "rh98", "pavd"]
-    attr_list, prof = prov._build_profile_attrs(vars_in)
+    meta = {"pai.profile_length": 3, "pavd.profile_length": 2}
+    attr_list, prof = prov._build_profile_attrs(vars_in, meta)
     # Expect pai_1..3, rh98, pavd_1..2
     assert attr_list == ["pai_1", "pai_2", "pai_3", "rh98", "pavd_1", "pavd_2"]
     assert prof == {"pai": ["pai_1", "pai_2", "pai_3"], "pavd": ["pavd_1", "pavd_2"]}
