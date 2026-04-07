@@ -94,11 +94,11 @@ class TileDBProvider:
             "vfs.s3.endpoint_override": url,
             "vfs.s3.region": region,
             "vfs.s3.scheme": "https",
-            "vfs.s3.use_virtual_addressing": "true",
+            "vfs.s3.use_virtual_addressing": "false",
             # Parallel S3 I/O
             "vfs.s3.max_parallel_ops": str(max_s3_ops),
-            # Reasonable default part size for reads
-            "vfs.s3.multipart_part_size": str(64 * 1024**2),  # 64 MB
+            # Larger part size reduces S3 GET count for big spatial tiles
+            "vfs.s3.multipart_part_size": str(128 * 1024**2),  # 128 MB
             # Timeouts
             "vfs.s3.connect_timeout_ms": "60000",  # 60 s
             "vfs.s3.request_timeout_ms": "600000",  # 10 min
@@ -107,8 +107,13 @@ class TileDBProvider:
             "sm.io_concurrency_level": str(max_reader_threads),
             "sm.num_reader_threads": str(max_reader_threads),
             "sm.num_tiledb_threads": str(max_reader_threads),
+            # Memory budgets — larger values allow TileDB to plan bigger
+            # single-pass reads instead of breaking them into smaller chunks.
+            "sm.memory_budget": str(10 * 1024**3),  # 10 GB
+            "sm.memory_budget_var": str(4 * 1024**3),  # 4 GB
+            "sm.mem.total_budget": str(16 * 1024**3),  # 16 GB
             # Caches
-            "py.init_buffer_bytes": str(2 * 1024**3),  # 1 GiB
+            "py.init_buffer_bytes": str(2 * 1024**3),  # 2 GiB
             "sm.tile_cache_size": str(8 * 1024**3),  # 8 GB
             # Misc
             "sm.enable_signal_handlers": "false",
