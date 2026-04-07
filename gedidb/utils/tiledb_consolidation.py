@@ -57,7 +57,11 @@ class SpatialConsolidationPlanner:
     """
 
     @staticmethod
-    def compute(array_uri: str, ctx: tiledb.Ctx) -> SpatialConsolidationPlan:
+    def compute(
+        array_uri: str,
+        ctx: tiledb.Ctx,
+        min_group_cells: int = 5_000,
+    ) -> SpatialConsolidationPlan:
         """
         Generate a spatial consolidation plan for a TileDB array.
 
@@ -67,6 +71,10 @@ class SpatialConsolidationPlanner:
             URI of the TileDB array.
         ctx : tiledb.Ctx
             TileDB context.
+        min_group_cells : int
+            Groups with fewer total cells than this are absorbed into their
+            nearest spatial neighbour.  Singleton groups (no overlap partner)
+            are always absorbed.  Set to 0 to disable the threshold.
 
         Returns
         -------
@@ -86,7 +94,9 @@ class SpatialConsolidationPlanner:
             logger.warning(f"No fragments found for array: {array_uri}")
             return SpatialConsolidationPlan({})
 
-        plan = SpatialConsolidationPlanner._generate_plan(fragments)
+        plan = SpatialConsolidationPlanner._generate_plan(
+            fragments, min_group_cells=min_group_cells
+        )
         return SpatialConsolidationPlan(plan)
 
     @staticmethod
@@ -104,7 +114,7 @@ class SpatialConsolidationPlanner:
         Returns:
         -------
         List[Dict[str, object]]
-            List of fragments with spatial domains.
+            List of fragments with spatial domains and cell counts.
         """
         fragments = []
         for fragment in fragment_info:
@@ -114,6 +124,7 @@ class SpatialConsolidationPlanner:
                     "uri": os.path.basename(fragment.uri),
                     "latitude_range": nonempty_domain[0],
                     "longitude_range": nonempty_domain[1],
+                    "cell_num": fragment.cell_num,
                 }
             )
         return fragments
@@ -121,14 +132,21 @@ class SpatialConsolidationPlanner:
     @staticmethod
     def _generate_plan(
         fragments: List[Dict[str, Union[str, Tuple[float, float]]]],
+        min_group_cells: int = 5_000,
     ) -> Dict[int, Dict[str, List[str]]]:
         """
-        Generate a plan by grouping overlapping fragments.
+        Generate a plan by grouping overlapping fragments, then absorbing
+        singleton or under-populated groups into their nearest spatial neighbour.
 
         Parameters
         ----------
         fragments : List[Dict[str, Union[str, Tuple[float, float]]]]
-            List of fragments with spatial domains.
+            List of fragments with spatial domains and cell counts.
+        min_group_cells : int
+            Groups whose total cell count is below this threshold are absorbed
+            into the nearest group by centroid distance.  Singleton groups
+            (one fragment, no overlap partner) are always absorbed regardless
+            of cell count.  Set to 0 to disable the cell-count threshold.
 
         Returns
         -------
@@ -136,49 +154,92 @@ class SpatialConsolidationPlanner:
             Consolidation plan grouped by spatial overlap.
         """
 
-        def has_spatial_overlap(
-            frag1: Dict[str, Union[str, Tuple[float, float]]],
-            frag2: Dict[str, Union[str, Tuple[float, float]]],
-        ) -> bool:
-            """Check if two fragments spatially overlap."""
+        def has_spatial_overlap(f1, f2) -> bool:
             return (
-                frag1["latitude_range"][0] <= frag2["latitude_range"][1]
-                and frag1["latitude_range"][1] >= frag2["latitude_range"][0]
-                and frag1["longitude_range"][0] <= frag2["longitude_range"][1]
-                and frag1["longitude_range"][1] >= frag2["longitude_range"][0]
+                f1["latitude_range"][0] <= f2["latitude_range"][1]
+                and f1["latitude_range"][1] >= f2["latitude_range"][0]
+                and f1["longitude_range"][0] <= f2["longitude_range"][1]
+                and f1["longitude_range"][1] >= f2["longitude_range"][0]
             )
 
+        # ── build URI → metadata lookup for centroid computation ──────────────
+        meta = {f["uri"]: f for f in fragments}
+
+        # ── DFS grouping by spatial overlap ───────────────────────────────────
         visited = set()
         plan = {}
         node_id = 0
-
-        # Create a lookup dictionary for unvisited fragments
-        unvisited = {frag["uri"]: frag for frag in fragments}
+        unvisited = dict(meta)  # mutable copy
 
         while unvisited:
-            # Pop one fragment from the unvisited list
             _, fragment = unvisited.popitem()
-            current_node = {"num_fragments": 0, "fragment_uris": []}
+            current_node = {"num_fragments": 0, "fragment_uris": [], "cell_num": 0}
 
-            # Initialize a stack for depth-first search
             stack = [fragment]
             while stack:
                 frag = stack.pop()
                 if frag["uri"] in visited:
                     continue
-
                 visited.add(frag["uri"])
                 current_node["fragment_uris"].append(frag["uri"])
                 current_node["num_fragments"] += 1
+                current_node["cell_num"] += frag["cell_num"]
 
-                # Find overlapping fragments
                 for uri, candidate in list(unvisited.items()):
                     if has_spatial_overlap(frag, candidate):
                         stack.append(candidate)
-                        del unvisited[uri]  # Mark as visited by removing from unvisited
+                        del unvisited[uri]
 
-            # Assign the current node to the plan
             plan[node_id] = current_node
             node_id += 1
 
-        return plan
+        # ── absorb singleton / under-populated groups ─────────────────────────
+        def _group_centroid(node):
+            lats = [
+                0.5 * (meta[u]["latitude_range"][0] + meta[u]["latitude_range"][1])
+                for u in node["fragment_uris"]
+            ]
+            lons = [
+                0.5 * (meta[u]["longitude_range"][0] + meta[u]["longitude_range"][1])
+                for u in node["fragment_uris"]
+            ]
+            return sum(lats) / len(lats), sum(lons) / len(lons)
+
+        def _centroid_distance(c1, c2):
+            return ((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2) ** 0.5
+
+        changed = True
+        while changed:
+            changed = False
+            small_ids = [
+                nid
+                for nid, node in plan.items()
+                if min_group_cells > 0 and node["cell_num"] < min_group_cells
+            ]
+            for small_id in small_ids:
+                if small_id not in plan:
+                    continue
+                small_node = plan[small_id]
+                small_c = _group_centroid(small_node)
+
+                # find nearest other group
+                best_id, best_dist = None, float("inf")
+                for nid, node in plan.items():
+                    if nid == small_id:
+                        continue
+                    d = _centroid_distance(small_c, _group_centroid(node))
+                    if d < best_dist:
+                        best_dist, best_id = d, nid
+
+                if best_id is None:
+                    continue  # only one group left — nothing to absorb into
+
+                # merge small_id into best_id
+                plan[best_id]["fragment_uris"].extend(small_node["fragment_uris"])
+                plan[best_id]["num_fragments"] += small_node["num_fragments"]
+                plan[best_id]["cell_num"] += small_node["cell_num"]
+                del plan[small_id]
+                changed = True
+
+        # ── renumber contiguously ─────────────────────────────────────────────
+        return {i: node for i, node in enumerate(plan.values())}
