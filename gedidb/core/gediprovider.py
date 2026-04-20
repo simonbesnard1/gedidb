@@ -149,7 +149,7 @@ class GEDIProvider(TileDBProvider):
         lon_min, lat_min = point[0] - radius, point[1] - radius
         lon_max, lat_max = point[0] + radius, point[1] + radius
 
-        scalar_data_subset, profile_vars = self._query_array(
+        scalar_data_subset, profile_vars, scalar_renames = self._query_array(
             scalar_vars,
             lat_min,
             lat_max,
@@ -162,7 +162,7 @@ class GEDIProvider(TileDBProvider):
 
         if not scalar_data_subset:
             logger.info("No points found in the bounding box.")
-            return {}, {}
+            return {}, {}, {}
 
         longitudes, latitudes = (
             scalar_data_subset["longitude"],
@@ -172,7 +172,7 @@ class GEDIProvider(TileDBProvider):
             logger.warning(
                 "No points found within the bounding box for nearest shot query."
             )
-            return {}, {}
+            return {}, {}, {}
 
         # Efficient KD-tree search
         tree = cKDTree(np.column_stack((longitudes, latitudes)))
@@ -183,7 +183,7 @@ class GEDIProvider(TileDBProvider):
 
         scalar_data = {k: v[indices] for k, v in scalar_data_subset.items()}
 
-        return scalar_data, profile_vars
+        return scalar_data, profile_vars, scalar_renames
 
     def query_data(
         self,
@@ -260,7 +260,7 @@ class GEDIProvider(TileDBProvider):
         # directly (no second union_all call). Falls back to the GeoDataFrame when
         # no pre-computation was needed (use_polygon_filter=False or explicit True).
         scalar_vars = variables + DEFAULT_DIMS
-        scalar_data, profile_vars = self._query_array(
+        scalar_data, profile_vars, scalar_renames = self._query_array(
             scalar_vars,
             lat_min,
             lat_max,
@@ -277,7 +277,7 @@ class GEDIProvider(TileDBProvider):
             **quality_filters,
         )
 
-        return scalar_data, profile_vars
+        return scalar_data, profile_vars, scalar_renames
 
     def get_data(
         self,
@@ -377,7 +377,7 @@ class GEDIProvider(TileDBProvider):
 
         # Execute query
         if query_type == "nearest":
-            scalar_data, profile_vars = self.query_nearest_shots(
+            scalar_data, profile_vars, scalar_renames = self.query_nearest_shots(
                 variables,
                 point,
                 num_shots,
@@ -387,7 +387,7 @@ class GEDIProvider(TileDBProvider):
                 **quality_filters,
             )
         elif query_type == "bounding_box":
-            scalar_data, profile_vars = self.query_data(
+            scalar_data, profile_vars, scalar_renames = self.query_data(
                 variables,
                 geometry,
                 start_time,
@@ -399,6 +399,10 @@ class GEDIProvider(TileDBProvider):
         if not scalar_data:
             logger.info("No data found for specified criteria.")
             return None
+
+        # Apply single-label renames (e.g. rh_99 → rh_p98)
+        if scalar_renames:
+            scalar_data = {scalar_renames.get(k, k): v for k, v in scalar_data.items()}
 
         # Return in requested format
         if return_type == "xarray":

@@ -7,6 +7,7 @@
 
 import logging
 import os
+import re
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
@@ -198,14 +199,52 @@ class TileDBProvider:
         self,
         variables: List[str],
         array_meta,
-    ) -> Tuple[List[str], Dict[str, List[str]]]:
+    ) -> Tuple[List[str], Dict[str, List[str]], Dict[str, str]]:
         """
-        Build attribute list and profile variable mapping efficiently.
+        Build attribute list and profile variable mapping.
+
+        Supports single-label selection via ``"var:label"`` syntax
+        (e.g. ``"rh:98"``). Only the matching TileDB attribute is fetched;
+        the result column is renamed to ``{var}_p{label}``
+        (e.g. ``rh_p98``).
+
+        Returns
+        -------
+        attr_list : List[str]
+            Flat list of TileDB attribute names to request.
+        profile_vars : Dict[str, List[str]]
+            Mapping of variable name → expanded column names for full profiles.
+        scalar_renames : Dict[str, str]
+            Mapping of raw TileDB attr name → user-facing name for
+            single-label selections (e.g. ``rh_99`` → ``rh_p98``).
         """
         attr_list: List[str] = []
         profile_vars: Dict[str, List[str]] = {}
+        scalar_renames: Dict[str, str] = {}
 
         for var in variables:
+            # ── Single-label selection: "rh:98" ──────────────────────────────
+            if ":" in var:
+                base_var, label_str = var.split(":", 1)
+                label_val = int(label_str)
+                labels_raw = array_meta.get(f"{base_var}.profile_labels")
+                if labels_raw is None:
+                    raise ValueError(
+                        f"Variable '{base_var}' has no label metadata. "
+                        f"Cannot select by label '{label_val}'."
+                    )
+                labels = [int(v) for v in labels_raw.split(",")]
+                if label_val not in labels:
+                    raise ValueError(
+                        f"Label '{label_val}' not found in '{base_var}'. "
+                        f"Available labels: {labels}."
+                    )
+                idx = labels.index(label_val) + 1  # TileDB attrs are 1-indexed
+                tiledb_attr = f"{base_var}_{idx}"
+                attr_list.append(tiledb_attr)
+                scalar_renames[tiledb_attr] = f"{base_var}_p{label_val}"
+                continue
+
             profile_key = f"{var}.profile_length"
             if profile_key in array_meta:
                 profile_attrs = [
@@ -216,7 +255,7 @@ class TileDBProvider:
             else:
                 attr_list.append(var)
 
-        return attr_list, profile_vars
+        return attr_list, profile_vars, scalar_renames
 
     def _build_condition_string(self, filters: Dict[str, str]) -> Optional[str]:
         """
@@ -317,7 +356,7 @@ class TileDBProvider:
         use_polygon_filter: bool = False,
         quantization_factor: float = 1e6,
         **filters: Dict[str, str],
-    ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]]]:
+    ) -> Tuple[Optional[Dict[str, np.ndarray]], Dict[str, List[str]], Dict[str, str]]:
         """
         Execute a query on a TileDB array with spatial, temporal, and additional filters.
 
@@ -327,7 +366,9 @@ class TileDBProvider:
         try:
             array = self._get_array()
 
-            attr_list, profile_vars = self._build_profile_attrs(variables, array.meta)
+            attr_list, profile_vars, scalar_renames = self._build_profile_attrs(
+                variables, array.meta
+            )
             cond_string = self._build_condition_string(filters)
 
             query = array.query(
@@ -342,16 +383,28 @@ class TileDBProvider:
             ]
 
             if not data or len(data.get("shot_number", [])) == 0:
-                return None, profile_vars
+                return None, profile_vars, scalar_renames
 
             if use_polygon_filter and geometry is not None:
                 data = self._filter_by_polygon(data, geometry)
                 if len(data.get("shot_number", [])) == 0:
-                    return None, profile_vars
+                    return None, profile_vars, scalar_renames
 
-            return data, profile_vars
+            return data, profile_vars, scalar_renames
 
         except Exception as e:
+            error_str = str(e)
+            if "dimension 'time'" in error_str and "out of domain bounds" in error_str:
+                match = re.search(r"domain bounds \[(\d+), (\d+)\]", error_str)
+                if match:
+                    epoch = np.datetime64("1970-01-01", "D")
+                    t_min = str(epoch + np.timedelta64(int(match.group(1)), "D"))[:10]
+                    t_max = str(epoch + np.timedelta64(int(match.group(2)), "D"))[:10]
+                    raise ValueError(
+                        f"Requested time range is outside the database bounds. "
+                        f"Please provide a start_time and end_time within "
+                        f"[{t_min}, {t_max}]."
+                    ) from e
             logger.error(f"Error querying TileDB array '{self.scalar_array_uri}': {e}")
             raise
 
@@ -387,7 +440,7 @@ class TileDBProvider:
         """
         Query TileDB and return results as a pandas DataFrame.
         """
-        data, profile_vars = self._query_array(
+        data, profile_vars, scalar_renames = self._query_array(
             variables,
             lat_min,
             lat_max,
@@ -409,6 +462,9 @@ class TileDBProvider:
             if all(col in df.columns for col in profile_cols):
                 df[var_name] = df[profile_cols].values.tolist()
                 df = df.drop(columns=profile_cols)
+
+        if scalar_renames:
+            df = df.rename(columns=scalar_renames)
 
         return df
 

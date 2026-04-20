@@ -229,10 +229,37 @@ def test_build_profile_attrs():
     prov = TileDBProvider(storage_type="local", local_path=".")
     vars_in = ["pai", "rh98", "pavd"]
     meta = {"pai.profile_length": 3, "pavd.profile_length": 2}
-    attr_list, prof = prov._build_profile_attrs(vars_in, meta)
-    # Expect pai_1..3, rh98, pavd_1..2
+    attr_list, prof, renames = prov._build_profile_attrs(vars_in, meta)
+    # Expect pai_1..3, rh98, pavd_1..2; no single-label selections → empty renames
     assert attr_list == ["pai_1", "pai_2", "pai_3", "rh98", "pavd_1", "pavd_2"]
     assert prof == {"pai": ["pai_1", "pai_2", "pai_3"], "pavd": ["pavd_1", "pavd_2"]}
+    assert renames == {}
+
+
+def test_build_profile_attrs_single_label_selection():
+    prov = TileDBProvider(storage_type="local", local_path=".")
+    # "rh:98" selects label 98 from a 101-point profile (labels 0–100 → attr rh_99)
+    labels = ",".join(str(i) for i in range(101))
+    meta = {"rh.profile_length": 101, "rh.profile_labels": labels}
+    attr_list, prof, renames = prov._build_profile_attrs(["rh:98"], meta)
+    assert attr_list == ["rh_99"]  # label 98 is the 99th attribute (1-indexed)
+    assert prof == {}
+    assert renames == {"rh_99": "rh_p98"}
+
+
+def test_build_profile_attrs_single_label_invalid():
+    prov = TileDBProvider(storage_type="local", local_path=".")
+    labels = ",".join(str(i) for i in range(101))
+    meta = {"rh.profile_length": 101, "rh.profile_labels": labels}
+    with pytest.raises(ValueError, match="Label '200' not found"):
+        prov._build_profile_attrs(["rh:200"], meta)
+
+
+def test_build_profile_attrs_single_label_no_metadata():
+    prov = TileDBProvider(storage_type="local", local_path=".")
+    meta = {}
+    with pytest.raises(ValueError, match="has no label metadata"):
+        prov._build_profile_attrs(["rh:98"], meta)
 
 
 # ---------------------------
@@ -283,7 +310,7 @@ def test_query_array_bbox_and_empty(monkeypatch, tmp_path):
     prov = TileDBProvider(storage_type="local", local_path=str(tmp_path))
 
     # BBox that only catches the 2nd point
-    out, prof = prov._query_array(
+    out, prof, renames = prov._query_array(
         variables=["rh98"],
         lat_min=50.5,
         lat_max=51.5,
@@ -298,9 +325,10 @@ def test_query_array_bbox_and_empty(monkeypatch, tmp_path):
     assert out["shot_number"].size == 1
     assert out["rh98"][0] == 25.0
     assert prof == {}  # no profile vars
+    assert renames == {}  # no single-label selections
 
     # BBox with no hits → None
-    out2, _ = prov._query_array(
+    out2, _, _ = prov._query_array(
         variables=["rh98"],
         lat_min=-1,
         lat_max=0,
@@ -342,7 +370,7 @@ def test_query_array_with_polygon_filter(monkeypatch, tmp_path):
     poly = sgeom.Polygon([(0.25, 0.25), (0.75, 0.25), (0.75, 0.75), (0.25, 0.75)])
     gdf = gpd.GeoDataFrame(geometry=[poly], crs="EPSG:4326")
 
-    out, _ = prov._query_array(
+    out, _, _ = prov._query_array(
         variables=["rh98"],
         lat_min=-1,
         lat_max=2,

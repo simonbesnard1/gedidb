@@ -340,6 +340,14 @@ class GEDIDatabase:
                         array.meta[f"{var_name}.profile_length"] = var_info.get(
                             "profile_length", 0
                         )
+                        if "profile_labels" in var_info:
+                            array.meta[f"{var_name}.profile_labels"] = var_info[
+                                "profile_labels"
+                            ]
+                        if "profile_label_name" in var_info:
+                            array.meta[f"{var_name}.profile_label_name"] = var_info[
+                                "profile_label_name"
+                            ]
 
         except tiledb.TileDBError as e:
             logger.error(f"Error adding metadata: {e}")
