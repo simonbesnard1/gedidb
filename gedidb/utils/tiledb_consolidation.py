@@ -61,6 +61,7 @@ class SpatialConsolidationPlanner:
         array_uri: str,
         ctx: tiledb.Ctx,
         min_group_cells: int = 5_000,
+        max_fragments_per_group: int = 200,
     ) -> SpatialConsolidationPlan:
         """
         Generate a spatial consolidation plan for a TileDB array.
@@ -75,6 +76,12 @@ class SpatialConsolidationPlanner:
             Groups with fewer total cells than this are absorbed into their
             nearest spatial neighbour.  Singleton groups (no overlap partner)
             are always absorbed.  Set to 0 to disable the threshold.
+        max_fragments_per_group : int
+            Maximum fragments allowed in a single consolidation call.
+            Groups larger than this are split into spatially sorted batches.
+            TileDB divides ``sm.memory_budget`` equally across all fragments
+            in one call; capping the group size prevents per-fragment memory
+            exhaustion on large arrays.  Set to 0 to disable the cap.
 
         Returns
         -------
@@ -95,7 +102,9 @@ class SpatialConsolidationPlanner:
             return SpatialConsolidationPlan({})
 
         plan = SpatialConsolidationPlanner._generate_plan(
-            fragments, min_group_cells=min_group_cells
+            fragments,
+            min_group_cells=min_group_cells,
+            max_fragments_per_group=max_fragments_per_group,
         )
         return SpatialConsolidationPlan(plan)
 
@@ -133,10 +142,12 @@ class SpatialConsolidationPlanner:
     def _generate_plan(
         fragments: List[Dict[str, Union[str, Tuple[float, float]]]],
         min_group_cells: int = 5_000,
+        max_fragments_per_group: int = 200,
     ) -> Dict[int, Dict[str, List[str]]]:
         """
         Generate a plan by grouping overlapping fragments, then absorbing
-        singleton or under-populated groups into their nearest spatial neighbour.
+        singleton or under-populated groups into their nearest spatial neighbour,
+        then splitting any group that still exceeds ``max_fragments_per_group``.
 
         Parameters
         ----------
@@ -147,6 +158,10 @@ class SpatialConsolidationPlanner:
             into the nearest group by centroid distance.  Singleton groups
             (one fragment, no overlap partner) are always absorbed regardless
             of cell count.  Set to 0 to disable the cell-count threshold.
+        max_fragments_per_group : int
+            Hard cap on the number of fragments in a single consolidation call.
+            Oversized groups are sorted by latitude centroid and split into
+            batches of at most this size.  Set to 0 to disable.
 
         Returns
         -------
@@ -240,6 +255,34 @@ class SpatialConsolidationPlanner:
                 plan[best_id]["cell_num"] += small_node["cell_num"]
                 del plan[small_id]
                 changed = True
+
+        # ── split oversized groups ────────────────────────────────────────────
+        # TileDB divides sm.memory_budget equally across all fragments in a
+        # single consolidate() call.  If a group has too many fragments the
+        # per-fragment budget drops below tile size and the call fails.  Split
+        # large groups into spatially sorted batches so each call stays within
+        # the budget.
+        if max_fragments_per_group and max_fragments_per_group > 0:
+            split_plan: Dict[int, Dict] = {}
+            for node in plan.values():
+                uris = node["fragment_uris"]
+                if len(uris) <= max_fragments_per_group:
+                    split_plan[len(split_plan)] = node
+                else:
+                    # Sort by latitude centroid for spatial locality
+                    sorted_uris = sorted(
+                        uris,
+                        key=lambda u: 0.5
+                        * (meta[u]["latitude_range"][0] + meta[u]["latitude_range"][1]),
+                    )
+                    for i in range(0, len(sorted_uris), max_fragments_per_group):
+                        chunk = sorted_uris[i : i + max_fragments_per_group]
+                        split_plan[len(split_plan)] = {
+                            "num_fragments": len(chunk),
+                            "fragment_uris": chunk,
+                            "cell_num": sum(meta[u]["cell_num"] for u in chunk),
+                        }
+            plan = split_plan
 
         # ── renumber contiguously ─────────────────────────────────────────────
         return {i: node for i, node in enumerate(plan.values())}

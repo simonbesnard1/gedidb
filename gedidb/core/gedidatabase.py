@@ -126,8 +126,10 @@ class GEDIDatabase:
         """Build a TileDB Config for local or S3 storage."""
         cons = cfg_td.get("consolidation_settings", {})
         base = {
-            "sm.memory_budget": cons.get("memory_budget", "5000000000"),
-            "sm.memory_budget_var": cons.get("memory_budget_var", "2000000000"),
+            # 16 GB default: TileDB divides this by num_fragments_in_group;
+            # with 200 fragments/group the per-fragment budget is ~80 MB.
+            "sm.memory_budget": cons.get("memory_budget", "17179869184"),
+            "sm.memory_budget_var": cons.get("memory_budget_var", "8589934592"),
         }
 
         if storage_type != "s3":
@@ -685,9 +687,18 @@ class GEDIDatabase:
         self,
         consolidation_type: str = "default",
         parallel_engine: Optional[object] = None,
+        max_fragments_per_group: int = 200,
+        max_passes: int = 10,
     ) -> None:
         """
         Consolidate fragments, metadata, and commit logs.
+
+        For ``consolidation_type="spatial"`` the method runs iteratively until
+        every spatial overlap group contains exactly one fragment (fully
+        converged) or ``max_passes`` is reached.  This handles the case where
+        a large array requires batched consolidation: a first pass reduces 453
+        fragments to ~3, and a second pass merges those 3 into 1 — all
+        automatically.
 
         Parameters
         ----------
@@ -695,6 +706,15 @@ class GEDIDatabase:
             'default' or 'spatial'.
         parallel_engine : Executor or dask.distributed.Client, optional
             Parallelisation engine. Defaults to single-threaded.
+        max_fragments_per_group : int
+            Maximum fragments per single ``tiledb.consolidate`` call.
+            TileDB divides ``sm.memory_budget`` equally across all fragments
+            in a call; capping this prevents per-fragment memory exhaustion.
+            Default 200.  Set to 0 to disable.
+        max_passes : int
+            Safety cap on the number of consolidation passes for the spatial
+            strategy.  Default 10.  In practice convergence happens in 1–3
+            passes.
         """
         if consolidation_type not in {"default", "spatial"}:
             raise ValueError(
@@ -708,12 +728,33 @@ class GEDIDatabase:
         try:
             if consolidation_type == "default":
                 cons_plan = self._generate_default_consolidation_plan()
+                self._execute_consolidation(cons_plan, parallel_engine)
             else:
-                cons_plan = SpatialConsolidationPlanner.compute(
-                    self.array_uri, self.ctx
-                )
-
-            self._execute_consolidation(cons_plan, parallel_engine)
+                for pass_num in range(1, max_passes + 1):
+                    cons_plan = SpatialConsolidationPlanner.compute(
+                        self.array_uri,
+                        self.ctx,
+                        max_fragments_per_group=max_fragments_per_group,
+                    )
+                    # Converged: every group is already a single fragment
+                    if all(node["num_fragments"] == 1 for node in cons_plan):
+                        logger.info(
+                            f"Spatial consolidation converged after "
+                            f"{pass_num - 1} pass(es)."
+                        )
+                        break
+                    n_groups = len(cons_plan)
+                    n_frags = sum(n["num_fragments"] for n in cons_plan)
+                    logger.info(
+                        f"Spatial consolidation pass {pass_num}: "
+                        f"{n_frags} fragments → {n_groups} group(s)"
+                    )
+                    self._execute_consolidation(cons_plan, parallel_engine)
+                else:
+                    logger.warning(
+                        f"Spatial consolidation reached max_passes={max_passes} "
+                        "without fully converging."
+                    )
 
             for mode in ("array_meta", "fragment_meta", "commits"):
                 logger.info(f"Consolidating {mode}...")

@@ -158,6 +158,29 @@ def test_generate_plan_no_absorption_when_disabled():
     assert len(plan) == 2
 
 
+def test_generate_plan_splits_oversized_group():
+    # 5 overlapping fragments but cap is 2 → should produce 3 batches (2+2+1)
+    fragments = [_frag(f"f{i}", float(i), float(i + 1), 0.0, 1.0) for i in range(5)]
+    plan = SpatialConsolidationPlanner._generate_plan(
+        fragments, min_group_cells=0, max_fragments_per_group=2
+    )
+    assert len(plan) == 3
+    total = sum(node["num_fragments"] for node in plan.values())
+    assert total == 5
+    all_uris = set(u for node in plan.values() for u in node["fragment_uris"])
+    assert all_uris == {f"f{i}" for i in range(5)}
+
+
+def test_generate_plan_no_split_when_disabled():
+    fragments = [_frag(f"f{i}", float(i), float(i + 1), 0.0, 1.0) for i in range(5)]
+    plan = SpatialConsolidationPlanner._generate_plan(
+        fragments, min_group_cells=0, max_fragments_per_group=0
+    )
+    # All 5 fragments in one group, no splitting
+    assert len(plan) == 1
+    assert plan[0]["num_fragments"] == 5
+
+
 def test_generate_plan_cell_num_accumulated():
     fragments = [
         _frag("A", 0.0, 1.0, 0.0, 1.0, cell_num=300),
