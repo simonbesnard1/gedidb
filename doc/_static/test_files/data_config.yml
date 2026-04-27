@@ -232,6 +232,8 @@ level_2a:
       SDS_Name: "rh"
       is_profile: True
       profile_length: 101
+      profile_labels: "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100"
+      profile_label_name: "percentile"
       description: "Relative height metrics at 1% interval"
       units: "Meters"
       dtype: "float32"
@@ -404,6 +406,8 @@ level_2b:
       SDS_Name: "cover_z"
       is_profile: true
       profile_length: 30
+      profile_labels: "0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145"
+      profile_label_name: "height_m"
       description: "Cumulative canopy cover vertical profile"
       units: "Percent"
       dtype: "float32"
@@ -438,6 +442,8 @@ level_2b:
       SDS_Name: "pai_z"
       is_profile: true
       profile_length: 30
+      profile_labels: "0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145"
+      profile_label_name: "height_m"
       description: "Plant Area Index profile"
       units: "m²/m²"
       dtype: "float32"
@@ -448,6 +454,8 @@ level_2b:
       SDS_Name: "pavd_z"
       is_profile: true
       profile_length: 30
+      profile_labels: "0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145"
+      profile_label_name: "height_m"
       description: "Plant Area Volume Density profile"
       units: "m²/m³"
       dtype: "float32"

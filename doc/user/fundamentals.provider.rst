@@ -73,7 +73,12 @@ Basic query example
 Parameters for ``get_data()``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- - **variables**: List of variables (columns) to retrieve from the database.
+ - **variables**: List of variables (columns) to retrieve from the database. Profile
+   variables (e.g. ``rh``, ``cover_z``, ``pai_z``, ``pavd_z``) return all values per
+   shot as a list by default. To fetch a single element by label and save bandwidth,
+   use the ``"variable:label"`` syntax, e.g. ``"rh:98"`` (98th-percentile canopy
+   height only) or ``"cover_z:50"`` (cumulative cover at 50 m above ground only).
+   The resulting column is renamed ``{variable}_p{label}`` (e.g. ``rh_p98``).
  - **geometry**: (Optional) GeoPandas geometry for spatial filtering.
  - **start_time**: (Optional) Start date for temporal filtering (format: "YYYY-MM-DD").
  - **end_time**: (Optional) End date for temporal filtering (format: "YYYY-MM-DD").
@@ -85,6 +90,62 @@ Parameters for ``get_data()``
  - **quality_filters**: (Optional) Additional quality filters to apply to the query.
 
 The returned data is formatted according to the `return_type` parameter, making it ready for further analysis.
+
+Querying individual profile points
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Several GEDI variables are stored as per-shot vertical profiles:
+
+.. csv-table:: Profile variables
+   :header: "Variable", "Profile labels", "Label meaning", "Length"
+   :widths: 15, 30, 25, 10
+
+   "``rh``, ``rh_a1``, ``rh_a2``, ``rh_a5``", "0, 1, 2, …, 100", "Percentile", "101"
+   "``cover_z``", "0, 5, 10, …, 145", "Height above ground (m)", "30"
+   "``pai_z``", "0, 5, 10, …, 145", "Height above ground (m)", "30"
+   "``pavd_z``", "0, 5, 10, …, 145", "Height above ground (m)", "30"
+
+Requesting a full profile (e.g. ``"rh"``) returns all values as a list per shot.
+To fetch only a single element — useful when you need just one percentile or one
+height bin and want to minimise data transfer — use the ``"variable:label"``
+syntax:
+
+.. code-block:: python
+
+    import geopandas as gpd
+    import gedidb as gdb
+
+    provider = gdb.GEDIProvider(storage_type='local',
+                                local_path="/path/to/your/database")
+    region_of_interest = gpd.read_file('./data/geojson/BR-Sa1.geojson')
+
+    # Fetch only the 98th-percentile canopy height → column named "rh_p98"
+    df = provider.get_data(
+        variables=["agbd", "rh:98"],
+        geometry=region_of_interest,
+        start_time="2020-01-01",
+        end_time="2020-12-31",
+        return_type="dataframe",
+    )
+
+    # Fetch cumulative cover at 50 m height → column named "cover_z_p50"
+    df = provider.get_data(
+        variables=["agbd", "cover_z:50"],
+        geometry=region_of_interest,
+        start_time="2020-01-01",
+        end_time="2020-12-31",
+        return_type="dataframe",
+    )
+
+    # Mix full profiles with single-label selections
+    df = provider.get_data(
+        variables=["rh:98", "rh:50", "pavd_z:25"],
+        geometry=region_of_interest,
+        start_time="2020-01-01",
+        end_time="2020-12-31",
+        return_type="dataframe",
+    )
+    # Columns: rh_p98, rh_p50, pavd_z_p25
 
 Applying additional quality filters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -19,7 +19,7 @@ Ceph Object Storage Configuration
 
 The TileDB global database utilizes a Ceph object storage backend to efficiently manage and distribute GEDI data. Below are the key characteristics of the Ceph bucket:
 
-- **Bucket Name:** ``dog.gedidb.gedi-l2-l4-v002``  
+- **Bucket Name:** ``dog-ext.gedidb.gedi-l2-l4-v002.0``  
 - **Access Endpoint:** ``https://s3.gfz-potsdam.de``  
 - **Region:** ``eu-central-1``  
 - **Total Storage Used:** ~20TB  
@@ -40,13 +40,12 @@ Below is the structure of the configuration file used to build the TileDB databa
    # database parameters
    tiledb:
      storage_type: 's3'
-     s3_bucket: "dog.gedidb.gedi-l2-l4-v002"
+     s3_bucket: "dog-ext.gedidb.gedi-l2-l4-v002.0"
      url: "https://s3.gfz-potsdam.de"
-     overwrite: false
-     temporal_tiling: "weekly"
-     chunk_size: 10
+     overwrite: true
+     temporal_batching: "annual"
      time_range:
-       start_time: "2018-01"
+       start_time: "2019-01-01"
        end_time: "2030-12-31"
      spatial_range:
        lat_min: -56.0
@@ -54,15 +53,15 @@ Below is the structure of the configuration file used to build the TileDB databa
        lon_min: -180.0
        lon_max: 180.0
      dimensions: ['latitude', 'longitude', 'time']
-     s3_settings:
-       connect_timeout_ms: "300000"
-       request_timeout_ms: "600000"
-       connect_max_tries: "10"
-       multipart_part_size: "52428800"
-       backoff_scale: "2.0"
-       backoff_max_ms: "120000"
+     consolidation_settings:
+       fragment_size: 200_000_000_000   # 200 GB target fragment size
+       memory_budget: "8589934592"      # 8 GB read buffer
+       memory_budget_var: "4294967296"  # 4 GB for variable-length attributes
      cell_order: "hilbert"
-     capacity: 100000
+     capacity: 200000
+     latitude_tile: 6
+     longitude_tile: 6
+     flush_every: 200
 
 The configuration file contains:
 
@@ -93,6 +92,9 @@ The database includes a wide range of variables, covering spatial coordinates, e
    :widths: 20, 50, 15, 10
 
    "agbd", "Aboveground biomass density", "Mg/ha", "L4A"
+   "agbd_a1", "Aboveground biomass density - algorithm setting group 1", "Mg/ha", "L4A"
+   "agbd_a2", "Aboveground biomass density - algorithm setting group 2", "Mg/ha", "L4A"
+   "agbd_a5", "Aboveground biomass density - algorithm setting group 5", "Mg/ha", "L4A"
    "agbd_pi_lower", "Lower prediction interval for aboveground biomass density", "Mg/ha", "L4A"
    "agbd_pi_upper", "Upper prediction interval for aboveground biomass density", "Mg/ha", "L4A"
    "agbd_se", "Standard error of aboveground biomass density", "Mg/ha", "L4A"
@@ -102,7 +104,9 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "beam_name", "Name of the beam", "adimensional", "L2A"
    "beam_type", "Type of beam used", "adimensional", "L2A"
    "cover", "Total canopy cover", "Percent", "L2B"
-   "cover_z", "Cumulative canopy cover vertical profile", "Percent", "L2B"
+   "cover_z", "Cumulative canopy cover vertical profile [profile: 30 height bins, 0–145 m]", "Percent", "L2B"
+   "cp_height", "Canopy profile relative height metrics at 1% interval [profile: 101 percentile points, 0–100]", "Meters", "L2B"
+   "cp_pavd", "Canopy profile Plant Area Volume Density at 1% interval [profile: 101 percentile points, 0–100]", "m²/m³", "L2B"
    "degrade_flag", "Flag indicating degraded state of pointing and/or positioning information", "adimensional", "L2A"
    "digital_elevation_model", "TanDEM-X elevation at GEDI footprint location", "Meters", "L2A"
    "digital_elevation_model_srtm", "STRM elevation at GEDI footprint location", "Meters", "L2A"
@@ -129,8 +133,8 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "num_detectedmodes", "Number of detected modes in rxwaveform", "adimensional", "L2A"
    "omega", "Foliage Clumping Index", "adimensional", "L2B"
    "pai", "Total Plant Area Index", "m²/m²", "L2B"
-   "pai_z", "Plant Area Index profile", "m²/m²", "L2B"
-   "pavd_z", "Plant Area Volume Density profile", "m²/m³", "L2B"
+   "pai_z", "Plant Area Index profile [profile: 30 height bins, 0–145 m]", "m²/m²", "L2B"
+   "pavd_z", "Plant Area Volume Density profile [profile: 30 height bins, 0–145 m]", "m²/m³", "L2B"
    "pft_class", "GEDI 1 km EASE 2.0 grid Plant Functional Type (PFT)", "adimensional", "L2A"
    "pgap_theta", "Total Gap Probability (theta)", "adimensional", "L2B"
    "pgap_theta_error", "Total Pgap (theta) error", "adimensional", "L2B"
@@ -140,7 +144,7 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "region_class", "GEDI 1 km EASE 2.0 grid world continental regions ", "adimensional", "L2A"
    "response_limit_flag", "Prediction value outside bounds of training data (0=in bounds, 1=lower bound, 2=upper bound)", "adimensional", "L4A"
    "rg", "Integral of the ground component in the RX waveform", "adimensional", "L2B"
-   "rh", "Relative height metrics at 1% interval", "Meters", "L2A"
+   "rh", "Relative height metrics at 1% interval [profile: 101 percentile points, 0–100]", "Meters", "L2A"
    "rh100", "Height above ground of the received waveform signal start", "cm", "L2B"
    "rhog", "Volumetric scattering coefficient (rho) of the ground", "adimensional", "L2B"
    "rhog_error", "Rho (ground) error", "adimensional", "L2B"
@@ -178,6 +182,69 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "zcross", "Sample number of center of lowest mode above noise level", "Nanoseconds", "L2A"
 
 
+Profile variables
+~~~~~~~~~~~~~~~~~
+
+Several variables are stored as per-shot vertical profiles — each cell in the database holds an array of values rather than a single scalar. When queried via :py:class:`gedidb.GEDIProvider`, full profiles are returned as a list per shot. Individual profile points can be fetched using the ``"variable:label"`` syntax (see :ref:`fundamentals-provider`).
+
+.. csv-table:: Profile variable details
+   :header: "Variable", "Product", "Profile labels", "Label meaning", "Length"
+   :widths: 12, 8, 35, 20, 8
+
+   "``rh``", "L2A", "0, 1, 2, …, 100", "Percentile", "101"
+   "``cp_height``", "L2B", "0, 1, 2, …, 100", "Percentile", "101"
+   "``cp_pavd``", "L2B", "0, 1, 2, …, 100", "Percentile", "101"
+   "``cover_z``", "L2B", "0, 5, 10, …, 145", "Height above ground (m)", "30"
+   "``pai_z``", "L2B", "0, 5, 10, …, 145", "Height above ground (m)", "30"
+   "``pavd_z``", "L2B", "0, 5, 10, …, 145", "Height above ground (m)", "30"
+
+.. note::
+
+   **Percentile-profile variables** (``rh``, ``cp_height``, ``cp_pavd``)
+
+   These variables store 101 values per shot, one per integer percentile of the
+   canopy height or PAVD distribution (0 – 100). In the returned
+   :py:class:`xarray.Dataset` they appear as a 2-D variable with a named
+   ``profile_points`` coordinate carrying the percentile integers:
+
+   .. code-block:: python
+
+      ds = provider.get_data(variables=["rh"], ...)
+      ds.rh.sel(profile_points=98)   # 98th-percentile canopy height
+      ds.rh.sel(profile_points=50)   # median canopy height
+
+   **Height-bin profile variables** (``cover_z``, ``pai_z``, ``pavd_z``)
+
+   These variables store 30 values per shot at 5 m height steps from 0 to
+   145 m above ground. The ``profile_points`` coordinate carries the bin
+   midpoints in metres:
+
+   .. code-block:: python
+
+      ds = provider.get_data(variables=["cover_z"], ...)
+      ds.cover_z.sel(profile_points=50)    # cumulative cover at 50 m height
+      ds.cover_z.sel(profile_points=0)     # cover at ground level
+
+   **Single-label selection** (saves bandwidth — reads one column instead of all)
+
+   Use the ``"variable:label"`` syntax to fetch a single profile element at
+   query time. The result is renamed ``{variable}_p{label}``:
+
+   .. code-block:: python
+
+      # Percentile: fetch only the 98th-percentile canopy height
+      df = provider.get_data(variables=["rh:98"], return_type="dataframe", ...)
+      # → column named 'rh_p98'
+
+      # Height bin: fetch cumulative cover at 50 m only
+      df = provider.get_data(variables=["cover_z:50"], return_type="dataframe", ...)
+      # → column named 'cover_z_p50'
+
+      # Mix profiles and scalars freely
+      df = provider.get_data(variables=["agbd", "rh:98", "cover_z:50"], ...)
+
+   See :ref:`fundamentals-provider` for full details on the query syntax.
+
 Accessing the database
 ----------------------
 The `gediDB` Python package simplifies access to the TileDB global database. Below is an example workflow for querying data.
@@ -192,7 +259,7 @@ The `gediDB` Python package simplifies access to the TileDB global database. Bel
    # Instantiate the GEDIProvider
    provider = gdb.GEDIProvider(
        storage_type='s3',
-       s3_bucket="dog.gedidb.gedi-l2-l4-v002", 
+       s3_bucket="dog-ext.gedidb.gedi-l2-l4-v002.0", 
        url="https://s3.gfz-potsdam.de"
    )
 

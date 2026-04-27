@@ -111,7 +111,7 @@ import gedidb as gdb
 # Instantiate provider with S3 backend
 provider = gdb.GEDIProvider(
     storage_type="s3",
-    s3_bucket="dog.gedidb.gedi-l2-l4-v002",
+    s3_bucket="dog-ext.gedidb.gedi-l2-l4-v002.0",
     url="https://s3.gfz-potsdam.de"
 )
 
