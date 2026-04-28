@@ -28,6 +28,12 @@ The TileDB global database utilizes a Ceph object storage backend to efficiently
 
 For users accessing the database programmatically, interactions with the Ceph bucket are abstracted by the `gediDB` package, which retrieves data seamlessly from TileDB. Advanced users with direct access to the Ceph storage layer may utilize **S3-compatible tools** (such as ``aws s3api`` or ``rclone``) to interact with the data.
 
+.. deprecated::
+
+   The bucket ``dog.gedidb.gedi-l2-l4-v002`` has been deprecated and is no longer maintained.
+   Please update any existing scripts or configurations to use the new bucket
+   ``dog-ext.gedidb.gedi-l2-l4-v002.0``.
+
 TileDB Database Configuration
 -----------------------------
 
