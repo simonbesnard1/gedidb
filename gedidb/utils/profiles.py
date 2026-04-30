@@ -744,6 +744,13 @@ class GEDIVerticalProfiler:
             height_masked, pavd_masked
         )
 
+        # Explicitly propagate bad-shot mask — the JIT resampler may leave a
+        # boundary value (0.0) in the first element even when PAVD is all-NaN.
+        if bad_shots.any():
+            pavd_rh64[bad_shots] = np.nan
+            height_rh64[bad_shots] = np.nan
+            H64[bad_shots] = np.nan
+
         # Convert to output dtype
         pavd_rh = pavd_rh64.astype(self.out_dtype, copy=False)
         height_rh = height_rh64.astype(self.out_dtype, copy=False)
