@@ -4,15 +4,17 @@
 # SPDX-FileCopyrightText: 2025 Felix Dombrowski
 # SPDX-FileCopyrightText: 2025 Simon Besnard
 # SPDX-FileCopyrightText: 2025 Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences
-# Optimized version
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Tuple, Optional, Union
 
 import numpy as np
 from numba import njit, prange
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # Low-level helpers (Numba-jitted with parallel where beneficial)
@@ -26,7 +28,6 @@ def _derivative_variable_dz(y2d: np.ndarray, z2d: np.ndarray) -> np.ndarray:
     Central difference where possible; fallback to forward/backward.
     NaNs propagate.
 
-    OPTIMIZED: Added parallel=True for row-wise parallelism.
     """
     n, m = y2d.shape
     out = np.empty((n, m), dtype=np.float64)
@@ -109,7 +110,6 @@ def _finite_max_rowwise(h: np.ndarray) -> np.ndarray:
     """
     Rowwise max that returns NaN for all-NaN rows.
 
-    OPTIMIZED: Added parallel=True for row-wise parallelism.
     """
     n, m = h.shape
     H = np.empty(n, dtype=np.float64)
@@ -178,7 +178,6 @@ def _pavd_from_pai_variable_dz(pai: np.ndarray, z: np.ndarray) -> np.ndarray:
     """
     PAVD = -d(PAI)/dz with per-row non-uniform z (both (n, m)).
 
-    OPTIMIZED: Added parallel=True for row-wise parallelism.
     """
     n, m = pai.shape
     out = np.empty((n, m), dtype=np.float64)
@@ -235,9 +234,6 @@ def _compute_pai_and_pavd_fused(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Fused computation of PAI and PAVD from pgap in a single pass.
-
-    OPTIMIZED: Combines clipping, log, PAI computation, and derivative
-    to avoid materializing intermediate arrays.
 
     Assumes z is 2D (n_shots, nz).
     """
@@ -305,8 +301,6 @@ def _apply_masks_fused(
     """
     Apply multiple masks in a single fused kernel.
 
-    OPTIMIZED: Combines NaN propagation, fill value handling, and
-    below-ground masking in one pass.
     """
     n, m = pavd.shape
     pavd_out = np.empty((n, m), dtype=np.float64)
@@ -333,7 +327,7 @@ def _apply_masks_fused(
 
 
 # ============================================================
-# RH-resampling kernel (OPTIMIZED with parallel)
+# RH-resampling kernel
 # ============================================================
 
 
@@ -345,8 +339,6 @@ def _resample_pavd_height_to_rh101_jit(
     """
     Resample PAVD and height profiles from z-space to RH=0..100 (101 points).
 
-    OPTIMIZED: Added parallel=True for shot-wise parallelism.
-    Each shot is processed independently.
     """
     n, m = height_2d.shape
 
@@ -462,7 +454,7 @@ def _resample_pavd_height_to_rh101_jit(
 
 
 # ============================================================
-# NEW: Optimized pgap_grid filling
+# pgap_grid filling
 # ============================================================
 
 
@@ -478,7 +470,6 @@ def _fill_pgap_grid(
     """
     Fill pgap_grid efficiently with Numba parallelization.
 
-    OPTIMIZED: Numba-accelerated grid filling with parallel processing.
     """
     n_shots = pgap_grid.shape[0]
     nz = pgap_grid.shape[1]
@@ -520,7 +511,6 @@ def _compute_height_grid(
     """
     Compute height_above_ground grid efficiently.
 
-    OPTIMIZED: Numba-accelerated with parallel processing.
     """
     n_shots = height_ag.shape[0]
     nz = height_ag.shape[1]
@@ -547,12 +537,6 @@ class GEDIVerticalProfiler:
     """
     High-level interface to build GEDI-style RH profiles from pgap_theta_z.
 
-    OPTIMIZED VERSION with:
-    - Parallel processing in all major kernels
-    - Fused operations to reduce intermediate arrays
-    - Optimized memory access patterns
-    - Numba-accelerated grid filling
-
     Methods:
       - read_pgap_theta_z(beam_obj, ...) → (pgap_theta_z, height)
       - compute_profiles(...) → cp_pavd, cp_height, H
@@ -574,8 +558,6 @@ class GEDIVerticalProfiler:
         Robust pgap_theta_z reader that tolerates corrupted GEDI granules.
         Invalid shots are skipped (set to NaN) instead of raising errors.
         Output shapes: (n_shots, nz)
-
-        OPTIMIZED: Uses Numba-accelerated grid filling.
         """
 
         # Load SDS
@@ -655,8 +637,6 @@ class GEDIVerticalProfiler:
         """
         Main high-level profile computation.
 
-        OPTIMIZED: Uses fused kernels and parallel processing.
-
         Returns
         -------
         pavd_rh   : (n_shots, 101)  # cp_pavd
@@ -715,10 +695,17 @@ class GEDIVerticalProfiler:
         G = np.broadcast_to(G[:, None], pgap.shape).copy()
         O = np.broadcast_to(O[:, None], pgap.shape).copy()
 
-        # Validate denominator
+        # Validate denominator — NaN-mask bad shots instead of raising
         denom = G * O
-        if not np.all(np.isfinite(denom)) or np.any(denom <= 0):
-            raise ValueError("`rossg * omega` must be positive and finite everywhere.")
+        bad_shots = np.any(~(np.isfinite(denom) & (denom > 0)), axis=1)
+        if bad_shots.any():
+            n_bad = int(bad_shots.sum())
+            logger.warning(
+                f"{n_bad} shot(s) have zero, negative, or non-finite rossg*omega "
+                "— outputs set to NaN for those shots."
+            )
+            pgap = pgap.copy()
+            pgap[bad_shots, :] = np.nan
 
         # ---- Handle height dimensions ----
         if z_in.ndim == 1:
@@ -744,7 +731,7 @@ class GEDIVerticalProfiler:
             self._eps,
         )
 
-        # ---- OPTIMIZED: Fused masking ----
+        # ---- Fused masking ----
         nan_mask = ~np.isfinite(pgap_theta_z)
         pavd_masked, height_masked = _apply_masks_fused(
             pavd_z,

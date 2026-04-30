@@ -253,6 +253,22 @@ class TileDBProvider:
                 attr_list.extend(profile_attrs)
                 profile_vars[var] = profile_attrs
             else:
+                # Guard against "rh_98"-style direct attribute access for profile
+                # variables. TileDB attrs are 1-indexed, so rh_98 = label 97, not
+                # label 98. Force users through the "var:label" syntax instead.
+                m = re.fullmatch(r"([a-zA-Z][a-zA-Z0-9_]*)_(\d+)", var)
+                if m:
+                    base_var = m.group(1)
+                    if array_meta.get(f"{base_var}.profile_labels") is not None:
+                        labels_raw = array_meta[f"{base_var}.profile_labels"]
+                        labels = [int(v) for v in labels_raw.split(",")]
+                        raise ValueError(
+                            f"'{var}' directly accesses a 1-indexed TileDB attribute "
+                            f"and will return the wrong profile point. "
+                            f"Use the 'var:label' syntax instead, e.g. "
+                            f"'{base_var}:{labels[int(m.group(2)) - 1]}' for the "
+                            f"equivalent label. Available labels: {labels}."
+                        )
                 attr_list.append(var)
 
         return attr_list, profile_vars, scalar_renames

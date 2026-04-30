@@ -22,7 +22,7 @@ The TileDB global database utilizes a Ceph object storage backend to efficiently
 - **Bucket Name:** ``dog-ext.gedidb.gedi-l2-l4-v002.0``  
 - **Access Endpoint:** ``https://s3.gfz-potsdam.de``  
 - **Region:** ``eu-central-1``  
-- **Total Storage Used:** ~20TB  
+- **Total Storage Used:** ~13TB  
 - **Access Control:** Public  
 - **Query Support:** Optimized for spatial and temporal queries  
 
@@ -84,7 +84,7 @@ The configuration file contains:
    :align: center
    :width: 100%
 
-   **Figure 2**: The data structure in the TileDB Global Database for GEDI Data.
+   **Figure 2**: Internal storage structure of the GEDI TileDB database. The left panel shows the global distribution of TileDB fragments (blue outlines) overlaid on a log-scale shot density heatmap (shots per degree²). The top-right panel shows shot density as a function of latitude, reflecting the latitudinal gradient in GEDI orbital coverage. The bottom-right panel shows the fragment size distribution ranked by shot count, coloured by absolute latitude centroid.
 
 
 
@@ -110,9 +110,9 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "beam_name", "Name of the beam", "adimensional", "L2A"
    "beam_type", "Type of beam used", "adimensional", "L2A"
    "cover", "Total canopy cover", "Percent", "L2B"
-   "cover_z", "Cumulative canopy cover vertical profile [profile: 30 height bins, 0–145 m]", "Percent", "L2B"
-   "cp_height", "Canopy profile relative height metrics at 1% interval [profile: 101 percentile points, 0–100]", "Meters", "L2B"
-   "cp_pavd", "Canopy profile Plant Area Volume Density at 1% interval [profile: 101 percentile points, 0–100]", "m²/m³", "L2B"
+   "cover_z", "Cumulative canopy cover vertical profile [profile: 30 height bins, 0-145 m]", "Percent", "L2B"
+   "cp_height", "Canopy profile relative height metrics at 1% interval [profile: 101 percentile points, 0-100]", "Meters", "L2B"
+   "cp_pavd", "Canopy profile Plant Area Volume Density at 1% interval [profile: 101 percentile points, 0-100]", "m²/m³", "L2B"
    "degrade_flag", "Flag indicating degraded state of pointing and/or positioning information", "adimensional", "L2A"
    "digital_elevation_model", "TanDEM-X elevation at GEDI footprint location", "Meters", "L2A"
    "digital_elevation_model_srtm", "STRM elevation at GEDI footprint location", "Meters", "L2A"
@@ -139,8 +139,8 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "num_detectedmodes", "Number of detected modes in rxwaveform", "adimensional", "L2A"
    "omega", "Foliage Clumping Index", "adimensional", "L2B"
    "pai", "Total Plant Area Index", "m²/m²", "L2B"
-   "pai_z", "Plant Area Index profile [profile: 30 height bins, 0–145 m]", "m²/m²", "L2B"
-   "pavd_z", "Plant Area Volume Density profile [profile: 30 height bins, 0–145 m]", "m²/m³", "L2B"
+   "pai_z", "Plant Area Index profile [profile: 30 height bins, 0-145 m]", "m²/m²", "L2B"
+   "pavd_z", "Plant Area Volume Density profile [profile: 30 height bins, 0-145 m]", "m²/m³", "L2B"
    "pft_class", "GEDI 1 km EASE 2.0 grid Plant Functional Type (PFT)", "adimensional", "L2A"
    "pgap_theta", "Total Gap Probability (theta)", "adimensional", "L2B"
    "pgap_theta_error", "Total Pgap (theta) error", "adimensional", "L2B"
@@ -150,7 +150,7 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "region_class", "GEDI 1 km EASE 2.0 grid world continental regions ", "adimensional", "L2A"
    "response_limit_flag", "Prediction value outside bounds of training data (0=in bounds, 1=lower bound, 2=upper bound)", "adimensional", "L4A"
    "rg", "Integral of the ground component in the RX waveform", "adimensional", "L2B"
-   "rh", "Relative height metrics at 1% interval [profile: 101 percentile points, 0–100]", "Meters", "L2A"
+   "rh", "Relative height metrics at 1% interval [profile: 101 percentile points, 0-100]", "Meters", "L2A"
    "rh100", "Height above ground of the received waveform signal start", "cm", "L2B"
    "rhog", "Volumetric scattering coefficient (rho) of the ground", "adimensional", "L2B"
    "rhog_error", "Rho (ground) error", "adimensional", "L2B"
@@ -209,7 +209,7 @@ Several variables are stored as per-shot vertical profiles — each cell in the 
    **Percentile-profile variables** (``rh``, ``cp_height``, ``cp_pavd``)
 
    These variables store 101 values per shot, one per integer percentile of the
-   canopy height or PAVD distribution (0 – 100). In the returned
+   canopy height or PAVD distribution (0 - 100). In the returned
    :py:class:`xarray.Dataset` they appear as a 2-D variable with a named
    ``profile_points`` coordinate carrying the percentile integers:
 
@@ -321,6 +321,20 @@ Here are some example use cases:
           end_time="2024-07-25",
           return_type='xarray',
           **quality_filters)
+
+Query performance
+-----------------
+
+Query time scales with the spatial extent of the bounding box. The benchmark was run on a Linux server with dual Intel® Xeon® E5-2643 v4 CPUs (12 cores, 24 threads) and 503 GB RAM, querying data stored on a Ceph object storage cluster (Quincy) comprising 18× DELL R7515 nodes, each equipped with 11-18× 18-20 TB data drives and 1× 1.6 TB NVMe for metadata.
+
+The figure below shows wall-clock query time (and time per km²) as a function of bounding box area for 20 square bounding boxes of increasing size (0.5°-40° side length), all centred on central Europe (51°N, 10°E) and queried over a fixed one-year window (2020). Each box size was repeated three times and the median time is reported. A global archive query over the same period is included as a reference point.
+
+.. figure:: /_static/images/benchmark_query_scaling.png
+   :alt: Query time vs bounding box area
+   :align: center
+   :width: 100%
+
+   **Figure 3**: Query scaling for the GEDI TileDB database. *Left*: absolute wall-clock query time (s) as a function of bounding box area (km²). *Right*: query time per km², a measure of query efficiency — lower values indicate more efficient use of the consolidated fragment structure for larger spatial extents.
 
 Resources
 ---------

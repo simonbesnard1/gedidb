@@ -151,18 +151,29 @@ def test_read_pgap_theta_z_minlength_and_start_offset_and_invalid_slice():
 # ---------------------------
 
 
-def test_compute_profiles_raises_on_bad_denom_and_shape_and_rank():
+def test_compute_profiles_bad_denom_gives_nan_not_exception():
+    nz = 4
+    z = np.linspace(0.0, 3.0, nz)
+    # Two shots: shot 0 has omega=0 (bad), shot 1 is good
+    pgap = np.array([[0.3, 0.4, 0.5, 0.6], [0.3, 0.4, 0.5, 0.6]], dtype=np.float64)
+    omega = np.array([0.0, 1.0], dtype=np.float64)  # shot 0 bad, shot 1 good
+
+    vp = GEDIVerticalProfiler(out_dtype=np.float32)
+
+    # Should NOT raise — bad shot gets NaN, good shot gets valid output
+    pavd_rh, height_rh, H = vp.compute_profiles(
+        pgap, z, local_beam_elevation=np.pi / 4, rossg=1.0, omega=omega
+    )
+    assert np.all(np.isnan(pavd_rh[0])), "bad shot should be all NaN"
+    assert not np.all(np.isnan(pavd_rh[1])), "good shot should have valid output"
+
+
+def test_compute_profiles_raises_on_shape_and_rank():
     nz = 4
     z = np.linspace(0.0, 3.0, nz)
     pgap = np.linspace(0.2, 0.8, nz)[None, :]
 
     vp = GEDIVerticalProfiler(out_dtype=np.float32)
-
-    # Non-positive denom (G*Ω) -> ValueError
-    with pytest.raises(ValueError):
-        vp.compute_profiles(
-            pgap, z, local_beam_elevation=np.pi / 4, rossg=1.0, omega=0.0
-        )
 
     # 2D height with mismatched shape -> ValueError
     z2 = np.broadcast_to(z, (2, nz))  # (2,n) but pgap is (1,n)
