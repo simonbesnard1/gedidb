@@ -22,6 +22,7 @@ from gedidb.utils.geo_processing import (
 )
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 from gedidb.utils.filters import TileDBFilterPolicy
+from gedidb.utils.constants import GediProduct
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,9 @@ class GEDIDatabase:
         self.variables_config = self._load_variables_config(config)
 
         cfg_td = config["tiledb"]
+        self._optional_attrs: set = self._finish_optional_attrs(
+            cfg_td.get("optional_products", [])
+        )
         storage_type = cfg_td.get("storage_type", "local").lower()
 
         # ------------------------------------------------------------------ #
@@ -492,8 +496,19 @@ class GEDIDatabase:
 
         data: Dict[str, np.ndarray] = {}
 
+        n_rows = len(granule_data)
         for name in cache["sorted_data_attrs"]:
             if name not in cols:
+                if self._optional_attrs and name in self._optional_attrs:
+                    target_dtype = attr_dtypes[name]
+                    if np.issubdtype(target_dtype, np.floating):
+                        data[name] = np.full(n_rows, np.nan, dtype=target_dtype)
+                    elif np.issubdtype(target_dtype, np.integer):
+                        data[name] = np.full(
+                            n_rows, np.iinfo(target_dtype).min, dtype=target_dtype
+                        )
+                    else:
+                        data[name] = np.full(n_rows, "", dtype=target_dtype)
                 continue
             series = granule_data[name]
             target_dtype = attr_dtypes[name]
@@ -605,10 +620,20 @@ class GEDIDatabase:
     # Granule status tracking
     # ---------------------------------------------------------------------- #
 
-    def check_granules_status(self, granule_ids: list) -> dict:
+    def check_granules_status(self, granule_ids: list, full_only: bool = True) -> dict:
         """
         Check processed status for a list of granule IDs in a single metadata read.
         Returns {granule_id: bool}.
+
+        Parameters
+        ----------
+        full_only : bool
+            If True (default), only "processed" counts as done — granules with
+            status "partial_l4c" are treated as pending and will be re-processed
+            (use this when optional products are no longer optional).
+            If False, both "processed" and "partial_l4c" count as done — use this
+            when optional products are still optional to avoid re-processing partial
+            granules unnecessarily.
         """
         try:
             with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as array:
@@ -619,8 +644,9 @@ class GEDIDatabase:
             logger.error(f"Failed to read TileDB metadata: {e}")
             return {gid: False for gid in granule_ids}
 
+        done_statuses = {"processed"} if full_only else {"processed", "partial_l4c"}
         statuses = {
-            gid: metadata.get(f"granule_{gid}_status") == "processed"
+            gid: metadata.get(f"granule_{gid}_status") in done_statuses
             for gid in granule_ids
         }
         processed = sum(statuses.values())
@@ -657,19 +683,28 @@ class GEDIDatabase:
         backoff=3,
         logger=logger,
     )
-    def mark_granules_as_processed_batch(self, granule_keys: list) -> None:
-        """Mark multiple granules as processed in a single TileDB open/close."""
+    def mark_granules_as_processed_batch(
+        self, granule_keys: list, status: str = "processed"
+    ) -> None:
+        """Mark multiple granules with the given status in a single TileDB open/close.
+
+        Parameters
+        ----------
+        status : str
+            'processed' (default) or 'partial_l4c' for granules ingested
+            without L4C data (which will be filled in on a later run).
+        """
         if not granule_keys:
             return
         try:
             ts = pd.Timestamp.utcnow().isoformat()
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
                 for key in granule_keys:
-                    array.meta[f"granule_{key}_status"] = "processed"
+                    array.meta[f"granule_{key}_status"] = status
                     array.meta[f"granule_{key}_processed_date"] = ts
-            logger.debug(f"Marked {len(granule_keys)} granules as processed")
+            logger.debug(f"Marked {len(granule_keys)} granules as '{status}'")
         except tiledb.TileDBError as e:
-            logger.error(f"Failed to mark granules as processed: {e}")
+            logger.error(f"Failed to mark granules as '{status}': {e}")
             raise
 
     # ---------------------------------------------------------------------- #
@@ -827,6 +862,33 @@ class GEDIDatabase:
     # ---------------------------------------------------------------------- #
     # Static helpers
     # ---------------------------------------------------------------------- #
+
+    @staticmethod
+    def _build_optional_attrs(optional_products: list) -> set:
+        """
+        Pre-compute TileDB attribute names for optional products.
+        Used in _extract_variable_data to NaN-fill missing optional attributes.
+        """
+        return (
+            set()
+        )  # populated after variables_config is available; see _finish_optional_attrs
+
+    def _finish_optional_attrs(self, optional_products: list) -> set:
+        """Return TileDB attr names (incl. profile suffixes) for optional products."""
+        if not optional_products or not self.variables_config:
+            return set()
+        _value_to_level = {p.value: p.name for p in GediProduct}
+        optional_levels = {_value_to_level.get(pv, pv) for pv in optional_products}
+        attrs: set = set()
+        for var_name, var_info in self.variables_config.items():
+            if var_info.get("product_level") not in optional_levels:
+                continue
+            if var_info.get("is_profile", False):
+                length = int(var_info.get("profile_length", 1))
+                attrs.update(f"{var_name}_{i + 1}" for i in range(length))
+            else:
+                attrs.add(var_name)
+        return attrs
 
     @staticmethod
     def _load_variables_config(config: dict) -> dict:

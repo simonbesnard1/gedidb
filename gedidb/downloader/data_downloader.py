@@ -97,11 +97,13 @@ class CMRDataDownloader(GEDIDownloader):
         start_date: datetime = None,
         end_date: datetime = None,
         earth_data_info=None,
+        optional_products: Optional[list] = None,
     ):
         self.geom = geom
         self.start_date = start_date
         self.end_date = end_date
         self.earth_data_info = earth_data_info
+        self.optional_products = set(optional_products or [])
 
     @retry(
         (
@@ -210,10 +212,11 @@ class CMRDataDownloader(GEDIDownloader):
     def _filter_granules_with_all_products(self, granules: dict) -> dict:
         """
         Keep only granule IDs that have all required products.
+        Optional products are included if available but do not gate inclusion.
         Deduplicates multiple entries for the same (granule_id, product).
         Accepts tuples of len 3 or 4 and normalizes to len 4.
         """
-        required_products = {p.value for p in GediProduct}
+        required_products = {p.value for p in GediProduct} - self.optional_products
         filtered_granules = {}
 
         for granule_id, product_info in granules.items():
@@ -221,15 +224,19 @@ class CMRDataDownloader(GEDIDownloader):
             by_product = {}
             for t in product_info:
                 url, product, start_time, size_mb = _normalize_entry(t)
-                # keep first seen per product; change policy if you prefer newest/largest
                 by_product.setdefault(product, (url, product, start_time, size_mb))
 
-            # Check intersection condition
+            # Require all non-optional products
             if not required_products.issubset(by_product.keys()):
                 continue
 
-            # Keep only required products (ignore extras)
-            filtered_granules[granule_id] = [by_product[p] for p in required_products]
+            # Include required products + any optional ones that are available
+            keep = {p: by_product[p] for p in required_products}
+            for p in self.optional_products:
+                if p in by_product:
+                    keep[p] = by_product[p]
+
+            filtered_granules[granule_id] = list(keep.values())
 
         return filtered_granules
 

@@ -129,52 +129,66 @@ class GEDIGranule:
 
         return {k: v for k, v in data_dict.items() if "shot_number" in v}
 
-    @staticmethod
     def _join_dfs(
-        df_dict: Dict[str, pd.DataFrame], granule_key: str
+        self, df_dict: Dict[str, pd.DataFrame], granule_key: str
     ) -> Optional[pd.DataFrame]:
         """
-        Join multiple DataFrames based on shot number. Ensure required products are available.
-
-        Returns:
-        --------
-        pd.DataFrame or None
-            Joined DataFrame or None if the required data is missing or if the join fails.
+        Join multiple DataFrames based on shot number.
+        Required products use an inner join; optional products use a left join
+        and are silently skipped when absent (columns filled at write time).
         """
-        required_products = [
-            GediProduct.L2A,
-            GediProduct.L2B,
-            GediProduct.L4A,
-            GediProduct.L4C,
-        ]
+        optional_products = set(
+            self.data_info.get("tiledb", {}).get("optional_products", [])
+        )
+        # L2A is always the join base; the rest are joined in order
+        join_order = [GediProduct.L2B, GediProduct.L4A, GediProduct.L4C]
 
         try:
-            # Validate required products
-            for product in required_products:
+            # L2A must always be present
+            if (
+                GediProduct.L2A.value not in df_dict
+                or df_dict[GediProduct.L2A.value].empty
+            ):
+                logger.warning(f"Granule {granule_key}: missing required product L2A")
+                return None
+
+            # Validate required (non-optional) products
+            for product in join_order:
+                if product.value in optional_products:
+                    continue
                 if product.value not in df_dict or df_dict[product.value].empty:
+                    logger.warning(
+                        f"Granule {granule_key}: missing required product {product.value}"
+                    )
                     return None
 
-            # Merge directly on shot_number — avoids repeated set_index/reset_index
-            # on a growing DataFrame (3 index round-trips in the old loop).
             df = df_dict[GediProduct.L2A.value]
             duplicate_cols: list[str] = []
-            for product in required_products[1:]:
+
+            for product in join_order:
+                is_optional = product.value in optional_products
+                is_available = (
+                    product.value in df_dict and not df_dict[product.value].empty
+                )
+
+                if not is_available:
+                    continue  # optional+absent: skip; required+absent: already rejected above
+
+                how = "left" if is_optional else "inner"
                 suffix = f"_{product.value}"
                 before = set(df.columns)
                 df = df.merge(
                     df_dict[product.value],
                     on="shot_number",
-                    how="inner",
+                    how=how,
                     suffixes=("", suffix),
                 )
-                # Track exact duplicate columns introduced by this merge
                 duplicate_cols.extend(
                     col
                     for col in df.columns
                     if col not in before and col.endswith(suffix)
                 )
 
-            # Drop only the exact duplicate columns produced by the merges
             if duplicate_cols:
                 df = df.drop(columns=duplicate_cols)
 
