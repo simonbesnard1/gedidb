@@ -162,9 +162,6 @@ class GEDIProcessor:
         # Load configurations and setup paths and components
         self.data_info = self._load_yaml_file(config_file)
         self.credentials = credentials
-        self.optional_products = self.data_info.get("tiledb", {}).get(
-            "optional_products", []
-        )
 
         # Validate Earth data directory
         earth_data_path = Path(earth_data_dir) if earth_data_dir else Path.home()
@@ -342,7 +339,6 @@ class GEDIProcessor:
             self.start_date,
             self.end_date,
             self.data_info["earth_data_info"],
-            optional_products=self.optional_products,
         )
         return downloader.download()
 
@@ -361,18 +357,13 @@ class GEDIProcessor:
             A dictionary of unprocessed granules from the input `cmr_data`.
         """
         granule_ids = list(cmr_data.keys())
-        # When optional_products are configured, treat "partial_l4c" as done to avoid
-        # re-processing. When optional_products is empty (fill run), re-process partials.
-        full_only = not bool(self.optional_products)
-        processed_granules = self.database_writer.check_granules_status(
-            granule_ids, full_only=full_only
-        )
+        processed_granules = self.database_writer.check_granules_status(granule_ids)
 
         # Filter to include only granules that have not been processed
         unprocessed_granules = {
             granule_id: product_info
             for granule_id, product_info in cmr_data.items()
-            if not processed_granules.get(granule_id, False)
+            if not processed_granules.get(granule_id, False)  # Keep if not processed
         }
 
         return unprocessed_granules
@@ -420,7 +411,7 @@ class GEDIProcessor:
             )
             ledger.append(row)
 
-        def _flush_buffers(buffers, processed_ids, partial_ids, timeframe):
+        def _flush_buffers(buffers, processed_ids, timeframe):
             """
             Concatenate buffered DataFrames, split into spatial tiles, and write
             one TileDB fragment per tile so consolidation preserves tile boundaries.
@@ -436,13 +427,7 @@ class GEDIProcessor:
 
                 # mark processed only after all tiles succeed
                 if processed_ids:
-                    self.database_writer.mark_granules_as_processed_batch(
-                        processed_ids, status="processed"
-                    )
-                if partial_ids:
-                    self.database_writer.mark_granules_as_processed_batch(
-                        partial_ids, status="partial_l4c"
-                    )
+                    self.database_writer.mark_granules_as_processed_batch(processed_ids)
 
             except Exception as e:
                 logger.error(
@@ -473,7 +458,6 @@ class GEDIProcessor:
 
                     buffers = []
                     processed_ids = []
-                    partial_ids = []
                     counter = 0
 
                     for fut in as_completed(future_map):
@@ -487,11 +471,7 @@ class GEDIProcessor:
                             ok = ids_ is not None
 
                             if ok:
-                                products_ingested = metrics.get("products") or []
-                                if GediProduct.L4C.value in products_ingested:
-                                    processed_ids.append(ids_)
-                                else:
-                                    partial_ids.append(ids_)
+                                processed_ids.append(ids_)
 
                             if gdf is not None and not gdf.empty:
                                 buffers.append(gdf)
@@ -527,12 +507,9 @@ class GEDIProcessor:
                             counter += 1
                             if counter % self.flush_every == 0 and buffers:
                                 try:
-                                    _flush_buffers(
-                                        buffers, processed_ids, partial_ids, timeframe
-                                    )
+                                    _flush_buffers(buffers, processed_ids, timeframe)
                                     buffers.clear()
                                     processed_ids.clear()
-                                    partial_ids.clear()
                                     _release_memory()
                                 except Exception as flush_exc:
                                     logger.error(
@@ -545,9 +522,7 @@ class GEDIProcessor:
                     # Flush remaining granules
                     if buffers:
                         try:
-                            _flush_buffers(
-                                buffers, processed_ids, partial_ids, timeframe
-                            )
+                            _flush_buffers(buffers, processed_ids, timeframe)
                         except Exception as flush_exc:
                             logger.error(
                                 f"Final flush failed for timeframe {timeframe}: {flush_exc}"
@@ -581,7 +556,6 @@ class GEDIProcessor:
 
                 buffers = []
                 processed_ids = []
-                partial_ids = []
                 counter = 0
 
                 for gid, fut in futures:
@@ -592,11 +566,7 @@ class GEDIProcessor:
                         ok = ids_ is not None
 
                         if ok:
-                            products_ingested = metrics.get("products") or []
-                            if GediProduct.L4C.value in products_ingested:
-                                processed_ids.append(ids_)
-                            else:
-                                partial_ids.append(ids_)
+                            processed_ids.append(ids_)
 
                         if gdf is not None and not gdf.empty:
                             buffers.append(gdf)
@@ -632,12 +602,9 @@ class GEDIProcessor:
                         counter += 1
                         if counter % self.flush_every == 0 and buffers:
                             try:
-                                _flush_buffers(
-                                    buffers, processed_ids, partial_ids, timeframe
-                                )
+                                _flush_buffers(buffers, processed_ids, timeframe)
                                 buffers.clear()
                                 processed_ids.clear()
-                                partial_ids.clear()
                                 _release_memory()
                             except Exception as flush_exc:
                                 logger.error(
@@ -649,7 +616,7 @@ class GEDIProcessor:
 
                 if buffers:
                     try:
-                        _flush_buffers(buffers, processed_ids, partial_ids, timeframe)
+                        _flush_buffers(buffers, processed_ids, timeframe)
                     except Exception as flush_exc:
                         logger.error(
                             f"Final flush failed for timeframe {timeframe}: {flush_exc}"
