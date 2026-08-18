@@ -40,10 +40,12 @@ The fastest way to get started with **gediDB** is to query data from the publicl
     )
     
     # Define a region of interest (small area in Zambia)
-    # You can use coordinates, bounding box, or load from a GeoJSON file
+    # get_data() expects a GeoDataFrame, so wrap the geometry accordingly
+    import geopandas as gpd
     from shapely.geometry import box
-    roi = box(30.256, -15.853, 30.422, -15.625)  # (min_lon, min_lat, max_lon, max_lat)
-    
+    roi_box = box(30.256, -15.853, 30.422, -15.625)  # (min_lon, min_lat, max_lon, max_lat)
+    roi = gpd.GeoDataFrame([{"name": "ROI", "geometry": roi_box}], crs="EPSG:4326")
+
     # Query biomass and canopy height data
     gedi_data = provider.get_data(
         variables=["agbd", "rh"],  # aboveground biomass density, relative height metrics
