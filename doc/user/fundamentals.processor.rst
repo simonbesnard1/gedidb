@@ -121,3 +121,66 @@ Performance considerations
 --------------------------
 
 Using parallel engines (e.g., Dask) for parallel processing enables gediDB to scale efficiently, particularly when working with large datasets. However, ensure that your system has sufficient memory for handling multiple workers and large `.h5` files. 
+
+Building and resuming a database
+--------------------------------
+
+Use a separate database path (or bucket) for each collection/version and keep
+``tiledb.overwrite: false`` when resuming. New arrays store an ingestion manifest
+containing collection IDs, selected products, variable definitions and quality
+filter selection. Resuming with different data semantics or a different schema
+raises an error before metadata is changed. Older databases without this manifest
+remain readable, but must be rebuilt to use the new ingestion recovery contract.
+Source file URLs are also pinned for each discovered granule; changing a source
+file requires a new database. Expiring URL query parameters are not stored.
+
+Run **one ingestion coordinator per database**. Its workers may download and parse
+in parallel, while the coordinator serializes writes. Before every write attempt,
+including retries after a lost acknowledgment, the writer reads existing shot IDs
+in that spatial/time window and writes only missing shots. This adds read I/O but
+makes replay of the same source files safe after partial writes. It is not a
+transaction across independent writers and does not update changed observations.
+
+Latitude, longitude and daily time are not a unique shot identity. Arrays continue
+to allow duplicate coordinates, preserving distinct ``uint64`` shot numbers at the
+same location on the same day. Exact observation time is stored in ``timestamp_ns``.
+
+A granule receives a successful checkpoint and ledger entry only after its data
+and checkpoint writes finish. Successfully parsed granules with no retained shots
+also receive checkpoints. Parsing and final write failures propagate to the caller;
+``compute()`` does not consolidate or report success after those failures.
+
+The following optional configuration preserves the default four-product intersection:
+
+.. code-block:: yaml
+
+   required_products: [level2A, level2B, level4A, level4C]
+   tiledb:
+     overwrite: false
+     max_in_flight: 4
+     flush_every: 50
+     max_buffer_bytes: 268435456
+     report_every: 25
+
+``required_products`` can select a smaller product set, but must include ``level2A``
+for coordinates and timestamps. Discovery and shot joins require every selected
+product. Missing quality-filter datasets now raise errors instead of silently
+changing the selection. To choose a subset of the existing named filters, use a
+top-level mapping, for example:
+
+.. code-block:: yaml
+
+   quality_filters:
+     level2A: [quality_flag, surface_flag]
+     level2B: []
+
+Omitting a product from this mapping retains its default filters; an empty list
+explicitly disables them. Choose the policy before building, because filtered-out
+shots cannot be recovered by the provider. Validate collection IDs, SDS mappings,
+profile lengths and filters against representative files of the intended version.
+
+``max_buffer_bytes`` limits buffered DataFrames between flushes; a single granule,
+concatenation and workers' parsing/download memory can exceed that amount. Set
+``max_in_flight`` alongside the worker count and available RAM. TileDB context
+settings can be supplied under ``tiledb.config_overrides``. If ``progress_dir`` is
+omitted, progress reports are written under ``data_dir/progress``.

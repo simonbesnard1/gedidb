@@ -42,6 +42,8 @@ class CMRQuery:
         Construct query parameters for the CMR request.
         """
         collection_id = earth_data_info["CMR_PRODUCT_IDS"].get(str(product))
+        if not collection_id:
+            raise ValueError(f"Missing CMR collection ID for {product}.")
         bounding_box = CMRQuery._construct_spatial_params(geom)
         temporal = CMRQuery._construct_temporal_params(start_date, end_date)
 
@@ -190,7 +192,9 @@ class GranuleQuery(CMRQuery):
 
                 # Fetch data from CMR
                 response = session.get(
-                    self.earth_data_info["CMR_URL"], params=cmr_params
+                    self.earth_data_info["CMR_URL"],
+                    params=cmr_params,
+                    timeout=(30, 120),
                 )
                 response.raise_for_status()
                 cmr_response = response.json().get("feed", {}).get("entry", [])
@@ -206,6 +210,21 @@ class GranuleQuery(CMRQuery):
         # Process granule data into a structured DataFrame
         return self._construct_query(granule_data)
 
+    @staticmethod
+    def _download_link(item: dict) -> str:
+        from urllib.parse import urlsplit
+
+        links = [
+            link["href"]
+            for link in item.get("links", [])
+            if not link.get("inherited", False)
+            and link.get("href", "").startswith("https://")
+            and urlsplit(link["href"]).path.lower().endswith(".h5")
+        ]
+        if not links:
+            raise ValueError("CMR entry has no HTTPS HDF5 download link.")
+        return links[0]
+
     def _construct_query(self, granule_data: List[dict]) -> pd.DataFrame:
         """
         Process raw granule data from CMR into a structured DataFrame.
@@ -214,7 +233,7 @@ class GranuleQuery(CMRQuery):
             {
                 "id": self._get_id(granule_name),
                 "name": granule_name,
-                "url": item["links"][0]["href"],
+                "url": self._download_link(item),
                 "size": float(item["granule_size"]),
                 "product": self.product.value,
                 "start_time": item["time_start"],

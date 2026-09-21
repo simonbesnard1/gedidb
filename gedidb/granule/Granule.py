@@ -41,8 +41,8 @@ class granule_handler(h5py.File):
             self.beam_names = [name for name in self.keys() if name.startswith("BEAM")]
             self._is_open = True  # Mark as successfully opened
         except Exception as e:
-            print(f"Error opening granule {file_path}: {e}")
             self._is_open = False
+            raise OSError(f"Error opening granule {file_path}: {e}") from e
 
     def close(self):
         """Close the granule file safely."""

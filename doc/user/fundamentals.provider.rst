@@ -236,3 +236,56 @@ Below is an example of how the dataset looks in the :py:class:`pandas.DataFrame`
     [660802 rows x 106 columns]
 
 ---
+
+Exact geometry and profile coordinates
+-------------------------------------
+
+Query geometries must declare their CRS. The provider transforms them to WGS84
+and preserves polygons and holes, including geometries with more than 4,999
+vertices. ``use_polygon_filter="auto"`` skips point-in-polygon filtering only for
+an exact bounding rectangle. Use ``False`` explicitly to request bounding-box
+results. Polygon boundaries are included.
+
+Nearest queries rank candidates by great-circle distance and handle searches
+across the antimeridian. The ``radius`` parameter still describes the candidate
+bounding window in degrees, rather than a distance in metres. The returned ``time``
+coordinate and time-range selection have daily resolution; request ``timestamp_ns``
+when the precise stored observation time is needed.
+
+Xarray profiles use independent dimensions named from the variable and its label
+metadata, such as ``rh_percentile`` and ``cover_z_height_m``. Their coordinates come
+from ``profile_labels``. Unlabeled profiles use ``<variable>_profile_point``. This
+replaces the shared ``profile_points`` dimension; code selecting that dimension
+must be updated. Different profile grids no longer align or pad each other.
+Requesting ``["rh", "rh:98"]`` returns both the full profile and ``rh_p98``.
+
+Malformed quality expressions raise ``ValueError`` instead of silently removing
+a requested filter. Supported examples include ``">= 0.7 and <= 1"`` and
+``"== 1 or == 2"``.
+
+Memory and streaming
+--------------------
+
+``get_data()`` and ``query_dataframe()`` materialize the full result. For large
+queries, ``iter_query_dataframe()`` yields chunks from TileDB incomplete queries.
+Its low-level bounds use WGS84 degrees and integer days since 1970-01-01, and its
+``time`` column also contains integer days. For example:
+
+.. code-block:: python
+
+   with gdb.GEDIProvider(
+       local_path="/path/to/database",
+       config_overrides={"py.init_buffer_bytes": "1048576"},
+   ) as provider:
+       for frame in provider.iter_query_dataframe(
+           variables=["agbd", "rh:98"],
+           lat_min=0, lat_max=1, lon_min=10, lon_max=11,
+           start_time=18262, end_time=18627,
+       ):
+           # Process or save each frame before requesting the next chunk.
+           print(len(frame))
+
+``config_overrides`` works for both local and S3 providers. The default initial
+buffer is now 1 MiB per attribute, with a 256 MiB tile cache. These settings are
+not a hard cap on total query memory. The provider retains a read snapshot;
+call ``close()`` before querying again to refresh data after ingestion.

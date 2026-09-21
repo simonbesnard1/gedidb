@@ -117,3 +117,41 @@ def test_cmr_download_none_found_raises(monkeypatch, geom):
     # Helpful content in message:
     assert "No GEDI granules found" in str(e.value)
     assert "Geometry bounds=" in str(e.value)
+
+
+def test_ambiguous_product_sources_raise(geom):
+    downloader = CMRDataDownloader(geom=geom)
+    with pytest.raises(ValueError, match="Ambiguous sources"):
+        downloader._filter_granules_with_all_products(
+            {
+                "G1": [
+                    ("https://example/first.h5", "level2A", None),
+                    ("https://example/second.h5", "level2A", None),
+                ]
+            }
+        )
+
+
+def test_required_products_can_select_l2a_only(geom):
+    from gedidb.utils.constants import GediProduct
+
+    downloader = CMRDataDownloader(geom=geom, products=[GediProduct.L2A])
+    assert list(
+        downloader._filter_granules_with_all_products(
+            {
+                "G1": [
+                    ("https://example/l2a.h5", "level2A", None),
+                ]
+            }
+        )
+    ) == ["G1"]
+
+
+def test_cmr_selects_data_link_not_first_link():
+    item = {
+        "links": [
+            {"href": "https://example/documentation.html"},
+            {"href": "https://example/data.h5?token=example"},
+        ]
+    }
+    assert GranuleQuery._download_link(item) == "https://example/data.h5?token=example"

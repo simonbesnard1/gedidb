@@ -31,7 +31,7 @@ class FakeAuthenticator:
 
 
 class FakeCMRDownloader:
-    def __init__(self, geom, start, end, info):
+    def __init__(self, geom, start, end, info, products=None):
         self.geom = geom
         self.start = start
         self.end = end
@@ -82,6 +82,9 @@ class FakeDatabase:
 
     def _create_arrays(self):
         self.created = True
+
+    def register_granule_sources(self, granules):
+        pass
 
     def check_granules_status(self, gran_ids):
         # Let’s say nothing is processed by default
@@ -228,7 +231,7 @@ def patch_deps(
     if gran is not None:
         monkeypatch.setattr(mod, "GEDIGranule", gran)
     if geo is not None:
-        monkeypatch.setattr(mod, "check_and_format_shape", geo)
+        monkeypatch.setattr(mod, "validate_query_geometry", geo)
     if tiling is not None:
         monkeypatch.setattr(mod, "_temporal_tiling", tiling)
 

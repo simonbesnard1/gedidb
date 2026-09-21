@@ -99,6 +99,30 @@ def check_and_format_shape(
         return gpd.GeoSeries(orient(geom), crs=shp.crs)
 
 
+def validate_query_geometry(geometry):
+    """Preserve exact polygons and normalize their coordinates to WGS84."""
+    if not isinstance(geometry, (gpd.GeoDataFrame, gpd.GeoSeries)) or geometry.empty:
+        raise ValueError("A non-empty GeoDataFrame or GeoSeries is required.")
+    if geometry.crs is None:
+        raise ValueError("Geometry must declare a CRS.")
+    result = geometry.to_crs("EPSG:4326")
+    shapes = result.geometry
+    if shapes.isna().any() or shapes.is_empty.any() or not shapes.is_valid.all():
+        raise ValueError("Geometry must contain valid, non-empty polygons.")
+    if not shapes.geom_type.isin(["Polygon", "MultiPolygon"]).all():
+        raise ValueError("Only Polygon and MultiPolygon geometries are supported.")
+    bounds = shapes.total_bounds
+    if (
+        not np.isfinite(bounds).all()
+        or bounds[0] < -180
+        or bounds[2] > 180
+        or bounds[1] < -90
+        or bounds[3] > 90
+    ):
+        raise ValueError("Geometry coordinates fall outside WGS84 bounds.")
+    return shapes
+
+
 def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
     """
     Convert an ISO8601 datetime string (e.g., "2018-01-01T00:00:00Z") or numpy.datetime64
@@ -121,7 +145,12 @@ def _datetime_to_timestamp_days(dt: Union[str, np.datetime64]) -> int:
         )
     else:
         # Parse ISO string and convert to days since epoch
-        dt = dateutil.parser.isoparse(dt).replace(tzinfo=dateutil.tz.UTC)  # Ensure UTC
+        dt = dateutil.parser.isoparse(dt)
+        dt = (
+            dt.replace(tzinfo=dateutil.tz.UTC)
+            if dt.tzinfo is None
+            else dt.astimezone(dateutil.tz.UTC)
+        )
         timestamp = int(
             dt.timestamp() // (86400)
         )  # Convert to days (86400 seconds/day)
@@ -163,7 +192,7 @@ def convert_to_days_since_epoch(
         A pandas Series representing the number of days since the Unix epoch.
     """
     # Ensure timestamps are converted to pandas DatetimeIndex
-    timestamps = pd.to_datetime(timestamps, utc=True)
+    timestamps = pd.DatetimeIndex(pd.to_datetime(timestamps, utc=True))
 
     # Define the Unix epoch
     epoch = pd.Timestamp("1970-01-01", tz="UTC")

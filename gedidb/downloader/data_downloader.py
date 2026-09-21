@@ -97,11 +97,13 @@ class CMRDataDownloader(GEDIDownloader):
         start_date: datetime = None,
         end_date: datetime = None,
         earth_data_info=None,
+        products=None,
     ):
         self.geom = geom
         self.start_date = start_date
         self.end_date = end_date
         self.earth_data_info = earth_data_info
+        self.products = products if products is not None else list(GediProduct)
 
     @retry(
         (
@@ -129,7 +131,7 @@ class CMRDataDownloader(GEDIDownloader):
         per_product_sizes_mb = {}
 
         # 1) Query per product and stage everything (include size for post-intersection sum)
-        for product in GediProduct:
+        for product in self.products:
 
             try:
                 granule_query = GranuleQuery(
@@ -164,9 +166,7 @@ class CMRDataDownloader(GEDIDownloader):
 
             except Exception as e:
                 logger.error(f"Failed to download granules for {product.name}: {e}")
-                per_product_counts.setdefault(product.value, 0)
-                per_product_sizes_mb.setdefault(product.value, 0.0)
-                continue
+                raise
 
         if not cmr_dict:
             raise ValueError(
@@ -200,7 +200,7 @@ class CMRDataDownloader(GEDIDownloader):
             "Intersection has %d granule IDs across %d products. "
             "Estimated download: %.2f GB (%.2f TB). ",
             n_intersection,
-            len(GediProduct),
+            len(self.products),
             total_size_mb / 1024,
             total_size_mb / 1_048_576,
         )
@@ -213,7 +213,8 @@ class CMRDataDownloader(GEDIDownloader):
         Deduplicates multiple entries for the same (granule_id, product).
         Accepts tuples of len 3 or 4 and normalizes to len 4.
         """
-        required_products = {p.value for p in GediProduct}
+        product_order = [p.value for p in self.products]
+        required = set(product_order)
         filtered_granules = {}
 
         for granule_id, product_info in granules.items():
@@ -221,15 +222,19 @@ class CMRDataDownloader(GEDIDownloader):
             by_product = {}
             for t in product_info:
                 url, product, start_time, size_mb = _normalize_entry(t)
-                # keep first seen per product; change policy if you prefer newest/largest
-                by_product.setdefault(product, (url, product, start_time, size_mb))
+                entry = (url, product, start_time, size_mb)
+                if product in by_product and by_product[product][0] != url:
+                    raise ValueError(
+                        f"Ambiguous sources for {granule_id}, {product}: multiple product files."
+                    )
+                by_product[product] = entry
 
             # Check intersection condition
-            if not required_products.issubset(by_product.keys()):
+            if not required.issubset(by_product.keys()):
                 continue
 
             # Keep only required products (ignore extras)
-            filtered_granules[granule_id] = [by_product[p] for p in required_products]
+            filtered_granules[granule_id] = [by_product[p] for p in product_order]
 
         return filtered_granules
 
@@ -257,6 +262,7 @@ class H5FileDownloader:
         tries=10,
         delay=5,
         backoff=3,
+        max_delay=60,
         logger=logger,
     )
     def download(
@@ -312,7 +318,14 @@ class H5FileDownloader:
         r = session.get(url, headers=headers, timeout=45, stream=False)
         r.raise_for_status()
 
-        mode = "ab" if downloaded_size else "wb"
+        if downloaded_size and r.status_code == 206:
+            content_range = r.headers.get("Content-Range", "")
+            if not content_range.startswith(f"bytes {downloaded_size}-"):
+                raise ValueError("Server returned an unexpected resume range.")
+            mode = "ab"
+        else:
+            # Servers may ignore Range and return the entire object with HTTP 200.
+            mode = "wb"
         with open(temp_path, mode) as f:
             data = r.content
             f.write(data)
@@ -343,6 +356,7 @@ class H5FileDownloader:
     def _is_hdf5_valid(self, file_path: pathlib.Path) -> bool:
         """Lightweight HDF5 validation."""
         try:
-            return h5py.is_hdf5(file_path)
+            with h5py.File(file_path, "r") as handle:
+                return any(name.startswith("BEAM") for name in handle.keys())
         except Exception:
             return False

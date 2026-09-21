@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from gedidb.granule import granule_parser
-from gedidb.utils.constants import GediProduct
+from gedidb.utils.constants import GediProduct, required_products
 
 # Configure the logger
 logger = logging.getLogger(__name__)
@@ -64,34 +64,25 @@ class GEDIGranule:
         Tuple[str, Optional[pd.DataFrame]]
             Tuple containing the granule key and the joined DataFrame, or None if processing fails.
         """
+        if not row:
+            raise ValueError("No product files supplied.")
         granule_key = row[0][0]
+        if any(item[0] != granule_key for item in row):
+            raise ValueError("Product files belong to different granules.")
         granules = [item[1] for item in row]
-        missing_product = [level for level, data in granules if data is None]
-
-        if missing_product:
-            logger.warning(
-                f"Granule {granule_key} was not processed: Missing HDF5 file(s) for levels: {missing_product}"
+        expected = required_products(self.data_info)
+        available = {product for product, path in granules if path is not None}
+        if any(product.value not in available for product in expected):
+            raise ValueError(
+                f"Granule {granule_key}: Missing required product file(s)."
             )
-            return None, None
-
-        try:
-            gdf_dict = self.parse_granules(granules, granule_key)
-            if not gdf_dict:
-                logger.warning(
-                    f"Granule {granule_key}: Parsing returned no valid data."
-                )
-                return granule_key, None
-
-            gdf = self._join_dfs(gdf_dict, granule_key)
-            if gdf is None:
-                return granule_key, None
-
-            return granule_key, gdf
-        except Exception as e:
-            logger.error(
-                f"Granule {granule_key} was not processed: Processing failed with error: {e}"
-            )
-            return None, None
+        frames = self.parse_granules(granules, granule_key)
+        joined = self._join_dfs(frames, granule_key, expected)
+        # Only successful parsing and joining may discard local downloads.
+        granule_dir = os.path.join(self.download_path, granule_key)
+        if os.path.exists(granule_dir):
+            shutil.rmtree(granule_dir, ignore_errors=True)
+        return granule_key, joined
 
     def parse_granules(
         self, granules: List[Tuple[str, str]], granule_key: str
@@ -105,80 +96,51 @@ class GEDIGranule:
             Dictionary of dictionaries, each containing NumPy arrays for each product.
         """
         data_dict = {}
-        granule_dir = os.path.join(self.download_path, granule_key)
-
-        try:
-            for product, file in granules:
-                data = granule_parser.parse_h5_file(
-                    file, product, data_info=self.data_info
+        for product, file in granules:
+            data = granule_parser.parse_h5_file(file, product, data_info=self.data_info)
+            if data is None:
+                raise ValueError(f"Granule {granule_key}: Failed to parse {product}.")
+            if not data.empty and "shot_number" not in data:
+                raise ValueError(
+                    f"Granule {granule_key}: {product} has no shot_number."
                 )
-
-                if data is not None:
-                    data_dict[product] = data
-                else:
-                    logger.warning(
-                        f"Granule {granule_key}: Failed to parse product {product}."
-                    )
-
-            # Clean up the directory after parsing
-            if os.path.exists(granule_dir):
-                shutil.rmtree(granule_dir, ignore_errors=True)
-        except Exception as e:
-            logger.error(f"Granule {granule_key}: Error while parsing: {e}")
-            return {}
-
-        return {k: v for k, v in data_dict.items() if "shot_number" in v}
+            data_dict[product] = data
+        return data_dict
 
     @staticmethod
     def _join_dfs(
-        df_dict: Dict[str, pd.DataFrame], granule_key: str
-    ) -> Optional[pd.DataFrame]:
-        """
-        Join multiple DataFrames based on shot number. Ensure required products are available.
-
-        Returns:
-        --------
-        pd.DataFrame or None
-            Joined DataFrame or None if the required data is missing or if the join fails.
-        """
-        required_products = [
-            GediProduct.L2A,
-            GediProduct.L2B,
-            GediProduct.L4A,
-            GediProduct.L4C,
-        ]
-
-        try:
-            # Validate required products
-            for product in required_products:
-                if product.value not in df_dict or df_dict[product.value].empty:
-                    return None
-
-            # Merge directly on shot_number — avoids repeated set_index/reset_index
-            # on a growing DataFrame (3 index round-trips in the old loop).
-            df = df_dict[GediProduct.L2A.value]
-            duplicate_cols: list[str] = []
-            for product in required_products[1:]:
-                suffix = f"_{product.value}"
-                before = set(df.columns)
-                df = df.merge(
-                    df_dict[product.value],
-                    on="shot_number",
-                    how="inner",
-                    suffixes=("", suffix),
+        df_dict: Dict[str, pd.DataFrame],
+        granule_key: str,
+        products: Optional[List[GediProduct]] = None,
+    ) -> pd.DataFrame:
+        """Inner join required products, distinguishing empty data from errors."""
+        products = products if products is not None else list(GediProduct)
+        for product in products:
+            if product.value not in df_dict:
+                raise ValueError(
+                    f"Granule {granule_key}: Missing parsed product {product.value}."
                 )
-                # Track exact duplicate columns introduced by this merge
-                duplicate_cols.extend(
-                    col
-                    for col in df.columns
-                    if col not in before and col.endswith(suffix)
-                )
-
-            # Drop only the exact duplicate columns produced by the merges
-            if duplicate_cols:
-                df = df.drop(columns=duplicate_cols)
-
-            return df if not df.empty else None
-        except Exception as e:
-            logger.error(f"Granule {granule_key}: Error while joining DataFrames: {e}")
-            return None
+            frame = df_dict[product.value]
+            if not frame.empty:
+                if "shot_number" not in frame or frame.shot_number.isna().any():
+                    raise ValueError(
+                        f"Granule {granule_key}: Invalid shot_number in {product.value}."
+                    )
+                if frame.shot_number.dtype.kind not in "iu":
+                    raise ValueError(
+                        f"Granule {granule_key}: shot_number must be an integer."
+                    )
+                if frame.shot_number.duplicated().any():
+                    raise ValueError(
+                        f"Granule {granule_key}: Duplicate shot_number in {product.value}."
+                    )
+        if any(df_dict[p.value].empty for p in products):
+            return pd.DataFrame()
+        df = df_dict[products[0].value]
+        for product in products[1:]:
+            other = df_dict[product.value]
+            columns = [c for c in other if c == "shot_number" or c not in df]
+            df = df.merge(
+                other[columns], on="shot_number", how="inner", validate="one_to_one"
+            )
+        return df

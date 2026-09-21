@@ -2,9 +2,11 @@
 tiledb:
   storage_type: 'local'
   local_path: 'path/to/your/database'     # TileDB URI for storing data
-  overwrite: true                         # Whether to overwrite existing arrays
+  overwrite: false                         # Whether to overwrite existing arrays
   temporal_batching: "weekly"
-  chunk_size: 25
+  flush_every: 25
+  max_in_flight: 4
+  max_buffer_bytes: 268435456  # 256 MiB of buffered DataFrames
   time_range:                             # Global time range for data
     start_time: "2018-01-01"
     end_time: "2030-12-31"
@@ -23,6 +25,7 @@ tiledb:
 
 # Data directory for downloading GEDI data
 data_dir: 'path/to/your/downloading/folder'
+progress_dir: 'path/to/your/progress/folder'
 
 # Configuration for accessing NASA's Earthdata Search API to query granule data.
 earth_data_info:

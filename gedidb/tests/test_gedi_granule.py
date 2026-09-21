@@ -7,6 +7,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 # ⬇️ adjust these if your paths differ
 from gedidb.core.gedigranule import GEDIGranule
@@ -18,7 +19,7 @@ from gedidb.utils.constants import GediProduct
 
 
 def _df(shots, **cols):
-    df = pd.DataFrame({"shot_number": shots, **cols})
+    df = pd.DataFrame({"shot_number": np.asarray(shots, dtype="uint64"), **cols})
     return df
 
 
@@ -48,9 +49,9 @@ def test_join_dfs_happy_path_ordering():
     out = GEDIGranule._join_dfs(df_dict, "G123")
 
     assert isinstance(out, pd.DataFrame)
-    assert pd.api.types.is_string_dtype(out["shot_number"])
+    assert pd.api.types.is_integer_dtype(out["shot_number"])
     # Inner join on '1','2' -> 2 rows
-    assert list(out["shot_number"]) == ["1", "2"]
+    assert list(out["shot_number"]) == [1, 2]
 
     # Non-overlapping columns from all products are present
     assert "h_can" in out.columns  # from L2A
@@ -81,13 +82,13 @@ def test_join_dfs_happy_path_ordering():
 # --------------------------
 
 
-def test_join_dfs_missing_required_returns_none(caplog):
+def test_join_dfs_missing_required_raises(caplog):
     df_dict = {L2A: _df(["1"], a=[1])}  # others missing
-    out = GEDIGranule._join_dfs(df_dict, "G999")
-    assert out is None
+    with pytest.raises(ValueError, match="Missing parsed product"):
+        GEDIGranule._join_dfs(df_dict, "G999")
 
 
-def test_join_dfs_missing_key_raises_internally_returns_none():
+def test_join_dfs_missing_key_raises():
     bad = pd.DataFrame({"nope": ["1"]})
     df_dict = {
         L2A: bad,
@@ -95,11 +96,11 @@ def test_join_dfs_missing_key_raises_internally_returns_none():
         L4A: _df(["1"], y=[2]),
         L4C: _df(["1"], z=[3]),
     }
-    out = GEDIGranule._join_dfs(df_dict, "Gbad")
-    assert out is None
+    with pytest.raises(ValueError, match="Invalid shot_number"):
+        GEDIGranule._join_dfs(df_dict, "Gbad")
 
 
-def test_join_dfs_no_matching_shots_returns_none():
+def test_join_dfs_no_matching_shots_returns_empty():
     df_dict = {
         L2A: _df(["1"], a=[1]),
         L2B: _df(["2"], b=[2]),  # no overlap
@@ -107,7 +108,7 @@ def test_join_dfs_no_matching_shots_returns_none():
         L4C: _df(["1"], d=[4]),
     }
     out = GEDIGranule._join_dfs(df_dict, "Gnooverlap")
-    assert out is None
+    assert out.empty
 
 
 # --------------------------
@@ -115,7 +116,7 @@ def test_join_dfs_no_matching_shots_returns_none():
 # --------------------------
 
 
-def test_parse_granules_filters_missing_shot_number_and_cleans_dir(
+def test_parse_granules_rejects_missing_shot_number_and_preserves_dir(
     monkeypatch, tmp_path
 ):
     # Arrange a download dir with granule subdir
@@ -129,24 +130,9 @@ def test_parse_granules_filters_missing_shot_number_and_cleans_dir(
 
     def fake_parse_h5(file, product, data_info=None):
         calls["seen"].append((product, file))
-        if product == L2A:
-            return {
-                "shot_number": np.array([b"1", b"2"]),
-                "rh98": np.array([10.0, 20.0], dtype=np.float32),
-            }
         if product == L2B:
-            return {"nope": np.array([1, 2])}  # will be filtered out
-        if product == L4A:
-            return {
-                "shot_number": np.array([b"1", b"2"]),
-                "lai": np.array([3.0, 4.0], dtype=np.float32),
-            }
-        if product == L4C:
-            return {
-                "shot_number": np.array([b"1", b"2"]),
-                "biomass": np.array([100.0, 200.0], dtype=np.float32),
-            }
-        return None
+            return pd.DataFrame({"nope": [1, 2]})
+        return _df([1, 2], value=[10.0, 20.0])
 
     from gedidb.core.gedigranule import granule_parser
 
@@ -160,17 +146,13 @@ def test_parse_granules_filters_missing_shot_number_and_cleans_dir(
         (L4C, "/f/L4C.h5"),
     ]
 
-    out = g.parse_granules(granules, granule_key)
-
-    # L2B dropped (no 'shot_number'); others present
-    assert set(out.keys()) == {L2A, L4A, L4C}
-    # Cleaned up the per-granule folder
-    assert not gran_dir.exists()
-    # Parser was invoked for each
-    assert len(calls["seen"]) == 4
+    with pytest.raises(ValueError, match="has no shot_number"):
+        g.parse_granules(granules, granule_key)
+    assert gran_dir.exists()  # Failed inputs remain available for diagnosis/retry.
+    assert len(calls["seen"]) == 2
 
 
-def test_parse_granules_on_parser_exception_returns_empty(monkeypatch, tmp_path):
+def test_parse_granules_propagates_parser_exception(monkeypatch, tmp_path):
     from gedidb.core.gedigranule import granule_parser
 
     def boom(*a, **k):
@@ -179,8 +161,8 @@ def test_parse_granules_on_parser_exception_returns_empty(monkeypatch, tmp_path)
     monkeypatch.setattr(granule_parser, "parse_h5_file", boom)
 
     g = GEDIGranule(str(tmp_path), data_info={})
-    out = g.parse_granules([(L2A, "/f")], "Gx")
-    assert out == {}
+    with pytest.raises(RuntimeError, match="parse failure"):
+        g.parse_granules([(L2A, "/f")], "Gx")
 
 
 # --------------------------
@@ -199,12 +181,11 @@ def test_process_granule_missing_product_short_circuit(caplog, tmp_path, monkeyp
     ]
 
     g = GEDIGranule(str(tmp_path), data_info={})
-    key, df = g.process_granule(row)
-    assert key is None and df is None
-    assert any("Missing HDF5 file(s)" in l for l in caplog.text.splitlines())
+    with pytest.raises(ValueError, match="Missing required product"):
+        g.process_granule(row)
 
 
-def test_process_granule_parsed_empty_returns_key_none(monkeypatch, tmp_path):
+def test_process_granule_missing_parsed_products_raise(monkeypatch, tmp_path):
     # Make parse_granules return {} (e.g., all products filtered)
     g = GEDIGranule(str(tmp_path), data_info={})
 
@@ -217,8 +198,8 @@ def test_process_granule_parsed_empty_returns_key_none(monkeypatch, tmp_path):
         ("Gk", (L4C, "/d")),
     ]
 
-    key, df = g.process_granule(row)
-    assert key == "Gk" and df is None
+    with pytest.raises(ValueError, match="Missing parsed product"):
+        g.process_granule(row)
 
 
 def test_process_granule_happy_path_joins(monkeypatch, tmp_path):
@@ -245,11 +226,11 @@ def test_process_granule_happy_path_joins(monkeypatch, tmp_path):
     key, df = g.process_granule(row)
     assert key == "Gkey"
     assert isinstance(df, pd.DataFrame)
-    assert list(df["shot_number"]) == ["1", "2"]
+    assert list(df["shot_number"]) == [1, 2]
     assert set(df.columns) >= {"a", "b", "c", "d", "shot_number"}
 
 
-def test_process_granule_catches_exception_and_returns_none(monkeypatch, tmp_path):
+def test_process_granule_propagates_exception(monkeypatch, tmp_path):
     g = GEDIGranule(str(tmp_path), data_info={})
 
     def explode(*a, **k):
@@ -264,5 +245,5 @@ def test_process_granule_catches_exception_and_returns_none(monkeypatch, tmp_pat
         ("Gkey", (L4C, "/d")),
     ]
 
-    key, df = g.process_granule(row)
-    assert key is None and df is None
+    with pytest.raises(RuntimeError, match="boom"):
+        g.process_granule(row)

@@ -63,10 +63,9 @@ class beam_handler(h5py.Group):
                 filter_mask = filter_func()
                 mask &= filter_mask
             except KeyError:
-                logger.warning(
-                    f"Filter '{filter_name}' not found in granule. Skipping."
-                )
-                continue  # Skip filters that are missing in the granule
+                raise ValueError(
+                    f"Required quality filter dataset missing: {filter_name}"
+                ) from None
         return mask
 
     @staticmethod

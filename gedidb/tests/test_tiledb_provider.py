@@ -269,16 +269,14 @@ def test_build_profile_attrs_single_label_no_metadata():
 
 def test_build_condition_string_simple_and_compound():
     prov = TileDBProvider(storage_type="local", local_path=".")
-    cond = prov._build_condition_string(
-        {"rh98": ">= 10 and < 30", "quality": "== 1", "note": "no_operator_here"}
-    )
+    cond = prov._build_condition_string({"rh98": ">= 10 and < 30", "quality": "== 1"})
     # order within a key’s split is deterministic in our builder; across keys may vary
     # just assert required clauses are present
     expected_bits = {"rh98 >= 10", "rh98 < 30", "quality == 1"}
     for bit in expected_bits:
         assert bit in cond
-    # malformed key should be ignored (with a warning) and not break the string
-    assert "note" not in cond
+    with pytest.raises(ValueError, match="Invalid quality filter"):
+        prov._build_condition_string({"note": "no_operator_here"})
 
 
 # ---------------------------

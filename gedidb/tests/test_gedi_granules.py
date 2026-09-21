@@ -30,6 +30,8 @@ class TestCase(unittest.TestCase):
         os.chdir(os.path.dirname(__file__))
 
     _data_info = {
+        # These reduced HDF5 fixtures omit quality-filter datasets.
+        "quality_filters": {"level2A": [], "level2B": []},
         "level_2a": {
             "quality_filter": "None",
             "variables": {

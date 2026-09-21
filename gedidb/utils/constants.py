@@ -41,3 +41,26 @@ WGS84 = "EPSG:4326"
 WGS84 Coordinate Reference System (CRS), commonly used for global latitude and longitude representation.
 EPSG:4326 is the code representing the WGS84 standard.
 """
+
+
+def required_products(config: dict) -> list[GediProduct]:
+    """Return a deterministic product set; L2A supplies shot coordinates."""
+    filters = config.get("quality_filters", {})
+    if not isinstance(filters, dict) or set(filters) - set(GediProduct.list_products()):
+        raise ValueError(
+            "quality_filters must map GEDI product values to lists of filter names."
+        )
+    if any(
+        not isinstance(names, list) or any(not isinstance(name, str) for name in names)
+        for names in filters.values()
+    ):
+        raise ValueError("quality_filters selections must be lists of filter names.")
+    requested = config.get("required_products", GediProduct.list_products())
+    if not isinstance(requested, (list, tuple)):
+        raise ValueError("required_products must be a list of GEDI product values.")
+    products = {GediProduct(value) for value in requested}
+    if GediProduct.L2A not in products:
+        raise ValueError(
+            "required_products must include level2A for coordinates and time."
+        )
+    return [product for product in GediProduct if product in products]

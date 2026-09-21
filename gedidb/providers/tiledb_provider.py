@@ -13,13 +13,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-from shapely import contains_xy
+from shapely import intersects_xy
 import tiledb
-
-from gedidb.utils.geo_processing import (
-    _datetime_to_timestamp_days,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +40,14 @@ class TileDBProvider:
         region: str = "eu-central-1",
         credentials: Optional[dict] = None,
         s3_config_overrides: Optional[Dict[str, str]] = None,
+        config_overrides: Optional[Dict[str, str]] = None,
     ):
         if not storage_type or not isinstance(storage_type, str):
             raise ValueError("The 'storage_type' argument must be a non-empty string.")
 
         self.storage_type = storage_type.lower()
         self.s3_config_overrides = s3_config_overrides or {}
+        self.config_overrides = config_overrides or {}
 
         if self.storage_type == "s3":
             if not s3_bucket:
@@ -110,12 +107,12 @@ class TileDBProvider:
             "sm.num_tiledb_threads": str(max_reader_threads),
             # Memory budgets — larger values allow TileDB to plan bigger
             # single-pass reads instead of breaking them into smaller chunks.
-            "sm.memory_budget": str(10 * 1024**3),  # 10 GB
-            "sm.memory_budget_var": str(4 * 1024**3),  # 4 GB
-            "sm.mem.total_budget": str(16 * 1024**3),  # 16 GB
+            "sm.memory_budget": str(256 * 1024**2),
+            "sm.memory_budget_var": str(128 * 1024**2),
+            "sm.mem.total_budget": str(1024**3),
             # Caches
-            "py.init_buffer_bytes": str(2 * 1024**3),  # 2 GiB
-            "sm.tile_cache_size": str(8 * 1024**3),  # 8 GB
+            "py.init_buffer_bytes": str(1024**2),  # Per attribute buffer
+            "sm.tile_cache_size": str(256 * 1024**2),
             # Misc
             "sm.enable_signal_handlers": "false",
         }
@@ -136,6 +133,7 @@ class TileDBProvider:
 
         # Allow targeted overrides (for experiments)
         base_config.update(self.s3_config_overrides)
+        base_config.update(self.config_overrides)
 
         return tiledb.Ctx(base_config)
 
@@ -144,12 +142,13 @@ class TileDBProvider:
         threads = str(min(cores * 4, 64))
         return tiledb.Ctx(
             {
-                "py.init_buffer_bytes": str(4 * 1024**3),  # 4GB
-                "sm.tile_cache_size": str(4 * 1024**3),  # 4GB
+                "py.init_buffer_bytes": str(1024**2),  # Per attribute buffer
+                "sm.tile_cache_size": str(256 * 1024**2),
                 "sm.num_reader_threads": threads,
                 "sm.num_tiledb_threads": threads,
                 "sm.compute_concurrency_level": threads,
                 "sm.io_concurrency_level": threads,
+                **self.config_overrides,
             }
         )
 
@@ -178,7 +177,7 @@ class TileDBProvider:
             metadata = {
                 k: scalar_array.meta[k]
                 for k in scalar_array.meta
-                if not k.startswith("granule_") and "array_type" not in k
+                if not k.startswith(("granule_", "gedidb.")) and "array_type" not in k
             }
 
             organized_metadata = defaultdict(dict)
@@ -234,6 +233,12 @@ class TileDBProvider:
                         f"Cannot select by label '{label_val}'."
                     )
                 labels = [int(v) for v in labels_raw.split(",")]
+                if len(labels) != array_meta.get(
+                    f"{base_var}.profile_length", len(labels)
+                ) or len(set(labels)) != len(labels):
+                    raise ValueError(
+                        f"Invalid profile label metadata for '{base_var}'."
+                    )
                 if label_val not in labels:
                     raise ValueError(
                         f"Label '{label_val}' not found in '{base_var}'. "
@@ -262,6 +267,9 @@ class TileDBProvider:
                     if array_meta.get(f"{base_var}.profile_labels") is not None:
                         labels_raw = array_meta[f"{base_var}.profile_labels"]
                         labels = [int(v) for v in labels_raw.split(",")]
+                        index = int(m.group(2)) - 1
+                        if not 0 <= index < len(labels):
+                            raise ValueError(f"Profile index out of range: {var}")
                         raise ValueError(
                             f"'{var}' directly accesses a 1-indexed TileDB attribute "
                             f"and will return the wrong profile point. "
@@ -271,44 +279,46 @@ class TileDBProvider:
                         )
                 attr_list.append(var)
 
-        return attr_list, profile_vars, scalar_renames
+        return list(dict.fromkeys(attr_list)), profile_vars, scalar_renames
+
+    @staticmethod
+    def _apply_scalar_renames(data, profile_vars, renames):
+        data = dict(data)
+        components = {col for columns in profile_vars.values() for col in columns}
+        for source, target in renames.items():
+            data[target] = data[source]
+            if source not in components:
+                del data[source]
+        return data
 
     def _build_condition_string(self, filters: Dict[str, str]) -> Optional[str]:
-        """
-        Build optimized TileDB query condition string from filter dictionary.
-        """
-        if not filters:
-            return None
-
-        cond_list = []
-
-        for key, condition in filters.items():
-            condition = condition.strip()
-
-            # Handle compound conditions (AND/OR)
-            if " and " in condition.lower():
-                parts = condition.lower().split(" and ")
-                for part in parts:
-                    part = part.strip()
-                    for op in _SORTED_OPS:
-                        if op in part:
-                            value = part.split(op, 1)[1].strip()
-                            cond_list.append(f"{key} {op} {value}")
-                            break
-            else:
-                found_op = False
-                for op in _SORTED_OPS:
-                    if op in condition:
-                        cond_list.append(f"{key} {condition}")
-                        found_op = True
-                        break
-
-                if not found_op:
-                    logger.warning(
-                        f"No valid operator found in filter: {key} {condition}"
-                    )
-
-        return " and ".join(cond_list) if cond_list else None
+        """Validate comparison expressions; malformed filters must never be ignored."""
+        groups = []
+        literal = (
+            r"(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|'[^']*'|\"[^\"]*\")"
+        )
+        comparison = re.compile(rf"^\s*(>=|<=|==|!=|>|<|=)\s*({literal})\s*$")
+        for key, expression in filters.items():
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) or not isinstance(
+                expression, str
+            ):
+                raise ValueError(f"Invalid quality filter: {key}={expression!r}")
+            # Quoted values remain intact, including case and the words 'and'/'or'.
+            tokens = re.split(
+                r"\s+(and|or)\s+(?=[<>=!])", expression, flags=re.IGNORECASE
+            )
+            clauses = []
+            for i, token in enumerate(tokens):
+                if i % 2:
+                    clauses.append(token.lower())
+                    continue
+                match = comparison.fullmatch(token)
+                if match is None:
+                    raise ValueError(f"Invalid quality filter: {key}={expression!r}")
+                op, value = match.groups()
+                clauses.append(f"{key} {'==' if op == '=' else op} {value}")
+            groups.append("(" + " ".join(clauses) + ")")
+        return " and ".join(groups) or None
 
     def _filter_by_polygon(
         self,
@@ -347,7 +357,7 @@ class TileDBProvider:
             geom = geometry  # already a shapely geometry
 
         # Vectorized point-in-polygon test
-        mask = contains_xy(geom, lons, lats)
+        mask = intersects_xy(geom, lons, lats)
 
         filtered_data = {key: value[mask] for key, value in data.items()}
 
@@ -383,7 +393,7 @@ class TileDBProvider:
             array = self._get_array()
 
             attr_list, profile_vars, scalar_renames = self._build_profile_attrs(
-                variables, array.meta
+                list(dict.fromkeys(variables + DEFAULT_DIMS)), array.meta
             )
             cond_string = self._build_condition_string(filters)
 
@@ -472,6 +482,7 @@ class TileDBProvider:
         if data is None:
             return None
 
+        data = self._apply_scalar_renames(data, profile_vars, scalar_renames)
         df = pd.DataFrame(data)
 
         for var_name, profile_cols in profile_vars.items():
@@ -479,10 +490,53 @@ class TileDBProvider:
                 df[var_name] = df[profile_cols].values.tolist()
                 df = df.drop(columns=profile_cols)
 
-        if scalar_renames:
-            df = df.rename(columns=scalar_renames)
-
         return df
+
+    def iter_query_dataframe(
+        self,
+        variables,
+        lat_min,
+        lat_max,
+        lon_min,
+        lon_max,
+        start_time=None,
+        end_time=None,
+        geometry=None,
+        use_polygon_filter=False,
+        **filters,
+    ):
+        """Yield DataFrame chunks without materializing a complete query.
+
+        Bounds use WGS84 degrees and integer days since 1970-01-01, as in
+        query_dataframe. Chunk sizes are controlled by TileDB buffer settings.
+        """
+        array = self._get_array()
+        attrs, profiles, renames = self._build_profile_attrs(
+            list(dict.fromkeys(variables + DEFAULT_DIMS)), array.meta
+        )
+        query = array.query(
+            attrs=attrs,
+            cond=self._build_condition_string(filters),
+            coords=True,
+            return_incomplete=True,
+        )
+        for data in query.multi_index[
+            lat_min:lat_max, lon_min:lon_max, start_time:end_time
+        ]:
+            if not len(data["shot_number"]):
+                continue
+            if use_polygon_filter:
+                if geometry is None:
+                    raise ValueError("geometry is required for polygon filtering.")
+                data = self._filter_by_polygon(data, geometry)
+            if not len(data["shot_number"]):
+                continue
+            data = self._apply_scalar_renames(data, profiles, renames)
+            frame = pd.DataFrame(data)
+            for name, columns in profiles.items():
+                frame[name] = frame[columns].values.tolist()
+                frame = frame.drop(columns=columns)
+            yield frame
 
     def close(self) -> None:
         """Close the persistent array handle and clear caches."""
@@ -492,3 +546,9 @@ class TileDBProvider:
             if self._array_handle.isopen:
                 self._array_handle.close()
             self._array_handle = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()

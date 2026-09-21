@@ -41,7 +41,7 @@ class GranuleParser:
         self.variables = None
 
     @staticmethod
-    def parse_granule(granule: granule_handler) -> pd.DataFrame:
+    def parse_granule(granule: granule_handler, quality_filters=None) -> pd.DataFrame:
         """
         Parse a single granule and return a GeoDataFrame.
 
@@ -53,6 +53,18 @@ class GranuleParser:
         """
         granule_data = []
         for beam in granule.iter_beams():
+            if quality_filters is not None:
+                if not isinstance(quality_filters, list):
+                    raise ValueError(
+                        "quality_filters for a product must be a list of filter names."
+                    )
+                available = beam.DEFAULT_QUALITY_FILTERS or {}
+                unknown = set(quality_filters) - set(available)
+                if unknown:
+                    raise ValueError(f"Unknown quality filters: {sorted(unknown)}")
+                beam.DEFAULT_QUALITY_FILTERS = {
+                    name: available[name] for name in quality_filters
+                }
             main_data = beam.main_data
             if main_data is not None:
                 granule_data.append(main_data)
@@ -85,7 +97,9 @@ class L2AGranuleParser(GranuleParser):
 
     def parse(self) -> pd.DataFrame:
         with L2AGranule(self.file, self.variables) as granule:
-            return self.parse_granule(granule)
+            return self.parse_granule(
+                granule, self.data_info.get("quality_filters", {}).get("level2A")
+            )
 
 
 class L2BGranuleParser(GranuleParser):
@@ -97,7 +111,9 @@ class L2BGranuleParser(GranuleParser):
 
     def parse(self) -> pd.DataFrame:
         with L2BGranule(self.file, self.variables) as granule:
-            return self.parse_granule(granule)
+            return self.parse_granule(
+                granule, self.data_info.get("quality_filters", {}).get("level2B")
+            )
 
 
 class L4AGranuleParser(GranuleParser):
@@ -109,7 +125,9 @@ class L4AGranuleParser(GranuleParser):
 
     def parse(self) -> pd.DataFrame:
         with L4AGranule(self.file, self.variables) as granule:
-            return self.parse_granule(granule)
+            return self.parse_granule(
+                granule, self.data_info.get("quality_filters", {}).get("level4A")
+            )
 
 
 class L4CGranuleParser(GranuleParser):
@@ -121,7 +139,9 @@ class L4CGranuleParser(GranuleParser):
 
     def parse(self) -> pd.DataFrame:
         with L4CGranule(self.file, self.variables) as granule:
-            return self.parse_granule(granule)
+            return self.parse_granule(
+                granule, self.data_info.get("quality_filters", {}).get("level4C")
+            )
 
 
 def parse_h5_file(

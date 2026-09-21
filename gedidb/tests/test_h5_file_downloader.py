@@ -24,6 +24,7 @@ def make_valid_h5_bytes() -> bytes:
     bio = io.BytesIO()
     with h5py.File(bio, "w") as f:
         f.create_dataset("x", data=[1, 2, 3])
+        f.create_group("BEAM0000")
     return bio.getvalue()
 
 
@@ -143,7 +144,7 @@ def test_resume_download(monkeypatch, tmp_out, fake_session):
         assert headers.get("Range") == f"bytes={half}-"
         return FakeResponse(
             content=valid[half:],
-            status=200,
+            status=206,
             headers={"Content-Range": f"bytes {half}-{total-1}/{total}"},
         )
 
@@ -191,3 +192,15 @@ def test_corrupt_file(monkeypatch, tmp_out, fake_session):
     dl = H5FileDownloader(str(tmp_out))
     with pytest.raises(ValueError):
         dl.download("G_CORRUPT", "http://example/file.h5", GediProduct.L4A)
+
+
+def test_resume_when_server_ignores_range_replaces_partial_file(tmp_out, fake_session):
+    valid = make_valid_h5_bytes()
+    directory = tmp_out / "G_IGNORED_RANGE"
+    directory.mkdir()
+    (directory / "L2A.h5.part").write_bytes(valid[:100])
+    fake_session._handler = lambda *args: FakeResponse(content=valid, status=200)
+    _, (_, path) = H5FileDownloader(str(tmp_out)).download(
+        "G_IGNORED_RANGE", "https://example/file.h5", GediProduct.L2A
+    )
+    assert Path(path).read_bytes() == valid

@@ -7,6 +7,8 @@
 
 import concurrent.futures
 import logging
+import json
+import hashlib
 import os
 from typing import Any, Dict, Generator, Optional, Tuple
 
@@ -22,6 +24,7 @@ from gedidb.utils.geo_processing import (
 )
 from gedidb.utils.tiledb_consolidation import SpatialConsolidationPlanner
 from gedidb.utils.filters import TileDBFilterPolicy
+from gedidb.utils.constants import required_products
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +52,9 @@ class GEDIDatabase:
     - Spatial domain bounds and array domain metadata are cached on __init__ so
       write_granule / spatial_chunking never re-open the array just for config lookups.
 
-    - allows_duplicates=True preserves all valid GEDU shots, including co-located
+    - allows_duplicates=True preserves all valid GEDI shots, including co-located
       shots within the same UTC day. The old drop_duplicates() silently discarded
       valid data.
-
-    - write_batch() amortises the TileDB open/close cost across many granules.
-      Prefer it over calling write_granule() in a loop for large ingestion jobs.
 
     - mark_granule_as_processed() now has retry logic (absent in old version).
 
@@ -78,6 +78,8 @@ class GEDIDatabase:
 
         cfg_td = config["tiledb"]
         storage_type = cfg_td.get("storage_type", "local").lower()
+        if storage_type not in {"local", "s3"}:
+            raise ValueError("storage_type must be 'local' or 's3'.")
 
         # ------------------------------------------------------------------ #
         # Performance flags (opt-in, default to fast/simple)
@@ -133,7 +135,7 @@ class GEDIDatabase:
         }
 
         if storage_type != "s3":
-            return tiledb.Config(base)
+            return tiledb.Config({**base, **cfg_td.get("config_overrides", {})})
 
         if not credentials:
             raise ValueError("S3 credentials are required when storage_type == 's3'.")
@@ -144,6 +146,7 @@ class GEDIDatabase:
                 **base,
                 "vfs.s3.aws_access_key_id": credentials["AccessKeyId"],
                 "vfs.s3.aws_secret_access_key": credentials["SecretAccessKey"],
+                "vfs.s3.aws_session_token": credentials.get("SessionToken", ""),
                 "vfs.s3.endpoint_override": cfg_td["url"],
                 "vfs.s3.use_virtual_addressing": "false",
                 "vfs.s3.use_multipart_upload": "true",
@@ -154,12 +157,13 @@ class GEDIDatabase:
                 "vfs.s3.scheme": "https",
                 "vfs.s3.backoff_scale": s3.get("backoff_scale", "2.0"),
                 "vfs.s3.backoff_max_ms": s3.get("backoff_max_ms", "120000"),
-                "sm.vfs.s3.connect_timeout_ms": s3.get("connect_timeout_ms", "60000"),
-                "sm.vfs.s3.request_timeout_ms": s3.get("request_timeout_ms", "600000"),
-                "sm.vfs.s3.connect_max_tries": s3.get("connect_max_tries", "5"),
+                "vfs.s3.connect_timeout_ms": s3.get("connect_timeout_ms", "60000"),
+                "vfs.s3.request_timeout_ms": s3.get("request_timeout_ms", "600000"),
+                "vfs.s3.connect_max_tries": s3.get("connect_max_tries", "5"),
                 "sm.io_concurrency_level": "8",
                 "sm.compute_concurrency_level": "8",
                 "sm.mem.total_budget": "10737418240",
+                **cfg_td.get("config_overrides", {}),
             }
         )
 
@@ -183,7 +187,10 @@ class GEDIDatabase:
                 self._schema_cache = None
                 logger.info(f"Overwritten existing TileDB array at {uri}")
             else:
-                logger.info(f"TileDB array already exists at {uri}. Skipping.")
+                self._validate_existing_array(uri)
+                logger.info(
+                    f"TileDB array already exists at {uri}. Validated for resume."
+                )
                 return
 
         try:
@@ -201,6 +208,86 @@ class GEDIDatabase:
         except (ValueError, tiledb.TileDBError) as e:
             logger.error(f"Failed to create array: {e}")
             raise
+
+    def _ingestion_manifest(self) -> str:
+        """Describe data semantics, excluding credentials and operational settings."""
+        return json.dumps(
+            {
+                "policy_version": 1,
+                "collections": self.config.get("earth_data_info", {}).get(
+                    "CMR_PRODUCT_IDS", {}
+                ),
+                "required_products": [p.value for p in required_products(self.config)],
+                "quality_filters": self.config.get("quality_filters", {}),
+                "variables": self.variables_config,
+            },
+            sort_keys=True,
+        )
+
+    def _validate_existing_array(self, uri: str) -> None:
+        """Refuse to append incompatible data or relabel a legacy database."""
+        with tiledb.open(uri, "r", ctx=self.ctx) as array:
+            schema = array.schema
+            expected = self._create_domain()
+            attrs = self._create_attributes()
+            compatible = (
+                schema.sparse
+                and schema.allows_duplicates
+                and schema.ndim == expected.ndim
+                and schema.nattr == len(attrs)
+            )
+            if compatible:
+                compatible = all(
+                    schema.domain.dim(i).name == expected.dim(i).name
+                    and schema.domain.dim(i).dtype == expected.dim(i).dtype
+                    and schema.domain.dim(i).domain == expected.dim(i).domain
+                    for i in range(expected.ndim)
+                ) and all(
+                    schema.has_attr(attr.name)
+                    and schema.attr(attr.name).dtype == attr.dtype
+                    for attr in attrs
+                )
+            if not compatible:
+                raise ValueError(
+                    "Existing array schema differs from configuration; use a new database path."
+                )
+            if (
+                array.meta.get("gedidb.ingestion_manifest")
+                != self._ingestion_manifest()
+            ):
+                raise ValueError(
+                    "Existing database has missing or incompatible ingestion provenance. "
+                    "Use a new database path; legacy arrays remain readable with GEDIProvider."
+                )
+
+    def register_granule_sources(self, granules: dict) -> None:
+        """Pin source URLs before writing, including interrupted, uncommitted batches."""
+        from urllib.parse import urlsplit, urlunsplit
+
+        manifests = {}
+        for gid, entries in granules.items():
+            sources = []
+            for entry in entries:
+                url, product = entry[:2]
+                parts = urlsplit(url)
+                # Exclude expiring query parameters and credentials.
+                source = urlunsplit(
+                    (parts.scheme, parts.netloc.rsplit("@", 1)[-1], parts.path, "", "")
+                )
+                sources.append((product, source))
+            manifests[f"granule_{gid}_sources"] = json.dumps(sorted(sources))
+        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array:
+            for key, value in manifests.items():
+                previous = array.meta.get(key)
+                if previous is not None and previous != value:
+                    raise ValueError(
+                        f"Source products changed for {key}; use a new database path."
+                    )
+            missing = {k: v for k, v in manifests.items() if k not in array.meta}
+        if missing:
+            with tiledb.open(self.array_uri, "w", ctx=self.ctx) as array:
+                for key, value in missing.items():
+                    array.meta[key] = value
 
     def _create_domain(self) -> tiledb.Domain:
         """
@@ -335,6 +422,11 @@ class GEDIDatabase:
             return
         try:
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+                manifest = self._ingestion_manifest()
+                array.meta["gedidb.ingestion_manifest"] = manifest
+                array.meta["gedidb.ingestion_fingerprint"] = hashlib.sha256(
+                    manifest.encode()
+                ).hexdigest()
                 for var_name, var_info in self.variables_config.items():
                     for key in ("units", "description", "dtype", "product_level"):
                         array.meta[f"{var_name}.{key}"] = var_info.get(key, "unknown")
@@ -434,7 +526,7 @@ class GEDIDatabase:
 
         for (i_lat, i_lon), idx in dataset.groupby(
             [lat_idx, lon_idx], sort=False
-        ).groups.items():
+        ).indices.items():
             lat0 = lat_min_dom + i_lat * block_lat
             lon0 = lon_min_dom + i_lon * block_lon
             yield (lat0, lat0 + block_lat, lon0, lon0 + block_lon), dataset.take(idx)
@@ -494,7 +586,9 @@ class GEDIDatabase:
 
         for name in cache["sorted_data_attrs"]:
             if name not in cols:
-                continue
+                raise ValueError(
+                    f"Required database attribute missing from input: {name}"
+                )
             series = granule_data[name]
             target_dtype = attr_dtypes[name]
             # Fast path: no coercion needed
@@ -505,9 +599,12 @@ class GEDIDatabase:
 
         # timestamp_ns — int64 nanoseconds since epoch
         if "timestamp_ns" in cache["attrs"]:
-            data["timestamp_ns"] = pd.to_datetime(
-                granule_data["time"], utc=True, errors="coerce"
-            ).to_numpy(dtype="int64", copy=False)
+            data["timestamp_ns"] = (
+                pd.to_datetime(granule_data["time"], utc=True, errors="raise")
+                .dt.as_unit("ns")
+                .astype("int64")
+                .to_numpy(copy=False)
+            )
 
         return data
 
@@ -533,6 +630,7 @@ class GEDIDatabase:
         tries=10,
         delay=5,
         backoff=3,
+        max_delay=60,
         logger=logger,
     )
     def _write_to_tiledb(self, coords, data):
@@ -547,9 +645,24 @@ class GEDIDatabase:
             Variable data to write to the TileDB array.
         """
         cache = self._get_schema_cache()
+        # Re-read on EVERY retry, including a retry after an ambiguous commit.
+        # One ingestion coordinator must own writes to an array at a time.
+        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array:
+            ranges = tuple(
+                slice(values.min(), values.max())
+                for values in (coords[name] for name in cache["dim_names"])
+            )
+            query = array.query(
+                attrs=["shot_number"], coords=False, return_incomplete=True
+            )
+            keep = np.ones(len(data["shot_number"]), dtype=bool)
+            for existing in query.multi_index[ranges]:
+                keep &= ~np.isin(data["shot_number"], existing["shot_number"])
+        if not keep.any():
+            return
         with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
-            dims = tuple(coords[name] for name in cache["dim_names"])
-            array[dims] = data
+            dims = tuple(coords[name][keep] for name in cache["dim_names"])
+            array[dims] = {name: values[keep] for name, values in data.items()}
 
     def write_granule(self, granule_data: pd.DataFrame) -> None:
         """
@@ -567,12 +680,28 @@ class GEDIDatabase:
             If required dimension data or critical variables are missing.
         """
         try:
-            granule_data = granule_data.drop_duplicates(
-                subset=["latitude", "longitude", "time"]
-            )
-
-            # Validate granule data
             self._validate_granule_data(granule_data)
+            if (
+                "shot_number" not in granule_data
+                or granule_data["shot_number"].isna().any()
+            ):
+                raise ValueError("Every record must have a shot_number.")
+            if granule_data["shot_number"].dtype.kind not in "iu":
+                raise ValueError(
+                    "shot_number must use an integer dtype to preserve its identity."
+                )
+            # Preserve different shots with identical coordinates, including daily time.
+            granule_data = granule_data.drop_duplicates(subset=["shot_number"])
+            times = pd.to_datetime(granule_data["time"], utc=True, errors="raise")
+            if times.isna().any():
+                raise ValueError("Shot times must not contain NaT.")
+            time_range = self.config["tiledb"]["time_range"]
+            days = convert_to_days_since_epoch(times)
+            if (
+                (days < _datetime_to_timestamp_days(time_range["start_time"]))
+                | (days > _datetime_to_timestamp_days(time_range["end_time"]))
+            ).any():
+                raise ValueError("Shot times fall outside the database time domain.")
 
             # Get spatial domain from cache
             min_lon, max_lon, min_lat, max_lat = self._spatial_bounds
@@ -617,7 +746,7 @@ class GEDIDatabase:
                 }
         except tiledb.TileDBError as e:
             logger.error(f"Failed to read TileDB metadata: {e}")
-            return {gid: False for gid in granule_ids}
+            raise
 
         statuses = {
             gid: metadata.get(f"granule_{gid}_status") == "processed"
@@ -635,6 +764,7 @@ class GEDIDatabase:
         tries=10,
         delay=5,
         backoff=3,
+        max_delay=60,
         logger=logger,
     )
     def mark_granule_as_processed(self, granule_key: str) -> None:
@@ -642,9 +772,9 @@ class GEDIDatabase:
         try:
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
                 array.meta[f"granule_{granule_key}_status"] = "processed"
-                array.meta[f"granule_{granule_key}_processed_date"] = (
-                    pd.Timestamp.utcnow().isoformat()
-                )
+                array.meta[f"granule_{granule_key}_processed_date"] = pd.Timestamp.now(
+                    "UTC"
+                ).isoformat()
             logger.debug(f"Marked granule {granule_key} as processed")
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
@@ -655,6 +785,7 @@ class GEDIDatabase:
         tries=10,
         delay=5,
         backoff=3,
+        max_delay=60,
         logger=logger,
     )
     def mark_granules_as_processed_batch(self, granule_keys: list) -> None:
@@ -662,7 +793,7 @@ class GEDIDatabase:
         if not granule_keys:
             return
         try:
-            ts = pd.Timestamp.utcnow().isoformat()
+            ts = pd.Timestamp.now("UTC").isoformat()
             with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
                 for key in granule_keys:
                     array.meta[f"granule_{key}_status"] = "processed"
@@ -681,6 +812,7 @@ class GEDIDatabase:
         tries=10,
         delay=5,
         backoff=3,
+        max_delay=60,
         logger=logger,
     )
     def consolidate_fragments(
@@ -790,7 +922,8 @@ class GEDIDatabase:
                 )
                 for plan_ in cons_plan
             ]
-            concurrent.futures.wait(futures)
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
         elif isinstance(parallel_engine, Client):
             futures = [
                 parallel_engine.submit(
@@ -831,9 +964,22 @@ class GEDIDatabase:
     @staticmethod
     def _load_variables_config(config: dict) -> dict:
         variables_config = {}
-        for level in ("level_2a", "level_2b", "level_4a", "level_4c"):
+        levels = {
+            "level2A": "level_2a",
+            "level2B": "level_2b",
+            "level4A": "level_4a",
+            "level4C": "level_4c",
+        }
+        for product in required_products(config):
+            level = levels[product.value]
             for var_name, var_info in (
                 config.get(level, {}).get("variables", {}).items()
             ):
-                variables_config[var_name] = var_info
+                # Joins retain the first product's shared columns; metadata must agree.
+                variables_config.setdefault(var_name, var_info)
+        if "shot_number" in variables_config:
+            variables_config["shot_number"] = {
+                **variables_config["shot_number"],
+                "dtype": "uint64",
+            }
         return variables_config
