@@ -8,6 +8,7 @@
 import concurrent.futures
 import logging
 import json
+import gzip
 import hashlib
 import os
 from typing import Any, Dict, Generator, Optional, Tuple
@@ -184,6 +185,9 @@ class GEDIDatabase:
         if tiledb.array_exists(uri, ctx=self.ctx):
             if self.overwrite:
                 tiledb.remove(uri, ctx=self.ctx)
+                vfs = tiledb.VFS(ctx=self.ctx)
+                if vfs.is_file(self._sources_uri):
+                    vfs.remove_file(self._sources_uri)
                 self._schema_cache = None
                 logger.info(f"Overwritten existing TileDB array at {uri}")
             else:
@@ -260,8 +264,18 @@ class GEDIDatabase:
                     "Use a new database path; legacy arrays remain readable with GEDIProvider."
                 )
 
+    @property
+    def _sources_uri(self) -> str:
+        """Sidecar holding each granule's pinned source files (writer-only state)."""
+        return f"{self.array_uri}_granule_sources.json.gz"
+
     def register_granule_sources(self, granules: dict) -> None:
-        """Pin source URLs before writing, including interrupted, uncommitted batches."""
+        """Pin source URLs before writing, including interrupted, uncommitted batches.
+
+        The registry lives in a gzipped JSON file next to the array rather than in
+        array metadata: readers load all metadata on every open, and putting tens of
+        thousands of metadata keys in one write scales quadratically.
+        """
         from urllib.parse import urlsplit, urlunsplit
 
         manifests = {}
@@ -275,19 +289,32 @@ class GEDIDatabase:
                     (parts.scheme, parts.netloc.rsplit("@", 1)[-1], parts.path, "", "")
                 )
                 sources.append((product, source))
-            manifests[f"granule_{gid}_sources"] = json.dumps(sorted(sources))
+            manifests[gid] = json.dumps(sorted(sources))
+
+        vfs = tiledb.VFS(ctx=self.ctx)
+        registry = {}
+        if vfs.is_file(self._sources_uri):
+            with vfs.open(self._sources_uri, "rb") as f:
+                registry = json.loads(gzip.decompress(f.read()))
+        # Databases written before the sidecar kept sources in array metadata.
         with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array:
-            for key, value in manifests.items():
-                previous = array.meta.get(key)
-                if previous is not None and previous != value:
-                    raise ValueError(
-                        f"Source products changed for {key}; use a new database path."
-                    )
-            missing = {k: v for k, v in manifests.items() if k not in array.meta}
+            legacy = {
+                gid: array.meta.get(f"granule_{gid}_sources")
+                for gid in manifests
+                if gid not in registry
+            }
+        for gid, value in manifests.items():
+            previous = registry.get(gid) or legacy.get(gid)
+            if previous is not None and previous != value:
+                raise ValueError(
+                    f"Source products changed for granule_{gid}_sources; "
+                    "use a new database path."
+                )
+        missing = {gid: v for gid, v in manifests.items() if gid not in registry}
         if missing:
-            with tiledb.open(self.array_uri, "w", ctx=self.ctx) as array:
-                for key, value in missing.items():
-                    array.meta[key] = value
+            registry.update(missing)
+            with vfs.open(self._sources_uri, "wb") as f:
+                f.write(gzip.compress(json.dumps(registry).encode()))
 
     def _create_domain(self) -> tiledb.Domain:
         """

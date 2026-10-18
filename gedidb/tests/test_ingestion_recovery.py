@@ -1,6 +1,8 @@
 """Recovery and schema regressions exercised against temporary TileDB arrays."""
 
 import concurrent.futures
+import gzip
+import json
 import copy
 import csv
 import time
@@ -203,11 +205,37 @@ def test_source_change_rejected_before_checkpoint(database):
     database.register_granule_sources(
         {"G1": [("https://host/v3.h5?token=new", "level2A", None)]}
     )
-    with tiledb.open(database.array_uri, ctx=database.ctx) as array:
-        assert "secret" not in array.meta["granule_G1_sources"]
+    with tiledb.VFS(ctx=database.ctx).open(database._sources_uri, "rb") as f:
+        assert b"secret" not in gzip.decompress(f.read())
     with pytest.raises(ValueError, match="Source products changed"):
         database.register_granule_sources(
             {"G1": [("https://host/v4.h5", "level2A", None)]}
+        )
+
+
+def test_source_registry_stays_out_of_array_metadata(database):
+    granules = {
+        f"G{i}": [(f"https://host/{i}.h5", "level2A", None)] for i in range(3000)
+    }
+    database.register_granule_sources(granules)
+    with tiledb.open(database.array_uri, ctx=database.ctx) as array:
+        assert not any(k.endswith("_sources") for k in array.meta.keys())
+    # Re-registering on resume is a no-op; a changed source is still caught.
+    database.register_granule_sources(granules)
+    with pytest.raises(ValueError, match="Source products changed"):
+        database.register_granule_sources(
+            {"G7": [("https://host/x.h5", "level2A", None)]}
+        )
+
+
+def test_legacy_metadata_sources_still_checked(database):
+    with tiledb.open(database.array_uri, "w", ctx=database.ctx) as array:
+        array.meta["granule_G1_sources"] = json.dumps(
+            [["level2A", "https://host/v2.h5"]]
+        )
+    with pytest.raises(ValueError, match="Source products changed"):
+        database.register_granule_sources(
+            {"G1": [("https://host/v3.h5", "level2A", None)]}
         )
 
 
