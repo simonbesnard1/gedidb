@@ -36,8 +36,21 @@ class L2ABeam(beam_handler):
         super().__init__(granule, beam, field_mapping)
 
         self._filtered_index: Optional[np.ndarray] = None  # Cache for filtered indices
+        # V003 keeps a root "quality_flag", but it only flags invalid waveforms;
+        # the L2A quality flag is l2a_quality_flag_rel3.
+        quality_flag = next(
+            (
+                path
+                for path in (
+                    "l2a_quality_flag_rel3",
+                    "geolocation/l2a_quality_flag_rel3",
+                )
+                if path in self
+            ),
+            "quality_flag",
+        )
         self.DEFAULT_QUALITY_FILTERS = {
-            "quality_flag": lambda: self["quality_flag"][()] == 1,
+            "quality_flag": lambda: self[quality_flag][()] == 1,
             "sensitivity_a0": lambda: (
                 (self["sensitivity"][()] >= 0.5) & (self["sensitivity"][()] <= 1.0)
             ),

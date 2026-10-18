@@ -112,7 +112,7 @@ The database includes a wide range of variables, covering spatial coordinates, e
    "cover", "Total canopy cover", "Percent", "L2B"
    "cover_z", "Cumulative canopy cover vertical profile [profile: 30 height bins, 0-145 m]", "Percent", "L2B"
    "cp_height", "Canopy profile relative height metrics at 1% interval [profile: 101 percentile points, 0-100]", "Meters", "L2B"
-   "cp_pavd", "Canopy profile Plant Area Volume Density at 1% interval [profile: 101 percentile points, 0-100]", "m²/m³", "L2B"
+   "cp_pavd", "Plant area index in each 1% canopy-height interval; sums to pai, divide by cp_height at percentile 100 / 100 for PAVD in m²/m³ [profile: 101 percentile points, 0-100]", "m²/m²", "L2B"
    "degrade_flag", "Flag indicating degraded state of pointing and/or positioning information", "adimensional", "L2A"
    "digital_elevation_model", "TanDEM-X elevation at GEDI footprint location", "Meters", "L2A"
    "digital_elevation_model_srtm", "STRM elevation at GEDI footprint location", "Meters", "L2A"

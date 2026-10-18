@@ -528,6 +528,71 @@ def _compute_height_grid(
 
 
 # ============================================================
+# Product readers
+# ============================================================
+
+# V003 L2A algorithm setting groups; each has its own pgap_theta_z_aN datasets.
+_V3_ALGORITHMS = (1, 2, 5, 10)
+
+
+def _pgap_values(raw, dtype) -> np.ndarray:
+    """Return pgap in [0, 1]; V003 stores INT16 DN with pgap = DN / 10000."""
+    arr = np.asarray(raw)
+    if arr.dtype.kind in "iu":
+        arr = arr.astype(np.float64) / 10000.0
+        arr[(arr < 0.0) | (arr > 1.0)] = np.nan
+    return arr.astype(dtype, copy=False)
+
+
+def _find_dataset(beam_obj, name: str):
+    """Locate a dataset in the beam root or the V003 subgroups."""
+    for path in (name, f"rx_processing/{name}", f"geolocation/{name}"):
+        if path in beam_obj:
+            return beam_obj[path][()]
+    raise KeyError(name)
+
+
+def _read_selected_algorithm(beam_obj, dtype):
+    """
+    Assemble V003 pgap_theta_z for each shot's selected L2A algorithm.
+
+    All algorithms' flat arrays are concatenated so one start index addresses
+    them; shots with an unsupported algorithm get count 0. Heights above ground
+    use the selected ground elevation (elev_lowestmode).
+    """
+    selected = np.asarray(_find_dataset(beam_obj, "selected_l2a_algorithm"))
+    ground = np.asarray(_find_dataset(beam_obj, "elev_lowestmode"), dtype=np.float64)
+
+    n = selected.shape[0]
+    rx_start = np.zeros(n, dtype=np.int64)
+    rx_count = np.zeros(n, dtype=np.int64)
+    h0 = np.full(n, np.nan, dtype=np.float64)
+    hL = np.full(n, np.nan, dtype=np.float64)
+    flats, offset = [], 0
+    for alg in _V3_ALGORITHMS:
+        rows = selected == alg
+        if not rows.any():
+            continue
+        flat = _pgap_values(_find_dataset(beam_obj, f"pgap_theta_z_a{alg}"), dtype)
+        start = np.asarray(
+            _find_dataset(beam_obj, f"rx_sample_start_index_a{alg}"), dtype=np.int64
+        )
+        count = np.asarray(
+            _find_dataset(beam_obj, f"rx_sample_count_a{alg}"), dtype=np.int64
+        )
+        bin0 = np.asarray(_find_dataset(beam_obj, f"elevation_bin0_a{alg}"))
+        last = np.asarray(_find_dataset(beam_obj, f"elevation_lastbin_a{alg}"))
+        rx_start[rows] = start[rows] - 1 + offset
+        rx_count[rows] = count[rows]
+        h0[rows] = bin0[rows] - ground[rows]
+        hL[rows] = last[rows] - ground[rows]
+        flats.append(flat)
+        offset += flat.shape[0]
+    flat_pgap = np.concatenate(flats) if flats else np.zeros(0, dtype=dtype)
+    return rx_start, rx_count, flat_pgap.astype(dtype, copy=False), h0, hL
+
+
+# ============================================================
 # High-level profiler class
 # ============================================================
 
@@ -560,13 +625,21 @@ class GEDIVerticalProfiler:
         Output shapes: (n_shots, nz)
         """
 
-        # Load SDS
-        rx_start = np.asarray(beam_obj["rx_sample_start_index"][()], dtype=np.int64)
-        rx_count = np.asarray(beam_obj["rx_sample_count"][()], dtype=np.int64)
-        flat_pgap = np.asarray(beam_obj["pgap_theta_z"][()], dtype=self.out_dtype)
-
-        h0 = np.asarray(beam_obj["geolocation/height_bin0"][()], dtype=np.float64)
-        hL = np.asarray(beam_obj["geolocation/height_lastbin"][()], dtype=np.float64)
+        # Load SDS (rx_sample_start_index is 1-based in the product)
+        if "pgap_theta_z" in beam_obj:  # V002: selected-algorithm datasets
+            rx_start = (
+                np.asarray(beam_obj["rx_sample_start_index"][()], dtype=np.int64) - 1
+            )
+            rx_count = np.asarray(beam_obj["rx_sample_count"][()], dtype=np.int64)
+            flat_pgap = _pgap_values(beam_obj["pgap_theta_z"][()], self.out_dtype)
+            h0 = np.asarray(beam_obj["geolocation/height_bin0"][()], dtype=np.float64)
+            hL = np.asarray(
+                beam_obj["geolocation/height_lastbin"][()], dtype=np.float64
+            )
+        else:  # V003: per-algorithm datasets
+            rx_start, rx_count, flat_pgap, h0, hL = _read_selected_algorithm(
+                beam_obj, self.out_dtype
+            )
         pgap_theta = np.asarray(beam_obj["pgap_theta"][()], dtype=self.out_dtype)
 
         n_total = rx_start.shape[0]

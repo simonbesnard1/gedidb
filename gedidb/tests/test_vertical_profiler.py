@@ -132,13 +132,9 @@ def test_read_pgap_theta_z_minlength_and_start_offset_and_invalid_slice():
     # first start_offset columns set to 1.0 (pad)
     assert np.allclose(P[0, :2], 1.0)
 
-    # since pgap_theta_z is not being inserted (invalid slice),
-    # everything from start_offset onward is filled with base pgap_theta
-    assert np.allclose(P[0, 2:], 0.8)
-
-    # or, if you want to keep structure:
-    assert np.isclose(P[0, 2], 0.8)
-    assert np.isclose(P[0, 3], 0.8)
+    # rx_sample_start_index is 1-based: index 1 is the first pgap sample
+    assert np.allclose(P[0, 2:4], [0.4, 0.5])
+    # bins beyond the waveform keep the baseline pgap_theta
     assert np.isclose(P[0, 4], 0.8)
 
     # invalid slice: start >= finish
@@ -278,3 +274,54 @@ def test_scatter_waveform_jit_matches_python_reference_multiple_shots():
     out_ref = _scatter_ref(start_offset, counts, flat, out_ref)
 
     assert np.array_equal(out_jit, out_ref)
+
+
+def _v2_and_v3_beams():
+    """The same three shots as V002 (selected datasets) and V003 (per algorithm)."""
+    pgap = [
+        np.array([1.0, 0.9, 0.5]),
+        np.array([1.0, 0.7]),
+        np.array([1.0, 0.8, 0.6, 0.4]),
+    ]
+    h0 = np.array([20.0, 10.0, 30.0])
+    hL = np.array([-2.0, -1.0, -3.0])
+    v2 = {
+        "pgap_theta_z": np.concatenate(pgap).astype(np.float32),
+        "rx_sample_count": np.array([3, 2, 4]),
+        "rx_sample_start_index": np.array([1, 4, 6]),
+        "geolocation/height_bin0": h0,
+        "geolocation/height_lastbin": hL,
+        "pgap_theta": np.array([0.5, 0.7, 0.4], dtype=np.float32),
+    }
+    ground = np.array([100.0, 200.0, 300.0])
+    # Shot 0 uses algorithm 1, shot 1 algorithm 2, shot 2 setting 10.
+    v3 = {
+        "pgap_theta": v2["pgap_theta"],
+        "selected_l2a_algorithm": np.array([1, 2, 10], dtype=np.uint8),
+        "geolocation/elev_lowestmode": ground,
+    }
+    for alg, shot in ((1, 0), (2, 1), (10, 2)):
+        other = np.array([1.0, 0.95])  # unrelated waveform stored first
+        flat = np.concatenate([other, pgap[shot]])
+        count = np.full(3, 2)
+        start = np.ones(3, dtype=np.int64)
+        count[shot], start[shot] = len(pgap[shot]), 3
+        v3[f"rx_processing/pgap_theta_z_a{alg}"] = np.round(flat * 10000).astype(
+            np.int16
+        )
+        v3[f"rx_processing/rx_sample_count_a{alg}"] = count
+        v3[f"rx_processing/rx_sample_start_index_a{alg}"] = start
+        v3[f"geolocation/elevation_bin0_a{alg}"] = ground + h0
+        v3[f"geolocation/elevation_lastbin_a{alg}"] = ground + hL
+    return v2, v3
+
+
+def test_read_pgap_theta_z_v3_matches_v2():
+    v2, v3 = _v2_and_v3_beams()
+    vp = GEDIVerticalProfiler(out_dtype=np.float64)
+    p2, z2 = vp.read_pgap_theta_z(v2)
+    p3, z3 = vp.read_pgap_theta_z(v3)
+    np.testing.assert_allclose(p3, p2, atol=1e-4)
+    np.testing.assert_allclose(z3, z2)
+    # shot 0 holds its own samples, not the next shot's
+    np.testing.assert_allclose(p2[0, :3], [1.0, 0.9, 0.5], atol=1e-6)
