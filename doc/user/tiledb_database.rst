@@ -20,7 +20,7 @@ Ceph Object Storage Configuration
 The TileDB global database utilizes a Ceph object storage backend to efficiently manage and distribute GEDI data. Below are the key characteristics of the Ceph bucket:
 
 - **Bucket Name:** ``dog-ext.gedidb.gedi-l2-l4-v002.0``  
-- **Access Endpoint:** ``https://s3.gfz-potsdam.de``  
+- **Access Endpoint:** ``https://s3.gfz.de``  
 - **Region:** ``eu-central-1``  
 - **Total Storage Used:** ~13TB  
 - **Access Control:** Public  
@@ -47,7 +47,7 @@ Below is the structure of the configuration file used to build the TileDB databa
    tiledb:
      storage_type: 's3'
      s3_bucket: "dog-ext.gedidb.gedi-l2-l4-v002.0"
-     url: "https://s3.gfz-potsdam.de"
+     url: "https://s3.gfz.de"
      overwrite: true
      temporal_batching: "annual"
      time_range:
@@ -266,7 +266,7 @@ The `gediDB` Python package simplifies access to the TileDB global database. Bel
    provider = gdb.GEDIProvider(
        storage_type='s3',
        s3_bucket="dog-ext.gedidb.gedi-l2-l4-v002.0", 
-       url="https://s3.gfz-potsdam.de"
+       url="https://s3.gfz.de"
    )
 
    # Load region of interest (ROI)
