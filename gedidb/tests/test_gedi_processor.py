@@ -95,8 +95,14 @@ class FakeDatabase:
         # Yield exactly what the real code expects: (bounds, df)
         yield ((0.0, 1.0, 0.0, 1.0), df)
 
-    def write_granule(self, df):
+    def write_granule(self, df, check_existing=True):
         self.writes.append(len(df))
+
+    def begin_flush(self, gids):
+        pass
+
+    def interrupted_flush_granules(self):
+        return set()
 
     def mark_granule_as_processed(self, gid):
         self.marked.append(gid)

@@ -400,6 +400,7 @@ class GEDIProcessor:
             raise ValueError("Unsupported parallel engine.")
         wait = dask_wait if is_dask else futures_wait
         failures = []
+        interrupted = self.database_writer.interrupted_flush_granules()
 
         for timeframe, granules in batches.items():
             ledger = ProgressLedger(
@@ -451,11 +452,17 @@ class GEDIProcessor:
             def flush():
                 if not completed:
                     return
+                gids = [gid for gid, _ in completed]
+                # Only granules of a crashed write can already have stored shots.
+                check_existing = not interrupted.isdisjoint(gids)
                 try:
                     if buffers:
+                        self.database_writer.begin_flush(gids)
                         combined = pd.concat(buffers, ignore_index=True)
                         for _, tile in self.database_writer.spatial_chunking(combined):
-                            self.database_writer.write_granule(tile)
+                            self.database_writer.write_granule(
+                                tile, check_existing=check_existing
+                            )
                     # Empty, successfully parsed granules also receive a checkpoint.
                     self.database_writer.mark_granules_as_processed_batch(
                         [gid for gid, _ in completed]

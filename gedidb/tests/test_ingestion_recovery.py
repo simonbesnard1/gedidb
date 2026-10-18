@@ -130,12 +130,15 @@ def test_partial_spatial_flush_is_recoverable(database, tmp_path, monkeypatch):
     original = database.write_granule
     count = 0
 
-    def fail_second(tile):
+    checks = []
+
+    def fail_second(tile, check_existing=True):
         nonlocal count
         count += 1
+        checks.append(check_existing)
         if count == 2:
             raise RuntimeError("second tile failed")
-        original(tile)
+        original(tile, check_existing=check_existing)
 
     with concurrent.futures.ThreadPoolExecutor(1) as executor:
         proc = processor(database, tmp_path, executor)
@@ -146,10 +149,16 @@ def test_partial_spatial_flush_is_recoverable(database, tmp_path, monkeypatch):
         assert len(read(database)["shot_number"]) == 1
         rows = list(csv.DictReader((tmp_path / "progress/all/ledger.csv").open()))
         assert [row["status"] for row in rows] == ["fail"]
-        monkeypatch.setattr(database, "write_granule", original)
+        # A fresh granule skips the existing-shot read.
+        assert checks == [False, False]
+        assert database.interrupted_flush_granules() == {"G1"}
+        monkeypatch.setattr(database, "write_granule", fail_second)
         proc._process_granules({"G1": []})
+        # The replay of the interrupted write checks, so the first tile is not duplicated.
+        assert checks[2:] == [True, True]
     assert len(read(database)["shot_number"]) == 2
     assert database.check_granules_status(["G1"]) == {"G1": True}
+    assert database.interrupted_flush_granules() == set()
 
 
 def test_empty_success_and_parse_failure_have_distinct_status(

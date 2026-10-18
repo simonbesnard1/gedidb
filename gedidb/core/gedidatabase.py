@@ -11,6 +11,7 @@ import json
 import gzip
 import hashlib
 import os
+import time
 from typing import Any, Dict, Generator, Optional, Tuple
 
 import numpy as np
@@ -648,46 +649,54 @@ class GEDIDatabase:
             )
         return s.to_numpy(dtype=dt, copy=False)
 
-    @retry(
-        (tiledb.TileDBError, ConnectionError),
-        tries=10,
-        delay=5,
-        backoff=3,
-        max_delay=60,
-        logger=logger,
-    )
-    def _write_to_tiledb(self, coords, data):
-        """
-        Write data to the TileDB array with retry logic.
+    _WRITE_TRIES, _WRITE_DELAY, _WRITE_BACKOFF, _WRITE_MAX_DELAY = 10, 5, 3, 60
 
-        Parameters:
-        ----------
-        coords : dict
-            Coordinates for the TileDB array dimensions.
-        data : dict
-            Variable data to write to the TileDB array.
+    def _write_to_tiledb(self, coords, data, check_existing: bool = True):
         """
+        Write data to the TileDB array, retrying transient failures.
+
+        Shots already in the array are dropped first when ``check_existing`` is
+        set, and on every retry: a failed attempt may have committed before its
+        acknowledgment was lost. The check reads all shot numbers in the write's
+        bounding box, which grows with the database, so callers that know the
+        shots are new (unprocessed granules) skip it on the first attempt.
+        One ingestion coordinator must own writes to an array at a time.
+        """
+        delay = self._WRITE_DELAY
+        for attempt in range(self._WRITE_TRIES):
+            try:
+                self._write_once(coords, data, check_existing or attempt > 0)
+                return
+            except (tiledb.TileDBError, ConnectionError) as exc:
+                if attempt == self._WRITE_TRIES - 1:
+                    raise
+                logger.warning(f"{exc}, retrying in {delay} seconds...")
+                time.sleep(delay)
+                delay = min(delay * self._WRITE_BACKOFF, self._WRITE_MAX_DELAY)
+
+    def _write_once(self, coords, data, check_existing: bool) -> None:
         cache = self._get_schema_cache()
-        # Re-read on EVERY retry, including a retry after an ambiguous commit.
-        # One ingestion coordinator must own writes to an array at a time.
-        with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array:
-            ranges = tuple(
-                slice(values.min(), values.max())
-                for values in (coords[name] for name in cache["dim_names"])
-            )
-            query = array.query(
-                attrs=["shot_number"], coords=False, return_incomplete=True
-            )
-            keep = np.ones(len(data["shot_number"]), dtype=bool)
-            for existing in query.multi_index[ranges]:
-                keep &= ~np.isin(data["shot_number"], existing["shot_number"])
-        if not keep.any():
-            return
+        keep = np.ones(len(data["shot_number"]), dtype=bool)
+        if check_existing:
+            with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array:
+                ranges = tuple(
+                    slice(values.min(), values.max())
+                    for values in (coords[name] for name in cache["dim_names"])
+                )
+                query = array.query(
+                    attrs=["shot_number"], coords=False, return_incomplete=True
+                )
+                for existing in query.multi_index[ranges]:
+                    keep &= ~np.isin(data["shot_number"], existing["shot_number"])
+            if not keep.any():
+                return
         with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
             dims = tuple(coords[name][keep] for name in cache["dim_names"])
             array[dims] = {name: values[keep] for name, values in data.items()}
 
-    def write_granule(self, granule_data: pd.DataFrame) -> None:
+    def write_granule(
+        self, granule_data: pd.DataFrame, check_existing: bool = True
+    ) -> None:
         """
         Write the parsed GEDI granule data to the global TileDB arrays,
         filtering out shots that are outside the spatial domain.
@@ -696,6 +705,9 @@ class GEDIDatabase:
         ----------
         granule_data : pd.DataFrame
             DataFrame containing the granule data, with variable names matching the configuration.
+        check_existing : bool, default True
+            Drop shots already stored. Safe for replays; costs a read that grows
+            with the database, so ingestion skips it for granules known to be new.
 
         Raises:
         -------
@@ -747,7 +759,7 @@ class GEDIDatabase:
             data = self._extract_variable_data(filtered_data)
 
             # Write to the TileDB array
-            self._write_to_tiledb(coords, data)
+            self._write_to_tiledb(coords, data, check_existing)
 
         except Exception as e:
             logger.error(f"Failed to process and write granule data: {e}")
@@ -803,6 +815,19 @@ class GEDIDatabase:
             logger.error(f"Failed to mark granule {granule_key} as processed: {e}")
             raise
 
+    _FLUSH_MARKER = "gedidb.flush_in_progress"
+
+    def begin_flush(self, granule_keys: list) -> None:
+        """Record granules whose write is starting; cleared when they are marked."""
+        with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+            array.meta[self._FLUSH_MARKER] = json.dumps(sorted(granule_keys))
+
+    def interrupted_flush_granules(self) -> set:
+        """Granules of a write that started but was never checkpointed."""
+        with tiledb.open(self.array_uri, mode="r", ctx=self.ctx) as array:
+            marker = array.meta.get(self._FLUSH_MARKER)
+        return set(json.loads(marker)) if marker else set()
+
     @retry(
         (tiledb.TileDBError, ConnectionError),
         tries=10,
@@ -821,6 +846,7 @@ class GEDIDatabase:
                 for key in granule_keys:
                     array.meta[f"granule_{key}_status"] = "processed"
                     array.meta[f"granule_{key}_processed_date"] = ts
+                array.meta[self._FLUSH_MARKER] = "[]"
             logger.debug(f"Marked {len(granule_keys)} granules as processed")
         except tiledb.TileDBError as e:
             logger.error(f"Failed to mark granules as processed: {e}")
