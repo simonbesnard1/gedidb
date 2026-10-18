@@ -238,7 +238,7 @@ Below is an example of how the dataset looks in the :py:class:`pandas.DataFrame`
 ---
 
 Exact geometry and profile coordinates
--------------------------------------
+--------------------------------------
 
 Query geometries must declare their CRS. The provider transforms them to WGS84
 and preserves polygons and holes, including geometries with more than 4,999
@@ -262,6 +262,11 @@ Requesting ``["rh", "rh:98"]`` returns both the full profile and ``rh_p98``.
 Malformed quality expressions raise ``ValueError`` instead of silently removing
 a requested filter. Supported examples include ``">= 0.7 and <= 1"`` and
 ``"== 1 or == 2"``.
+
+Quality filters on a single profile point use the same name as the returned
+column, e.g. ``rh_p98=">= 5"`` filters on the 98th percentile. Raw stored names
+such as ``rh_98`` are rejected for labelled profiles, both as variables and as
+filters: profile attributes are 1-indexed, so ``rh_98`` holds RH97.
 
 Memory and streaming
 --------------------
