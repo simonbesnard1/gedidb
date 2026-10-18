@@ -517,16 +517,14 @@ class GEDIDatabase:
         s = self.config["tiledb"]["spatial_range"]
         return s["lon_min"], s["lon_max"], s["lat_min"], s["lat_max"]
 
-    def spatial_chunking(
-        self,
-        dataset: pd.DataFrame,
-        tiles_across_lat: int = 5,
-        tiles_across_lon: int = 5,
-    ) -> Generator:
+    def spatial_chunking(self, dataset: pd.DataFrame) -> Generator:
         """
         Yield ((lat_min, lat_max, lon_min, lon_max), view) pairs.
 
-        Tile boundaries are derived from config — no array open required.
+        Each block becomes one fragment per write. The block size comes from
+        ``tiledb.write_block_degrees`` (default 30°), independent of the schema
+        tiles: a granule spans tens of degrees, so small blocks would split every
+        write into hundreds of tiny fragments.
         Yields cheap row-subsets of the original DataFrame (no copy).
         """
         if dataset.empty:
@@ -535,14 +533,12 @@ class GEDIDatabase:
             raise ValueError("Dataset must contain 'latitude' and 'longitude' columns.")
 
         cfg_td = self.config.get("tiledb", {})
-        lat_tile = float(cfg_td.get("latitude_tile", 1))
-        lon_tile = float(cfg_td.get("longitude_tile", 1))
+        block_lat = block_lon = float(cfg_td.get("write_block_degrees", 30.0))
+        if block_lat <= 0:
+            raise ValueError("write_block_degrees must be positive.")
         s = cfg_td.get("spatial_range", {})
         lat_min_dom = float(s.get("lat_min", -90.0))
         lon_min_dom = float(s.get("lon_min", -180.0))
-
-        block_lat = lat_tile * tiles_across_lat
-        block_lon = lon_tile * tiles_across_lon
 
         lat_idx = np.floor(
             (dataset["latitude"].to_numpy() - lat_min_dom) / block_lat

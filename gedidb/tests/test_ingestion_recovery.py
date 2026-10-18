@@ -121,7 +121,7 @@ def processor(db, tmp_path, engine):
 
 def test_partial_spatial_flush_is_recoverable(database, tmp_path, monkeypatch):
     frame = shots()
-    frame.loc[1, "latitude"] = 10.0
+    frame.loc[1, "latitude"] = 45.0  # different 30° write block
     monkeypatch.setattr(
         GEDIProcessor,
         "process_single_granule",
@@ -237,6 +237,17 @@ def test_legacy_metadata_sources_still_checked(database):
         database.register_granule_sources(
             {"G1": [("https://host/v3.h5", "level2A", None)]}
         )
+
+
+def test_spatial_chunking_ignores_schema_tile_size(database):
+    database.config["tiledb"]["latitude_tile"] = 0.25
+    database.config["tiledb"]["longitude_tile"] = 0.25
+    lats = np.linspace(-50, 50, 1000)
+    frame = pd.DataFrame({"latitude": lats, "longitude": lats * 1.5})
+    blocks = list(database.spatial_chunking(frame))
+    # 30° blocks: a 100°-long track splits into a handful of writes, not ~100.
+    assert 3 <= len(blocks) <= 10
+    assert sum(len(part) for _, part in blocks) == len(frame)
 
 
 def test_spatial_chunking_uses_positions(database):
