@@ -279,6 +279,18 @@ def test_build_condition_string_simple_and_compound():
         prov._build_condition_string({"note": "no_operator_here"})
 
 
+def test_build_condition_string_profile_label_keys():
+    prov = TileDBProvider(storage_type="local", local_path=".")
+    labels = ",".join(str(i) for i in range(101))
+    meta = {"rh.profile_length": 101, "rh.profile_labels": labels}
+    # rh_p98 targets label 98, stored in the 1-indexed attribute rh_99
+    assert prov._build_condition_string({"rh_p98": "> 10"}, meta) == "(rh_99 > 10)"
+    with pytest.raises(ValueError, match="rh_p97"):
+        prov._build_condition_string({"rh_98": "> 10"}, meta)
+    with pytest.raises(ValueError, match="not found"):
+        prov._build_condition_string({"rh_p101": "> 10"}, meta)
+
+
 # ---------------------------
 # _query_array: bbox & empty
 # ---------------------------

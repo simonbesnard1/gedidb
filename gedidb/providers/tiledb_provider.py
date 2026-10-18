@@ -194,6 +194,62 @@ class TileDBProvider:
             logger.error(f"Failed to retrieve variables from TileDB: {e}")
             raise
 
+    @staticmethod
+    def _profile_labels(base_var: str, array_meta) -> Optional[List[int]]:
+        """Return the validated labels of a profile variable, or None if unlabeled."""
+        labels_raw = array_meta.get(f"{base_var}.profile_labels")
+        if labels_raw is None:
+            return None
+        labels = [int(v) for v in labels_raw.split(",")]
+        if len(labels) != array_meta.get(
+            f"{base_var}.profile_length", len(labels)
+        ) or len(set(labels)) != len(labels):
+            raise ValueError(f"Invalid profile label metadata for '{base_var}'.")
+        return labels
+
+    def _label_to_attr(self, base_var: str, label: str, array_meta) -> str:
+        """Map a profile label (e.g. ``rh``, ``"98"``) to its TileDB attribute (``rh_99``)."""
+        labels = self._profile_labels(base_var, array_meta)
+        if labels is None:
+            raise ValueError(
+                f"Variable '{base_var}' has no label metadata. "
+                f"Cannot select by label '{label}'."
+            )
+        try:
+            label_val = int(label)
+        except ValueError:
+            raise ValueError(
+                f"Label '{label}' of '{base_var}' must be an integer."
+            ) from None
+        if label_val not in labels:
+            raise ValueError(
+                f"Label '{label_val}' not found in '{base_var}'. "
+                f"Available labels: {labels}."
+            )
+        return f"{base_var}_{labels.index(label_val) + 1}"  # TileDB attrs are 1-indexed
+
+    def _reject_raw_profile_attr(self, name: str, array_meta, hint: str) -> None:
+        """
+        Refuse ``rh_98``-style access to a labelled profile. TileDB attributes are
+        1-indexed, so ``rh_98`` holds label 97, not 98. ``hint`` is a format string
+        receiving ``base`` and ``label`` to suggest the correct spelling.
+        """
+        m = re.fullmatch(r"([a-zA-Z][a-zA-Z0-9_]*)_(\d+)", name)
+        if not m:
+            return
+        base_var, index = m.group(1), int(m.group(2)) - 1
+        labels = self._profile_labels(base_var, array_meta)
+        if labels is None:
+            return
+        if not 0 <= index < len(labels):
+            raise ValueError(f"Profile index out of range: {name}")
+        raise ValueError(
+            f"'{name}' directly accesses a 1-indexed TileDB attribute "
+            f"and will return the wrong profile point. Use "
+            f"'{hint.format(base=base_var, label=labels[index])}' for the "
+            f"equivalent label. Available labels: {labels}."
+        )
+
     def _build_profile_attrs(
         self,
         variables: List[str],
@@ -224,30 +280,10 @@ class TileDBProvider:
         for var in variables:
             # ── Single-label selection: "rh:98" ──────────────────────────────
             if ":" in var:
-                base_var, label_str = var.split(":", 1)
-                label_val = int(label_str)
-                labels_raw = array_meta.get(f"{base_var}.profile_labels")
-                if labels_raw is None:
-                    raise ValueError(
-                        f"Variable '{base_var}' has no label metadata. "
-                        f"Cannot select by label '{label_val}'."
-                    )
-                labels = [int(v) for v in labels_raw.split(",")]
-                if len(labels) != array_meta.get(
-                    f"{base_var}.profile_length", len(labels)
-                ) or len(set(labels)) != len(labels):
-                    raise ValueError(
-                        f"Invalid profile label metadata for '{base_var}'."
-                    )
-                if label_val not in labels:
-                    raise ValueError(
-                        f"Label '{label_val}' not found in '{base_var}'. "
-                        f"Available labels: {labels}."
-                    )
-                idx = labels.index(label_val) + 1  # TileDB attrs are 1-indexed
-                tiledb_attr = f"{base_var}_{idx}"
+                base_var, label = var.split(":", 1)
+                tiledb_attr = self._label_to_attr(base_var, label, array_meta)
                 attr_list.append(tiledb_attr)
-                scalar_renames[tiledb_attr] = f"{base_var}_p{label_val}"
+                scalar_renames[tiledb_attr] = f"{base_var}_p{int(label)}"
                 continue
 
             profile_key = f"{var}.profile_length"
@@ -258,28 +294,24 @@ class TileDBProvider:
                 attr_list.extend(profile_attrs)
                 profile_vars[var] = profile_attrs
             else:
-                # Guard against "rh_98"-style direct attribute access for profile
-                # variables. TileDB attrs are 1-indexed, so rh_98 = label 97, not
-                # label 98. Force users through the "var:label" syntax instead.
-                m = re.fullmatch(r"([a-zA-Z][a-zA-Z0-9_]*)_(\d+)", var)
-                if m:
-                    base_var = m.group(1)
-                    if array_meta.get(f"{base_var}.profile_labels") is not None:
-                        labels_raw = array_meta[f"{base_var}.profile_labels"]
-                        labels = [int(v) for v in labels_raw.split(",")]
-                        index = int(m.group(2)) - 1
-                        if not 0 <= index < len(labels):
-                            raise ValueError(f"Profile index out of range: {var}")
-                        raise ValueError(
-                            f"'{var}' directly accesses a 1-indexed TileDB attribute "
-                            f"and will return the wrong profile point. "
-                            f"Use the 'var:label' syntax instead, e.g. "
-                            f"'{base_var}:{labels[int(m.group(2)) - 1]}' for the "
-                            f"equivalent label. Available labels: {labels}."
-                        )
+                self._reject_raw_profile_attr(var, array_meta, "{base}:{label}")
                 attr_list.append(var)
 
         return list(dict.fromkeys(attr_list)), profile_vars, scalar_renames
+
+    def _resolve_filter_key(self, key: str, array_meta) -> str:
+        """
+        Map a quality-filter key to its TileDB attribute. Labelled profile points
+        are filtered by their output name (``rh_p98=">= 10"`` → ``rh_99``), since
+        keyword arguments cannot contain ``':'``.
+        """
+        if array_meta is None:
+            return key
+        m = re.fullmatch(r"([a-zA-Z][a-zA-Z0-9_]*)_p(\d+)", key)
+        if m and self._profile_labels(m.group(1), array_meta) is not None:
+            return self._label_to_attr(m.group(1), m.group(2), array_meta)
+        self._reject_raw_profile_attr(key, array_meta, "{base}_p{label}")
+        return key
 
     @staticmethod
     def _apply_scalar_renames(data, profile_vars, renames):
@@ -291,7 +323,9 @@ class TileDBProvider:
                 del data[source]
         return data
 
-    def _build_condition_string(self, filters: Dict[str, str]) -> Optional[str]:
+    def _build_condition_string(
+        self, filters: Dict[str, str], array_meta=None
+    ) -> Optional[str]:
         """Validate comparison expressions; malformed filters must never be ignored."""
         groups = []
         literal = (
@@ -303,6 +337,7 @@ class TileDBProvider:
                 expression, str
             ):
                 raise ValueError(f"Invalid quality filter: {key}={expression!r}")
+            attr = self._resolve_filter_key(key, array_meta)
             # Quoted values remain intact, including case and the words 'and'/'or'.
             tokens = re.split(
                 r"\s+(and|or)\s+(?=[<>=!])", expression, flags=re.IGNORECASE
@@ -316,7 +351,7 @@ class TileDBProvider:
                 if match is None:
                     raise ValueError(f"Invalid quality filter: {key}={expression!r}")
                 op, value = match.groups()
-                clauses.append(f"{key} {'==' if op == '=' else op} {value}")
+                clauses.append(f"{attr} {'==' if op == '=' else op} {value}")
             groups.append("(" + " ".join(clauses) + ")")
         return " and ".join(groups) or None
 
@@ -395,7 +430,7 @@ class TileDBProvider:
             attr_list, profile_vars, scalar_renames = self._build_profile_attrs(
                 list(dict.fromkeys(variables + DEFAULT_DIMS)), array.meta
             )
-            cond_string = self._build_condition_string(filters)
+            cond_string = self._build_condition_string(filters, array.meta)
 
             query = array.query(
                 attrs=attr_list,
@@ -516,7 +551,7 @@ class TileDBProvider:
         )
         query = array.query(
             attrs=attrs,
-            cond=self._build_condition_string(filters),
+            cond=self._build_condition_string(filters, array.meta),
             coords=True,
             return_incomplete=True,
         )

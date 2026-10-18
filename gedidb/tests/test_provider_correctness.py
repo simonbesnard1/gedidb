@@ -204,3 +204,71 @@ def test_streaming_matches_eager_dataframe(provider):
 
 def test_timezone_offsets_are_converted_to_utc():
     assert _datetime_to_timestamp_days("2020-01-01T00:30:00+02:00") == 18261
+
+
+def test_full_rh_profile_labels_map_to_exact_percentile(tmp_path):
+    """RHk is stored in attribute rh_{k+1}; every access path must return RHk."""
+    labels = ",".join(str(k) for k in range(101))
+    cfg = {
+        "required_products": ["level2A"],
+        "tiledb": {
+            "local_path": str(tmp_path),
+            "dimensions": ["latitude", "longitude", "time"],
+            "spatial_range": {
+                "lat_min": -90.0,
+                "lat_max": 90.0,
+                "lon_min": -180.0,
+                "lon_max": 180.0,
+            },
+            "time_range": {"start_time": "2018-01-01", "end_time": "2030-01-01"},
+        },
+        "level_2a": {
+            "variables": {
+                "shot_number": {"dtype": "uint64"},
+                "rh": {
+                    "dtype": "float32",
+                    "is_profile": True,
+                    "profile_length": 101,
+                    "profile_labels": labels,
+                    "profile_label_name": "percentile",
+                },
+            }
+        },
+    }
+    db = GEDIDatabase(cfg)
+    db._create_arrays()
+    # Same flattening as beam_handler.main_data: column k -> rh_{k+1}
+    rh = np.arange(101, dtype="float32")[None, :] + 1000 * np.arange(3)[:, None]
+    frame = pd.DataFrame(
+        {
+            "shot_number": np.arange(1, 4, dtype="uint64"),
+            "latitude": [0.0] * 3,
+            "longitude": [0.0] * 3,
+            "time": pd.to_datetime(["2020-01-01"] * 3),
+            **{f"rh_{k + 1}": rh[:, k] for k in range(101)},
+        }
+    )
+    db.write_granule(frame)
+
+    with GEDIProvider(local_path=str(tmp_path)) as prov:
+        ds = prov.get_data(
+            ["rh", "rh:97", "rh:98", "rh:99"], geometry=geometry()
+        ).sortby("shot_number")
+        offset = 1000 * (ds.shot_number.values - 1)
+        for k in (0, 97, 98, 99, 100):
+            assert (ds.rh.sel(rh_percentile=k).values == k + offset).all()
+        for k in (97, 98, 99):
+            assert (ds[f"rh_p{k}"].values == k + offset).all()
+
+        df = prov.get_data(["rh"], geometry=geometry(), return_type="dataframe")
+        assert all(
+            row[98] == 98 + 1000 * (s - 1) for row, s in zip(df.rh, df.shot_number)
+        )
+
+        # Filters address profile points by label, matching the output name.
+        hit = prov.get_data(
+            ["rh:98"], geometry=geometry(), return_type="dataframe", rh_p98="== 98"
+        )
+        assert hit.shot_number.tolist() == [1]
+        with pytest.raises(ValueError, match="rh_p97"):
+            prov.get_data(["rh:98"], geometry=geometry(), rh_98="== 97")
