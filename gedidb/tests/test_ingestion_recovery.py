@@ -248,6 +248,25 @@ def test_legacy_metadata_sources_still_checked(database):
         )
 
 
+def test_s3_ingest_writes_skip_multipart(monkeypatch):
+    monkeypatch.setattr(GEDIDatabase, "_get_tiledb_spatial_domain", lambda self: None)
+    config = {
+        "tiledb": {
+            "storage_type": "s3",
+            "s3_bucket": "bucket",
+            "url": "https://s3.example",
+        },
+        "level_2a": {"variables": {}},
+    }
+    db = GEDIDatabase(config, credentials={"AccessKeyId": "a", "SecretAccessKey": "b"})
+    assert db.write_ctx.config()["vfs.s3.use_multipart_upload"] == "false"
+    # Consolidation and other operations keep multipart uploads for large files.
+    assert db.ctx.config()["vfs.s3.use_multipart_upload"] == "true"
+    config["tiledb"]["s3_settings"] = {"ingest_multipart_upload": True}
+    db = GEDIDatabase(config, credentials={"AccessKeyId": "a", "SecretAccessKey": "b"})
+    assert db.write_ctx.config()["vfs.s3.use_multipart_upload"] == "true"
+
+
 def test_spatial_chunking_ignores_schema_tile_size(database):
     database.config["tiledb"]["latitude_tile"] = 0.25
     database.config["tiledb"]["longitude_tile"] = 0.25

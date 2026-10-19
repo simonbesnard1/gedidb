@@ -108,6 +108,17 @@ class GEDIDatabase:
             storage_type, cfg_td, credentials
         )
         self.ctx = tiledb.Ctx(self.tiledb_config)
+        # Ingest writes use single-request uploads: multipart adds an existence
+        # check per file (a 404 for every new file, ~600 files per fragment) and
+        # more round trips. Their files are small; consolidation, which can write
+        # multi-GB files, keeps multipart uploads through self.ctx.
+        self.write_ctx = self.ctx
+        if storage_type == "s3":
+            write_config = tiledb.Config(dict(self.tiledb_config.items()))
+            write_config["vfs.s3.use_multipart_upload"] = str(
+                cfg_td.get("s3_settings", {}).get("ingest_multipart_upload", "false")
+            ).lower()
+            self.write_ctx = tiledb.Ctx(write_config)
 
         # ------------------------------------------------------------------ #
         # Cached values — avoids re-opening the array or re-reading config
@@ -690,7 +701,7 @@ class GEDIDatabase:
                     keep &= ~np.isin(data["shot_number"], existing["shot_number"])
             if not keep.any():
                 return
-        with tiledb.open(self.array_uri, mode="w", ctx=self.ctx) as array:
+        with tiledb.open(self.array_uri, mode="w", ctx=self.write_ctx) as array:
             dims = tuple(coords[name][keep] for name in cache["dim_names"])
             array[dims] = {name: values[keep] for name, values in data.items()}
 
