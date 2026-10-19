@@ -404,7 +404,9 @@ class GEDIProcessor:
 
         for timeframe, granules in batches.items():
             ledger = ProgressLedger(
-                os.path.join(self.progress_dir, timeframe), timeframe
+                os.path.join(self.progress_dir, timeframe),
+                timeframe,
+                expected=len(granules),
             )
             remaining = iter(granules.items())
             pending = {}

@@ -28,9 +28,10 @@ class Row:
 
 
 class ProgressLedger:
-    def __init__(self, out_dir: str, timeframe: str):
+    def __init__(self, out_dir: str, timeframe: str, expected: Optional[int] = None):
         self.out_dir = out_dir
         self.timeframe = timeframe
+        self.expected = expected  # granules to process in this timeframe, if known
         os.makedirs(self.out_dir, exist_ok=True)
         os.makedirs(os.path.join(self.out_dir, "errors"), exist_ok=True)
         self.csv_path = os.path.join(self.out_dir, "ledger.csv")
@@ -172,8 +173,10 @@ th,td{{border:1px solid #ddd;padding:6px 8px;font-size:14px;}}
         return self._fail
 
     @property
-    def total(self):  # unknown at start; we infer from assigned submits + rows
-        # Best effort: submitted tasks are the intended total for this timeframe
+    def total(self):
+        # Without a known count, submitted tasks are a lower bound that keeps growing.
+        if self.expected:
+            return self.expected
         return max(len(self._submits), self.ok_count + self.fail_count)
 
     def eta_minutes(self):
