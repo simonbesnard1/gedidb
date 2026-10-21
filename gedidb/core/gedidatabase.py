@@ -701,7 +701,15 @@ class GEDIDatabase:
                     keep &= ~np.isin(data["shot_number"], existing["shot_number"])
             if not keep.any():
                 return
-        with tiledb.open(self.array_uri, mode="w", ctx=self.write_ctx) as array:
+        # A fresh context per write: TileDB keeps the buffers of single-request
+        # S3 uploads for the lifetime of the context (~the uploaded bytes on every
+        # write), which grew ingest runs until they were OOM-killed.
+        write_ctx = (
+            self.ctx
+            if self.write_ctx is self.ctx
+            else tiledb.Ctx(self.write_ctx.config())
+        )
+        with tiledb.open(self.array_uri, mode="w", ctx=write_ctx) as array:
             dims = tuple(coords[name][keep] for name in cache["dim_names"])
             array[dims] = {name: values[keep] for name, values in data.items()}
 

@@ -161,6 +161,37 @@ def test_partial_spatial_flush_is_recoverable(database, tmp_path, monkeypatch):
     assert database.interrupted_flush_granules() == set()
 
 
+def test_downloads_continue_while_a_batch_is_written(database, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        GEDIProcessor,
+        "process_single_granule",
+        staticmethod(lambda gid, *args: (gid, shots(), {"n_records": 2})),
+    )
+    submitted_at_write = []
+
+    class CountingExecutor(concurrent.futures.ThreadPoolExecutor):
+        submitted = 0
+
+        def submit(self, *args, **kwargs):
+            CountingExecutor.submitted += 1
+            return super().submit(*args, **kwargs)
+
+    original = database.write_granule
+
+    def record(tile, **kwargs):
+        submitted_at_write.append(CountingExecutor.submitted)
+        original(tile, **kwargs)
+
+    with CountingExecutor(1) as executor:
+        proc = processor(database, tmp_path, executor)
+        proc.data_info["tiledb"]["max_in_flight"] = 1
+        proc.flush_every = 1
+        monkeypatch.setattr(database, "write_granule", record)
+        proc._process_granules({"G1": [], "G2": []})
+    # G2 is already submitted when G1's batch is written.
+    assert submitted_at_write[0] == 2
+
+
 def test_empty_success_and_parse_failure_have_distinct_status(
     database, tmp_path, monkeypatch
 ):

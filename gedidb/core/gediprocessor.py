@@ -512,6 +512,9 @@ class GEDIProcessor:
                             len(completed) >= self.flush_every
                             or buffered_bytes >= max_bytes
                         ):
+                            # Refill the queue first so downloads keep running
+                            # while this batch is written.
+                            submit_more()
                             flush()
                             buffered_bytes = 0
                         if counter % self.report_every == 0:
