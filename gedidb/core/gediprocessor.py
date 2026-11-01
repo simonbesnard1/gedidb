@@ -7,9 +7,11 @@
 #
 
 import ctypes
+import errno
 import gc
 import logging
 import os
+import shutil
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -504,6 +506,9 @@ class GEDIProcessor:
                             ledger.write_error(gid, traceback.format_exc())
                             record(gid, {}, "fail", str(exc))
                             logger.error("Granule %s failed: %s", gid, exc)
+                            if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
+                                # Every later granule would fail too; stop the run.
+                                raise
                         finally:
                             if is_dask:
                                 future.release()
@@ -564,18 +569,26 @@ class GEDIProcessor:
         bytes_dl = 0
         prods = []
         download_results = []
-        for entry in product_info:
-            url, product = entry[:2]
+        try:
+            # Fail in seconds, not after gigabytes, if NASA lacks one product file.
+            downloader.check_all_available([entry[0] for entry in product_info])
+            for entry in product_info:
+                url, product = entry[:2]
 
-            res = downloader.download(granule_id, url, GediProduct(product))
-            path = res[1][1]
-            if path and os.path.isfile(path):
-                bytes_dl += os.path.getsize(path)
-            prods.append(str(product))
-            download_results.append(res)
+                res = downloader.download(granule_id, url, GediProduct(product))
+                path = res[1][1]
+                if path and os.path.isfile(path):
+                    bytes_dl += os.path.getsize(path)
+                prods.append(str(product))
+                download_results.append(res)
 
-        granule_processor = GEDIGranule(download_path, data_info)
-        ids_, gdf = granule_processor.process_granule(download_results)
+            granule_processor = GEDIGranule(download_path, data_info)
+            ids_, gdf = granule_processor.process_granule(download_results)
+        except BaseException:
+            # A failed granule is retried from scratch on the next run; keeping
+            # its partial downloads fills the disk when files are missing at NASA.
+            shutil.rmtree(os.path.join(download_path, granule_id), ignore_errors=True)
+            raise
         n_records = int(gdf.shape[0]) if gdf is not None else None
 
         metrics = {

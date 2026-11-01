@@ -1,6 +1,8 @@
 """Recovery and schema regressions exercised against temporary TileDB arrays."""
 
 import concurrent.futures
+import errno
+import requests
 import gzip
 import json
 import copy
@@ -16,6 +18,8 @@ import tiledb
 from gedidb.core.gedidatabase import GEDIDatabase
 from gedidb.core.gedigranule import GEDIGranule
 from gedidb.core.gediprocessor import GEDIProcessor
+from gedidb.downloader import data_downloader
+from gedidb.downloader.data_downloader import H5FileDownloader
 from gedidb.utils.constants import GediProduct
 
 
@@ -313,6 +317,78 @@ def test_spatial_chunking_uses_positions(database):
     frame = shots().set_axis([10, 20])
     result = pd.concat([part for _, part in database.spatial_chunking(frame)])
     pd.testing.assert_frame_equal(result, frame)
+
+
+class _Response:
+    def __init__(self, status):
+        self.status_code = status
+        self.headers = {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(str(self.status_code))
+
+
+def test_missing_product_fails_fast_without_downloading(tmp_path, monkeypatch):
+    calls = []
+
+    class Session:
+        def get(self, url, **kwargs):
+            calls.append(url)
+            return _Response(404 if "L4C" in url else 206)
+
+    monkeypatch.setattr(data_downloader, "_get_session", lambda: Session())
+    monkeypatch.setattr(
+        H5FileDownloader,
+        "download",
+        lambda *a, **k: pytest.fail("nothing may be downloaded"),
+    )
+    info = [("https://x/L2A.h5", "level2A"), ("https://x/L4C.h5", "level4C")]
+    with pytest.raises(data_downloader.MissingProductError):
+        GEDIProcessor.process_single_granule("G1", info, {}, str(tmp_path))
+    assert calls == ["https://x/L2A.h5", "https://x/L4C.h5"]  # no retries
+    assert not (tmp_path / "G1").exists()
+
+
+def test_failed_granule_leaves_no_downloads(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        H5FileDownloader, "check_all_available", lambda self, urls: None
+    )
+
+    def fake_download(self, gid, url, product):
+        path = tmp_path / gid / f"{product.name}.h5"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("data")
+        return gid, (product.value, str(path))
+
+    monkeypatch.setattr(H5FileDownloader, "download", fake_download)
+    monkeypatch.setattr(
+        GEDIGranule,
+        "process_granule",
+        lambda self, rows: (_ for _ in ()).throw(ValueError("parse failed")),
+    )
+    with pytest.raises(ValueError, match="parse failed"):
+        GEDIProcessor.process_single_granule(
+            "G1", [("https://x/L2A.h5", "level2A")], {}, str(tmp_path)
+        )
+    assert not (tmp_path / "G1").exists()
+
+
+def test_full_disk_stops_the_run(database, tmp_path, monkeypatch):
+    seen = []
+
+    def no_space(gid, *args):
+        seen.append(gid)
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(GEDIProcessor, "process_single_granule", staticmethod(no_space))
+    with concurrent.futures.ThreadPoolExecutor(1) as executor:
+        proc = processor(database, tmp_path, executor)
+        proc.data_info["tiledb"]["max_in_flight"] = 1
+        with pytest.raises(OSError) as raised:
+            proc._process_granules({f"G{i}": [] for i in range(5)})
+    assert raised.value.errno == errno.ENOSPC
+    assert seen == ["G0"]  # no further granules are attempted
 
 
 def test_parse_failure_preserves_downloads(tmp_path, monkeypatch):

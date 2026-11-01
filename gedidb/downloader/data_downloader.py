@@ -239,6 +239,19 @@ class CMRDataDownloader(GEDIDownloader):
         return filtered_granules
 
 
+class MissingProductError(Exception):
+    """A product file listed by CMR does not exist on the server (HTTP 404/410).
+
+    Deliberately not an HTTP/OS error, so the retry decorators do not retry it:
+    a missing file stays missing for the rest of the run.
+    """
+
+
+def _raise_for_missing(response, url: str) -> None:
+    if response.status_code in (404, 410):
+        raise MissingProductError(f"{response.status_code} for {url}")
+
+
 class H5FileDownloader:
     """
     Safe downloader for HDF5 files using thread-local Sessions
@@ -265,6 +278,34 @@ class H5FileDownloader:
         max_delay=60,
         logger=logger,
     )
+    def check_available(self, url: str) -> None:
+        """Request the first two bytes; raise MissingProductError if the file is absent."""
+        r = _get_session().get(url, headers={"Range": "bytes=0-1"}, timeout=30)
+        _raise_for_missing(r, url)
+        r.raise_for_status()
+
+    @retry(
+        (
+            ValueError,
+            TypeError,
+            HTTPError,
+            ConnectionError,
+            ChunkedEncodingError,
+            Timeout,
+            RequestException,
+            OSError,
+        ),
+        tries=10,
+        delay=5,
+        backoff=3,
+        max_delay=60,
+        logger=logger,
+    )
+    def check_all_available(self, urls) -> None:
+        """Check every product of a granule before downloading any of them."""
+        for url in urls:
+            self.check_available(url)
+
     def download(
         self, granule_key: str, url: str, product
     ) -> Tuple[str, Tuple[str, Optional[str]]]:
@@ -296,6 +337,7 @@ class H5FileDownloader:
         total_size: Optional[int] = None
 
         r = session.get(url, headers={"Range": "bytes=0-1"}, timeout=30)
+        _raise_for_missing(r, url)
         r.raise_for_status()
 
         cr = r.headers.get("Content-Range")
@@ -316,6 +358,7 @@ class H5FileDownloader:
         # Main download — no streaming
         # -----------------------------
         r = session.get(url, headers=headers, timeout=45, stream=False)
+        _raise_for_missing(r, url)
         r.raise_for_status()
 
         if downloaded_size and r.status_code == 206:

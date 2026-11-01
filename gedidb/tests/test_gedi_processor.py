@@ -60,6 +60,9 @@ class FakeH5Downloader:
         self.download_path = download_path
         self.calls = []
 
+    def check_all_available(self, urls):
+        pass
+
     def download(self, granule_id, url, product_enum):
         self.calls.append((granule_id, url, product_enum.value))
         # return (granule_key, (product.value, "/path"))
