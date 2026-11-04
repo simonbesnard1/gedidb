@@ -1,6 +1,8 @@
 """Recovery and schema regressions exercised against temporary TileDB arrays."""
 
 import concurrent.futures
+import h5py
+import os
 import errno
 import requests
 import gzip
@@ -348,6 +350,56 @@ def test_missing_product_fails_fast_without_downloading(tmp_path, monkeypatch):
         GEDIProcessor.process_single_granule("G1", info, {}, str(tmp_path))
     assert calls == ["https://x/L2A.h5", "https://x/L4C.h5"]  # no retries
     assert not (tmp_path / "G1").exists()
+
+
+def _hdf5_bytes(tmp_path):
+    path = tmp_path / "src.h5"
+    with h5py.File(path, "w") as f:
+        f.create_group("BEAM0000")
+    return path.read_bytes()
+
+
+def test_download_retries_transient_server_errors(tmp_path, monkeypatch):
+    content = _hdf5_bytes(tmp_path)
+    attempts = []
+
+    class Session:
+        def get(self, url, headers=None, **kwargs):
+            if headers and headers.get("Range") == "bytes=0-1":
+                r = _Response(206)
+                r.headers = {"Content-Range": f"bytes 0-1/{len(content)}"}
+                return r
+            attempts.append(url)
+            if len(attempts) < 3:
+                return _Response(502)  # e.g. a DAAC gateway hiccup
+            r = _Response(200)
+            r.content = content
+            return r
+
+    monkeypatch.setattr(data_downloader, "_get_session", lambda: Session())
+    monkeypatch.setattr(time, "sleep", lambda *_: None)
+    _, (_, path) = H5FileDownloader(str(tmp_path / "dl")).download(
+        "G1", "https://x/L2A.h5", GediProduct.L2A
+    )
+    assert len(attempts) == 3
+    assert os.path.getsize(path) == len(content)
+
+
+def test_missing_product_is_not_retried_by_download(tmp_path, monkeypatch):
+    calls = []
+
+    class Session:
+        def get(self, url, **kwargs):
+            calls.append(url)
+            return _Response(404)
+
+    monkeypatch.setattr(data_downloader, "_get_session", lambda: Session())
+    monkeypatch.setattr(time, "sleep", lambda *_: pytest.fail("must not retry a 404"))
+    with pytest.raises(data_downloader.MissingProductError):
+        H5FileDownloader(str(tmp_path / "dl")).download(
+            "G1", "https://x/L4C.h5", GediProduct.L4C
+        )
+    assert len(calls) == 1
 
 
 def test_failed_granule_leaves_no_downloads(tmp_path, monkeypatch):

@@ -239,6 +239,27 @@ class CMRDataDownloader(GEDIDownloader):
         return filtered_granules
 
 
+# Transient download errors (e.g. HTTP 502 from the DAAC) are retried with
+# back-off: 10 tries, waiting 5 s, 15 s, 45 s, then 60 s (~7 minutes in total).
+_retry_transient = retry(
+    (
+        ValueError,
+        TypeError,
+        HTTPError,
+        ConnectionError,
+        ChunkedEncodingError,
+        Timeout,
+        RequestException,
+        OSError,
+    ),
+    tries=10,
+    delay=5,
+    backoff=3,
+    max_delay=60,
+    logger=logger,
+)
+
+
 class MissingProductError(Exception):
     """A product file listed by CMR does not exist on the server (HTTP 404/410).
 
@@ -261,51 +282,19 @@ class H5FileDownloader:
     def __init__(self, download_path: str = ".") -> None:
         self.download_path = pathlib.Path(download_path)
 
-    @retry(
-        (
-            ValueError,
-            TypeError,
-            HTTPError,
-            ConnectionError,
-            ChunkedEncodingError,
-            Timeout,
-            RequestException,
-            OSError,
-        ),
-        tries=10,
-        delay=5,
-        backoff=3,
-        max_delay=60,
-        logger=logger,
-    )
+    @_retry_transient
     def check_available(self, url: str) -> None:
         """Request the first two bytes; raise MissingProductError if the file is absent."""
         r = _get_session().get(url, headers={"Range": "bytes=0-1"}, timeout=30)
         _raise_for_missing(r, url)
         r.raise_for_status()
 
-    @retry(
-        (
-            ValueError,
-            TypeError,
-            HTTPError,
-            ConnectionError,
-            ChunkedEncodingError,
-            Timeout,
-            RequestException,
-            OSError,
-        ),
-        tries=10,
-        delay=5,
-        backoff=3,
-        max_delay=60,
-        logger=logger,
-    )
     def check_all_available(self, urls) -> None:
         """Check every product of a granule before downloading any of them."""
         for url in urls:
             self.check_available(url)
 
+    @_retry_transient
     def download(
         self, granule_key: str, url: str, product
     ) -> Tuple[str, Tuple[str, Optional[str]]]:
