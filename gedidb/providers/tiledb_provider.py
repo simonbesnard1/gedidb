@@ -97,6 +97,12 @@ class TileDBProvider:
             "vfs.s3.max_parallel_ops": str(max_s3_ops),
             # Larger part size reduces S3 GET count for big spatial tiles
             "vfs.s3.multipart_part_size": str(128 * 1024**2),  # 128 MB
+            # Read batching: TileDB merges nearby reads into requests of at
+            # least vfs.min_batch_size (default 20 MB) and fills the rest with
+            # neighbouring bytes. With small tiles (spatial-first arrays,
+            # capacity 20k) that reads 5-7x more than needed; 1 MB batches made
+            # regional ATL08 queries 5-7x faster.
+            "vfs.min_batch_size": str(1024**2),  # 1 MB
             # Timeouts
             "vfs.s3.connect_timeout_ms": "60000",  # 60 s
             "vfs.s3.request_timeout_ms": "600000",  # 10 min

@@ -162,6 +162,15 @@ def test_constructor_validation_local_and_s3(monkeypatch, tmp_path):
     assert p2.scalar_array_uri == "s3://bucket/array_uri"
     assert isinstance(p2.ctx, DummyCtx)
     assert p2.ctx.cfg["vfs.s3.no_sign_request"] == "true"
+    # small read batches (default 20 MB over-reads small tiles); overridable
+    assert p2.ctx.cfg["vfs.min_batch_size"] == str(1024**2)
+    p3 = TileDBProvider(
+        storage_type="s3",
+        s3_bucket="bucket",
+        url="https://s3.xyz",
+        config_overrides={"vfs.min_batch_size": "4194304"},
+    )
+    assert p3.ctx.cfg["vfs.min_batch_size"] == "4194304"
 
     # s3 missing bucket
     with pytest.raises(ValueError):
