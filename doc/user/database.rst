@@ -87,6 +87,9 @@ The following is an example of the code provided in the `data_config.yml` file:
    - `fragment_size`: Maximum size (in bytes) of a fragment. Example: `200_000_000_000` equals 200GB.
    - `memory_budget`: Total memory budget for consolidation (in bytes). Example: `150000000000` equals 150GB.
    - `memory_budget_var`: Memory allocated for variable-sized attributes (in bytes). Example: `50000000000` equals 50GB.
+   - `workers` (optional, default 1): Number of fragment groups consolidated in parallel. Each group uses up to `memory_budget`, so keep `workers × memory_budget` within the machine's memory.
+
+   Spatial consolidation runs one pass by default: the original write fragments are merged into spatial groups, which turns thousands of small fragments into a few dozen large ones. Fragments that were already consolidated are left as they are, so an interrupted consolidation resumes where it stopped. Further passes (``consolidate_fragments(..., max_passes=N)``) rewrite the whole array again for little extra query speed.
 
 For detailed information, see the `TileDB Consolidation Documentation <https://docs.tiledb.com/main/background/internal-mechanics/consolidation>`_.
 

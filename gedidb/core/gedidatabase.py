@@ -31,6 +31,27 @@ from gedidb.utils.constants import required_products
 logger = logging.getLogger(__name__)
 
 
+def _consolidate_group(uri, ctx, config, fragment_uris, tries: int = 5) -> None:
+    """Consolidate one group, retrying it on its own after a transient error.
+
+    A failed call leaves the group's fragments untouched, so retrying only the
+    group keeps the work already done by the other groups.
+    """
+    for attempt in range(1, tries + 1):
+        try:
+            tiledb.consolidate(uri, ctx=ctx, config=config, fragment_uris=fragment_uris)
+            return
+        except (tiledb.TileDBError, ConnectionError) as e:
+            if attempt == tries:
+                raise
+            wait = min(30 * 2 ** (attempt - 1), 300)
+            logger.warning(
+                f"Consolidating {len(fragment_uris)} fragments failed "
+                f"(try {attempt}/{tries}): {e}; retrying in {wait}s"
+            )
+            time.sleep(wait)
+
+
 class GEDIDatabase:
     """
     Manages creation and operation of global TileDB arrays for GEDI data storage.
@@ -888,33 +909,40 @@ class GEDIDatabase:
         consolidation_type: str = "default",
         parallel_engine: Optional[object] = None,
         max_fragments_per_group: int = 200,
-        max_passes: int = 10,
+        max_passes: int = 1,
     ) -> None:
         """
         Consolidate fragments, metadata, and commit logs.
 
-        For ``consolidation_type="spatial"`` the method runs iteratively until
-        every spatial overlap group contains exactly one fragment (fully
-        converged) or ``max_passes`` is reached.  This handles the case where
-        a large array requires batched consolidation: a first pass reduces 453
-        fragments to ~3, and a second pass merges those 3 into 1 — all
-        automatically.
+        For ``consolidation_type="spatial"`` the first pass merges the original
+        write fragments into spatial groups of at most
+        ``max_fragments_per_group`` fragments. Fragments produced by an earlier
+        consolidation are left as they are, so an interrupted run resumes where
+        it stopped. One pass already turns thousands of small fragments into a
+        few dozen large ones, which gives most of the query speed-up; each
+        further pass rewrites the whole array again, so ``max_passes`` defaults
+        to 1.
+
+        Further passes (``max_passes > 1``) merge the consolidated fragments
+        with ``sm.consolidation.purge_deleted_cells`` switched off: purging
+        again while merging already consolidated fragments re-applies delete
+        conditions to cells written after the delete and drops them.
 
         Parameters
         ----------
         consolidation_type : str
             'default' or 'spatial'.
         parallel_engine : Executor or dask.distributed.Client, optional
-            Parallelisation engine. Defaults to single-threaded.
+            Parallelisation engine for the groups of a pass. Defaults to a
+            thread pool with ``tiledb.consolidation_settings.workers`` threads
+            (default 1). Each group uses up to ``sm.memory_budget``.
         max_fragments_per_group : int
             Maximum fragments per single ``tiledb.consolidate`` call.
             TileDB divides ``sm.memory_budget`` equally across all fragments
             in a call; capping this prevents per-fragment memory exhaustion.
             Default 200.  Set to 0 to disable.
         max_passes : int
-            Safety cap on the number of consolidation passes for the spatial
-            strategy.  Default 10.  In practice convergence happens in 1–3
-            passes.
+            Number of spatial consolidation passes. Default 1.
         """
         if consolidation_type not in {"default", "spatial"}:
             raise ValueError(
@@ -925,36 +953,46 @@ class GEDIDatabase:
         logger.info(
             f"Starting consolidation for {self.array_uri} (type: {consolidation_type})"
         )
+        own_engine = None
+        if parallel_engine is None:
+            workers = int(
+                self.config.get("tiledb", {})
+                .get("consolidation_settings", {})
+                .get("workers", 1)
+            )
+            if workers > 1:
+                own_engine = concurrent.futures.ThreadPoolExecutor(workers)
+                parallel_engine = own_engine
         try:
             if consolidation_type == "default":
                 cons_plan = self._generate_default_consolidation_plan()
                 self._execute_consolidation(cons_plan, parallel_engine)
             else:
                 for pass_num in range(1, max_passes + 1):
+                    first = pass_num == 1
                     cons_plan = SpatialConsolidationPlanner.compute(
                         self.array_uri,
                         self.ctx,
                         max_fragments_per_group=max_fragments_per_group,
+                        include_consolidated=not first,
                     )
-                    # Converged: every group is already a single fragment
-                    if all(node["num_fragments"] == 1 for node in cons_plan):
+                    groups = [n for n in cons_plan if n["num_fragments"] > 1]
+                    if not groups:
                         logger.info(
-                            f"Spatial consolidation converged after "
-                            f"{pass_num - 1} pass(es)."
+                            f"Spatial consolidation: nothing left to merge "
+                            f"after {pass_num - 1} pass(es)."
                         )
                         break
-                    n_groups = len(cons_plan)
-                    n_frags = sum(n["num_fragments"] for n in cons_plan)
+                    n_frags = sum(n["num_fragments"] for n in groups)
                     logger.info(
                         f"Spatial consolidation pass {pass_num}: "
-                        f"{n_frags} fragments → {n_groups} group(s)"
+                        f"{n_frags} fragments → {len(groups)} group(s)"
                     )
-                    self._execute_consolidation(cons_plan, parallel_engine)
-                else:
-                    logger.warning(
-                        f"Spatial consolidation reached max_passes={max_passes} "
-                        "without fully converging."
-                    )
+                    config = None
+                    if not first:
+                        config = tiledb.Config(dict(self.tiledb_config.items()))
+                        config["sm.consolidation.purge_deleted_cells"] = "false"
+                    self._execute_consolidation(groups, parallel_engine, config)
 
             for mode in ("array_meta", "fragment_meta", "commits"):
                 logger.info(f"Consolidating {mode}...")
@@ -964,6 +1002,9 @@ class GEDIDatabase:
         except tiledb.TileDBError as e:
             logger.error(f"Consolidation error: {e}")
             raise
+        finally:
+            if own_engine is not None:
+                own_engine.shutdown()
 
     def _generate_default_consolidation_plan(self):
         with tiledb.open(self.array_uri, "r", ctx=self.ctx) as array:
@@ -973,45 +1014,32 @@ class GEDIDatabase:
             return tiledb.ConsolidationPlan(self.ctx, array, fragment_size)
 
     def _execute_consolidation(
-        self, cons_plan, parallel_engine: Optional[object] = None
+        self,
+        cons_plan,
+        parallel_engine: Optional[object] = None,
+        config: Optional[tiledb.Config] = None,
     ):
         if not cons_plan:
             logger.warning("No consolidation plan generated. Skipping.")
             return
+        config = config if config is not None else self.tiledb_config
+        args = [
+            (self.array_uri, self.ctx, config, plan_["fragment_uris"])
+            for plan_ in cons_plan
+        ]
 
         if isinstance(parallel_engine, concurrent.futures.Executor):
             futures = [
-                parallel_engine.submit(
-                    tiledb.consolidate,
-                    self.array_uri,
-                    ctx=self.ctx,
-                    config=self.tiledb_config,
-                    fragment_uris=plan_["fragment_uris"],
-                )
-                for plan_ in cons_plan
+                parallel_engine.submit(_consolidate_group, *a) for a in args
             ]
             for future in concurrent.futures.as_completed(futures):
                 future.result()
         elif isinstance(parallel_engine, Client):
-            futures = [
-                parallel_engine.submit(
-                    tiledb.consolidate,
-                    self.array_uri,
-                    ctx=self.ctx,
-                    config=self.tiledb_config,
-                    fragment_uris=plan_["fragment_uris"],
-                )
-                for plan_ in cons_plan
-            ]
+            futures = [parallel_engine.submit(_consolidate_group, *a) for a in args]
             parallel_engine.gather(futures)
         else:
-            for plan_ in cons_plan:
-                tiledb.consolidate(
-                    self.array_uri,
-                    ctx=self.ctx,
-                    config=self.tiledb_config,
-                    fragment_uris=plan_["fragment_uris"],
-                )
+            for a in args:
+                _consolidate_group(*a)
 
         self._vacuum("fragments")
 
@@ -1019,7 +1047,11 @@ class GEDIDatabase:
         self.tiledb_config["sm.consolidation.mode"] = mode
         self.tiledb_config["sm.vacuum.mode"] = mode
         tiledb.consolidate(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
-        tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
+        # Commit files are consolidated but not vacuumed: once commit files that
+        # hold delete conditions are vacuumed, TileDB fails every later commit
+        # consolidation ("Cannot get file size of ....del").
+        if mode != "commits":
+            tiledb.vacuum(self.array_uri, ctx=self.ctx, config=self.tiledb_config)
 
     def _vacuum(self, mode: str) -> None:
         self.tiledb_config["sm.vacuum.mode"] = mode

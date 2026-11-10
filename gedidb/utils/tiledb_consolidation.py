@@ -62,6 +62,7 @@ class SpatialConsolidationPlanner:
         ctx: tiledb.Ctx,
         min_group_cells: int = 5_000,
         max_fragments_per_group: int = 200,
+        include_consolidated: bool = True,
     ) -> SpatialConsolidationPlan:
         """
         Generate a spatial consolidation plan for a TileDB array.
@@ -82,6 +83,10 @@ class SpatialConsolidationPlanner:
             TileDB divides ``sm.memory_budget`` equally across all fragments
             in one call; capping the group size prevents per-fragment memory
             exhaustion on large arrays.  Set to 0 to disable the cap.
+        include_consolidated : bool
+            If False, plan only the original write fragments (start timestamp
+            equal to end timestamp) and leave fragments produced by an earlier
+            consolidation as they are.
 
         Returns
         -------
@@ -97,6 +102,8 @@ class SpatialConsolidationPlanner:
             raise
 
         fragments = SpatialConsolidationPlanner._extract_fragments(fragment_info)
+        if not include_consolidated:
+            fragments = [f for f in fragments if not f["consolidated"]]
         if not fragments:
             logger.warning(f"No fragments found for array: {array_uri}")
             return SpatialConsolidationPlan({})
@@ -128,12 +135,16 @@ class SpatialConsolidationPlanner:
         fragments = []
         for fragment in fragment_info:
             nonempty_domain = fragment.nonempty_domain
+            # A write fragment has one timestamp; a consolidated one spans a range.
+            timestamps = getattr(fragment, "timestamp_range", None)
             fragments.append(
                 {
                     "uri": os.path.basename(fragment.uri),
                     "latitude_range": nonempty_domain[0],
                     "longitude_range": nonempty_domain[1],
                     "cell_num": fragment.cell_num,
+                    "consolidated": isinstance(timestamps, tuple)
+                    and timestamps[0] != timestamps[1],
                 }
             )
         return fragments
