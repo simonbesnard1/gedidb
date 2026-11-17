@@ -163,7 +163,8 @@ def test_constructor_validation_local_and_s3(monkeypatch, tmp_path):
     assert isinstance(p2.ctx, DummyCtx)
     assert p2.ctx.cfg["vfs.s3.no_sign_request"] == "true"
     # small read batches (default 20 MB over-reads small tiles); overridable
-    assert p2.ctx.cfg["vfs.min_batch_size"] == str(1024**2)
+    assert p2.ctx.cfg["vfs.min_batch_size"] == str(128 * 1024)
+    assert p2.ctx.cfg["vfs.min_batch_gap"] == "0"
     p3 = TileDBProvider(
         storage_type="s3",
         s3_bucket="bucket",

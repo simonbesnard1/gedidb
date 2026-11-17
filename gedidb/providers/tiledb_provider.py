@@ -98,11 +98,15 @@ class TileDBProvider:
             # Larger part size reduces S3 GET count for big spatial tiles
             "vfs.s3.multipart_part_size": str(128 * 1024**2),  # 128 MB
             # Read batching: TileDB merges nearby reads into requests of at
-            # least vfs.min_batch_size (default 20 MB) and fills the rest with
-            # neighbouring bytes. With small tiles (spatial-first arrays,
-            # capacity 20k) that reads 5-7x more than needed; 1 MB batches made
-            # regional ATL08 queries 5-7x faster.
-            "vfs.min_batch_size": str(1024**2),  # 1 MB
+            # least vfs.min_batch_size (default 20 MB), also across gaps of up
+            # to vfs.min_batch_gap (default 500 KB), and fills them with
+            # unneeded bytes. Benchmarked on S3 (Nov 2026): small batches and
+            # no gap merging made queries 8-11x faster on the spatial-first
+            # ATL08 array (20k-cell tiles) and 2x faster on the GEDI V2 array
+            # (200k-cell Hilbert tiles). Batches between 128 KB and 1 MB
+            # performed alike.
+            "vfs.min_batch_size": str(128 * 1024),  # 128 KB
+            "vfs.min_batch_gap": "0",
             # Timeouts
             "vfs.s3.connect_timeout_ms": "60000",  # 60 s
             "vfs.s3.request_timeout_ms": "600000",  # 10 min
@@ -111,14 +115,14 @@ class TileDBProvider:
             "sm.io_concurrency_level": str(max_reader_threads),
             "sm.num_reader_threads": str(max_reader_threads),
             "sm.num_tiledb_threads": str(max_reader_threads),
-            # Memory budgets — larger values allow TileDB to plan bigger
-            # single-pass reads instead of breaking them into smaller chunks.
-            "sm.memory_budget": str(256 * 1024**2),
-            "sm.memory_budget_var": str(128 * 1024**2),
-            "sm.mem.total_budget": str(1024**3),
-            # Caches
-            "py.init_buffer_bytes": str(1024**2),  # Per attribute buffer
-            "sm.tile_cache_size": str(256 * 1024**2),
+            # Memory: moderate budgets were as fast as 10-16 GB in the same
+            # benchmark and keep queries safe on laptops. Results larger than
+            # the initial buffers are completed in further rounds.
+            "sm.memory_budget": str(2 * 1024**3),  # 2 GB
+            "sm.memory_budget_var": str(1024**3),  # 1 GB
+            "sm.mem.total_budget": str(4 * 1024**3),  # 4 GB
+            "py.init_buffer_bytes": str(64 * 1024**2),  # 64 MB per attribute
+            "sm.tile_cache_size": str(512 * 1024**2),  # 512 MB
             # Misc
             "sm.enable_signal_handlers": "false",
         }
