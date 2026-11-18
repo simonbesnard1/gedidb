@@ -24,7 +24,7 @@ This quick overview demonstrates how to query GEDI data in just a few minutes us
 Quick Start: Query GEDI Data in Minutes
 ========================================
 
-The fastest way to get started with **gediDB** is to query data from the publicly available global TileDB database hosted by the `Global Land Monitoring group <https://www.gfz.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring>`_ at GFZ-Potsdam. This database contains all processed GEDI L2A, L2B, L4A, and L4C data (~20TB) and is optimized for fast spatial and temporal queries.
+The fastest way to get started with **gediDB** is to query data from the publicly available global TileDB database hosted by the `Global Land Monitoring group <https://www.gfz.de/en/section/remote-sensing-and-geoinformatics/topics/global-land-monitoring>`_ at GFZ-Potsdam. This database contains all processed GEDI L2A, L2B, L4A, and L4C data (V3, ~15 TB) and is optimized for fast spatial and temporal queries. The examples below use V3; the V2 database is still available, see :ref:`tiledb_database`.
 
 **Example: Query biomass and canopy height data for Zambia**
 
@@ -35,7 +35,7 @@ The fastest way to get started with **gediDB** is to query data from the publicl
     # Connect to the global database (no credentials needed!)
     provider = gdb.GEDIProvider(
         storage_type='s3',
-        s3_bucket="dog-ext.gedidb.gedi-l2-l4-v002.0", 
+        s3_bucket="dog-ext--gedidb--gedi-l2-l4-v003",  # V3; use "dog-ext.gedidb.gedi-l2-l4-v002.0" for V2
         url="https://s3.gfz.de"
     )
     
@@ -63,7 +63,7 @@ The fastest way to get started with **gediDB** is to query data from the publicl
 
 In just a few lines of code, you:
 
-- Connected to a global database with ~20TB of processed GEDI data
+- Connected to a global database with ~15 TB of processed GEDI data
 - Queried 5 years of biomass and canopy height data for your region
 - Retrieved the data as an **xarray Dataset** ready for analysis
 - **No downloads, no HDF5 parsing, no NASA Earthdata credentials required**
@@ -127,7 +127,7 @@ Why Use gediDB?
 - ✅ **No granule management**: Query by location and time, not by granule IDs
 - ✅ **No HDF5 wrestling**: Data is pre-processed and stored in an optimized format
 - ✅ **No authentication hassles**: The global database is publicly accessible
-- ✅ **Fast queries**: Spatial consolidation makes regional queries much faster
+- ✅ **Fast queries**: Spatial tiling makes regional queries much faster
 - ✅ **Analysis-ready**: Returns data as xarray or pandas DataFrames
 
 **Performance example**: Querying the region above returns ~4x more data in ~5 minutes compared to downloading, processing, and querying locally (~13 minutes).
@@ -160,9 +160,9 @@ The database includes a comprehensive set of GEDI variables across all products 
 - ``rh``: Relative height metrics at 1% intervals (m) - L2A
 - ``cover``: Total canopy cover (%) - L2B
 - ``pai``: Plant Area Index (m²/m²) - L2B
-- ``quality_flag``, ``l2_quality_flag``, ``l4_quality_flag``: Quality indicators
+- ``l2a_quality_flag_rel3``, ``l2b_quality_flag_rel3``, ``l4a_quality_flag_rel3``: Quality indicators (V3; the V2 database uses ``quality_flag``, ``l2_quality_flag`` and ``l4_quality_flag``)
 
-For the complete list of 100+ available variables with descriptions, units, and products, see :ref:`tiledb_database`.
+For the complete list of available variables with descriptions, units, products and the database versions they are in, see :ref:`tiledb_database`.
 
 Next Steps
 ==========

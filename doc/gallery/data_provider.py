@@ -24,7 +24,7 @@ import gedidb as gdb
 # Configure the TileDB storage backend
 storage_type = "local"  # Options: "local" or "s3"
 local_path = "/path/to/processed/gedi/data"
-s3_bucket = None  # Only required if using "s3"
+s3_bucket = None  # Only required if using "s3", e.g. "dog-ext--gedidb--gedi-l2-l4-v003"
 
 # Initialize the GEDIProvider
 provider = gdb.GEDIProvider(
@@ -34,7 +34,7 @@ provider = gdb.GEDIProvider(
 )
 
 # Define variables to retrieve
-variables = ["latitude", "longitude", "rh100", "beam"]
+variables = ["agbd", "rh:98", "beam_type"]  # latitude, longitude and time are always returned
 
 # Define the spatial region of interest (ROI) as a GeoJSON file or GeoDataFrame
 geojson_path = "/path/to/roi.geojson"
