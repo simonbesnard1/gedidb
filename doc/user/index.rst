@@ -11,7 +11,6 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
    :maxdepth: 1
 
    why-gedidb
-   installing
    quick-overview
    
 .. toctree::
@@ -19,7 +18,6 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
    :maxdepth: 1
 
    fundamentals
-   tiledb_database   
 
 .. toctree::
    :caption: Advanced Usage
@@ -27,15 +25,20 @@ Welcome to the **gediDB User Guide**! This guide provides an overview of the cor
 
    database
    tuning-config
-   api
 
 .. toctree::
    :caption: Community
    :maxdepth: 1
 
    faq
-   contributing
    GitHub discussions <https://github.com/simonbesnard1/gedidb/discussions>
+
+Pages in the top navigation bar:
+
+- :doc:`installing`: install gediDB and its optional dependencies
+- :doc:`tiledb_database`: the public GEDI global database (V3 and V2), its variables and how to query it
+- :doc:`api`: reference for all classes and functions
+- :doc:`contributing`: how to contribute to gediDB
 
 .. tip::
    Make sure to check the :ref:`faq` section if you encounter any issues while using gediDB!

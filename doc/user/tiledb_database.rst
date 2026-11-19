@@ -447,14 +447,16 @@ Query performance
 
 Query time scales with the spatial extent of the bounding box. The benchmark was run on a Linux server with dual Intel® Xeon® E5-2643 v4 CPUs (12 cores, 24 threads) and 503 GB RAM, querying data stored on a Ceph object storage cluster (Quincy) comprising 18× DELL R7515 nodes, each equipped with 11-18× 18-20 TB data drives and 1× 1.6 TB NVMe for metadata.
 
-The figure below was produced with the V2 database. It shows wall-clock query time (and time per km²) as a function of bounding box area for 20 square bounding boxes of increasing size (0.5°-40° side length), all centred on central Europe (51°N, 10°E) and queried over a fixed one-year window (2020). Each box size was repeated three times and the median time is reported. A global archive query over the same period is included as a reference point.
+The figure below was produced with the V3 database. It shows wall-clock query time (and time per km²) as a function of bounding box area for 20 square bounding boxes of increasing size (0.5°-40° side length), all centred on central Europe (51°N, 10°E), querying ``agbd`` over a fixed one-year window (2020). Each box size was repeated three times with the tile cache disabled, so every run reads from storage as a first query does, and the median time is reported. A global archive query over the same period is included as a reference point.
+
+From about 25 million shots upwards, query time grows in proportion to the number of shots returned, at roughly 5 million shots per second: about 20 s for 100 million shots, about 40 s for the largest box (209 million shots), and about 9 minutes for the global query. Times vary with the load on the storage cluster, and are longer when the network between you and GFZ is slower.
 
 .. figure:: /_static/images/benchmark_query_scaling.png
    :alt: Query time vs bounding box area
    :align: center
    :width: 100%
 
-   **Figure 3**: Query scaling for the GEDI TileDB database. *Left*: absolute wall-clock query time (s) as a function of bounding box area (km²). *Right*: query time per km², a measure of query efficiency — lower values indicate more efficient use of the consolidated fragment structure for larger spatial extents.
+   **Figure 3**: Query scaling for the V3 GEDI TileDB database. *Left*: absolute wall-clock query time (s) as a function of bounding box area (km²). *Right*: query time per km², a measure of query efficiency — lower values indicate that larger queries use the storage more efficiently.
 
 Resources
 ---------
