@@ -1029,9 +1029,7 @@ class GEDIDatabase:
         ]
 
         if isinstance(parallel_engine, concurrent.futures.Executor):
-            futures = [
-                parallel_engine.submit(_consolidate_group, *a) for a in args
-            ]
+            futures = [parallel_engine.submit(_consolidate_group, *a) for a in args]
             for future in concurrent.futures.as_completed(futures):
                 future.result()
         elif isinstance(parallel_engine, Client):

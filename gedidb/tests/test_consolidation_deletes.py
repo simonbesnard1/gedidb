@@ -27,9 +27,15 @@ def _make_array(uri):
         tiledb.Dim("latitude", domain=(-90.0, 90.0), tile=1.0, dtype=np.float64),
         tiledb.Dim("longitude", domain=(-180.0, 180.0), tile=1.0, dtype=np.float64),
     )
-    attrs = [tiledb.Attr("record", dtype=np.int64), tiledb.Attr("value", dtype=np.float32)]
+    attrs = [
+        tiledb.Attr("record", dtype=np.int64),
+        tiledb.Attr("value", dtype=np.float32),
+    ]
     tiledb.Array.create(
-        uri, tiledb.ArraySchema(domain=dom, attrs=attrs, sparse=True, allows_duplicates=True)
+        uri,
+        tiledb.ArraySchema(
+            domain=dom, attrs=attrs, sparse=True, allows_duplicates=True
+        ),
     )
 
 
@@ -71,8 +77,14 @@ def corrected_array(tmp_path):
         a.query(cond="latitude < 0.0").submit()
     half = len(south["record"]) // 2
     for part in (slice(0, half), slice(half, None)):
-        _write(uri, ctx, south["latitude"][part], south["longitude"][part],
-               south["record"][part], np.ones(len(south["record"][part])))
+        _write(
+            uri,
+            ctx,
+            south["latitude"][part],
+            south["longitude"][part],
+            south["record"][part],
+            np.ones(len(south["record"][part])),
+        )
     return uri, ctx, _snapshot(uri, ctx)
 
 
@@ -87,7 +99,9 @@ def test_consolidation_keeps_rewritten_rows(corrected_array, max_passes, workers
     uri, ctx, expected = corrected_array
     assert (expected["value"] == 1).sum() > 0
     db = _database(uri, ctx, workers)
-    db.consolidate_fragments("spatial", max_fragments_per_group=2, max_passes=max_passes)
+    db.consolidate_fragments(
+        "spatial", max_fragments_per_group=2, max_passes=max_passes
+    )
     _assert_same(expected, _snapshot(uri, ctx))
     assert len(tiledb.FragmentInfoList(uri, ctx=ctx)) < 10
 
@@ -99,12 +113,18 @@ def test_rerun_resumes_and_repeats_safely(corrected_array):
     groups = SpatialConsolidationPlanner.compute(
         uri, ctx, max_fragments_per_group=2, include_consolidated=False
     )
-    tiledb.consolidate(uri, ctx=ctx, config=db.tiledb_config,
-                       fragment_uris=next(iter(groups))["fragment_uris"])
+    tiledb.consolidate(
+        uri,
+        ctx=ctx,
+        config=db.tiledb_config,
+        fragment_uris=next(iter(groups))["fragment_uris"],
+    )
     for _ in range(3):  # resume, then repeated runs (commit files included)
         db.consolidate_fragments("spatial", max_fragments_per_group=2)
         _assert_same(expected, _snapshot(uri, ctx))
-    remaining = SpatialConsolidationPlanner.compute(uri, ctx, include_consolidated=False)
+    remaining = SpatialConsolidationPlanner.compute(
+        uri, ctx, include_consolidated=False
+    )
     assert len(remaining) == 0
 
 

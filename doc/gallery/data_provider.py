@@ -33,8 +33,8 @@ provider = gdb.GEDIProvider(
     s3_bucket=s3_bucket,
 )
 
-# Define variables to retrieve
-variables = ["agbd", "rh:98", "beam_type"]  # latitude, longitude and time are always returned
+# Define variables to retrieve (latitude, longitude and time are always returned)
+variables = ["agbd", "rh:98", "beam_type"]
 
 # Define the spatial region of interest (ROI) as a GeoJSON file or GeoDataFrame
 geojson_path = "/path/to/roi.geojson"
