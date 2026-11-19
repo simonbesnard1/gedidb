@@ -196,6 +196,14 @@ html_theme_options = {
 }
 
 
+# Top-level pages without sub-pages: the left "Section Navigation" sidebar
+# would be empty there, so leave it out and give the content the full width.
+html_sidebars = {
+    "user/installing": [],
+    "user/tiledb_database": [],
+    "user/contributing": [],
+}
+
 html_title = "%s v%s Manual" % (project, version)
 html_static_path = ["_static"]
 html_last_updated_fmt = "%b %d, %Y"
